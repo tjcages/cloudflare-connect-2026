@@ -1,0 +1,96 @@
+---
+import "@/styles/globals.css";
+import CtaTexture from "@/components/cta/CtaTexture";
+---
+
+<html data-theme="dark" lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width,initial-scale=1" name="viewport" />
+    <title>CTA shader lab</title>
+  </head>
+  <body class="bg-background-base">
+    <div class="relative overflow-x-clip py-160">
+      <CtaTexture client:only="react" />
+
+      <div class="relative z-20 mx-auto max-w-1200 px-240 text-center">
+        <div class="text-heading-display text-text-base">
+          Build without boundaries
+        </div>
+        <div class="mx-auto mt-16 max-w-480 text-body-large text-text-base">
+          Join thousands of developers who've eliminated infrastructure
+          complexity and deployed globally with Cloudflare.
+        </div>
+        <div class="mt-40 flex-center gap-12">
+          <button
+            class="rounded-full bg-orange-900 p-10 text-label-x-small text-text-inverse"
+            data-cta-primary
+            type="button"
+          >
+            Start building for free
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      class="fixed top-16 left-16 z-50 flex gap-8 rounded-8 bg-darker/56 p-8 text-decorative-small text-text-base"
+    >
+      <span>H hover</span>
+      <span>O leave</span>
+      <span>L loop</span>
+      <span id="cta-lab-state">idle</span>
+    </div>
+
+    <script is:inline>
+      const primary = () => document.querySelector("[data-cta-primary]");
+      const label = document.getElementById("cta-lab-state");
+
+      const at = (inside) => {
+        const el = primary();
+        if (!el) return;
+        const r = el.getBoundingClientRect();
+        window.dispatchEvent(
+          new PointerEvent("pointermove", {
+            clientX: r.left + r.width / 2,
+            clientY: r.top + r.height / 2,
+            bubbles: true,
+          })
+        );
+        el.dispatchEvent(
+          new PointerEvent(inside ? "pointerenter" : "pointerleave")
+        );
+        label.textContent = inside ? "hover" : "leave";
+      };
+
+      let loop = 0;
+      window.ctaLab = {
+        hover: () => at(true),
+        leave: () => at(false),
+        loop: (onMs = 2500, offMs = 3500) => {
+          clearInterval(loop);
+          let on = false;
+          const tick = () => {
+            on = !on;
+            at(on);
+            clearInterval(loop);
+            loop = setInterval(tick, on ? onMs : offMs);
+          };
+          tick();
+        },
+        stop: () => {
+          clearInterval(loop);
+          loop = 0;
+          label.textContent = "stopped";
+        },
+      };
+
+      addEventListener("keydown", (e) => {
+        if (e.key === "h") window.ctaLab.hover();
+        if (e.key === "o") window.ctaLab.leave();
+        if (e.key === "l") window.ctaLab.loop();
+        if (e.key === "s") window.ctaLab.stop();
+      });
+    </script>
+  </body>
+</html>

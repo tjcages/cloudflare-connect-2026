@@ -1,0 +1,116 @@
+---
+import type { IProductsBox } from "../box/types";
+import {
+  capFade,
+  capTransform,
+  scoopCaretPath,
+} from "../../ui/utils/caret-path";
+import { buildConnections, resolveAnchors } from "./utils/geometry";
+import { connectorPath } from "@/components/_animations/shared/snake-pulse/geometry";
+
+interface Props {
+  boxes: IProductsBox[];
+}
+
+const { boxes } = Astro.props;
+
+const CAP_PATH = scoopCaretPath();
+
+type ConnectorEndpoint = {
+  anchor: { x: number; y: number; side: "left" | "right" };
+  color: IProductsBox["color"];
+  boxId: string;
+};
+
+const connectors = buildConnections(boxes).map(({ source, target }) => {
+  const { from, to } = resolveAnchors(source, target);
+  const ends: ConnectorEndpoint[] = [
+    { anchor: from, color: source.color, boxId: source.id },
+    { anchor: to, color: target.color, boxId: target.id },
+  ];
+  return { d: connectorPath(from, to), ends };
+});
+
+const fades = connectors.flatMap((connector, i) =>
+  connector.ends.map((end, j) => {
+    const { x1, x2 } = capFade(end.anchor.x, end.anchor.side);
+    return {
+      id: `connector-fade-${i}-${j}`,
+      x1,
+      x2,
+      y: end.anchor.y,
+      color: end.color,
+      boxId: end.boxId,
+    };
+  })
+);
+---
+
+<svg
+  aria-hidden="true"
+  class="pointer-events-none absolute inset-0 size-full overflow-visible"
+  fill="none"
+>
+  <defs>
+    {fades.map((fade) => (
+      <linearGradient
+        data-box={fade.boxId}
+        gradientUnits="userSpaceOnUse"
+        id={fade.id}
+        style={{
+          "--box-active-100": `var(--color-chips-background-${fade.color})`,
+        }}
+        x1={fade.x1}
+        x2={fade.x2}
+        y1={fade.y}
+        y2={fade.y}
+      >
+        <stop offset="0" stop-color="var(--box-color-100)" />
+        <stop offset="1" stop-color="var(--box-color-100)" stop-opacity="0" />
+      </linearGradient>
+    ))}
+  </defs>
+
+  {connectors.map((connector) => (
+    <path
+      d={connector.d}
+      stroke="var(--color-background-base)"
+      stroke-linecap="round"
+      stroke-width="12"
+    />
+  ))}
+
+  {connectors.map((connector) => (
+    <path
+      d={connector.d}
+      stroke="var(--color-border-default)"
+      stroke-linecap="round"
+      stroke-width="1"
+    />
+  ))}
+
+  {fades.map((fade) => (
+    <line
+      stroke={`url(#${fade.id})`}
+      stroke-width="1"
+      x1={fade.x1}
+      x2={fade.x2}
+      y1={fade.y}
+      y2={fade.y}
+    />
+  ))}
+
+  {connectors.flatMap((connector) =>
+    connector.ends.map((end) => (
+      <path
+        class="fill-(--box-color-100) transition-colors"
+        d={CAP_PATH}
+        data-box={end.boxId}
+        style={{
+          "--box-active-100": `var(--color-chips-background-${end.color})`,
+        }}
+        transform={capTransform(end.anchor.x, end.anchor.y, end.anchor.side)}
+      />
+    ))
+  )}
+</svg>

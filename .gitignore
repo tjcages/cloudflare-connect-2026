@@ -1,6 +1,11 @@
 node_modules
 package-lock.json
 dist
+!packages/connect-twizzler/dist/
+!packages/connect-twizzler/dist/**
+!packages/panels/dist/
+!packages/panels/dist/**
+.astro
 .DS_Store
 *.tsbuildinfo
 .vercel
@@ -10,3 +15,11 @@ dist
 # playwright
 test-results/
 playwright-report/
+
+# generated Connect site files
+apps/site/src/components/icon/icons.gen.d.ts
+apps/site/src/components/icon/icons.gen.ambient.d.ts
+apps/site/src/components/_animations/products/lottie-svg/lottie-svg.gen.ts
+apps/site/worker-configuration.d.ts
+apps/site/dev/commands/compressor/.compressor-metadata.json
+apps/site/dev/commands/compressor/data/

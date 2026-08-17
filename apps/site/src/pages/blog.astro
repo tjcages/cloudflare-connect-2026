@@ -1,0 +1,96 @@
+---
+import BlogHeader from "@/components/_pages/blog/BlogHeader.astro";
+import CustomerStories from "@/components/_pages/blog/CustomerStories.astro";
+import { POSTS, TAGS, tagsOf } from "@/components/_pages/blog/data";
+import FeaturedBlock from "@/components/_pages/blog/FeaturedBlock.astro";
+import FilterBar from "@/components/_pages/blog/FilterBar";
+import FilterBarArchive from "@/components/_pages/blog/FilterBarArchive.astro";
+import FilterBarResults from "@/components/_pages/blog/FilterBarResults.astro";
+import PostGrid from "@/components/_pages/blog/PostGrid.astro";
+import Press from "@/components/_pages/blog/Press.astro";
+import Subscribe from "@/components/_pages/blog/Subscribe.astro";
+import {
+  blogDocumentTitle,
+  HOME_ARCHIVE_START,
+} from "@/components/_pages/blog/view";
+import Container from "@/components/Container.astro";
+import Layout from "@/layouts/Layout.astro";
+
+const featured = POSTS[0];
+const side = POSTS.slice(1, 4);
+const feed = POSTS.slice(4, HOME_ARCHIVE_START);
+
+const rows = [0, 3, 6, 9, 12, 15, 18].map((start) =>
+  feed.slice(start, start + 3)
+);
+
+const tags = Object.values(TAGS).filter((tag) => tag.count > 0);
+
+const records = POSTS.map((post) => ({
+  slug: post.slug,
+  text: `${post.title} ${post.excerpt} ${tagsOf(post)
+    .map((tag) => tag.label)
+    .join(" ")}`.toLowerCase(),
+  tags: post.tags,
+}));
+---
+
+<Layout
+  title={blogDocumentTitle(null)}
+  description="Technical deep dives, product updates, and insights from the teams that are helping to build a better Internet."
+>
+  <div data-blog-page>
+    <Container>
+      <div class="relative flex flex-col gap-48 px-80 py-80">
+        <BlogHeader
+          eyebrow="NOW"
+          title="Cloudflare Blog"
+          description="Technical deep dives, product updates, and insights from the teams that are helping to build a better Internet."
+        />
+
+        <FilterBar
+          client:load
+          documentTag={null}
+          records={records}
+          tags={tags}
+        />
+      </div>
+
+      <div data-blog-default>
+        <FeaturedBlock featured={featured} side={side} />
+      </div>
+
+      <FilterBarResults />
+    </Container>
+
+    <div data-blog-default>
+      <Container>
+        <div class="relative flex flex-col gap-80 px-40 py-80">
+          {rows.slice(0, 3).map((row) => <PostGrid posts={row} />)}
+        </div>
+      </Container>
+
+      <Container>
+        <Subscribe bordered={false} />
+      </Container>
+
+      <Container>
+        <div class="relative flex flex-col gap-80 px-40 py-80">
+          {rows.slice(3, 5).map((row) => <PostGrid posts={row} />)}
+        </div>
+      </Container>
+
+      <CustomerStories />
+
+      <Press />
+
+      <Container>
+        <div class="relative flex flex-col gap-80 px-40 py-80">
+          {rows.slice(5, 7).map((row) => <PostGrid posts={row} />)}
+        </div>
+      </Container>
+    </div>
+
+    <FilterBarArchive tag={null} />
+  </div>
+</Layout>

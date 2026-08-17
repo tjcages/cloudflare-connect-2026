@@ -1,0 +1,81 @@
+---
+import ArticleBody from "@/components/article/ArticleBody.astro";
+import type { ArticleBlock } from "@/components/article/types";
+import Container from "@/components/Container.astro";
+import type { StoryDetail } from "./data";
+import StorySidebar from "./StorySidebar.astro";
+
+interface Props {
+  story: StoryDetail;
+}
+
+const { story } = Astro.props;
+
+const initials = story.quote.author
+  .split(" ")
+  .map((word) => word[0])
+  .slice(0, 2)
+  .join("");
+---
+
+<Container>
+  <div class="flex justify-between px-120 pt-80 pb-80">
+    <StorySidebar story={story} />
+
+    <article class="flex w-640 flex-col">
+      <figure class="flex flex-col gap-40">
+        <blockquote class="flex flex-col gap-36">
+          {story.quote.text.map((paragraph) => (
+            <p class="text-quote-large text-text-base">{paragraph}</p>
+          ))}
+        </blockquote>
+
+        <figcaption class="flex items-center gap-20">
+          <div
+            class:list={[
+              story.banner.brandClass,
+              "flex-center size-48 rounded-full bg-current/8",
+            ]}
+          >
+            <span class="text-label-x-small">{initials}</span>
+          </div>
+
+          <div class="flex flex-col gap-2">
+            <span class="text-label-large text-text-base">
+              {story.quote.author}
+            </span>
+            <span class="text-body-small text-text-muted">
+              {story.quote.role},
+              <span class="text-text-base">@{story.company}</span>
+            </span>
+          </div>
+        </figcaption>
+      </figure>
+
+      <div class="mt-80 mb-79 h-px w-full bg-border-muted"></div>
+
+      <section class="flex flex-col gap-28">
+        <h2 class="text-blog-h2 text-text-base">{story.summaryHeadline}</h2>
+        <ArticleBody
+          blocks={story.summaryBody.map((text): ArticleBlock => ({
+            type: "p",
+            text,
+          }))}
+          headingScale="section"
+        />
+      </section>
+
+      {story.sections.map((section) => (
+        <>
+          <div class="mt-80 mb-79 h-px w-full bg-border-muted" />
+
+          <section class="flex flex-col gap-28">
+            <h3 class="text-blog-h3 text-text-base">{section.heading}</h3>
+
+            <ArticleBody blocks={section.blocks} headingScale="section" />
+          </section>
+        </>
+      ))}
+    </article>
+  </div>
+</Container>

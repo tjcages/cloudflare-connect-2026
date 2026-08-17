@@ -1,0 +1,17 @@
+diff --git a/dist/v4-C-HWEQJm.mjs b/dist/v4-C-HWEQJm.mjs
+--- a/dist/v4-C-HWEQJm.mjs
++++ b/dist/v4-C-HWEQJm.mjs
+@@ -10729,3 +10729,4 @@ async function loadV4(tailwindcss, stylesheet) {
+-	return { getClassOrder: (classList) => {
+-		return design.getClassOrder(classList);
+-	} };
++	return {
++		canonicalizeCandidates: (classList) => design.canonicalizeCandidates(classList),
++		getClassOrder: (classList) => design.getClassOrder(classList)
++	};
+diff --git a/dist/sorter-BZkvDMjt.mjs b/dist/sorter-BZkvDMjt.mjs
+--- a/dist/sorter-BZkvDMjt.mjs
++++ b/dist/sorter-BZkvDMjt.mjs
+@@ -62,1 +62,2 @@ function sortClassList({ classList, api, removeDuplicates }) {
+ function sortClassList({ classList, api, removeDuplicates }) {
++	if (api.canonicalizeCandidates) classList = api.canonicalizeCandidates(classList);

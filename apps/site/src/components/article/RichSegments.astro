@@ -1,0 +1,35 @@
+---
+import DottedLink from "@/components/DottedLink";
+import type { RichTextSegment } from "./rich-text";
+
+interface Props {
+  segments: RichTextSegment[];
+  plainLinks?: boolean;
+}
+
+const { plainLinks, segments } = Astro.props;
+---
+
+{segments.map((segment) =>
+  segment.type === "link" ? (
+    plainLinks ? (
+      <Astro.self plainLinks segments={segment.children} />
+    ) : (
+      <DottedLink client:visible={{ rootMargin: "200px" }} href={segment.href}>
+        <Astro.self segments={segment.children} />
+      </DottedLink>
+    )
+  ) : segment.type === "code" ? (
+    <code class="text-code-default">{segment.value}</code>
+  ) : segment.type === "strong" ? (
+    <strong class="text-blog-highlight">
+      <Astro.self plainLinks={plainLinks} segments={segment.children} />
+    </strong>
+  ) : segment.type === "em" ? (
+    <em class="italic">
+      <Astro.self plainLinks={plainLinks} segments={segment.children} />
+    </em>
+  ) : (
+    segment.value
+  )
+)}

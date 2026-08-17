@@ -1,0 +1,89 @@
+---
+import CodeTabs from "@/components/code-tabs/CodeTabs.astro";
+import type { DataProps } from "@/components/code-tabs/content/data";
+
+const data: DataProps[] = [
+  {
+    tabTitle: "Define container",
+    title: "Define Container",
+    description:
+      "Define and customize your container with a few lines of code. Bring your own images to use any language with more compute power on Workers.",
+    docsHref: "https://developers.cloudflare.com/containers/container-package/",
+    language: "typescript",
+    fileName: "sandbox.ts",
+    code: `import {
+  Container,
+} from '@cloudflare/containers';
+
+export class CodeSandbox extends Container {
+  // Requests are proxied to this port
+  defaultPort = 8080;
+
+  // Sleep the instance after 15m of inactivity
+  sleepAfter = '15m';
+}`,
+  },
+  {
+    tabTitle: "Integrate with workers",
+    title: "Integrate with Workers",
+    description:
+      "Give every session, tenant, or path its own container instance, then forward the request to it by calling fetch().",
+    docsHref: "https://developers.cloudflare.com/containers/get-started/",
+    language: "typescript",
+    fileName: "index.ts",
+    code: `import {
+  getContainer,
+} from '@cloudflare/containers';
+
+export default {
+  async fetch(request, env) {
+    const { pathname } = new URL(request.url);
+
+    // One instance per path, booted on demand
+    const sandbox = getContainer(
+      env.CODE_SANDBOX,
+      pathname,
+    );
+    return sandbox.fetch(request);
+  },
+} satisfies ExportedHandler<Env>;`,
+  },
+  {
+    tabTitle: "Manage the full container",
+    title: "Manage the full container lifecycle",
+    description:
+      "Set ports, environment variables, and idle timeouts, then hook into onStart and onStop to run Worker code at every stage of the lifecycle.",
+    docsHref:
+      "https://developers.cloudflare.com/containers/container-package/#onstart",
+    language: "typescript",
+    fileName: "container.ts",
+    code: `import {
+  Container,
+} from '@cloudflare/containers';
+
+export class CodeSandbox extends Container {
+  defaultPort = 8080;
+  sleepAfter = '15m';
+  envVars = { NODE_ENV: 'production' };
+
+  override onStart() {
+    console.log('Sandbox started');
+  }
+  override onStop() {
+    console.log('Sandbox shut down');
+  }
+}`,
+  },
+];
+---
+
+<CodeTabs data={data}>
+  <Fragment slot="title">
+    Create and manage containers <br />entirely from your code
+  </Fragment>
+
+  <Fragment slot="description">
+    Create a container in one line of JavaScript, and <br />forward requests to
+    it by calling fetch()
+  </Fragment>
+</CodeTabs>

@@ -1,0 +1,14 @@
+dist
+.wrangler
+.astro
+.claude
+.superpowers
+node_modules
+pnpm-lock.yaml
+worker-configuration.d.ts
+*.lottie*
+src/components/_animations/products/lottie-svg/lottie-svg.gen.ts
+public
+src/components/icon/**/*.d.ts
+**/*.css
+**/*.md

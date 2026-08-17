@@ -1,4 +1,5 @@
 import {
+  startTransition,
   useCallback,
   useEffect,
   useMemo,
@@ -61,27 +62,39 @@ import {
   savePresets,
   type ConfigPreset,
 } from "./presets";
+import { loadActiveClientLayoutName, saveActiveClientLayoutName } from "./client/savedLayouts";
 import {
-  applyClientLayout,
-  listSavedLayouts,
-  loadActiveClientLayoutName,
-  loadBannerLayout,
-  saveActiveClientLayoutName,
-} from "./client/savedLayouts";
-import {
+  CUSTOM_CLIENT_SIZE_ID,
   resolveClientGraphicMode,
   clientGraphicFlags,
   resolveClientSvgExportLayers,
+  sharedClientColorId,
+  sharedClientStyleId,
   withClientRainFxVisibility,
   type ClientGraphicMode,
 } from "./client/clientPresets";
+import { createSharedSizePreset, deleteSharedSizePreset, loadSharedSizePresets } from "./client/sharedSizePresetApi";
+import { createSharedPreset, deleteSharedPreset, loadSharedPresets } from "./client/sharedPresetApi";
+import {
+  SHARED_PRESET_SCHEMA_VERSIONS,
+  mergeSharedStyleLab,
+  sharedStyleLabFromSnapshot,
+  type SharedColorPresetPayload,
+  type SharedPreset,
+} from "./sharedPresets";
+import { sharedSizePresetId, type SharedSizePreset, type SharedSizePresetStatus } from "./sharedSizePresets";
 import { putTextureBlob, deleteTextureBlob, clearTextureBlobs } from "./textureStore";
 import { cellGridToSvg, downloadSvg } from "./export/cellGridToSvg";
 import { downloadEps, svgToEps } from "./export/svgToEps";
 import { resolveSvgExportBackground } from "./export/svgExportBackground";
 import { twizzlerToSvgLayer } from "./export/twizzlerToSvg";
-import { exportLabVideo, formatVideoExportStatusLabel, type LabVideoExportPhase } from "./export/videoExport";
-import { resolveLabVideoExportLayers } from "./export/resolveLabVideoExportLayers";
+import {
+  exportLabVideo,
+  formatVideoExportStatusLabel,
+  resolveRealtimeVideoExportProfile,
+  type LabVideoExportPhase,
+} from "./export/videoExport";
+import type { LabVideoLayer } from "./export/videoCompositor";
 import { CONTROL_DRAWER_IDS, saveControlDrawerOpen, saveControlDrawerSnapshot } from "./controls/drawerState";
 import { DEFAULT_LAB_ENGINE_CONFIG } from "./defaultLabConfig";
 import {
@@ -115,7 +128,7 @@ import {
 import { createUnderlayIntroController, resolveUnderlayIntroDelayMs } from "./connectShader/underlayIntro";
 import { canvasStackBackgroundCss } from "./canvasStackBackground";
 import { clampPreviewZoom, computeFitPreviewZoom, estimateCanvasViewportSize } from "./canvasFitPreviewZoom";
-import { clearTwizzler, renderTwizzler } from "./twizzler";
+import { advanceTwizzlerAnimationTime, clearTwizzler, renderTwizzler } from "./twizzler";
 import { shouldShowTwizzlerOverlay } from "./twizzlerVisibility";
 import { createTwizzlerMapRenderer, type TwizzlerMapRenderer } from "./twizzlerMapSource";
 import { createCometLogoTextureRenderer, type CometLogoTextureRenderer } from "@necatikcl/stripes-engine";
@@ -142,6 +155,44 @@ import {
   type SurfacePoint,
   type SurfaceWorkspace,
 } from "./surfaceWorkspace";
+import { TimelineEditor, type TimelineLevaStore } from "./components/TimelineEditor";
+import { buildTimelineStoreUpdates } from "./animation/timelineStoreValues";
+import { animationFrameDeltaSeconds, type TimelineValue } from "./animation/timelineModel";
+
+type SharedStylePresetRecord = SharedPreset<"style">;
+type SharedColorPresetRecord = SharedPreset<"color">;
+type SharedCatalogStatus = "loading" | "ready" | "saving" | "deleting" | "error";
+
+function withSharedColors(themed: ThemedEngineConfig, payload: SharedColorPresetPayload): ThemedEngineConfig {
+  const light = normalizeEngineConfig(resolveThemedConfig(themed, "light"));
+  const dark = normalizeEngineConfig(resolveThemedConfig(themed, "dark"));
+  const recolor = (
+    config: EngineConfig,
+    stripeColors: readonly number[] | undefined,
+    backgroundColor: number | null | undefined,
+  ): EngineConfig => ({
+    ...config,
+    stripes: config.stripes.map((stripe, index) => ({
+      ...stripe,
+      color: stripeColors?.[index] ?? stripe.color,
+    })),
+    background:
+      backgroundColor === undefined
+        ? config.background
+        : {
+            ...config.background,
+            transparent: backgroundColor === null,
+            ...(backgroundColor === null ? {} : { color: backgroundColor }),
+          },
+  });
+  const nextLight = recolor(light, payload.stripeColors, payload.backgroundColor);
+  const nextDark = recolor(
+    dark,
+    payload.darkStripeColors ?? payload.stripeColors,
+    payload.darkBackgroundColor === undefined ? payload.backgroundColor : payload.darkBackgroundColor,
+  );
+  return { ...nextLight, dark: diffEngineConfig(nextLight, nextDark) };
+}
 
 function num(params: URLSearchParams, key: string, dflt: number): number {
   const v = params.get(key);
@@ -644,8 +695,10 @@ function LabExportControls({
   settings: LabSettings;
   onSettings: (next: Partial<LabSettings>) => void;
 }) {
+  if (!videoEl) return null;
+
   const videoDuration = videoEl?.duration && Number.isFinite(videoEl.duration) ? videoEl.duration : 0;
-  const setNumber = (key: keyof Pick<LabSettings, "exportStartSec" | "exportDurationSec">, value: string) => {
+  const setNumber = (key: "exportStartSec", value: string) => {
     const parsed = Number(value);
     if (!Number.isFinite(parsed)) return;
     onSettings({ [key]: parsed } as Partial<LabSettings>);
@@ -653,35 +706,19 @@ function LabExportControls({
 
   return (
     <div className="playground-export-controls">
-      {videoEl ? (
-        <>
-          <div className="playground-canvas-size-row-header">
-            <span className="playground-canvas-scale-meta">Source {formatTime(videoDuration)}</span>
-          </div>
-          <div className="playground-canvas-size-inline">
-            <span className="playground-canvas-scale-label">Start second</span>
-            <input
-              className="lab-input"
-              type="number"
-              min={0}
-              max={Math.max(0, videoDuration)}
-              step={0.1}
-              value={settings.exportStartSec}
-              onChange={(e) => setNumber("exportStartSec", e.target.value)}
-            />
-          </div>
-        </>
-      ) : null}
+      <div className="playground-canvas-size-row-header">
+        <span className="playground-canvas-scale-meta">Source {formatTime(videoDuration)}</span>
+      </div>
       <div className="playground-canvas-size-inline">
-        <span className="playground-canvas-scale-label">Video duration</span>
+        <span className="playground-canvas-scale-label">Start second</span>
         <input
           className="lab-input"
           type="number"
-          min={0.1}
-          max={videoEl ? Math.max(0.1, videoDuration) : 3600}
+          min={0}
+          max={Math.max(0, videoDuration)}
           step={0.1}
-          value={settings.exportDurationSec}
-          onChange={(e) => setNumber("exportDurationSec", e.target.value)}
+          value={settings.exportStartSec}
+          onChange={(e) => setNumber("exportStartSec", e.target.value)}
         />
       </div>
     </div>
@@ -804,6 +841,21 @@ type LabInnerProps = {
   onResetSurfaceArea: (id: string) => void;
 };
 
+function sharedSizeControlValues(preset: SharedSizePreset): Record<string, unknown> {
+  const widthPx = preset.unit === "pixels" ? preset.width : Math.round(preset.width * preset.ppi);
+  const heightPx = preset.unit === "pixels" ? preset.height : Math.round(preset.height * preset.ppi);
+  const widthInches = preset.unit === "inches" ? preset.width : preset.width / preset.ppi;
+  const heightInches = preset.unit === "inches" ? preset.height : preset.height / preset.ppi;
+  return {
+    clientSizeUnit: preset.unit,
+    clientCanvasWidth: widthPx,
+    clientCanvasHeight: heightPx,
+    clientCanvasWidthInches: widthInches,
+    clientCanvasHeightInches: heightInches,
+    clientSizePpi: preset.ppi,
+  };
+}
+
 type SurfaceAreaConfigEditorProps = {
   area: SurfaceArea;
   onChange: (id: string, config: ThemedEngineConfig) => void;
@@ -913,12 +965,12 @@ function LabInner({
   const videoElRef = useRef<HTMLVideoElement | null>(null);
   videoElRef.current = videoEl;
   const [sourcePreview, setSourcePreview] = useState<LoadedTextureSource | null>(null);
+  const sourcePreviewRef = useRef(sourcePreview);
+  sourcePreviewRef.current = sourcePreview;
   const [labSettings, setLabSettings] = useState<LabSettings>(() => ({
     ...startupLabSettings,
     canvasScale: DEFAULT_LAB_SETTINGS.canvasScale,
   }));
-  /** Client preview only: Default = curated folders, Advanced = full authoring folders. */
-  const [clientPanelMode, setClientPanelMode] = useState<"default" | "advanced">("default");
   const [textureSourceMode, setTextureSourceMode] = useState<LabTextureSourceMode>(() => labSettings.textureSourceMode);
   const [sourceSize, setSourceSize] = useState<{ w: number; h: number }>(() =>
     expectedSourceSize(labSettings, labSettings.textureSourceMode),
@@ -929,7 +981,9 @@ function LabInner({
   });
   const [shaderSourceError, setShaderSourceError] = useState<string | null>(null);
   const [shaderPresetId, setShaderPresetId] = useState(() => labSettings.shaderPresetId || DEFAULT_SHADER_PRESET_ID);
-  const [shaderPlaying, setShaderPlaying] = useState(true);
+  const [shaderPlaying, setShaderPlaying] = useState(false);
+  const [timelineOpen, setTimelineOpen] = useState(false);
+  const [timelinePlaying, setTimelinePlaying] = useState(false);
   const [previewZoom, setPreviewZoom] = useState(() => labSettings.previewZoom ?? initialFitPreviewZoom(labSettings));
   const [previewZoomReady, setPreviewZoomReady] = useState(false);
   const hasAutoFittedPreviewZoomRef = useRef(false);
@@ -939,6 +993,80 @@ function LabInner({
   const [selectedPreset, setSelectedPreset] = useState(
     () => consumeBootPresetName() ?? (clientMode ? loadActiveClientLayoutName() : null) ?? startupPreset?.name ?? "",
   );
+  const [sharedPresetNotice, setSharedPresetNotice] = useState<{
+    message: string;
+    tone: "success" | "error";
+  } | null>(null);
+  const [sharedStylePresets, setSharedStylePresets] = useState<SharedStylePresetRecord[]>([]);
+  const [sharedStyleStatus, setSharedStyleStatus] = useState<SharedCatalogStatus>(clientMode ? "loading" : "ready");
+  const [sharedColorPresets, setSharedColorPresets] = useState<SharedColorPresetRecord[]>([]);
+  const [sharedColorStatus, setSharedColorStatus] = useState<SharedCatalogStatus>(clientMode ? "loading" : "ready");
+  const [sharedSizePresets, setSharedSizePresets] = useState<SharedSizePreset[]>([]);
+  const [sharedSizeStatus, setSharedSizeStatus] = useState<SharedSizePresetStatus>(clientMode ? "loading" : "ready");
+  const [sharedSizeNotice, setSharedSizeNotice] = useState<string | null>(null);
+  const pendingSharedSizeSelectionRef = useRef<SharedSizePreset | null>(null);
+  const pendingSharedStyleSelectionRef = useRef<SharedStylePresetRecord | null>(null);
+  const pendingSharedColorSelectionRef = useRef<SharedColorPresetRecord | null>(null);
+  const skipSharedStyleApplyRef = useRef<string | null>(null);
+  const skipSharedColorApplyRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!clientMode) return;
+    const controller = new AbortController();
+    setSharedStyleStatus("loading");
+    loadSharedPresets("style", controller.signal)
+      .then((loaded) => {
+        setSharedStylePresets(loaded);
+        setSharedStyleStatus("ready");
+      })
+      .catch((error) => {
+        if (controller.signal.aborted) return;
+        console.warn("Shared styles are unavailable.", error);
+        setSharedStyleStatus("error");
+      });
+    return () => controller.abort();
+  }, [clientMode]);
+  useEffect(() => {
+    if (!clientMode) return;
+    const controller = new AbortController();
+    setSharedColorStatus("loading");
+    loadSharedPresets("color", controller.signal)
+      .then((loaded) => {
+        setSharedColorPresets(loaded);
+        setSharedColorStatus("ready");
+      })
+      .catch((error) => {
+        if (controller.signal.aborted) return;
+        console.warn("Shared colors are unavailable.", error);
+        setSharedColorStatus("error");
+      });
+    return () => controller.abort();
+  }, [clientMode]);
+  useEffect(() => {
+    if (!clientMode) return;
+    const controller = new AbortController();
+    setSharedSizeStatus("loading");
+    loadSharedSizePresets(controller.signal)
+      .then((loaded) => {
+        setSharedSizePresets(loaded);
+        setSharedSizeStatus("ready");
+      })
+      .catch((error) => {
+        if (controller.signal.aborted) return;
+        console.warn("Shared sizes are unavailable.", error);
+        setSharedSizeStatus("error");
+      });
+    return () => controller.abort();
+  }, [clientMode]);
+  useEffect(() => {
+    if (!sharedPresetNotice) return;
+    const timeout = window.setTimeout(() => setSharedPresetNotice(null), 4000);
+    return () => window.clearTimeout(timeout);
+  }, [sharedPresetNotice]);
+  useEffect(() => {
+    if (!sharedSizeNotice) return;
+    const timeout = window.setTimeout(() => setSharedSizeNotice(null), 4000);
+    return () => window.clearTimeout(timeout);
+  }, [sharedSizeNotice]);
   const sourceSizeRef = useRef(sourceSize);
   sourceSizeRef.current = sourceSize;
   const textureSourceModeRef = useRef(textureSourceMode);
@@ -955,14 +1083,16 @@ function LabInner({
   const shaderPlayingRef = useRef(shaderPlaying);
   shaderPlayingRef.current = shaderPlaying;
   const shaderTimeSecRef = useRef(0);
-  const [twizzlerPlaying, setTwizzlerPlaying] = useState(true);
+  const [twizzlerPlaying, setTwizzlerPlaying] = useState(false);
   const twizzlerPlayingRef = useRef(twizzlerPlaying);
   twizzlerPlayingRef.current = twizzlerPlaying;
   const twizzlerTimeSecRef = useRef(0);
+  const twizzlerAnimationTimeSecRef = useRef(0);
   const shaderLastTickMsRef = useRef(performance.now());
   const shaderMouseRef = useRef({ x: 0, y: 0, down: false, hovered: false });
   const labSettingsRef = useRef(labSettings);
   labSettingsRef.current = labSettings;
+  const skipPersistenceDuringReloadRef = useRef(false);
   const surfaceWorkspaceRef = useRef(surfaceWorkspace);
   surfaceWorkspaceRef.current = surfaceWorkspace;
   const [drawingSurfaceAreaKind, setDrawingSurfaceAreaKind] = useState<SurfaceAreaKind | null>(null);
@@ -1077,6 +1207,15 @@ function LabInner({
   const manual = useMemo(() => new URLSearchParams(window.location.search).get("manual") === "1", []);
   const shell = hud && !manual;
 
+  const setTimelinePlayback = useCallback((next: boolean) => {
+    shaderPlayingRef.current = next;
+    twizzlerPlayingRef.current = next;
+    shaderLastTickMsRef.current = performance.now();
+    setShaderPlaying(next);
+    setTwizzlerPlaying(next);
+    setTimelinePlaying(next);
+  }, []);
+
   const onReplayRef = useRef<() => void>(() => {});
   const onReplay = useCallback(() => onReplayRef.current(), []);
   const onExportSvgRef = useRef<() => void>(() => {});
@@ -1086,7 +1225,8 @@ function LabInner({
   const onExportVideoRef = useRef<() => void>(() => {});
   const onExportVideo = useCallback(() => onExportVideoRef.current(), []);
   const exportingVideoRef = useRef(false);
-  const videoExportAbortRef = useRef<AbortController | null>(null);
+  const videoExportCaptureActiveRef = useRef(false);
+  const videoExportStopRef = useRef<AbortController | null>(null);
   const videoExportGenerationRef = useRef(0);
   const [videoExportPhase, setVideoExportPhase] = useState<LabVideoExportPhase>("idle");
   const [videoExportRecording, setVideoExportRecording] = useState({ elapsedMs: 0, totalMs: 0 });
@@ -1104,8 +1244,9 @@ function LabInner({
     setTranscodePercent: setVideoExportTranscodePercent,
     setTranscodeElapsed: setVideoExportTranscodeElapsedMs,
   };
-  // Disabled from first click through the brief done/failed flash, until idle again.
   const videoExportBusy = videoExportPhase !== "idle";
+  const videoExportRecordingActive = videoExportPhase === "recording";
+  const videoExportButtonDisabled = videoExportBusy && !videoExportRecordingActive;
   const videoExportLabel = formatVideoExportStatusLabel(
     videoExportPhase,
     videoExportRecording,
@@ -1118,13 +1259,10 @@ function LabInner({
       isPlaying: () => shaderPlayingRef.current,
       toggle: () => {
         const next = !shaderPlayingRef.current;
-        shaderPlayingRef.current = next;
-        shaderLastTickMsRef.current = performance.now();
-        setShaderPlaying(next);
+        setTimelinePlayback(next);
       },
       step: (seconds) => {
-        shaderPlayingRef.current = false;
-        setShaderPlaying(false);
+        setTimelinePlayback(false);
         shaderTimeSecRef.current = steppedTransportTime(shaderTimeSecRef.current, seconds);
         shaderLastTickMsRef.current = performance.now();
       },
@@ -1133,7 +1271,7 @@ function LabInner({
         shaderLastTickMsRef.current = performance.now();
       },
     }),
-    [],
+    [setTimelinePlayback],
   );
   const twizzlerTransport = useMemo<TimeTransportController>(
     () => ({
@@ -1141,19 +1279,19 @@ function LabInner({
       isPlaying: () => twizzlerPlayingRef.current,
       toggle: () => {
         const next = !twizzlerPlayingRef.current;
-        twizzlerPlayingRef.current = next;
-        setTwizzlerPlaying(next);
+        setTimelinePlayback(next);
       },
       step: (seconds) => {
-        twizzlerPlayingRef.current = false;
-        setTwizzlerPlaying(false);
+        setTimelinePlayback(false);
         twizzlerTimeSecRef.current = steppedTransportTime(twizzlerTimeSecRef.current, seconds);
+        twizzlerAnimationTimeSecRef.current = twizzlerTimeSecRef.current * Math.max(0, twizzlerRef.current.speed);
       },
       reset: () => {
         twizzlerTimeSecRef.current = 0;
+        twizzlerAnimationTimeSecRef.current = 0;
       },
     }),
-    [],
+    [setTimelinePlayback],
   );
   const onClientGraphicPersistRef = useRef<(mode: ClientGraphicMode) => void>(() => {});
   const {
@@ -1175,11 +1313,12 @@ function LabInner({
     shaderView,
     initialThemed,
     clientCanvasSize,
+    clientSizeId,
     clientGraphicMode,
     clientRainShaderPreset,
   } = useEngineControls(onReplay, {
     showShaderCamera:
-      (!clientMode || clientPanelMode === "advanced") &&
+      !clientMode &&
       textureSourceMode === "shader" &&
       !isTwizzlerMapShaderPreset(shaderPresetId) &&
       !isCometLogoShaderPreset(shaderPresetId),
@@ -1190,12 +1329,25 @@ function LabInner({
     // Client boot wrote the active layout into storage — let controls load it.
     initialConfig: clientMode ? undefined : initialConfig,
     clientMode,
-    clientPanelMode: clientMode ? clientPanelMode : undefined,
     onClientGraphicModeChange: clientMode
       ? (mode) => {
           onClientGraphicPersistRef.current(mode);
         }
       : undefined,
+    sharedSizePresets,
+    sharedSizeStatus,
+    onSaveSharedSize: (name) => void handleSaveSharedSize(name),
+    onDeleteSharedSize: (id) => void handleDeleteSharedSize(id),
+    sharedStylePresets,
+    sharedStyleStatus,
+    onSaveSharedStyle: () => void handleSaveSharedStyle(),
+    onApplySharedStyle: (id) => handleApplySharedStyle(id),
+    onDeleteSharedStyle: (id) => void handleDeleteSharedStyle(id),
+    sharedColorPresets,
+    sharedColorStatus,
+    onSaveSharedColor: () => void handleSaveSharedColor(),
+    onApplySharedColor: (id) => handleApplySharedColor(id),
+    onDeleteSharedColor: (id) => void handleDeleteSharedColor(id),
   });
   const controlsRef = useRef(controls);
   controlsRef.current = controls;
@@ -1211,6 +1363,55 @@ function LabInner({
   cometLogoRef.current = cometLogo;
   const setControlRef = useRef(setControl);
   setControlRef.current = setControl;
+  const timelineStores = useMemo(
+    () => [textureStore as TimelineLevaStore, shaderStore as TimelineLevaStore],
+    [shaderStore, textureStore],
+  );
+  const applyTimelineValues = useCallback(
+    (values: Record<string, TimelineValue>) => {
+      const applyValues = () => {
+        for (const store of timelineStores) {
+          const data = store.getData();
+          const updates = buildTimelineStoreUpdates(values, data);
+          if (Object.keys(updates).length > 0) store.set(updates, false);
+        }
+      };
+      if (videoExportCaptureActiveRef.current) applyValues();
+      else startTransition(applyValues);
+    },
+    [timelineStores],
+  );
+  const syncTimelineTime = useCallback((seconds: number) => {
+    shaderTimeSecRef.current = seconds;
+    twizzlerTimeSecRef.current = seconds;
+    twizzlerAnimationTimeSecRef.current = seconds * Math.max(0, twizzlerRef.current.speed);
+    shaderLastTickMsRef.current = performance.now();
+  }, []);
+  useEffect(() => {
+    const stylePreset = pendingSharedStyleSelectionRef.current;
+    if (stylePreset && sharedStylePresets.some((entry) => entry.id === stylePreset.id)) {
+      setControlRef.current({ clientLayout: sharedClientStyleId(stylePreset.id) });
+      pendingSharedStyleSelectionRef.current = null;
+    }
+    const colorPreset = pendingSharedColorSelectionRef.current;
+    if (colorPreset && sharedColorPresets.some((entry) => entry.id === colorPreset.id)) {
+      setControlRef.current({ clientColor: sharedClientColorId(colorPreset.id) });
+      pendingSharedColorSelectionRef.current = null;
+    }
+    const preset = pendingSharedSizeSelectionRef.current;
+    if (preset && sharedSizePresets.some((entry) => entry.id === preset.id)) {
+      setControlRef.current({
+        clientSize: sharedSizePresetId(preset.id),
+        ...sharedSizeControlValues(preset),
+      });
+      pendingSharedSizeSelectionRef.current = null;
+      return;
+    }
+    if (!clientMode || sharedSizeStatus === "loading" || !clientSizeId) return;
+    // Leva keeps a select's previous display label when options are replaced.
+    // Reapply the resolved value after loading so the visible label matches the native selection.
+    setControlRef.current({ clientSize: clientSizeId });
+  }, [clientMode, clientSizeId, sharedColorPresets, sharedSizePresets, sharedSizeStatus, sharedStylePresets]);
   const textureIdRef = useRef(textureId);
   textureIdRef.current = textureId;
   const lastSavedConfigJsonRef = useRef<string | null>(null);
@@ -1220,22 +1421,27 @@ function LabInner({
   const getLabSettingsSnapshotRef = useRef(getLabSettingsSnapshot);
   getLabSettingsSnapshotRef.current = getLabSettingsSnapshot;
 
+  const clientCanvasSizeWidth = clientCanvasSize?.width ?? null;
+  const clientCanvasSizeHeight = clientCanvasSize?.height ?? null;
   useEffect(() => {
-    if (!clientMode || !clientCanvasSize) return;
-    const { width, height } = clientCanvasSize;
+    if (!clientMode || clientCanvasSizeWidth === null || clientCanvasSizeHeight === null) return;
     setLabSettings((current) => {
-      if (current.canvasMode === "manual" && current.canvasWidth === width && current.canvasHeight === height) {
+      if (
+        current.canvasMode === "manual" &&
+        current.canvasWidth === clientCanvasSizeWidth &&
+        current.canvasHeight === clientCanvasSizeHeight
+      ) {
         return current;
       }
       return {
         ...current,
         canvasMode: "manual",
-        canvasWidth: width,
-        canvasHeight: height,
+        canvasWidth: clientCanvasSizeWidth,
+        canvasHeight: clientCanvasSizeHeight,
         canvasAspectLocked: true,
       };
     });
-  }, [clientCanvasSize, clientMode]);
+  }, [clientCanvasSizeHeight, clientCanvasSizeWidth, clientMode]);
 
   const editTheme = initialThemed.editTheme;
   const lightBaseRef = useRef<Partial<EngineConfig>>(initialThemed.lightBase);
@@ -1279,7 +1485,10 @@ function LabInner({
   }, []);
 
   useEffect(() => {
-    const onHide = () => flushLiveLabPersistence();
+    const onHide = () => {
+      if (skipPersistenceDuringReloadRef.current) return;
+      flushLiveLabPersistence();
+    };
     window.addEventListener("pagehide", onHide);
     window.addEventListener("beforeunload", onHide);
     return () => {
@@ -1299,6 +1508,7 @@ function LabInner({
       textureSourceMode: textureSourceModeRef.current,
       shaderSourceCode: shaderSourceCodeRef.current,
       shaderPresetId: shaderPresetIdRef.current,
+      clientGraphicMode: mode,
       twizzlerEnabled: flags.twizzlerEnabled,
       twizzler: twizzlerSettings,
       twizzlerMap: twizzlerMapRef.current,
@@ -1412,9 +1622,9 @@ function LabInner({
         const renderer = twizzlerMapRendererRef.current;
         if (!renderer) return;
         renderer.render(
-          twizzlerTimeSecRef.current,
+          twizzlerAnimationTimeSecRef.current,
           shaderTimeSecRef.current,
-          twizzlerRef.current,
+          { ...twizzlerRef.current, speed: 1 },
           twizzlerMapRef.current,
         );
         engine.setSource(renderer.canvas);
@@ -1639,7 +1849,12 @@ function LabInner({
     } else {
       renderer.resize(shaderBaseSize.w, shaderBaseSize.h);
     }
-    renderer.render(twizzlerTimeSecRef.current, shaderTimeSecRef.current, twizzlerRef.current, twizzlerMapRef.current);
+    renderer.render(
+      twizzlerAnimationTimeSecRef.current,
+      shaderTimeSecRef.current,
+      { ...twizzlerRef.current, speed: 1 },
+      twizzlerMapRef.current,
+    );
     setShaderSourceError(null);
     engine.setSource(renderer.canvas);
     setVideoEl(null);
@@ -1783,9 +1998,10 @@ function LabInner({
           canvas.height,
           canvasWidthPx,
           canvasHeightPx,
-          twizzlerTimeSecRef.current,
+          twizzlerAnimationTimeSecRef.current,
           {
             ...twizzlerRef.current,
+            speed: 1,
             backgroundColor: stageBackgroundHex,
           },
         );
@@ -1878,61 +2094,84 @@ function LabInner({
     };
 
     onExportVideoRef.current = () => {
-      const engineCanvas = canvasRef.current;
-      if (!engineCanvas) return;
-      if (exportingVideoRef.current) return;
-      const video = videoElRef.current;
-      const requestedStart = labSettingsRef.current.exportStartSec;
-      const requestedDuration = labSettingsRef.current.exportDurationSec;
-      const videoDuration = video?.duration && Number.isFinite(video.duration) ? video.duration : 0;
-      const exportStartSec = video ? Math.min(requestedStart, Math.max(0, videoDuration - 0.1)) : 0;
-      const durationSec = video
-        ? Math.max(0.1, Math.min(requestedDuration, Math.max(0.1, videoDuration - exportStartSec)))
-        : requestedDuration;
-      if (durationSec > 60 && !window.confirm(`Export ~${Math.round(durationSec)}s of video? This may take a while.`)) {
+      if (exportingVideoRef.current) {
+        const stopController = videoExportStopRef.current;
+        if (stopController && !stopController.signal.aborted) {
+          videoExportCaptureActiveRef.current = false;
+          videoExportUiRef.current.setPhase("finishing");
+          stopController.abort();
+        }
         return;
       }
-      const controller = new AbortController();
-      videoExportAbortRef.current = controller;
+      const engineCanvas = canvasRef.current;
+      if (!engineCanvas) return;
+      const video = videoElRef.current;
+      const requestedStart = labSettingsRef.current.exportStartSec;
+      const videoDuration = video?.duration && Number.isFinite(video.duration) ? video.duration : 0;
+      const exportStartSec = video ? Math.min(requestedStart, Math.max(0, videoDuration - 0.1)) : 0;
+      const stopController = new AbortController();
+      videoExportStopRef.current = stopController;
       exportingVideoRef.current = true;
+      videoExportCaptureActiveRef.current = true;
       const exportGeneration = ++videoExportGenerationRef.current;
       const ui = videoExportUiRef.current;
       let transcodeStartedAt = 0;
       ui.setPhase("recording");
-      ui.setRecording({ elapsedMs: 0, totalMs: durationSec * 1000 });
+      ui.setRecording({ elapsedMs: 0, totalMs: 0 });
       ui.setTranscodePercent(null);
       ui.setTranscodeElapsed(0);
-      const framesEnabled =
-        controlsRef.current.frames.enabled && (!clientMode || controlsRef.current.sparkle.gaps.enabled);
-      const layers =
-        surfaceWorkspaceRef.current.mode === "partial"
-          ? {
-              canvas: partialCompositeCanvasRef.current ?? engineCanvas,
-              underlayCanvases: undefined as HTMLCanvasElement[] | undefined,
-              overlayCanvases: undefined as HTMLCanvasElement[] | undefined,
-            }
-          : resolveLabVideoExportLayers({
-              engineCanvas,
-              twizzlerCanvas: twizzlerCanvasRef.current,
-              framesCanvas: framesCanvasRef.current,
-              twizzlerVisible: shouldShowTwizzlerOverlay(textureSourceModeRef.current, twizzlerRef.current.enabled),
-              // Match showRainRectOverlay: client Rain off hides the opaque engine pass.
-              rainVisible: !clientMode || controlsRef.current.sparkle.gaps.enabled,
-              framesEnabled,
-            });
+      const partialMode = surfaceWorkspaceRef.current.mode === "partial";
+      const exportCanvas = partialMode ? (partialCompositeCanvasRef.current ?? engineCanvas) : engineCanvas;
+      const rainVisible = () => !clientMode || controlsRef.current.sparkle.gaps.enabled;
+      const underlayLayers: LabVideoLayer[] | undefined = partialMode
+        ? undefined
+        : [
+            {
+              source: () => connectUnderlayHostRef.current?.querySelector("canvas") ?? null,
+              isVisible: () =>
+                textureSourceModeRef.current === "shader" &&
+                isSpiralShaderPreset(shaderPresetIdRef.current) &&
+                labSettingsRef.current.connectGradientUnderlay,
+            },
+            {
+              source: () => sourcePreviewRef.current?.source ?? null,
+              isVisible: () => backgroundSourceOpacityRef.current > 0.001,
+              opacity: () => backgroundSourceOpacityRef.current,
+              fit: () => {
+                const fit = controlsRef.current.transform.fit;
+                return fit === "contain" || fit === "width" || fit === "height" ? fit : "cover";
+              },
+            },
+            {
+              source: () => twizzlerCanvasRef.current,
+              isVisible: () => shouldShowTwizzlerOverlay(textureSourceModeRef.current, twizzlerRef.current.enabled),
+            },
+          ];
+      const overlayLayers: LabVideoLayer[] | undefined = partialMode
+        ? undefined
+        : [
+            {
+              source: () => framesCanvasRef.current,
+              isVisible: () => rainVisible() && controlsRef.current.frames.enabled,
+            },
+          ];
+      const realtimeProfile = resolveRealtimeVideoExportProfile(exportCanvas.width, exportCanvas.height);
       void exportLabVideo({
-        canvas: layers.canvas,
+        canvas: exportCanvas,
         sourceKind: video ? "video" : "image",
         video: video ?? undefined,
-        backgroundColor: controlsRef.current.background.transparent ? undefined : controlsRef.current.background.color,
-        underlayCanvases: layers.underlayCanvases,
-        overlayCanvases: layers.overlayCanvases,
+        getBackground: () => controlsRef.current.background,
+        isSourceVisible: partialMode ? undefined : rainVisible,
+        underlayLayers,
+        overlayLayers,
+        fps: realtimeProfile.fps,
+        videoBitsPerSecond: realtimeProfile.videoBitsPerSecond,
         startTimeSec: exportStartSec,
-        durationSec,
-        signal: controller.signal,
+        stopSignal: stopController.signal,
         onPhase: (phase) => {
           if (videoExportGenerationRef.current !== exportGeneration) return;
           ui.setPhase(phase);
+          videoExportCaptureActiveRef.current = phase === "recording";
           if ((phase === "loading-encoder" || phase === "transcoding") && transcodeStartedAt === 0) {
             transcodeStartedAt = performance.now();
           }
@@ -1956,7 +2195,8 @@ function LabInner({
         })
         .finally(() => {
           if (videoExportGenerationRef.current === exportGeneration) {
-            videoExportAbortRef.current = null;
+            videoExportStopRef.current = null;
+            videoExportCaptureActiveRef.current = false;
           }
           window.setTimeout(() => {
             if (videoExportGenerationRef.current !== exportGeneration) return;
@@ -2074,11 +2314,18 @@ function LabInner({
       let frameGroups: FrameGroup[] = [];
       const tick = () => {
         const now = performance.now();
-        const deltaSec = Math.max(0, Math.min(0.1, (now - shaderLastTickMsRef.current) / 1000));
+        const deltaSec = animationFrameDeltaSeconds(shaderLastTickMsRef.current, now);
         shaderLastTickMsRef.current = now;
         if (textureSourceModeRef.current === "shader") {
           if (shaderPlayingRef.current) shaderTimeSecRef.current += deltaSec;
-          if (twizzlerPlayingRef.current) twizzlerTimeSecRef.current += deltaSec;
+          if (twizzlerPlayingRef.current) {
+            twizzlerTimeSecRef.current += deltaSec;
+            twizzlerAnimationTimeSecRef.current = advanceTwizzlerAnimationTime(
+              twizzlerAnimationTimeSecRef.current,
+              deltaSec,
+              twizzlerRef.current.speed,
+            );
+          }
 
           if (isSpiralShaderPreset(shaderPresetIdRef.current)) {
             const connectRenderer = connectRendererRef.current;
@@ -2115,9 +2362,9 @@ function LabInner({
             const renderer = twizzlerMapRendererRef.current;
             if (renderer) {
               renderer.render(
-                twizzlerTimeSecRef.current,
+                twizzlerAnimationTimeSecRef.current,
                 shaderTimeSecRef.current,
-                twizzlerRef.current,
+                { ...twizzlerRef.current, speed: 1 },
                 twizzlerMapRef.current,
               );
               engine.updateSourceFrame(renderer.canvas);
@@ -2134,26 +2381,28 @@ function LabInner({
           } else {
             const shaderRenderer = shaderRendererRef.current;
             if (shaderRenderer) {
-              if (isTwizzlerSineShaderPreset(shaderPresetIdRef.current)) {
+              const twizzlerSinePreset = isTwizzlerSineShaderPreset(shaderPresetIdRef.current);
+              if (twizzlerSinePreset) {
                 const tw = twizzlerRef.current;
                 shaderRenderer.setUniforms(
-                  twizzlerSineUniforms(tw, {
-                    rotateXDeg: tw.rotateX,
-                    rotateYDeg: tw.rotateY,
-                    rotateZDeg: tw.rotateZ,
-                    panX: tw.panX,
-                    panY: tw.panY,
-                    distance: tw.viewDistance,
-                  }),
+                  twizzlerSineUniforms(
+                    { ...tw, speed: 1 },
+                    {
+                      rotateXDeg: tw.rotateX,
+                      rotateYDeg: tw.rotateY,
+                      rotateZDeg: tw.rotateZ,
+                      panX: tw.panX,
+                      panY: tw.panY,
+                      distance: tw.viewDistance,
+                    },
+                  ),
                 );
               }
               shaderRenderer.render(
-                shaderTimeSecRef.current,
+                twizzlerSinePreset ? twizzlerAnimationTimeSecRef.current : shaderTimeSecRef.current,
                 shaderMouseRef.current,
                 // Twizzler Sine handles XYZ itself with edge-locked X — keep wrapper identity.
-                isTwizzlerSineShaderPreset(shaderPresetIdRef.current)
-                  ? null
-                  : shaderViewFromSettings(labSettingsRef.current),
+                twizzlerSinePreset ? null : shaderViewFromSettings(labSettingsRef.current),
               );
               engine.updateSourceFrame(shaderRenderer.canvas);
               const previewCanvas = shaderPreviewCanvasRef.current;
@@ -2194,8 +2443,8 @@ function LabInner({
                       twizzlerCanvas,
                       outputCanvas.width,
                       outputCanvas.height,
-                      twizzlerTimeSecRef.current,
-                      twWithBackground,
+                      twizzlerAnimationTimeSecRef.current,
+                      { ...twWithBackground, speed: 1 },
                     );
                   } else {
                     twizzlerSineRendererRef.current = sine;
@@ -2205,17 +2454,20 @@ function LabInner({
                 if (sine) {
                   sine.resize(outputCanvas.width, outputCanvas.height);
                   sine.setUniforms(
-                    twizzlerSineUniforms(tw, {
-                      rotateXDeg: tw.rotateX,
-                      rotateYDeg: tw.rotateY,
-                      rotateZDeg: tw.rotateZ,
-                      panX: tw.panX,
-                      panY: tw.panY,
-                      distance: tw.viewDistance,
-                    }),
+                    twizzlerSineUniforms(
+                      { ...tw, speed: 1 },
+                      {
+                        rotateXDeg: tw.rotateX,
+                        rotateYDeg: tw.rotateY,
+                        rotateZDeg: tw.rotateZ,
+                        panX: tw.panX,
+                        panY: tw.panY,
+                        distance: tw.viewDistance,
+                      },
+                    ),
                   );
                   // Identity wrapper view — XYZ is applied inside the exact shader (edge-locked X).
-                  sine.render(twizzlerTimeSecRef.current, undefined, null);
+                  sine.render(twizzlerAnimationTimeSecRef.current, undefined, null);
                   if (twizzlerCanvas.width !== sine.width) twizzlerCanvas.width = sine.width;
                   if (twizzlerCanvas.height !== sine.height) twizzlerCanvas.height = sine.height;
                   const ctx = twizzlerCanvas.getContext("2d");
@@ -2227,8 +2479,8 @@ function LabInner({
                   twizzlerCanvas,
                   outputCanvas.width,
                   outputCanvas.height,
-                  twizzlerTimeSecRef.current,
-                  twWithBackground,
+                  twizzlerAnimationTimeSecRef.current,
+                  { ...twWithBackground, speed: 1 },
                 );
               }
             }
@@ -2375,6 +2627,16 @@ function LabInner({
     setPreviewZoom((current) => (Math.abs(current - next) < 0.001 ? current : next));
     return true;
   }, []);
+
+  useEffect(() => {
+    if (!clientMode || clientCanvasSizeWidth === null || clientCanvasSizeHeight === null) return;
+    const frame = window.requestAnimationFrame(() => {
+      if (!fitPreviewZoomToViewport()) return;
+      centerCanvasViewport();
+      setPreviewZoomReady(true);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [centerCanvasViewport, clientCanvasSizeHeight, clientCanvasSizeWidth, clientMode, fitPreviewZoomToViewport]);
 
   useEffect(() => {
     if (!shell || hasAutoFittedPreviewZoomRef.current) return;
@@ -3074,15 +3336,228 @@ function LabInner({
     if (clientMode) saveActiveClientLayoutName(name);
   }
 
+  async function handleSaveSharedStyle() {
+    if (sharedStyleStatus === "saving" || sharedStyleStatus === "deleting") return;
+    const name = window.prompt("Style name:")?.trim();
+    if (!name) return;
+    const { config, lab } = captureSavedLayoutPayload();
+    setSharedStyleStatus("saving");
+    try {
+      const preset = await createSharedPreset({
+        kind: "style",
+        name,
+        payload: { config, lab: sharedStyleLabFromSnapshot(lab) },
+        schemaVersion: SHARED_PRESET_SCHEMA_VERSIONS.style,
+      });
+      setSharedStylePresets((current) =>
+        [...current.filter((entry) => entry.id !== preset.id), preset].sort((a, b) => a.name.localeCompare(b.name)),
+      );
+      pendingSharedStyleSelectionRef.current = preset;
+      skipSharedStyleApplyRef.current = preset.id;
+      setSharedStyleStatus("ready");
+      setSharedPresetNotice({ message: `Saved style “${preset.name}” for everyone.`, tone: "success" });
+    } catch (error) {
+      setSharedStyleStatus("error");
+      setSharedPresetNotice({
+        message: error instanceof Error ? error.message : "The shared style could not be saved.",
+        tone: "error",
+      });
+    }
+  }
+
+  async function handleSaveSharedColor() {
+    if (sharedColorStatus === "saving" || sharedColorStatus === "deleting") return;
+    const name = window.prompt("Color preset name:")?.trim();
+    if (!name) return;
+    const { config, lab } = captureSavedLayoutPayload();
+    const light = normalizeEngineConfig(resolveThemedConfig(config, "light"));
+    const dark = normalizeEngineConfig(resolveThemedConfig(config, "dark"));
+    const twizzler = lab.twizzler ?? labSettingsRef.current.twizzler;
+    setSharedColorStatus("saving");
+    try {
+      const preset = await createSharedPreset({
+        kind: "color",
+        name,
+        payload: {
+          stripePalette: lab.stripePalette ?? null,
+          stripeColors: light.stripes.map((stripe) => stripe.color),
+          darkStripeColors: dark.stripes.map((stripe) => stripe.color),
+          backgroundColor: light.background.transparent ? null : light.background.color,
+          darkBackgroundColor: dark.background.transparent ? null : dark.background.color,
+          twizzler: {
+            color: twizzler.color,
+            colorFar: twizzler.colorFar,
+            colorNear: twizzler.colorNear,
+            colorEdge: twizzler.colorEdge,
+          },
+        },
+        schemaVersion: SHARED_PRESET_SCHEMA_VERSIONS.color,
+      });
+      setSharedColorPresets((current) =>
+        [...current.filter((entry) => entry.id !== preset.id), preset].sort((a, b) => a.name.localeCompare(b.name)),
+      );
+      pendingSharedColorSelectionRef.current = preset;
+      skipSharedColorApplyRef.current = preset.id;
+      setSharedColorStatus("ready");
+      setSharedPresetNotice({ message: `Saved color “${preset.name}” for everyone.`, tone: "success" });
+    } catch (error) {
+      setSharedColorStatus("error");
+      setSharedPresetNotice({
+        message: error instanceof Error ? error.message : "The shared color could not be saved.",
+        tone: "error",
+      });
+    }
+  }
+
+  function handleApplySharedStyle(id: string) {
+    if (skipSharedStyleApplyRef.current === id) {
+      skipSharedStyleApplyRef.current = null;
+      return;
+    }
+    const preset = sharedStylePresets.find((entry) => entry.id === id);
+    if (!preset) return;
+    const currentLab = fullLabSettingsSnapshot();
+    applyPresetToStorage(
+      createPreset(preset.name, preset.payload.config, {
+        ...mergeSharedStyleLab(preset.payload.lab, currentLab),
+        clientLayoutId: sharedClientStyleId(id),
+      }),
+      textureIdRef.current,
+    );
+    window.location.reload();
+  }
+
+  function handleApplySharedColor(id: string) {
+    if (skipSharedColorApplyRef.current === id) {
+      skipSharedColorApplyRef.current = null;
+      return;
+    }
+    const preset = sharedColorPresets.find((entry) => entry.id === id);
+    if (!preset) return;
+    const currentLab = fullLabSettingsSnapshot();
+    const currentTwizzler = currentLab.twizzler ?? labSettingsRef.current.twizzler;
+    const currentTheme = getActiveThemedConfig();
+    applyPresetToStorage(
+      createPreset(preset.name, withSharedColors(currentTheme, preset.payload), {
+        ...currentLab,
+        clientColorId: sharedClientColorId(id),
+        stripePalette: preset.payload.stripePalette,
+        backgroundColor:
+          editTheme === "dark"
+            ? preset.payload.darkBackgroundColor === undefined
+              ? (preset.payload.backgroundColor ?? null)
+              : preset.payload.darkBackgroundColor
+            : (preset.payload.backgroundColor ?? null),
+        twizzler: { ...currentTwizzler, ...preset.payload.twizzler },
+      }),
+      textureIdRef.current,
+    );
+    window.location.reload();
+  }
+
+  async function handleDeleteSharedStyle(id: string) {
+    if (sharedStyleStatus !== "ready") return;
+    const preset = sharedStylePresets.find((entry) => entry.id === id);
+    if (!preset || !window.confirm(`Remove “${preset.name}” for everyone?`)) return;
+    setSharedStyleStatus("deleting");
+    try {
+      await deleteSharedPreset(id, preset.revision);
+      setSharedStylePresets((current) => current.filter((entry) => entry.id !== id));
+      setControlRef.current({ clientLayout: "classic" });
+      setSharedStyleStatus("ready");
+      setSharedPresetNotice({ message: `Removed style “${preset.name}”.`, tone: "success" });
+    } catch (error) {
+      setSharedStyleStatus("error");
+      setSharedPresetNotice({
+        message: error instanceof Error ? error.message : "The shared style could not be removed.",
+        tone: "error",
+      });
+    }
+  }
+
+  async function handleDeleteSharedColor(id: string) {
+    if (sharedColorStatus !== "ready") return;
+    const preset = sharedColorPresets.find((entry) => entry.id === id);
+    if (!preset || !window.confirm(`Remove “${preset.name}” for everyone?`)) return;
+    setSharedColorStatus("deleting");
+    try {
+      await deleteSharedPreset(id, preset.revision);
+      setSharedColorPresets((current) => current.filter((entry) => entry.id !== id));
+      setControlRef.current({ clientColor: "coral-classic" });
+      setSharedColorStatus("ready");
+      setSharedPresetNotice({ message: `Removed color “${preset.name}”.`, tone: "success" });
+    } catch (error) {
+      setSharedColorStatus("error");
+      setSharedPresetNotice({
+        message: error instanceof Error ? error.message : "The shared color could not be removed.",
+        tone: "error",
+      });
+    }
+  }
+
+  async function handleSaveSharedSize(name: string) {
+    if (sharedSizeStatus === "saving" || sharedSizeStatus === "deleting") return;
+    const lab = fullLabSettingsSnapshot();
+    if (lab.clientSizeId !== CUSTOM_CLIENT_SIZE_ID) {
+      window.alert("Choose Custom… before saving a shared size.");
+      return;
+    }
+    setSharedSizeStatus("saving");
+    try {
+      const preset = await createSharedSizePreset({
+        name,
+        unit: lab.clientSizeUnit ?? "pixels",
+        width: lab.clientSizeWidth ?? lab.canvasWidth ?? DEFAULT_LAB_SETTINGS.canvasWidth,
+        height: lab.clientSizeHeight ?? lab.canvasHeight ?? DEFAULT_LAB_SETTINGS.canvasHeight,
+        ppi: lab.clientSizePpi ?? 300,
+      });
+      setSharedSizePresets((current) =>
+        [...current.filter((entry) => entry.id !== preset.id), preset].sort((a, b) => a.name.localeCompare(b.name)),
+      );
+      pendingSharedSizeSelectionRef.current = preset;
+      saveLabSettings({
+        ...lab,
+        clientSizeId: sharedSizePresetId(preset.id),
+        clientSizeUnit: preset.unit,
+        clientSizeWidth: preset.width,
+        clientSizeHeight: preset.height,
+        clientSizePpi: preset.ppi,
+      });
+      setSharedSizeStatus("ready");
+      setSharedSizeNotice(`Saved “${preset.name}” for everyone.`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "The shared size could not be saved.";
+      setSharedSizeStatus("error");
+      window.alert(message);
+    }
+  }
+
+  async function handleDeleteSharedSize(id: string) {
+    if (sharedSizeStatus !== "ready") return;
+    const preset = sharedSizePresets.find((entry) => entry.id === id);
+    if (!preset) return;
+    if (!window.confirm(`Remove “${preset.name}” for everyone?`)) return;
+    setSharedSizeStatus("deleting");
+    try {
+      await deleteSharedSizePreset(id);
+      setSharedSizePresets((current) => current.filter((entry) => entry.id !== id));
+      setControlRef.current({
+        clientSize: CUSTOM_CLIENT_SIZE_ID,
+        ...sharedSizeControlValues(preset),
+      });
+      setSharedSizeStatus("ready");
+      setSharedSizeNotice(`Removed “${preset.name}”.`);
+    } catch (error) {
+      setSharedSizeStatus("error");
+      window.alert(error instanceof Error ? error.message : "The shared size could not be removed.");
+    }
+  }
+
   function handleApplyPreset() {
+    const targetTextureId = textureIdRef.current;
     const preset = presets.find((p) => p.name === selectedPreset);
     if (!preset) return;
-    const targetTextureId = textureIdRef.current;
-    if (clientMode) {
-      applyClientLayout(preset, targetTextureId);
-    } else {
-      applyPresetToStorage(preset, targetTextureId);
-    }
+    applyPresetToStorage(preset, targetTextureId);
     saveTextureId(targetTextureId);
     window.location.reload();
   }
@@ -3098,20 +3573,6 @@ function LabInner({
       saveActiveClientLayoutName(null);
     }
     setSelectedPreset("");
-  }
-
-  function handleClientResetToBanner() {
-    if (!window.confirm("Reset to Banner 5:1 defaults? This replaces your current knobs. Saved layouts are kept.")) {
-      return;
-    }
-    const banner = loadBannerLayout();
-    if (!banner) {
-      window.alert("Banner 5:1 builtin is missing.");
-      return;
-    }
-    applyClientLayout(banner, textureIdRef.current);
-    setSelectedPreset(banner.name);
-    window.location.reload();
   }
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -3368,6 +3829,15 @@ function LabInner({
 
   return (
     <div className={`lab-shell${sidebarResizing ? " is-resizing" : ""}${clientMode ? " is-client-mode" : ""}`}>
+      {clientMode && (sharedPresetNotice || sharedSizeNotice) ? (
+        <div
+          className={`lab-client-notice${sharedPresetNotice?.tone === "error" ? " is-error" : ""}`}
+          role={sharedPresetNotice?.tone === "error" ? "alert" : "status"}
+          aria-live="polite"
+        >
+          {sharedPresetNotice?.message ?? sharedSizeNotice}
+        </div>
+      ) : null}
       {!clientMode ? (
         <aside
           className={`lab-sidebar lab-sidebar-texture${labSettings.textureSidebarOpen ? "" : " is-closed"}`}
@@ -3646,10 +4116,11 @@ function LabInner({
                 <LabExportControls videoEl={videoEl} settings={labSettings} onSettings={updateLabSettings} />
                 <div className="wf-row">
                   <button
-                    className={`lab-btn${videoExportBusy ? " is-exporting" : ""}`}
+                    className={`lab-btn${videoExportRecordingActive ? " is-recording" : videoExportBusy ? " is-exporting" : ""}`}
                     onClick={onExportVideo}
-                    disabled={videoExportBusy}
-                    aria-busy={videoExportBusy}
+                    disabled={videoExportButtonDisabled}
+                    aria-busy={videoExportBusy && !videoExportRecordingActive}
+                    aria-pressed={videoExportRecordingActive}
                   >
                     {videoExportLabel}
                   </button>
@@ -3816,8 +4287,15 @@ function LabInner({
             >
               −
             </button>
-            <button className="lab-btn" type="button" onClick={() => updatePreviewZoom(1)}>
-              Reset
+            <button
+              className="lab-btn"
+              type="button"
+              onClick={() => {
+                fitPreviewZoomToViewport();
+                centerCanvasViewport();
+              }}
+            >
+              Fit
             </button>
             <button
               className="lab-btn"
@@ -3826,16 +4304,30 @@ function LabInner({
             >
               +
             </button>
-            <span className="lab-canvas-zoom-value">{Math.round(previewZoom * 100)}%</span>
+            <span className="lab-canvas-zoom-value">
+              {previewZoom < 0.1 ? (previewZoom * 100).toFixed(1) : Math.round(previewZoom * 100)}%
+            </span>
           </div>
         </div>
+        <TimelineEditor
+          open={timelineOpen}
+          playing={timelinePlaying}
+          stores={timelineStores}
+          graphicMode={clientGraphicMode ?? resolveClientGraphicMode(twizzler.enabled, controls.sparkle.gaps.enabled)}
+          onOpenChange={setTimelineOpen}
+          onApplyValues={applyTimelineValues}
+          onTimeChange={syncTimelineTime}
+          onPlayingChange={setTimelinePlayback}
+        />
         {!clientMode ? (
-          <LabBottomBar
-            videoEl={videoEl}
-            editTheme={editTheme}
-            onSelectTheme={handleSelectTheme}
-            onResetTheme={handleResetTheme}
-          />
+          <>
+            <LabBottomBar
+              videoEl={videoEl}
+              editTheme={editTheme}
+              onSelectTheme={handleSelectTheme}
+              onResetTheme={handleResetTheme}
+            />
+          </>
         ) : null}
       </div>
       <aside
@@ -3873,113 +4365,32 @@ function LabInner({
           ) : null}
           {clientMode ? (
             <>
-              <div className="lab-client-tools">
-                <div className="lab-client-tools-top">
-                  <fieldset className="lab-panel-mode-toggle" aria-label="Panel mode">
-                    <legend>Panel mode</legend>
-                    <label className={`lab-panel-mode-btn${clientPanelMode === "default" ? " is-selected" : ""}`}>
-                      <input
-                        type="radio"
-                        name="lab-panel-mode"
-                        value="default"
-                        checked={clientPanelMode === "default"}
-                        onChange={() => setClientPanelMode("default")}
-                      />
-                      Default
-                    </label>
-                    <label className={`lab-panel-mode-btn${clientPanelMode === "advanced" ? " is-selected" : ""}`}>
-                      <input
-                        type="radio"
-                        name="lab-panel-mode"
-                        value="advanced"
-                        checked={clientPanelMode === "advanced"}
-                        onChange={() => setClientPanelMode("advanced")}
-                      />
-                      Advanced
-                    </label>
-                  </fieldset>
-                  <button
-                    className="lab-sidebar-toggle lab-client-panel-collapse"
-                    type="button"
-                    onClick={() => updateLabSettings({ shaderSidebarOpen: false })}
-                    aria-label="Close panel"
-                    title="Close panel"
-                  >
-                    <PanelRightClose size={14} strokeWidth={1.75} />
-                  </button>
-                </div>
-                <div className="lab-client-layouts">
-                  <div className="lab-client-layouts-label">Saved layouts</div>
-                  <select
-                    className="lab-client-layouts-select"
-                    value={selectedPreset}
-                    onChange={(e) => setSelectedPreset(e.target.value)}
-                    aria-label="Saved layout"
-                  >
-                    <option value="">Select a layout…</option>
-                    {listSavedLayouts(presets).map((p) => (
-                      <option key={p.name} value={p.name}>
-                        {p.name}
-                      </option>
-                    ))}
-                    {presets
-                      .filter((p) => p.builtin)
-                      .map((p) => (
-                        <option key={p.name} value={p.name}>
-                          {p.name} (builtin)
-                        </option>
-                      ))}
-                  </select>
-                  <div className="lab-client-layouts-actions">
-                    <button type="button" onClick={handleSavePreset}>
-                      Save
-                    </button>
-                    <button type="button" onClick={handleApplyPreset} disabled={!selectedPreset}>
-                      Apply
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleDeletePreset}
-                      disabled={!selectedPreset || presets.some((p) => p.name === selectedPreset && p.builtin)}
-                    >
-                      Delete
-                    </button>
-                    <button type="button" className="is-reset" onClick={handleClientResetToBanner}>
-                      Reset
-                    </button>
-                  </div>
-                </div>
-                <div className="lab-client-json">
-                  <div className="lab-client-layouts-label">JSON</div>
-                  <div className="lab-client-layouts-actions">
-                    <button type="button" onClick={handleExport}>
-                      Copy JSON
-                    </button>
-                    <button type="button" onClick={() => configFileInputRef.current?.click()}>
-                      Upload JSON
-                    </button>
-                  </div>
-                  <input
-                    ref={configFileInputRef}
-                    type="file"
-                    accept="application/json,.json"
-                    style={{ display: "none" }}
-                    onChange={handleConfigFileChange}
-                  />
-                </div>
+              <div className="lab-client-panel-header">
+                <button
+                  className="lab-sidebar-toggle lab-client-panel-collapse"
+                  type="button"
+                  onClick={() => updateLabSettings({ shaderSidebarOpen: false })}
+                  aria-label="Close panel"
+                  title="Close panel"
+                >
+                  <PanelRightClose size={14} strokeWidth={1.75} />
+                </button>
               </div>
               <div className="lab-client-leva">
                 <LevaPanel store={shaderStore} theme={LAB_LEVA_THEME} fill flat titleBar={false} />
               </div>
-              <div className="lab-client-exports">
+              <footer className="lab-client-exports" aria-label="Export controls">
                 <LabExportControls videoEl={videoEl} settings={labSettings} onSettings={updateLabSettings} />
                 <div className="lab-client-layouts-actions">
                   <button
                     type="button"
-                    className={videoExportBusy ? "is-exporting" : undefined}
+                    className={
+                      videoExportRecordingActive ? "is-recording" : videoExportBusy ? "is-exporting" : undefined
+                    }
                     onClick={onExportVideo}
-                    disabled={videoExportBusy}
-                    aria-busy={videoExportBusy}
+                    disabled={videoExportButtonDisabled}
+                    aria-busy={videoExportBusy && !videoExportRecordingActive}
+                    aria-pressed={videoExportRecordingActive}
                   >
                     {videoExportLabel}
                   </button>
@@ -3992,7 +4403,7 @@ function LabInner({
                     Export EPS
                   </button>
                 </div>
-              </div>
+              </footer>
             </>
           ) : (
             <SurfacePanel

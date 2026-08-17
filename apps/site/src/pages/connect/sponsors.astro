@@ -1,0 +1,121 @@
+---
+import RegisterCta from "@/components/_pages/connect/cta/RegisterCta.astro";
+import { REGISTER_URL } from "@/components/_pages/connect/data";
+import {
+  connectSponsors,
+  sponsorOpportunities,
+  sponsorsHero,
+  sponsorsPageMeta,
+  sponsorTiers,
+} from "@/components/_pages/connect/page-data/sponsors";
+import SubpageHero from "@/components/_pages/connect/shared/SubpageHero.astro";
+import Item from "@/components/features/Item.astro";
+import Button from "@/components/Button";
+import Container from "@/components/Container.astro";
+import DashedLineGrid from "@/components/dashed-line/DashedLineGrid";
+import NavigationItem from "@/components/NavigationItem";
+import SectionEyebrow from "@/components/SectionEyebrow.astro";
+import Section from "@/layouts/Section.astro";
+import Layout from "@/layouts/Layout.astro";
+---
+
+<Layout
+  title={sponsorsPageMeta.title}
+  description={sponsorsPageMeta.description}
+  cta={false}
+  nav="connect"
+>
+  <SubpageHero {...sponsorsHero} />
+
+  <Section
+    class="scroll-mt-80"
+    id="opportunities"
+    layout="center"
+    eyebrow="Opportunities"
+    sectionEyebrow="Sponsorship"
+    title="Sponsorship opportunities"
+    description="Join us in San Francisco to showcase how your technology is helping build a better, faster, and more secure Internet."
+    headerClass="pb-72!"
+  >
+    <div
+      class="relative grid grid-cols-3 before:inside-border before:border-border-default"
+    >
+      {sponsorOpportunities.map((item) => (
+        <Item
+          class="h-full min-h-262"
+          iconName={item.iconName}
+          title={item.title}
+        >
+          {item.body}
+        </Item>
+      ))}
+
+      <DashedLineGrid
+        client:visible={{ rootMargin: "200px" }}
+        columns={3}
+        rows={1}
+      />
+    </div>
+  </Section>
+
+  {/* Products catalog–style tier groups (GroupCard language) */}
+  <Container class="scroll-mt-80">
+    <SectionEyebrow slot="beforeBleed" text="Sponsors" />
+
+    <div class="h-80"></div>
+
+    <div class="flex items-end justify-between gap-40 px-80 pb-40">
+      <div>
+        <h2 class="mb-16 text-heading-h2 text-text-base">
+          Our Connect 2026 sponsors
+        </h2>
+        <p class="max-w-640 text-body-large text-text-base">
+          Thank you to the partners powering Connect 2026.
+        </p>
+      </div>
+
+      <Button className="shrink-0" href={REGISTER_URL} variant="secondary">
+        <span>Become a sponsor</span>
+      </Button>
+    </div>
+
+    <div class="flex flex-col gap-40 px-40 pb-40">
+      {sponsorTiers.map((tier) => {
+        const tierSponsors = connectSponsors.filter((s) => s.tier === tier);
+        if (tierSponsors.length === 0) return null;
+
+        return (
+          <section class="relative bg-background-base p-40 before:inside-border before:border-border-muted">
+            <h3 class="text-heading-h5 text-text-base">{tier}</h3>
+
+            <div class="mx-4 mt-32 mb-31 h-px bg-border-default" />
+
+            <div class="grid grid-cols-3 gap-x-8 gap-y-24">
+              {tierSponsors.map((sponsor) => (
+                <NavigationItem
+                  description={sponsor.website.replace(/^https?:\/\//, "")}
+                  href={sponsor.website}
+                  label={sponsor.name}
+                >
+                  <div class="relative flex-center size-48 overflow-clip rounded-full bg-background-surface before:inside-border before:border-border-muted">
+                    <img
+                      alt=""
+                      class="max-h-28 max-w-28 object-contain"
+                      decoding="async"
+                      loading="lazy"
+                      src={sponsor.logo}
+                    />
+                  </div>
+                </NavigationItem>
+              ))}
+            </div>
+          </section>
+        );
+      })}
+    </div>
+
+    <div class="h-80"></div>
+  </Container>
+
+  <RegisterCta />
+</Layout>

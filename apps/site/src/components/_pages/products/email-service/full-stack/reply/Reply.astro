@@ -1,0 +1,13 @@
+---
+import Stage from "@/components/Stage.astro";
+import HubPill from "@/components/_animations/hub-pill/HubPill.astro";
+import ReplyPill from "./ReplyPill";
+---
+
+<Stage data-email-fullstack-visual="reply">
+  <div class="overlay overflow-clip">
+    <HubPill ringRadius={60}>
+      <ReplyPill client:visible />
+    </HubPill>
+  </div>
+</Stage>

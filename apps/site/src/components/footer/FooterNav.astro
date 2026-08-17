@@ -1,0 +1,134 @@
+---
+import DashedLineGrid from "../dashed-line/DashedLineGrid";
+
+interface FooterNavLink {
+  href: string;
+  label: string;
+  labelMuted?: string;
+}
+
+interface FooterNavGroup {
+  links: FooterNavLink[];
+  title: string;
+}
+
+const footerNavGroups: FooterNavGroup[] = [
+  {
+    title: "Getting Started",
+    links: [
+      { label: "Plans", href: "#" },
+      { label: "Contact Sales", href: "#" },
+      { label: "Partners", href: "#" },
+      { label: "Find a partner", href: "#" },
+      { label: "Startups", href: "#" },
+      { label: "Under Attack?", href: "#" },
+      { label: "Domain Name Search", href: "#" },
+    ],
+  },
+  {
+    title: "Public Interest",
+    links: [
+      { label: "Project Galileo", href: "#" },
+      { label: "Athenian Project", href: "#" },
+      { label: "Cloudflare for Campaigns", href: "#" },
+      { label: "Project Fairshot", href: "#" },
+      { label: "Impact/ESG", href: "#" },
+    ],
+  },
+  {
+    title: "Resources",
+    links: [
+      { label: "App Innovation Report", href: "#" },
+      { label: "Cloudflare Radar", href: "#" },
+      { label: "Case Studies", href: "/case-studies" },
+      { label: "Status", href: "#" },
+      { label: "Support", href: "#" },
+      { label: "Events", href: "#" },
+      { label: "Blog", href: "/blog" },
+    ],
+  },
+  {
+    title: "Solutions",
+    links: [
+      { label: "SSE and SASE Platform", href: "#" },
+      { label: "Cloudflare AI Cloud", href: "#" },
+      { label: "Frontend Development Platform", href: "#" },
+      { label: "Multi-Tenant Platform Development", href: "#" },
+      { label: "Web Security Platform", href: "#" },
+    ],
+  },
+  {
+    title: "Company",
+    links: [
+      { label: "About", href: "#" },
+      { label: "Careers", href: "#" },
+      { label: "Investors", href: "#" },
+      { label: "Press", href: "#" },
+      { label: "Press Kit", href: "#" },
+      { label: "Global Network", href: "#" },
+    ],
+  },
+  {
+    title: "Compliance",
+    links: [
+      { label: "Compliance Resources", href: "#" },
+      { label: "Trust Hub", href: "#" },
+      { label: "Data Protection", href: "#" },
+      { label: "Responsible AI", href: "#" },
+      { label: "Transparency Report", href: "#" },
+      { label: "Report Abuse", href: "#" },
+    ],
+  },
+  {
+    title: "Developers",
+    links: [
+      { label: "Documentation", href: "#" },
+      { label: "Learning Center", href: "#" },
+      { label: "Community", href: "#" },
+    ],
+  },
+  {
+    title: "Connect",
+    links: [
+      { label: "X", labelMuted: "(Twitter)", href: "#" },
+      { label: "LinkedIn", href: "#" },
+      { label: "YouTube", href: "#" },
+      { label: "GitHub", href: "#" },
+    ],
+  },
+];
+---
+
+<div
+  class="relative grid auto-rows-fr grid-cols-4 before:inside-border-t before:border-border-default"
+>
+  <DashedLineGrid
+    client:visible={{ rootMargin: "200px" }}
+    rows={2}
+    columns={4}
+  />
+
+  {footerNavGroups.map((group) => (
+    <div class="flex min-h-400 flex-col p-40">
+      <h3 class="mb-24 text-label-x-small text-text-base">{group.title}</h3>
+
+      <ul class="-my-4 flex flex-col gap-8">
+        {group.links.map((link) => (
+          <li>
+            <a
+              class="block py-4 text-body-x-small text-text-default transition-colors duration-150 hover:text-text-base"
+              href={link.href}
+            >
+              {link.label}{" "}
+              {link.labelMuted && (
+                <span class="text-text-muted transition-colors duration-200 in-[a:hover]:text-inherit">
+                  {link.labelMuted}
+                </span>
+              )}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  ))}
+</div>

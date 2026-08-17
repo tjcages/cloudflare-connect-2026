@@ -1,0 +1,46 @@
+---
+import Pricing from "@/components/_sections/pricing/Pricing.astro";
+
+const columns = [
+  {
+    label: "Component",
+    width: "auto",
+    field: "component",
+  },
+  {
+    label: "Free",
+    width: 300,
+    field: "free",
+  },
+  {
+    label: "Paid",
+    width: 300,
+    field: "paid",
+  },
+];
+
+const data = [
+  {
+    component: "Requests",
+    free: "100k / day",
+    paid: "$0.30 / million requests",
+  },
+  {
+    component: "CPU Time",
+    free: "10 ms / invocation",
+    paid: "$0.02 / million CPU ms",
+  },
+  {
+    component: "Storage",
+    free: "1 GB",
+    paid: "$0.20 / GB-month",
+  },
+];
+---
+
+<Pricing data={data} columns={columns}>
+  <Fragment slot="title">Workflows Pricing</Fragment>
+  <Fragment slot="description">
+    Orchestrate complex multi-step processes.</Fragment
+  >
+</Pricing>

@@ -1,0 +1,233 @@
+{
+  "slug": "agent-development-lifecycle",
+  "title": "The Agent Development Lifecycle has arrived on Cloudflare",
+  "excerpt": "Agents can write code faster than teams can review, deploy, and maintain it. Today we’re introducing the Agent Development Lifecycle and the Cloudflare primitives that underpin it",
+  "publishedAt": "2026-08-04T13:00:00.000Z",
+  "sourceUrl": "https://blog.cloudflare.com/agent-development-lifecycle/",
+  "tags": [
+    "agent-development-lifecycle",
+    "agents",
+    "agents-week",
+    "ai",
+    "browser-run",
+    "workers",
+    "developer-platform",
+    "devops",
+    "mcp",
+    "observability",
+    "product-news",
+    "tracing",
+    "workflows"
+  ],
+  "authors": ["brendan-irvine-broque"],
+  "cover": {
+    "src": "https://blog.cloudflare.com/_emdash/api/media/file/01KZ6B5SF7P3066SS65ZYJKN97.png",
+    "alt": ""
+  },
+  "blocks": [
+    {
+      "type": "p",
+      "text": "Engineering managers spent the past few decades figuring out ways for many programmers to work together on a shared codebase. This work dates all the way back to the “Systems Development Lifecycle” ([RAND, 1975](https://www.rand.org/pubs/reports/R1855.html)) - today commonly referred to as the “Software Development Lifecycle” (SDLC), which defines the following phases:"
+    },
+    {
+      "type": "list",
+      "ordered": false,
+      "items": [
+        "Plan",
+        "Design",
+        "Implement",
+        "Test",
+        "Deploy",
+        "Maintain",
+        "Retire"
+      ]
+    },
+    {
+      "type": "p",
+      "text": "AI has made the step that was previously the slowest and most expensive — implementation — the fastest and cheapest. That, in turn, has had an impact downstream: overwhelming the people responsible for all the other steps in the SDLC. This ranges from open-source maintainers bombarded with thousands of pull requests and issues, to production engineers trying to save production from falling over as the rate of software delivery increases orders of magnitude."
+    },
+    {
+      "type": "p",
+      "text": "We are all trying to save our systems, our customers, and ourselves from slop."
+    },
+    {
+      "type": "image",
+      "src": "https://blog.cloudflare.com/_emdash/api/media/file/01KZ6A6DRX3WD507M2ZM4JJ353.png",
+      "alt": "image1.png"
+    },
+    {
+      "type": "p",
+      "text": "The answer — paradoxically — is to empower agents to do more. It’s only fair! You’d never let an engineer on your team write code, expect someone else to validate it, merge it, deploy it, hold the pager in production, and triage incoming bugs. But that’s what most companies are doing right now with agents. Models have improved remarkably, and agents are running over longer time horizons, able to take on much larger tasks. But they are not yet used evenly across the SDLC."
+    },
+    {
+      "type": "p",
+      "text": "Cloudflare treats agents as our customers. They can [buy domains](https://blog.cloudflare.com/agents-stripe-projects/), create [temporary accounts](https://blog.cloudflare.com/temporary-accounts/) and [use the entire Cloudflare API](https://blog.cloudflare.com/code-mode-mcp/). We know that agents need APIs and tools to be able to manage the full SDLC on behalf of our customers — not just the start of it."
+    },
+    {
+      "type": "p",
+      "text": "And so today we’re introducing the start of a new set of tools that let agents step beyond just generating code and take on more of the SDLC. We’re sharing what we’ve built and learned trying to solve this for ourselves:"
+    },
+    {
+      "type": "list",
+      "ordered": false,
+      "items": [
+        "[**@cloudflare/ci**](https://blog.cloudflare.com/ci-workflows) — a new way to run CI/CD across millions of repos, that can self-heal and spawn agents to do much more complex tasks, build on Cloudflare Workflows.",
+        "[**OpenTelemetry traces in local dev**](https://blog.cloudflare.com/local-tracing) — giving agents the same observability they have in production, built into Wrangler and the Cloudflare Vite plugin.",
+        "[**Introducing: Cloudflare Agents and Agent Traces**](http://blog.cloudflare.com/agents-on-cloudflare) — a new home for observing, maintaining and improving agents, centered around OpenTelemetry traces from agents.",
+        "[**How Cloudflare enforces engineering standards using AI**](http://blog.cloudflare.com/engineering-standards-enforcement) — our own experience enforcing best practices across all of our products’ and systems’ repositories and specs.",
+        "[**How we built a software factory to drive Astro’s GitHub issue count to zero**](https://blog.cloudflare.com/astro-issue-triage) — our own experience building systems to automatically triage, reproduce, verify and fix issues for a large and growing open source project."
+      ]
+    },
+    {
+      "type": "p",
+      "text": "There’s something bigger here though. When we look at the SDLC, even with the best automation, its assumptions do not scale for the volume of code agents can write and the pace at which software engineering teams must move to compete. We think it’s time to replace the SDLC with the ADLC — the Agent Development Lifecycle."
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "The SDLC is for software teams. The ADLC is for software factories.",
+      "id": "the-sdlc-is-for-software-teams-the-adlc-is-for-software-factories"
+    },
+    {
+      "type": "p",
+      "text": "Right now, [everyone](https://x.com/zachlloydtweets/status/2069789929073262945) [is](https://x.com/matanSF/status/2066578088184680920) [talking](https://x.com/dexhorthy/status/2081797628552270027) [about](https://x.com/bcherny/status/2077929390806073807) [building](https://x.com/gokulr/status/2032271386161684665) “software factories” — agent-driven systems that take input and autonomously build, improve, deploy and manage software. Take an input, whether it’s a production error, a bug report from a customer, or an idea for a new feature, and delegate it entirely to an agent."
+    },
+    {
+      "type": "p",
+      "text": "Even with agents, most software projects are constrained by human-in-the-loop steps. Humans prompting agents, telling them to keep going, instructing agents to apply feedback from a code review, constantly babysitting many agents and giving them instruction. On most software teams, the human still manages each step in the SDLC model — the only change is that they delegate tasks within each step to an agent."
+    },
+    {
+      "type": "p",
+      "text": "And so the dream behind software factories is: what if you reimagined this approach and built a factory for the entire process of building software? How can we shift more human time towards the things that truly require human inspiration, taste, and judgement? It would leave us more time to design, to talk to customers, and to dream bigger."
+    },
+    {
+      "type": "p",
+      "text": "A software factory has to manage the same steps in the SDLC, but it demands much more from the platform it is built on. Because when you hand over the keys and let the agent drive, every manual step that previously relied on a human must be adapted to be:"
+    },
+    {
+      "type": "list",
+      "ordered": false,
+      "items": [
+        "**Programmatic** — ”ClickOps” was bad practice for humans, but it’s a non-starter for agents. Every last operation needs APIs that agents can call, debug, and rely on.",
+        "**Horizontally scalable** — preview deployments were a nice-to-have when humans stared at the screen while building or manually took over a staging server to catch issues before production. For agents to drive, every agent must have its own preview that matches production.",
+        "**Reproducible** — what happens if there’s a bug that you can only reproduce when simulating 4G on an iPhone 15? Or from an IP in a certain country? Typical unit testing and integration testing tools aren’t going to help here.",
+        "**Real-time, push based** — relying on humans to look at the right dashboard has always been a bad way to know if things are working, but it completely breaks down with agents. You need an event that triggers an agent to do work.",
+        "**Atomic** — every change needs to be independently testable, releasable, observable, and reversible without affecting unrelated behavior.",
+        "**Permissioned** — you know you probably shouldn’t, but today you give a few trusted engineers the keys to SSH into prod in case things really go haywire. There’s no way you let an agent do that — but without the ability to escalate and get more permissions, how can it do its job?",
+        "**Self-improving** — people learn from experience. The first week ship or the first on-call rotation, humans are slow and need to shadow someone else, but then get better and faster. Agents, too, need ways to learn from experience."
+      ]
+    },
+    {
+      "type": "p",
+      "text": "We need something new if we are going to make software factories safe to use for real production software. Software factories face the same challenge that other autonomous systems like self-driving cars do — the challenge of going from working successfully 80% of the time, to some number of nines past 99%."
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "To give agents the keys to drive the SDLC, you can’t give them a car designed for humans",
+      "id": "to-give-agents-the-keys-to-drive-the-sdlc-you-can-t-give-them-a-car-designed-for-humans"
+    },
+    {
+      "type": "p",
+      "text": "An autonomous vehicle is loaded with sensors and technology that a regular car doesn’t have. Lidar sensors, cameras, powerful compute to run inference, and connectivity to a central command system that can take over remotely if needed."
+    },
+    {
+      "type": "p",
+      "text": "For an autonomous vehicle to be 80% as good as a human at driving, we probably don’t need all of this. Self-driving got to around 80% as good as humans 10 years ago. But that’s not the bar to clear — the bar is to be much better and safer than a human driver. That’s what we expect when we hand over the keys to a machine, in order to feel safe taking a nap driving down the 101 at 60 mph. And that’s why autonomous vehicles have technology that is purpose-built for self-driving — it’s what builds trust and handles the edge cases that cannot be designed for upfront."
+    },
+    {
+      "type": "p",
+      "text": "The same is true of self-driving software. Ask yourself — why _haven’t_ you yet just let your agent auto-approve and merge its own PRs to your production services? The higher the stakes of what you build, the longer your list of reasons almost surely is."
+    },
+    {
+      "type": "p",
+      "text": "When you start to unpack not only all the things that can go catastrophically wrong in this process, but also that are necessary to building the right thing for customers, it is remarkably complex. It doesn’t fit into a linear set of steps in a GitHub Actions YAML file, and it goes way beyond running traditional automated tests. Even a small change to a dashboard can span roles, specializations and org structures, and subjective changes are the hardest to test and to delegate. Most of these things are probably not part of your CI/CD pipeline at all today. But they will need to be, if you want them to still happen, while giving full control to the agents running the software factory."
+    },
+    {
+      "type": "p",
+      "text": "To let agents drive the whole process, we need a better way to orchestrate these dynamic series of steps. We think that is a [Workflow](https://blog.cloudflare.com/ci-workflows), with the capability to spawn containers, agents and browsers. A Workflow that can set feature flags and enable them for a test user, investigate logs and traces, observe production metrics as a change gradually rolls out, and do everything else that is needed in order to ship safely."
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "A CI/CD pipeline is just a Workflow. But a Workflow can be so much more than a CI/CD pipeline.",
+      "id": "a-ci-cd-pipeline-is-just-a-workflow-but-a-workflow-can-be-so-much-more-than-a-ci-cd-pipeline"
+    },
+    {
+      "type": "p",
+      "text": "[Cloudflare Workflows](https://developers.cloudflare.com/workflows/) let you chain together multiple steps, automatically retry failed tasks, and persist state for minutes, hours, or even weeks. They are designed to encode complex and dynamic business processes in a logical and well-understood program. [This blog post](https://blog.cloudflare.com/ci-workflows) breaks down why Workflows, in tandem with [Artifacts](https://blog.cloudflare.com/artifacts-git-for-agents-beta/), make defining and triggering CI/CD pipelines fundamentally simpler. For example:"
+    },
+    {
+      "type": "code",
+      "lang": null,
+      "code": "import { CIWorkflow } from `@cloudflare/ci`\n\nconst deps: CiRunnerResult = await ci.runner({\n      name: 'install',\n      command: 'bun install --frozen-lockfile',\n      cache: { inputs: ['package.json', 'bun.lock'] },\n    });\n\n    await Promise.all([\n      deps.runner({ name: 'lint', command: 'bun run lint' }),\n      deps.runner({ name: 'test', command: 'bun run test' }),\n      deps.runner({ name: 'typecheck', command: 'bun run typecheck' }),\n      deps.runner({ name: 'build', command: 'bun run build' }),\n    ]);\n\n    await deps.runner({\n      name: 'deploy',\n      command: 'bun wrangler deploy',\n      cloudflareCredentials: {\n        accountId: this.env.CLOUDFLARE_DEPLOY_ACCOUNT_ID,\n      },\n    });"
+    },
+    {
+      "type": "p",
+      "text": "Workflows go beyond a series of linear steps though. They can be [defined dynamically](https://blog.cloudflare.com/dynamic-workflows/), and they can spawn agents or other Workflows. [This example](https://flueframework.com/docs/guide/workflows/#example-cloudflare-workflows) shows a Workflow that reviews new data from the past day. The Workflow has full control over when and how the agent is prompted, and can pass along context between steps:"
+    },
+    {
+      "type": "code",
+      "lang": null,
+      "code": "import { WorkflowEntrypoint, type WorkflowEvent, type WorkflowStep } from 'cloudflare:workers';\nimport { init } from '@flue/runtime';\nimport { Reviewer } from './agents/reviewer.ts';\nimport { collectFindings } from './shared/nightly.ts';\n\ntype Params = { date: string };\n\nexport class NightlyReview extends WorkflowEntrypoint {\n  async run(event: WorkflowEvent<Params>, step: WorkflowStep) {\n    const findings = await step.do('collect findings', () => collectFindings(event.payload.date));\n\n    const agent = init(Reviewer, { id: `nightly-${event.payload.date}` });\n\n    const receipt = await step.do('dispatch review', () =>\n      agent.dispatch(`Review these findings:\\n${findings}`),\n    );\n\n    const review = await step.do('read review', async () => {\n      const reply = await agent.read(receipt);\n      return { text: reply.text, data: reply.data };\n    });\n\n    // ...\n  }\n}"
+    },
+    {
+      "type": "p",
+      "text": "Once you see this pattern, and are “Workflow-pilled” as Cloudflare is, you start to ask: what else could I have a Workflow handle for me? What other human-bottlenecked steps could I delegate to this combination of Workflow + [Flue agents](https://flueframework.com/)?"
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "The full ADLC, on the Cloudflare stack",
+      "id": "the-full-adlc-on-the-cloudflare-stack"
+    },
+    {
+      "type": "p",
+      "text": "With [Workflows](https://developers.cloudflare.com/workflows/) able to orchestrate complex steps, and [Artifacts](https://developers.cloudflare.com/artifacts/) as the storage layer for code, when you look at the SDLC stages, everything an agent needs to own the whole process of building, shipping, and maintaining software is on Cloudflare:"
+    },
+    {
+      "type": "table",
+      "head": ["SDLC stage", "Cloudflare"],
+      "rows": [
+        [
+          "Plan Design Implement",
+          "[Vite](https://developers.cloudflare.com/workers/vite-plugin/), [Rolldown](https://rolldown.rs/), and [Oxc](https://oxc.rs/) — the fastest toolchain for your agent [Local dev for everything](https://developers.cloudflare.com/workers/local-development/) — what your agent sees locally, is the same runtime and environment that will run in production [Local Explorer](https://developers.cloudflare.com/workers/local-development/local-explorer/), [Local Traces](https://blog.cloudflare.com/local-tracing/) — your agent has the same APIs to debug locally as it does in production [Remote bindings](https://developers.cloudflare.com/changelog/post/2025-09-16-remote-bindings-ga/) — let agents run code locally, while using real production resources running on Cloudflare [Preview URLs](https://developers.cloudflare.com/workers/versions-and-deployments/preview-urls/) — give every pull request a preview for the agent to validate and use"
+        ],
+        [
+          "Test",
+          "[Browser Run](https://developers.cloudflare.com/browser-run/) — programmable headless browsers in the cloud [Vitest](https://developers.cloudflare.com/workers/testing/vitest-integration/) — run tests in the Workers runtime"
+        ],
+        [
+          "Deploy",
+          "[Flagship](https://blog.cloudflare.com/flagship/) — every change gets its own feature flag [Gradual Deployments](https://developers.cloudflare.com/workers/versions-and-deployments/gradual-deployments/) — roll out code changes to a percentage of traffic, ramp up over time"
+        ],
+        [
+          "Maintain Retire",
+          "[Workers Logs](https://developers.cloudflare.com/workers/observability/logs/) — let agents tail live logs or query adhoc to identify issues to automatically fix [Agent Traces](http://blog.cloudflare.com/agents-on-cloudflare) — capture every agent session and use it to improve [Cloudflare MCP Server](https://blog.cloudflare.com/code-mode-mcp/) - powered by Code Mode and [Dynamic Workers](https://blog.cloudflare.com/dynamic-workers/) [Analytics Engine](https://developers.cloudflare.com/analytics/analytics-engine/) — high cardinality analytics built on Clickhouse, to let agents query who is using what"
+        ]
+      ]
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Primitives to build your software factory",
+      "id": "primitives-to-build-your-software-factory"
+    },
+    {
+      "type": "p",
+      "text": "Right now, the people on the bleeding edge are building the software factories of the future. Eventually software factories will become, just like agents and AI, the normal way people build software. But for most people and most organizations, we’re not there yet."
+    },
+    {
+      "type": "p",
+      "text": "We want to change that."
+    },
+    {
+      "type": "p",
+      "text": "In order to do so, the questions we’ve asked ourselves are: how can we make things simple and accessible so that everyone on the Internet can benefit from a paradigm shift like this? And what are the base layer primitives that we can open up to everyone, from the smallest startup to the largest platforms in the world?"
+    },
+    {
+      "type": "p",
+      "text": "In this case, we think the primitives are here. There’s more to do to connect them, to keep building our own software factory and learn from it, but right now, today, we’re ready for you to build your machine that builds the machine, on Cloudflare. Get started with [@cloudflare/ci](https://blog.cloudflare.com/ci-workflows), [build an agent](http://blog.cloudflare.com/agents-on-cloudflare), and see how much of the SDLC you can make autonomous."
+    }
+  ]
+}

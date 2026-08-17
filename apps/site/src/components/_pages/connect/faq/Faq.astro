@@ -1,0 +1,37 @@
+---
+import DottedLink from "@/components/DottedLink";
+import Section from "@/layouts/Section.astro";
+import { connectFaq } from "../data";
+---
+
+<Section
+  class="scroll-mt-80"
+  id="faq"
+  layout="center"
+  eyebrow="FAQ"
+  sectionEyebrow="FAQ"
+  title="Frequently asked questions"
+  description="Registration, venue, and what to expect."
+  headerClass="pb-72!"
+>
+  <div class="mx-auto flex w-full max-w-720 flex-col px-40 pt-80 pb-80">
+    {connectFaq.map((item, index) => (
+      <div
+        class:list={[
+          "relative flex flex-col gap-12 py-32",
+          index < connectFaq.length - 1 &&
+            "before:pointer-events-none before:absolute before:inset-x-0 before:bottom-0 before:h-px before:bg-border-muted",
+        ]}
+      >
+        <h3 class="text-heading-h5 text-text-base">{item.question}</h3>
+        <p class="text-body-medium text-text-default">{item.answer}</p>
+      </div>
+    ))}
+
+    <div class="pt-16">
+      <DottedLink client:visible={{ rootMargin: "200px" }} href="/connect/faq">
+        See all FAQs
+      </DottedLink>
+    </div>
+  </div>
+</Section>

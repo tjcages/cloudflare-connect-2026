@@ -1,0 +1,45 @@
+---
+import { authorsOf, bylineOf, formatPostDate, type Post } from "./data";
+
+interface Props {
+  post: Post;
+  stackedAvatars?: boolean;
+}
+
+const { post, stackedAvatars } = Astro.props;
+
+const authors = authorsOf(post);
+const avatars = authors.length === 1 || stackedAvatars ? authors : [];
+---
+
+<div class="flex h-28 items-center gap-12">
+  {avatars.length > 0 && (
+    <div class="flex items-center">
+      {avatars.map((author, index) => (
+        <div
+          class:list={[
+            "relative size-28 shrink-0 overflow-clip rounded-full bg-background-surface before:inner-border before:border-darker/7 before:[transition:none]",
+            index > 0 && "-ml-8 ring-2 ring-background-base",
+          ]}
+        >
+          <img
+            alt=""
+            class="size-full object-cover"
+            height={28}
+            loading="lazy"
+            src={author.avatar}
+            width={28}
+          />
+        </div>
+      ))}
+    </div>
+  )}
+
+  <div class="flex gap-8 text-body-medium whitespace-nowrap">
+    <span class="text-text-loud">{bylineOf(post)}</span>
+
+    <span class="text-text-faint">·</span>
+
+    <span class="text-text-loud">{formatPostDate(post.publishedAt)}</span>
+  </div>
+</div>

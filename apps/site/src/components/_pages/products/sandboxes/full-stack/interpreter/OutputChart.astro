@@ -1,0 +1,27 @@
+---
+import ChartArea from "./_svg/chart-area.svg";
+import ChartGrid from "./_svg/chart-grid.svg";
+import ChartLinePrimary from "./_svg/chart-line-primary.svg";
+import ChartLineSecondary from "./_svg/chart-line-secondary.svg";
+---
+
+<div class="overlay">
+  <div
+    class="absolute top-16 left-16 h-64 w-160 rounded-6 opacity-0 transition-opacity duration-350 ease-[cubic-bezier(0.6,0.6,0,1)] group-data-output/browser:opacity-100 before:inside-border before:border-border-default before:[transition:none]"
+  >
+  </div>
+
+  <ChartGrid class="absolute top-24 left-24 h-48 w-144 text-border-muted" />
+
+  <ChartArea
+    class="absolute top-28 left-24 h-39 w-144 opacity-0 transition-opacity duration-450 ease-[cubic-bezier(0.6,0.6,0,1)] group-data-output/browser:opacity-100 group-data-output/browser:delay-620"
+  />
+
+  <ChartLinePrimary
+    class="absolute top-28 left-24 h-25 w-144 text-blue-900 opacity-0 transition-opacity delay-0 duration-0 group-data-output/browser:opacity-100 group-data-output/browser:delay-280 [&_path]:transition-[stroke-dashoffset] [&_path]:duration-700 [&_path]:ease-[cubic-bezier(0.6,0.6,0,1)] [&_path]:[stroke-dasharray:1] [&_path]:[stroke-dashoffset:1] group-data-output/browser:[&_path]:delay-280 group-data-output/browser:[&_path]:[stroke-dashoffset:0]"
+  />
+
+  <ChartLineSecondary
+    class="absolute top-57 left-24 h-11 w-144 text-purple-800 opacity-0 transition-opacity delay-0 duration-0 group-data-output/browser:opacity-100 group-data-output/browser:delay-380 [&_path]:transition-[stroke-dashoffset] [&_path]:duration-700 [&_path]:ease-[cubic-bezier(0.6,0.6,0,1)] [&_path]:[stroke-dasharray:1] [&_path]:[stroke-dashoffset:1] group-data-output/browser:[&_path]:delay-380 group-data-output/browser:[&_path]:[stroke-dashoffset:0]"
+  />
+</div>

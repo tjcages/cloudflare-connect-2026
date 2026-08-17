@@ -1,0 +1,83 @@
+---
+import Icon from "@/components/icon/Icon";
+import type { IconName } from "@/components/icon/icons.gen";
+import Scramble from "@/components/scramble/Scramble";
+
+export interface UseCasesCardProps {
+  eyebrow: string;
+  title: string;
+  description: string;
+  iconName: IconName;
+  index: number;
+}
+
+type Props = UseCasesCardProps;
+
+const { index, eyebrow, title, description, iconName } = Astro.props;
+---
+
+<div class="h-600 space-y-40 p-40">
+  <div class="flex justify-between text-decorative-small">
+    <div class="flex items-center gap-8">
+      <div class="h-10 w-2 bg-orange-900"></div>
+
+      <Scramble client:visible from="left" text={eyebrow?.toUpperCase()} />
+    </div>
+
+    <Scramble
+      client:visible
+      className="text-text-faint"
+      from="left"
+      text={`FIG 0.${index + 1}`}
+    />
+  </div>
+
+  <div
+    class="relative h-320 bg-background-surface after:inside-border after:z-1 after:border-border-muted"
+  >
+    {[
+      ["-left-6 -top-6", ""],
+      ["-right-6 -top-6", "rotate-90"],
+      ["-right-6 -bottom-6", "rotate-180"],
+      ["-left-6 -bottom-6", "-rotate-90"],
+    ].map(([position, rotation]) => (
+      <div
+        class:list={[
+          "absolute z-10 size-12 rounded-full bg-background-base",
+          position,
+        ]}
+      >
+        <svg
+          class:list={["absolute top-0 left-0 overflow-visible", rotation]}
+          width="12"
+          height="12"
+          fill="none"
+        >
+          <path
+            class="stroke-border-muted"
+            d="M12 6A6 6 0 0 1 6 12"
+            stroke-linecap="square"
+          />
+        </svg>
+
+        <div class="absolute top-5 left-5 size-2 rounded-full bg-orange-900" />
+      </div>
+    ))}
+
+    <div class="overlay overflow-clip">
+      <slot />
+    </div>
+  </div>
+
+  <div class="flex gap-16">
+    <div class="px-8">
+      <Icon name={iconName} size={24} variant="duo" color="orange" />
+    </div>
+
+    <div class="min-w-0 flex-1">
+      <div class="mb-10 text-label-medium">{title}</div>
+
+      <div class="text-body-small text-text-default" set:html={description} />
+    </div>
+  </div>
+</div>

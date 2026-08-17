@@ -1,9 +1,9 @@
 {
-  "name": "stripes-shader-monorepo",
+  "name": "cloudflare-connect-2026",
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "packageManager": "pnpm@10.6.3",
+  "packageManager": "pnpm@10.33.3",
   "pnpm": {
     "minimumReleaseAge": 10080,
     "onlyBuiltDependencies": [
@@ -13,19 +13,30 @@
     ]
   },
   "scripts": {
-    "dev": "pnpm --filter lab dev",
-    "build": "pnpm --filter lab build",
-    "build:client": "pnpm --filter lab build",
-    "typecheck": "pnpm --filter @necatikcl/stripes-engine typecheck && pnpm --filter lab typecheck",
-    "preview:worker": "pnpm --filter lab preview:worker",
-    "preview:upload": "node ./scripts/preview-upload.mjs",
-    "deploy": "pnpm run build && pnpm exec wrangler deploy",
+    "dev": "pnpm run dev:shader",
+    "dev:shader": "pnpm --filter lab dev",
+    "dev:site": "pnpm --filter @cloudflare-connect/site dev",
+    "build": "pnpm run build:shader",
+    "build:all": "pnpm run build:shader && pnpm run build:site",
+    "build:shader": "pnpm --filter lab build",
+    "build:site": "pnpm --filter @cloudflare-connect/site build",
+    "build:client": "pnpm run build:shader",
+    "typecheck": "pnpm --filter @necatikcl/stripes-engine typecheck && pnpm --filter lab typecheck && pnpm --filter @cloudflare-connect/site typecheck",
+    "preview:shader": "pnpm --filter lab preview:worker",
+    "preview:site": "pnpm --filter @cloudflare-connect/site preview",
+    "preview:upload": "pnpm run preview:upload:shader && pnpm run preview:upload:site",
+    "preview:upload:shader": "node ./scripts/preview-upload.mjs shader",
+    "preview:upload:site": "node ./scripts/preview-upload.mjs site",
+    "deploy": "pnpm run deploy:shader",
+    "deploy:shader": "pnpm --filter lab run deploy",
+    "deploy:site": "pnpm --filter @cloudflare-connect/site run deploy",
     "postinstall": "node ./scripts/workers-ci-build.mjs",
     "test": "vitest run --config vitest.workspace.ts",
     "test:watch": "vitest --config vitest.workspace.ts",
+    "test:site": "pnpm --filter @cloudflare-connect/site test",
     "test:e2e": "playwright test",
     "test:e2e:update": "playwright test --update-snapshots",
-    "verify": "pnpm run test && pnpm run typecheck && pnpm --filter lab build",
+    "verify": "pnpm run test && pnpm run test:site && pnpm run typecheck && pnpm run build:all",
     "code-check": "oxlint -c .oxlintrc.json . && oxfmt --check .",
     "lint": "oxlint -c .oxlintrc.json .",
     "format": "oxfmt --write .",
@@ -35,10 +46,10 @@
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx,json,jsonc,css,md,yml,yaml}": [
-      "oxfmt --write --no-error-on-unmatched-pattern"
+      "node ./scripts/lint-staged-root.mjs format"
     ],
     "*.{js,jsx,ts,tsx}": [
-      "oxlint -c .oxlintrc.json --no-error-on-unmatched-pattern"
+      "node ./scripts/lint-staged-root.mjs lint"
     ]
   },
   "devDependencies": {

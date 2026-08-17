@@ -1,0 +1,11 @@
+@property --code-card-background {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: transparent;
+}
+
+@property --code-card-border {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: transparent;
+}

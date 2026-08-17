@@ -1,11 +1,9 @@
 import { STRIPE_CELL_GLSL } from "./stripeCell.glsl";
-import { EDGE_MASK_GLSL } from "./edgeMask.glsl";
 
 export const STRIPE_FRAG = `#version 300 es
 precision highp float;
 in vec2 vUv;
 ${STRIPE_CELL_GLSL}
-${EDGE_MASK_GLSL}
 uniform sampler2D uCellDataA;
 uniform sampler2D uCellDataB;
 uniform float uUseCellData;
@@ -311,6 +309,9 @@ void main() {
   float barDotEligible = cellState.dotEligible;
   float barWidthPx = cellState.widthPx;
   if (uShuffleEnabled > 0.5) barWidthPx = shuffledWidth(cell.x, cell.y, barWidthPx);
+  // The edge mask has already been applied — \`cellData\` walked the cell down the
+  // stripe ladder before the LUT lookup, so \`barWidthPx\` is an authored width
+  // and a masked-out cell arrives with the same negative width a gap pulse uses.
   bool cellHidden = barWidthPx < 0.5;
   barWidthPx = max(barWidthPx, 0.0);
 
@@ -415,6 +416,9 @@ void main() {
         vec2 candidateUv = clamp(candidateBaseCenterPixel / displayPx, vec2(0.0), vec2(1.0));
 
         float candidateValue = normalizedCellValue(candidateUv);
+        float candidateWalked = edgeMaskWalkedValue(candidateValue, candidateUv, candidateCell);
+        if (candidateWalked < 0.0) continue;
+        candidateValue = candidateWalked;
         vec2 candidateLutUv = vec2((candidateValue * 255.0 + 0.5) / 256.0, 0.5);
         vec4 candidateLut = texture(uLut, candidateLutUv);
         float candidateWidthPx = (candidateLut.a * 255.0) * 0.5;
@@ -545,10 +549,5 @@ void main() {
       }
     }
   }
-
-  // Final alpha mask. The canvas is premultiplied (premultipliedAlpha: true),
-  // so scaling the whole vec4 is exactly a * mask — scaling only .a would leave
-  // the colour un-darkened and read as a halo.
-  finalColor *= edgeMaskAlpha(vUv);
 }
 `;

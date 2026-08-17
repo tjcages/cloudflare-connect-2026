@@ -1,0 +1,81 @@
+---
+import Button from "@/components/Button";
+import Section from "@/layouts/Section.astro";
+import PricingLattice from "./PricingLattice";
+
+interface Props {
+  data: { [key: string]: string }[];
+  columns: { label: string; width: string | number; field: string }[];
+}
+const { data, columns } = Astro.props;
+---
+
+<Section layout="split-custom" sectionEyebrow="pricing">
+  <div slot="custom" class="flex items-end justify-between">
+    <div>
+      <h2 class="mb-16 text-heading-h2 text-text-base">
+        <slot name="title" />
+      </h2>
+      <div class="text-body-large text-text-base">
+        <slot name="description" />
+      </div>
+    </div>
+    <Button variant="secondary"><span>View pricing details</span></Button>
+  </div>
+
+  <div class="relative">
+    <PricingLattice client:visible={{ rootMargin: "200px" }} />
+
+    <table class="w-full">
+      <thead>
+        <tr class="text-body-small">
+          {columns.map((item) => (
+            <th
+              scope="col"
+              class="relative py-29 pl-40 text-left [font-weight:inherit] text-text-muted"
+              style={{
+                width:
+                  typeof item.width === "string" ? "auto" : `${item.width}px`,
+              }}
+            >
+              {item.label}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {data.map((item) => (
+          <tr class="relative text-body-small">
+            {columns.map((column, columnIndex) => {
+              const [main, secondary] = item[column.field]
+                .split("/")
+                .map((part) => part.trim());
+
+              const Cell = columnIndex === 0 ? "th" : "td";
+
+              return (
+                <Cell
+                  scope={columnIndex === 0 ? "row" : undefined}
+                  class="relative py-29 pl-40 text-left [font-weight:inherit]"
+                >
+                  {secondary || main ? (
+                    secondary ? (
+                      <>
+                        <span>{main}</span>
+                        <span class="text-text-muted"> / {secondary}</span>
+                      </>
+                    ) : (
+                      main
+                    )
+                  ) : (
+                    <div class="text-text-subtle">—</div>
+                  )}
+                </Cell>
+              );
+            })}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+</Section>

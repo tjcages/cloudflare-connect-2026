@@ -1,0 +1,98 @@
+---
+import CodeTabs from "@/components/code-tabs/CodeTabs.astro";
+import type { DataProps } from "@/components/code-tabs/content/data";
+
+const data: DataProps[] = [
+  {
+    tabTitle: "Send transactional emails",
+    title: "Send transactional emails",
+    description:
+      "Send from your appDeliver transactional and workflow email directly from Workers with a native binding.",
+    language: "typescript",
+    fileName: "send.ts",
+    code: `export default {
+  async fetch(request, env) {
+    await env.SEND_EMAIL.send({
+      to: [{ email: 'user@example.com' }],
+      from: { email: 'notifications@your-domain.com', name: 'Your App' },
+      subject: 'Your order has shipped',
+      text: 'Your order #1234 has shipped and is on its way.',
+    });
+
+    return new Response('Email sent');
+  },
+};`,
+  },
+  {
+    tabTitle: "Receive inbound email",
+    title: "Receive inbound email",
+    description:
+      "Route inbound email into Workers for parsing, automation, and downstream processing.",
+    language: "typescript",
+    fileName: "receive.ts",
+    code: `export default {
+  async email(message, env, ctx) {
+    const raw = await new Response(message.raw).text();
+
+    await env.EMAIL_QUEUE.send({
+      from: message.from,
+      to: message.to,
+      raw,
+    });
+  },
+};`,
+  },
+  {
+    tabTitle: "Build an email-native agent",
+    title: "Build an email-native agent",
+    description:
+      "Use the Agents SDK to maintain state across conversations and reply from the same platform.",
+    language: "typescript",
+    fileName: "built.ts",
+    code: `import { Agent, routeAgentEmail } from 'agents';
+import { createAddressBasedEmailResolver, type AgentEmail } from 'agents/email';
+import PostalMime from 'postal-mime';
+
+export class SupportAgent extends Agent {
+  async onEmail(email: AgentEmail) {
+    const raw = await email.getRaw();
+    const parsed = await PostalMime.parse(raw);
+
+    const emails = this.state.emails || [];
+    emails.push({
+      from: email.from,
+      subject: parsed.subject,
+      body: parsed.text,
+      receivedAt: new Date().toISOString(),
+    });
+
+    this.setState({ ...this.state, emails });
+
+    await this.replyToEmail(email, {
+      fromName: 'Support Agent',
+      body: \`We received your message about "\${parsed.subject}".\`,
+    });
+  }
+}
+
+export default {
+  async email(message, env) {
+    await routeAgentEmail(message, env, {
+      resolver: createAddressBasedEmailResolver('SupportAgent'),
+    });
+  },
+};`,
+  },
+];
+---
+
+<CodeTabs data={data}>
+  <Fragment slot="title">
+    A few lines of code. <br />Global email delivery.
+  </Fragment>
+
+  <Fragment slot="description">
+    Use Email Sending for outbound delivery and Email Routing for
+    <br />inbound handling, all from the same Workers application.
+  </Fragment>
+</CodeTabs>

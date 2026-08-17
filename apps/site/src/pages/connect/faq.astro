@@ -1,0 +1,66 @@
+---
+import RegisterCta from "@/components/_pages/connect/cta/RegisterCta.astro";
+import {
+  faqContactEmail,
+  faqGroups,
+  faqHero,
+  faqPageMeta,
+} from "@/components/_pages/connect/page-data/faq";
+import FaqList from "@/components/_pages/connect/shared/FaqList.astro";
+import SubpageHero from "@/components/_pages/connect/shared/SubpageHero.astro";
+import Icon from "@/components/icon/Icon";
+import Section from "@/layouts/Section.astro";
+import Layout from "@/layouts/Layout.astro";
+---
+
+<Layout
+  title={faqPageMeta.title}
+  description={faqPageMeta.description}
+  cta={false}
+  nav="connect"
+>
+  <SubpageHero {...faqHero} />
+
+  <Section
+    class="scroll-mt-80"
+    layout="center"
+    eyebrow="FAQ"
+    sectionEyebrow="FAQ"
+    title="Answers by topic"
+    description="General, registration, University, experience, and venue."
+    headerClass="pb-72!"
+  >
+    <div class="flex flex-col gap-80 px-40 pt-80 pb-40">
+      {faqGroups.map((group) => (
+        <div class="mx-auto flex w-full max-w-720 flex-col">
+          <h2 class="text-heading-h4 text-text-base">{group.title}</h2>
+          <FaqList items={group.items} />
+        </div>
+      ))}
+    </div>
+
+    <div class="mx-auto max-w-720 px-40 pb-80">
+      <div
+        class="relative flex h-80 items-center gap-20 bg-background-surface px-40 text-body-x-small text-text-default"
+      >
+        <div
+          class="relative flex-center size-40 shrink-0 rounded-full bg-background-surface before:inside-border before:border-border-default"
+        >
+          <Icon name="info-simple" size={20} className="text-icon-default" />
+        </div>
+        <div>
+          Still have questions? Email{" "}
+          <a
+            class="text-label-x-small text-orange-900"
+            href={`mailto:${faqContactEmail}`}
+          >
+            {faqContactEmail}
+          </a>
+          .
+        </div>
+      </div>
+    </div>
+  </Section>
+
+  <RegisterCta />
+</Layout>

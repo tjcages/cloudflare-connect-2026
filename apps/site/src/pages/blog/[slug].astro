@@ -1,0 +1,77 @@
+---
+import type { InferGetStaticPropsType } from "astro";
+import { POSTS, relatedPosts } from "@/components/_pages/blog/data";
+import PostGrid from "@/components/_pages/blog/PostGrid.astro";
+import PostByline from "@/components/_pages/blog/post/PostByline.astro";
+import PostCover from "@/components/_pages/blog/post/PostCover.astro";
+import PostFooter from "@/components/_pages/blog/post/PostFooter.astro";
+import PostHero from "@/components/_pages/blog/post/PostHero.astro";
+import PostSidebar from "@/components/_pages/blog/post/PostSidebar";
+import { tableOfContents } from "@/components/_pages/blog/post/toc";
+import Subscribe from "@/components/_pages/blog/Subscribe.astro";
+import ArticleBody from "@/components/article/ArticleBody.astro";
+import Container from "@/components/Container.astro";
+import Layout from "@/layouts/Layout.astro";
+import Section from "@/layouts/Section.astro";
+
+export function getStaticPaths() {
+  return POSTS.map((post) => ({
+    params: { slug: post.slug },
+    props: { post },
+  }));
+}
+
+type Props = InferGetStaticPropsType<typeof getStaticPaths>;
+
+const { post } = Astro.props;
+
+const entries = tableOfContents(post.blocks);
+const related = relatedPosts(post.slug);
+const shareUrl = new URL(`/blog/${post.slug}`, Astro.site).href;
+---
+
+<Layout
+  description={post.excerpt}
+  title={`${post.title} | The Cloudflare Blog`}
+>
+  <Section layout="headerless" noGridArea>
+    <div class="mx-auto flex w-800 flex-col gap-40">
+      <PostHero post={post} />
+      <PostCover post={post} />
+      <PostByline post={post} />
+    </div>
+  </Section>
+
+  <Section layout="headerless" noGridArea>
+    <div class="flex justify-between px-120">
+      <PostSidebar
+        client:load
+        entries={entries}
+        shareUrl={shareUrl}
+        title={post.title}
+      />
+
+      <article
+        class="flex w-640 flex-col gap-28 [&>h2]:mt-52 [&>h2]:scroll-mt-120 [&>h2:first-child]:mt-0 [&>h3]:mt-52 [&>h3]:scroll-mt-120"
+      >
+        <ArticleBody blocks={post.blocks} copyAnchors />
+
+        <div class="mt-52 h-px w-full bg-border-muted"></div>
+
+        <div class="mt-52">
+          <PostFooter post={post} />
+        </div>
+      </article>
+    </div>
+  </Section>
+
+  <Container>
+    <Subscribe bordered={false} />
+  </Container>
+
+  <Section layout="headerless" noGridArea>
+    <div class="px-40">
+      <PostGrid posts={related} />
+    </div>
+  </Section>
+</Layout>

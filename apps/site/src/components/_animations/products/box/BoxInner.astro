@@ -1,0 +1,25 @@
+---
+import type { IconName } from "@/components/icon/icons.gen";
+import BoxInnerIcon from "./BoxInnerIcon.astro";
+
+interface Props {
+  size: number;
+  icon: IconName;
+}
+
+const { size, icon } = Astro.props;
+---
+
+{Array.from({ length: size }).map((_, index) => (
+  <Fragment>
+    {index !== 0 && (
+      <div class="flex w-24 flex-col items-center justify-between py-8.5 text-(--box-color-100) transition-colors">
+        <div class="h-1 w-4 bg-current" />
+        <div class="h-1 w-16 bg-current" />
+        <div class="h-1 w-4 bg-current" />
+      </div>
+    )}
+
+    <BoxInnerIcon icon={icon} index={index} />
+  </Fragment>
+))}

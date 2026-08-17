@@ -1,0 +1,13 @@
+---
+import Stage from "@/components/Stage.astro";
+import HubPill from "@/components/_animations/hub-pill/HubPill.astro";
+import AutomationPill from "./AutomationPill";
+---
+
+<Stage data-wfp-fullstack-visual="automation">
+  <div class="overlay overflow-clip">
+    <HubPill ringRadius={60}>
+      <AutomationPill client:visible />
+    </HubPill>
+  </div>
+</Stage>

@@ -1,0 +1,105 @@
+---
+import Browser from "@/components/browser/Browser.astro";
+import Icon from "@/components/icon/Icon";
+import Badge from "@/components/_animations/ui/Badge";
+import FrameworkLogo from "./FrameworkLogo";
+
+const orbitIcons = [
+  { name: "product-workers", color: "purple", offset: 0 },
+  { name: "product-durable-objects", color: "orange", offset: 48 },
+  { name: "product-queues", color: "purple", offset: 96 },
+  { name: "product-workflows", color: "orange", offset: 144 },
+] as const;
+---
+
+<div
+  class="absolute inset-0"
+  data-illustration-root
+  data-usecases-visual="deploy"
+>
+  <div
+    class="absolute top-0 left-1/2 h-128 w-px -translate-x-1/2 bg-border-muted"
+  >
+  </div>
+
+  <div
+    class="absolute top-[calc(50%+300px)] left-1/2 z-10 size-0 rotate-[-24deg]"
+    data-orbit-group
+  >
+    <svg
+      class="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2"
+      width="833"
+      height="833"
+      viewBox="0 0 833 833"
+      fill="none"
+      aria-hidden="true"
+    >
+      <circle
+        class="stroke-border-dashed"
+        cx="416.5"
+        cy="416.5"
+        r="358"
+        stroke-width="1.25"
+        stroke-linecap="round"
+        stroke-dasharray="0.01 8"></circle>
+      <circle
+        class="stroke-icon-faint"
+        cx="416.5"
+        cy="416.5"
+        r="416"
+        stroke-width="1.25"
+        stroke-linecap="round"
+        stroke-dasharray="0.01 8"></circle>
+    </svg>
+
+    {orbitIcons.map(({ name, color, offset }) => (
+      <div
+        class="absolute -mt-28 -ml-28 size-56 rounded-full bg-background-surface before:inside-border before:border-border-muted"
+        data-orbit-icon
+        style={{
+          transform: `rotate(${offset}deg) translateY(-416px)`,
+        }}
+      >
+        <div
+          class="flex-center size-full"
+          data-offset={offset}
+          data-orbit-upright
+          style={{ rotate: `${24 - offset}deg` }}
+        >
+          <Icon name={name} variant="duo" color={color} size={24} />
+        </div>
+      </div>
+    ))}
+  </div>
+
+  <Browser
+    class="absolute top-1/2 left-1/2 h-136 w-208 -translate-x-1/2 -translate-y-1/2"
+    variant="grid-2"
+    data-float
+  >
+    <div
+      class="absolute top-79 left-0 h-2 w-56 rounded-full bg-linear-to-r from-orange-900/0 via-orange-900 to-orange-900/0"
+      data-view-pulse
+      style={{ transform: "translateX(28px)" }}
+    >
+    </div>
+
+    <div
+      class="absolute top-52 left-28 flex-center size-56 rounded-full bg-background-base text-orange-900 shadow-elevation-default"
+    >
+      <Icon name="cloudflare" variant="duo" size={36} />
+    </div>
+
+    <div
+      class="absolute top-52 left-124 size-56 overflow-clip rounded-full bg-background-base shadow-elevation-default"
+    >
+      <FrameworkLogo client:visible />
+    </div>
+  </Browser>
+
+  <Badge
+    className="absolute bottom-32 left-1/2 z-10 -translate-x-1/2 text-text-default"
+  >
+    Frameworks
+  </Badge>
+</div>

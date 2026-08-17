@@ -1,0 +1,60 @@
+---
+import Button from "@/components/Button";
+import Container from "@/components/Container.astro";
+import Icon from "@/components/icon/Icon";
+import { formatPostDate } from "./data";
+import pressItems from "./press.json";
+
+const items = pressItems.slice(0, 3);
+---
+
+<Container>
+  <div class="relative flex flex-col gap-40 px-40 py-80">
+    <div class="flex items-center justify-between">
+      <h2 class="text-heading-h3 text-text-base">Press</h2>
+
+      <Button
+        href="https://www.cloudflare.com/press/coverage/"
+        variant="link-button"
+      >
+        <span class="whitespace-nowrap">View all press</span>
+
+        <Icon
+          className="transition-transform group-hover:translate-x-2"
+          name="chevron-right-small"
+        />
+      </Button>
+    </div>
+
+    <div class="flex justify-between">
+      {items.map((item, index: number) => (
+        <>
+          {index > 0 && (
+            <div class="w-px shrink-0 self-stretch bg-border-muted" />
+          )}
+
+          <a
+            class="group flex h-188 w-320 shrink-0 flex-col justify-between outline-none focus-visible:shadow-button-tertiary-focus"
+            href={item.href}
+            rel="noreferrer"
+            target="_blank"
+          >
+            <div class="flex flex-col gap-8 pr-32">
+              <span class="truncate text-body-medium text-text-loud">
+                {item.outlet}
+              </span>
+
+              <span class="line-clamp-3 text-heading-h5 wrap-break-word text-text-base transition-colors duration-150 group-hover:text-orange-900">
+                {item.headline}
+              </span>
+            </div>
+
+            <span class="flex h-28 items-center text-body-medium text-text-loud">
+              {formatPostDate(item.date)}
+            </span>
+          </a>
+        </>
+      ))}
+    </div>
+  </div>
+</Container>

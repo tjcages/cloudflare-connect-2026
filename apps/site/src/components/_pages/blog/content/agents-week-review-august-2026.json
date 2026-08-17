@@ -1,0 +1,230 @@
+{
+  "slug": "agents-week-review-august-2026",
+  "title": "Everything we launched during Agents Week",
+  "excerpt": "Our latest Agents Week has come to a close. Here’s a recap of all the announcements we made from Wallets to Radar.",
+  "publishedAt": "2026-08-10T18:34:10.233Z",
+  "sourceUrl": "https://blog.cloudflare.com/agents-week-review-august-2026/",
+  "tags": [
+    "agents",
+    "agents-week",
+    "ai",
+    "cloudflare-one",
+    "workers",
+    "developer-platform",
+    "developers",
+    "sase",
+    "zero-trust"
+  ],
+  "authors": ["shelley", "ann-ming-samborski", "kathy"],
+  "cover": {
+    "src": "https://blog.cloudflare.com/_emdash/api/media/file/01KZPFV53AGJT9G37FMCTNJJQ1.png",
+    "alt": ""
+  },
+  "blocks": [
+    {
+      "type": "p",
+      "text": "At the beginning of Agents Week, Rita [shared](https://blog.cloudflare.com/agents-week-welcome/) that agents represent the next evolution of computing: not only as a new application of AI but also as a new class of software that’s shaping how people interact with technology, and how software interacts with the Internet. Over the [last year](https://www.cloudflare.com/innovation-week/ai-week-2025/updates/) or so, we set out to explore what this shift means for developers and customers building AI-native apps and the infrastructure needed to support them. As agents become more capable and autonomous, the challenges extend beyond the models themselves — to identity, communication, orchestration, memory, observability, and security."
+    },
+    {
+      "type": "p",
+      "text": "Over the past week we’ve shared how we’re bringing those pieces together across the Cloudflare platform to serve an Agentic Internet. Each day we presented new tools, products, and ideas toward building for an Internet where humans and agents [cooperate instead of collide](https://blog.cloudflare.com/the-agentic-internet/)."
+    },
+    {
+      "type": "heading",
+      "level": 3,
+      "text": "Monday, August 3",
+      "id": "monday-august-3"
+    },
+    {
+      "type": "p",
+      "text": "Monday focused on the foundations for building and running intelligent, autonomous apps — the runtime and infrastructure agents rely on."
+    },
+    {
+      "type": "table",
+      "head": [
+        "[Your agent needs a computer, not a container — introducing @cloudflare/computer](https://blog.cloudflare.com/cloudflare-computer/)",
+        "@cloudflare/computer introduces a new runtime, designed for agents, that can choose the right environment for the job."
+      ],
+      "rows": [
+        [
+          "[Workers RPC now works across Python and JavaScript](https://blog.cloudflare.com/python-workers-rpc/)",
+          "Python and JavaScript Workers can now talk to each other directly, making mixed-language projects easier."
+        ],
+        [
+          "[Smaller, faster, safer: running Kimi and GLM at scale](https://blog.cloudflare.com/smaller-faster-safer-models/)",
+          "Exploring how we serve large models more efficiently, without sacrificing quality, reliability, or safety."
+        ],
+        [
+          "[Introducing the Billable Usage API: programmatic cost visibility for Cloudflare](https://blog.cloudflare.com/billable-usage-api/)",
+          "A simpler way to track usage and costs across our self-serve products."
+        ],
+        [
+          "[Cloudflare Workers and Containers now support inbound TCP connections and gRPC](https://blog.cloudflare.com/grpc-workers/)",
+          "Host voice AI backends or other real-time voice agents with Cloudflare Workers."
+        ]
+      ]
+    },
+    {
+      "type": "heading",
+      "level": 3,
+      "text": "Tuesday, August 4",
+      "id": "tuesday-august-4"
+    },
+    {
+      "type": "p",
+      "text": "Tuesday introduced the Agent Development Lifecycle (ADLC) and the primitives that take agentic software from prototype to production."
+    },
+    {
+      "type": "table",
+      "head": [
+        "[The Agent Development Lifecycle has arrived on Cloudflare](https://blog.cloudflare.com/agent-development-lifecycle/)",
+        "Superseding the SDLC (Software Development Lifecycle) with the ADLC; our take on getting agents from prototype to production, and the primitives that underpin the next generation of “software factories.”"
+      ],
+      "rows": [
+        [
+          "[Introducing: Cloudflare Agents](https://blog.cloudflare.com/agents-on-cloudflare/)",
+          "Build agents on Cloudflare and watch every run live, with tracing, replay, and human-in-the-loop approvals for what happens in production."
+        ],
+        [
+          "[Your agent can now debug Workers with local tracing](https://blog.cloudflare.com/local-tracing/)",
+          "Bringing distributed tracing into local dev, making it easier for agents to find and debug issues before they hit production."
+        ],
+        [
+          "[Announcing Cloudflare Wallets: the programmable wallet for the Agentic Internet](https://blog.cloudflare.com/wallets/)",
+          "Wallets introduce a secure way for agents to perform transactions as participants in the emerging agentic economy."
+        ],
+        [
+          "[Run CI/CD for millions of repos — on your platform, on Cloudflare](https://blog.cloudflare.com/ci-workflows/)",
+          "Programmable CI/CD; pipelines written in code, not config, with an agent that repairs failures and stages the fix for review."
+        ],
+        [
+          "[How Cloudflare enforces engineering standards using AI](https://blog.cloudflare.com/engineering-standards-enforcement/)",
+          "How we use AI-powered automation throughout our dev workflows to keep code standards and processes aligned, helping our own software factories deliver quality and consistent code at scale."
+        ],
+        [
+          "[How we built a software factory to drive Astro’s GitHub issue count to zero](https://blog.cloudflare.com/astro-issue-triage/)",
+          "Automating the analysis, categorization, and routing of issues to minimize software-maintenance toil and maximize developer productivity."
+        ]
+      ]
+    },
+    {
+      "type": "heading",
+      "level": 3,
+      "text": "Wednesday, August 5",
+      "id": "wednesday-august-5"
+    },
+    {
+      "type": "p",
+      "text": "Wednesday extended Zero Trust from users and devices to agents themselves — and we shared how we’re running it internally at Cloudflare."
+    },
+    {
+      "type": "table",
+      "head": [
+        "[The Agent Access Model](https://blog.cloudflare.com/the-agent-access-model/)",
+        "A framework for how agents can securely access resources and services on behalf of users — across an Internet increasingly populated by agents."
+      ],
+      "rows": [
+        [
+          "[How we’re rethinking work at Cloudflare with Cloudflare OS](https://blog.cloudflare.com/how-we-use-ai-with-cloudflare-os/)",
+          "How we’ve embedded AI in our internal operating model, enabling teams to work smarter and faster without giving up security or oversight."
+        ],
+        [
+          "[Cloudflare OS: an open platform for agents, apps, and work](https://blog.cloudflare.com/cloudflare-os/)",
+          "We open-sourced the platform our teams use to build apps, automate work, and access internal systems, safely."
+        ],
+        [
+          "[Catching rogue AI behavior with identity-aware analytics](https://blog.cloudflare.com/identity-aware-ai-gateway/)",
+          "Attribute AI activity to real users and systems, making any anomalies and spend spikes easier to catch."
+        ],
+        [
+          "[WriteGuard: fine-grained controls for MCP Servers](https://blog.cloudflare.com/mcp-portal-writeguard-private-beta/)",
+          "Giving customers the same tooling we deploy, for more control over risky tool calls and lowering the chances of agents making unwanted changes."
+        ]
+      ]
+    },
+    {
+      "type": "heading",
+      "level": 3,
+      "text": "Thursday, August 6",
+      "id": "thursday-august-6"
+    },
+    {
+      "type": "p",
+      "text": "Thursday defined the Agentic Internet, and how website owners, publishers, and agents can all contribute to an Internet that works for people and agents alike."
+    },
+    {
+      "type": "table",
+      "head": [
+        "[Building an open Agentic Internet: readable, discoverable, callable, and payable](https://blog.cloudflare.com/the-agentic-internet/)",
+        "A model for an Agentic Internet where publishers keep control, agents get useful access to what they need, and open protocols let both sides transact."
+      ],
+      "rows": [
+        [
+          "[Give any website a WebMCP interface](https://blog.cloudflare.com/webmcp/)",
+          "A preview of WebMCP, which introduces a new (and very simple) approach for making websites and web apps discoverable and usable by agents."
+        ],
+        [
+          "[From ranking to recommended: get your site ready to thrive in the age of AI agents](https://blog.cloudflare.com/aeo/)",
+          "Adapting SEO into AEO (Answer Engine Optimization) practices to improve how web content is discovered, understood, and surfaced by agents."
+        ],
+        [
+          "[Introducing Kitesurf: the agent-first browser that runs in V8 isolates on Cloudflare Workers](https://blog.cloudflare.com/kitesurf/)",
+          "A browser purpose-built for agents, trading pixel-perfect rendering for lower memory and CPU usage."
+        ],
+        [
+          "[The next generation of MCP](https://blog.cloudflare.com/mcp-v2/)",
+          "MCP got a rewrite. MCPv2 introduces the next evolution of MCP support, simplifying the deployment and scalability of agentic apps."
+        ],
+        [
+          "[Cloudflare AI Search: give your agents a search engine for your data](https://blog.cloudflare.com/ai-search-easier/)",
+          "AI Search turns your files or website into an agent-ready search engine with one command."
+        ]
+      ]
+    },
+    {
+      "type": "heading",
+      "level": 3,
+      "text": "Friday, August 7",
+      "id": "friday-august-7"
+    },
+    {
+      "type": "p",
+      "text": "Friday put a lens on what’s actually happening: what agents are really doing on the web, where AI is running in your apps, who’s contributing to the ecosystems, and new tools for analyzing Internet data."
+    },
+    {
+      "type": "table",
+      "head": [
+        "[Unveiling good and bad behaviors on the Agentic Internet](https://blog.cloudflare.com/good-and-bad-agentic-behaviors/)",
+        "Bots aren’t always bad, and humans aren’t always good; reframing bot mitigation around continuous trust rather than one-time risk."
+      ],
+      "rows": [
+        [
+          "[Unifying Workers AI and AI Gateway into a single AI control plane](https://blog.cloudflare.com/workers-ai-gateway-unification/)",
+          "One binding, one wallet, one dashboard for calling any AI model; model-first routing is up next."
+        ],
+        [
+          "[Announcing Cloudflare Ambassadors, Community Engineers, and another $1M in open-source funding](https://blog.cloudflare.com/community-program-refresh/)",
+          "Our refreshed Community initiative introduces two new programs — Cloudflare Ambassadors for community leaders and Community Engineers for open-source maintainers — plus $1M more in open-source funding over the next two years."
+        ],
+        [
+          "[Introducing Radar Researcher: an AI tool for exploring Internet data in plain language](https://blog.cloudflare.com/introducing-radar-researcher/)",
+          "Radar’s AI research assistant: plain-language questions in, real interactive charts out."
+        ]
+      ]
+    },
+    {
+      "type": "heading",
+      "level": 3,
+      "text": "Agents Week is done, but we aren’t",
+      "id": "agents-week-is-done-but-we-aren-t"
+    },
+    {
+      "type": "p",
+      "text": "Five days on, the answer to Rita’s question of “[What does your agent need from an Agent Cloud?](https://blog.cloudflare.com/agents-week-welcome/)” is starting to take shape. It needs an execution layer and primitives to run on, a development lifecycle that increasingly writes itself, secure access for the people and agents doing the work, an Agentic Internet, and the humans and communities keeping all of it grounded. There's plenty still to come, but the shape of what’s next is becoming clearer: an Internet that natively supports the humans it was built for and the agents now acting on their behalf."
+    },
+    {
+      "type": "p",
+      "text": "Our work doesn’t stop here. Keep an eye on our [changelog](https://developers.cloudflare.com/changelog/) for the latest updates. And if you’re building any part of this with us, we’d love to hear from you! Come find us on [X](https://x.com/cloudflaredev) or [Discord](https://discord.com/invite/cloudflaredev)."
+    }
+  ]
+}

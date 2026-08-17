@@ -1,0 +1,46 @@
+---
+interface Props {
+  dashes: { width: string; class?: string }[];
+  lane: "preview" | "code";
+  class?: string | string[];
+  tall?: boolean;
+  pool?: number;
+  shuffle?: boolean;
+}
+
+const {
+  dashes,
+  lane,
+  class: className,
+  tall = false,
+  pool = 0,
+  shuffle = false,
+} = Astro.props;
+
+// A shuffleable row keeps spare dashes past the ones Figma draws, so the count
+// can vary on the windows that wrap around below the card. They ship `hidden`,
+// which is also what keeps them out of the wave.
+const cells = Array.from(
+  { length: Math.max(pool, dashes.length) },
+  (_, index) => dashes[index]
+);
+---
+
+<div
+  class:list={["absolute flex gap-3", className]}
+  data-stream-row={shuffle ? "" : undefined}
+>
+  {cells.map((dash) => (
+    <div
+      class:list={[
+        "shrink-0 rounded-4 opacity-20",
+        tall ? "h-4" : "h-3",
+        dash?.width,
+        dash?.class ?? "bg-darker/7",
+      ]}
+      data-stream-lane={lane}
+      data-stream-segment
+      hidden={dash === undefined}
+    />
+  ))}
+</div>

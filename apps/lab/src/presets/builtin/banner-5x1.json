@@ -729,6 +729,7 @@
     "shaderViewRotateZ": 0,
     "shaderViewPanX": 0,
     "shaderViewPanY": 0,
-    "shaderViewFov": 55
+    "shaderViewFov": 55,
+    "clientGraphicMode": "twizzler"
   }
 }

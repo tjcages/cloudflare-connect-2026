@@ -1,0 +1,61 @@
+---
+import IllustrationChip from "@/components/_animations/ui/IllustrationChip.astro";
+import Browser from "@/components/browser/Browser.astro";
+import DashedLine from "@/components/dashed-line/DashedLine";
+import Icon from "@/components/icon/Icon";
+import Stage from "@/components/Stage.astro";
+---
+
+<Stage data-sandboxes-fullstack-visual="containers">
+  <div class="overlay overflow-clip">
+    <div class="absolute top-36 left-1/2 h-168 w-240 -translate-x-1/2">
+      <DashedLine
+        className="absolute inset-x-0 -top-0.5 text-border-dashed"
+        direction="horizontal"
+      />
+      <DashedLine
+        className="absolute top-0 -left-0.5 h-85 text-border-dashed"
+        direction="vertical"
+      />
+      <DashedLine
+        className="absolute top-0 -right-0.5 h-85 text-border-dashed"
+        direction="vertical"
+      />
+    </div>
+
+    <div
+      class="absolute top-28 left-1/2 z-20 -translate-x-1/2 rounded-full bg-background-surface px-6 py-1 text-decorative-chip whitespace-nowrap text-text-subtle before:inner-border before:border-border-muted"
+    >
+      CONTAINER · <span data-sandbox-number>07</span>
+    </div>
+
+    {Array.from({ length: 5 }, (_, index) => (
+      <IllustrationChip
+        active
+        chipId={`sandbox-container-${index}`}
+        class="group/sandbox-chip top-0 left-0 z-10 opacity-0"
+        data-sandbox-chip=""
+        grow={false}
+        shape="circle"
+        size="small"
+        sizePx={48}
+      >
+        <Icon
+          name="product-containers"
+          variant="duo"
+          color="colorless"
+          size={20}
+          className="[--icon-color-primary:var(--color-icon-muted)] [--icon-color-secondary:var(--color-icon-faint)] **:transition-[fill,stroke] **:duration-250 **:ease-[cubic-bezier(0.165,0.84,0.44,1)] group-data-active-container/sandbox-chip:[--icon-color-primary:var(--color-orange-900)] group-data-active-container/sandbox-chip:[--icon-color-secondary:var(--color-orange-800)] [&_path]:stroke-[1.5]"
+        />
+      </IllustrationChip>
+    ))}
+
+    <div class="absolute top-52 left-1/2 z-20 -translate-x-1/2">
+      <div data-sandbox-nudge>
+        <div data-float>
+          <Browser class="h-136 w-208" variant="sandbox-2" />
+        </div>
+      </div>
+    </div>
+  </div>
+</Stage>

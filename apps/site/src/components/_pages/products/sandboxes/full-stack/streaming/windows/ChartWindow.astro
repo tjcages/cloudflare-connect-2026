@@ -1,0 +1,36 @@
+---
+import CodeRows from "./CodeRows.astro";
+
+const bars = [
+  "left-39 h-19 bg-(--color-dynamic-purple-4)",
+  "left-48 h-30 bg-(--color-dynamic-orange-4)",
+  "left-57 h-13 bg-(--color-dynamic-blue-4)",
+  "left-76 h-27 bg-(--color-dynamic-purple-4)",
+  "left-85 h-21 bg-(--color-dynamic-orange-4)",
+  "left-94 h-16 bg-(--color-dynamic-blue-4)",
+  "left-113 h-7 bg-(--color-dynamic-purple-4)",
+  "left-122 h-13 bg-(--color-dynamic-orange-4)",
+  "left-131 h-27 bg-(--color-dynamic-blue-4)",
+  "left-150 h-19 bg-(--color-dynamic-purple-4)",
+];
+---
+
+<div class="absolute inset-x-24 top-8 h-35 opacity-0" data-stream-lane="frame">
+  <div class="absolute inset-x-0 bottom-0 h-px bg-border-muted"></div>
+  <div class="absolute inset-x-0 top-17 h-px bg-border-muted"></div>
+</div>
+
+{bars.map((bar) => (
+  <div
+    class:list={["absolute bottom-59 w-6 opacity-0", bar]}
+    data-stream-lane="preview"
+  />
+))}
+
+<CodeRows
+  rows={[
+    { widths: ["w-9", "w-11", "w-5", "w-8", "w-13", "w-4"] },
+    { widths: ["w-12", "w-7", "w-10", "w-6", "w-9"] },
+    { widths: ["w-8", "w-14", "w-3", "w-11", "w-6"] },
+  ]}
+/>

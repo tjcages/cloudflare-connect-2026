@@ -1,0 +1,19 @@
+---
+import Section from "@/layouts/Section.astro";
+import StoriesTable from "./StoriesTable";
+---
+
+<Section layout="headerless" noGridArea>
+  <div class="px-80 pt-40">
+    <h2 class="max-w-690 text-heading-h2">
+      <span class="text-text-base">
+        Powering more than 33,000 organizations.
+      </span>{" "}
+      <span class="text-text-default">
+        From ambitious startups to major enterprise and Fortune 20 companies.
+      </span>
+    </h2>
+  </div>
+
+  <StoriesTable client:visible />
+</Section>

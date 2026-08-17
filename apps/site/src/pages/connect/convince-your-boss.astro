@@ -1,0 +1,43 @@
+---
+import CopyTemplate from "@/components/_pages/connect/convince/CopyTemplate";
+import RegisterCta from "@/components/_pages/connect/cta/RegisterCta.astro";
+import {
+  convinceEmailTemplate,
+  convinceHero,
+  convincePageMeta,
+  convinceSlackTemplate,
+} from "@/components/_pages/connect/page-data/convince";
+import SubpageHero from "@/components/_pages/connect/shared/SubpageHero.astro";
+import Section from "@/layouts/Section.astro";
+import Layout from "@/layouts/Layout.astro";
+---
+
+<Layout
+  title={convincePageMeta.title}
+  description={convincePageMeta.description}
+  cta={false}
+  nav="connect"
+>
+  <SubpageHero {...convinceHero} />
+
+  <Section
+    class="scroll-mt-80"
+    id="templates"
+    layout="center"
+    eyebrow="Templates"
+    sectionEyebrow="Templates"
+    title="Ready to send to your manager"
+    description="Copy the email or a shorter Slack / Teams message, then personalize the placeholders."
+    headerClass="pb-72!"
+  >
+    <div class="mx-auto w-full max-w-720 px-40 pt-80 pb-80">
+      <CopyTemplate
+        client:visible
+        emailTemplate={convinceEmailTemplate}
+        messageTemplate={convinceSlackTemplate}
+      />
+    </div>
+  </Section>
+
+  <RegisterCta />
+</Layout>

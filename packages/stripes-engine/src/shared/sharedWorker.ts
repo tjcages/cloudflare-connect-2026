@@ -210,6 +210,7 @@ function renderTick(): void {
         sy: bufferHeight - slot.y - slot.height,
         width: slot.width,
         height: slot.height,
+        frames: slot.instance.engine.readFramesOverlay() ?? undefined,
       }));
       // Always the zero-copy transfer, never `createImageBitmap`: cropping here
       // would mean a synchronous GPU copy plus an `await` that stalls the rest

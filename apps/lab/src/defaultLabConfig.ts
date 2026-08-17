@@ -612,9 +612,14 @@ const HAND_WRITTEN_LAB_UI_SETTINGS = {
     renderAntialias: true,
   },
   clientSizeId: "hero-16x9",
+  clientSizeUnit: "pixels",
+  clientSizePpi: 300,
+  clientSizeWidth: 1280,
+  clientSizeHeight: 720,
   clientLayoutId: "classic",
   clientColorId: "coral-classic",
   clientAppearanceId: "light",
+  clientGraphicMode: "twizzler",
 } as const;
 
 export const DEFAULT_LAB_UI_SETTINGS = deepMergeDefaults(HAND_WRITTEN_LAB_UI_SETTINGS, factoryDefaults.lab);

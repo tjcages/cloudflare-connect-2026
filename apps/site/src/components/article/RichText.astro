@@ -1,0 +1,13 @@
+---
+import RichSegments from "./RichSegments.astro";
+import { parseRichText } from "./rich-text";
+
+interface Props {
+  text: string;
+  plainLinks?: boolean;
+}
+
+const { plainLinks, text } = Astro.props;
+---
+
+<RichSegments plainLinks={plainLinks} segments={parseRichText(text)} />

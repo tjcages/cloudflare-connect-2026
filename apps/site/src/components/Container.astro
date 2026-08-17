@@ -1,0 +1,24 @@
+---
+import type { HTMLAttributes } from "astro/types";
+import CornerDots from "@/components/CornerDots";
+import DashedLineBleed from "@/components/DashedLineBleed";
+
+interface Props extends HTMLAttributes<"div"> {
+  as?: "div" | "section";
+}
+
+const { as: Tag = "div", class: className, ...attributes } = Astro.props;
+---
+
+<Tag
+  {...attributes}
+  class:list={[
+    "relative mx-auto w-full max-w-1200 before:inside-border-y before:border-border-default",
+    className,
+  ]}
+>
+  <CornerDots count={4} />
+  <slot name="beforeBleed" />
+  <DashedLineBleed className="-top-0.5" />
+  <slot />
+</Tag>

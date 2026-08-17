@@ -1,0 +1,1095 @@
+{
+  "adam-bouhmad": {
+    "slug": "adam-bouhmad",
+    "name": "Adam Bouhmad",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW46V48CPK64MWTYNSCVTA3E.webp",
+    "location": "Senior Product Manager",
+    "socials": []
+  },
+  "ah-young-choi": {
+    "slug": "ah-young-choi",
+    "name": "Ah-young Choi",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW499N66WDQ6E6CZPNZ7JJ9W.png",
+    "location": "Security Researcher & Analyst",
+    "socials": []
+  },
+  "alex": {
+    "slug": "alex",
+    "name": "Alex Krivit",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW44Q0QQ4YF44E63CZ5V25R6.jpg",
+    "location": null,
+    "socials": [
+      {
+        "kind": "x",
+        "href": "https://x.com/ackriv"
+      }
+    ]
+  },
+  "alex-reneau": {
+    "slug": "alex-reneau",
+    "name": "Alex Reneau",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW9WKWJ94JZDRJM354AYKYXG.jpeg",
+    "location": "Principal Machine Learning Engineer",
+    "socials": []
+  },
+  "alexandra-godoi": {
+    "slug": "alexandra-godoi",
+    "name": "Alexandra Godoi",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW9WMS1ZDF1A4G73S5DMSZXN.webp",
+    "location": "Information Security GRC Analyst",
+    "socials": []
+  },
+  "andre-jesus": {
+    "slug": "andre-jesus",
+    "name": "André Jesus",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW48SMWWWW1RG87RNZQH78V5.webp",
+    "location": "Systems Engineer",
+    "socials": []
+  },
+  "andre-venceslau": {
+    "slug": "andre-venceslau",
+    "name": "André Venceslau",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW45TZTSTWQ6JMKEC8GX38NE.png",
+    "location": "Systems Engineer",
+    "socials": []
+  },
+  "andrew-galloni": {
+    "slug": "andrew-galloni",
+    "name": "Andrew Galloni",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW467820APNFQVPB01C3445A.jpg",
+    "location": null,
+    "socials": []
+  },
+  "ann-ming-samborski": {
+    "slug": "ann-ming-samborski",
+    "name": "Ann Ming Samborski",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW46MY1PMDMM9JK9SM0E02KA.png",
+    "location": null,
+    "socials": []
+  },
+  "anni": {
+    "slug": "anni",
+    "name": "Anni Wang",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW4618C573MJFB0RNKW6K68R.png",
+    "location": null,
+    "socials": [
+      {
+        "kind": "linkedin",
+        "href": "https://www.linkedin.com/in/a248wang/"
+      },
+      {
+        "kind": "x",
+        "href": "https://x.com//aninibread"
+      }
+    ]
+  },
+  "anthony-turcios": {
+    "slug": "anthony-turcios",
+    "name": "Anthony Turcios",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KY7YXQR9B85CTTBSQ2JN7BGD.png",
+    "location": null,
+    "socials": []
+  },
+  "arielle-weiss": {
+    "slug": "arielle-weiss",
+    "name": "Arielle Weiss",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KWW2Q27P8MJVNRWP3T72QCMX.jpg",
+    "location": null,
+    "socials": []
+  },
+  "aron-carroll": {
+    "slug": "aron-carroll",
+    "name": "Aron Carroll",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KZ0QBKB6JZ26WGQW2DHCS5M4.jpeg",
+    "location": "Principal Systems Engineer • Developer Engineering",
+    "socials": [
+      {
+        "kind": "linkedin",
+        "href": "https://www.linkedin.com/in/aroncarroll/"
+      }
+    ]
+  },
+  "ayush": {
+    "slug": "ayush",
+    "name": "Ayush Kumar",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW449VZTK4C95VB94E47SS8C.png",
+    "location": null,
+    "socials": []
+  },
+  "bas": {
+    "slug": "bas",
+    "name": "Bas Westerbaan",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW46N3BWJ6WS6790KRRJ4RWD.png",
+    "location": "The Netherlands",
+    "socials": [
+      {
+        "kind": "website",
+        "href": "https://bas.westerbaan.name"
+      },
+      {
+        "kind": "x",
+        "href": "https://x.com/bwesterb"
+      }
+    ]
+  },
+  "ben-yang": {
+    "slug": "ben-yang",
+    "name": "Ben Yang",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW495TVKCM4J39JXG32VTCNG.jpg",
+    "location": "Systems Engineer",
+    "socials": []
+  },
+  "benedikt": {
+    "slug": "benedikt",
+    "name": "Benedikt Wolters",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW46T3SF8G510C5WQF4XNFC1.png",
+    "location": null,
+    "socials": [
+      {
+        "kind": "website",
+        "href": "https://benedikt-wolters.de"
+      },
+      {
+        "kind": "x",
+        "href": "https://x.com/worengawins"
+      }
+    ]
+  },
+  "bob-halley": {
+    "slug": "bob-halley",
+    "name": "Bob Halley",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KXJFYHRZYTBR06JDENDTQ12N.jpg",
+    "location": "Principal Research Engineer",
+    "socials": []
+  },
+  "brendan-irvine-broque": {
+    "slug": "brendan-irvine-broque",
+    "name": "Brendan Irvine-Broque",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW49H9641F9RZN2BA8BPX7HK.JPG",
+    "location": "Oakland, CA",
+    "socials": [
+      {
+        "kind": "website",
+        "href": "https://www.cloudflare.com/products/cloudflare-stream/"
+      },
+      {
+        "kind": "x",
+        "href": "https://x.com/irvinebroque"
+      }
+    ]
+  },
+  "bryan-becker": {
+    "slug": "bryan-becker",
+    "name": "Bryan Becker",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KWW2PPX6Y9F64M9HHDMGBP2Q.jpg",
+    "location": "Director of Product, AppSec Integrity & Trust Solutions",
+    "socials": []
+  },
+  "bryton": {
+    "slug": "bryton",
+    "name": "Bryton Herdes",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KYAJP648S3013NEXJ8RKZF1Y.jpg",
+    "location": "Principal Network Engineer",
+    "socials": [
+      {
+        "kind": "website",
+        "href": "https://next-hopself.net/"
+      },
+      {
+        "kind": "x",
+        "href": "https://x.com/next_hopself"
+      },
+      {
+        "kind": "linkedin",
+        "href": "https://www.linkedin.com/in/brytonjherdes/"
+      }
+    ]
+  },
+  "celso": {
+    "slug": "celso",
+    "name": "Celso Martinho",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW45K1GG0634XMEFX9CSSGM2.png",
+    "location": "Portugal, Lisbon",
+    "socials": [
+      {
+        "kind": "website",
+        "href": "https://celso.io/"
+      },
+      {
+        "kind": "x",
+        "href": "https://x.com/celso"
+      }
+    ]
+  },
+  "chenxi-zhang": {
+    "slug": "chenxi-zhang",
+    "name": "Chenxi Zhang",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KXJM6F0PHPE4PQMNC0W1H579.webp",
+    "location": "Systems Engineer",
+    "socials": []
+  },
+  "chi-mcisaac": {
+    "slug": "chi-mcisaac",
+    "name": "Chi McIsaac",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KZ1QJYZF8GBATHV6TF6MD5KE.png",
+    "location": "Software Engineer Intern • R&D Interns",
+    "socials": []
+  },
+  "christopher-patton": {
+    "slug": "christopher-patton",
+    "name": "Christopher Patton",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW471WT491ZC11M0S5HA34X3.jpg",
+    "location": null,
+    "socials": []
+  },
+  "cloudforce": {
+    "slug": "cloudforce",
+    "name": "Cloudforce One",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW45F4NKW3JJWXAED2MVFY7Y.png",
+    "location": null,
+    "socials": []
+  },
+  "connor-harwood": {
+    "slug": "connor-harwood",
+    "name": "Connor Harwood",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW48PA3429BFXAR99YP0Z2ZX.jpg",
+    "location": "Manager, Engineering",
+    "socials": []
+  },
+  "dan-carter": {
+    "slug": "dan-carter",
+    "name": "Dan Carter",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW46BJJATPEKV6ZZ0N22HHVH.png",
+    "location": "Engineering Director",
+    "socials": [
+      {
+        "kind": "x",
+        "href": "https://x.com/dcarter_js"
+      }
+    ]
+  },
+  "dan-jones": {
+    "slug": "dan-jones",
+    "name": "Dan Jones",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW47NPTFNWGMZXQMX2WDPGJS.webp",
+    "location": "Principal Red Team Engineer",
+    "socials": []
+  },
+  "dan-lapid": {
+    "slug": "dan-lapid",
+    "name": "Dan Lapid",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW49J56Y8QNB56HN77FKK7EM.jpg",
+    "location": "Senior Manager, Engineering",
+    "socials": []
+  },
+  "daniele": {
+    "slug": "daniele",
+    "name": "Daniele Molteni",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW464793D50Z8QJQK451PK2A.jpg",
+    "location": "London, UK",
+    "socials": []
+  },
+  "deanna": {
+    "slug": "deanna",
+    "name": "Deanna Lam",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW47KFXCHBMAHQ4B20STFNCC.jpg",
+    "location": null,
+    "socials": []
+  },
+  "diretnan-domnan": {
+    "slug": "diretnan-domnan",
+    "name": "Diretnan Domnan",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW47Q4B9ZYMXFBZ5X354KFW2.jpg",
+    "location": "Systems Engineer",
+    "socials": []
+  },
+  "dominik": {
+    "slug": "dominik",
+    "name": "Dominik Picheta",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW46P5G8RRA9GKFZA6BYERZ1.jpg",
+    "location": "London, England",
+    "socials": [
+      {
+        "kind": "x",
+        "href": "https://x.com/d0m96"
+      }
+    ]
+  },
+  "emily-lanfear": {
+    "slug": "emily-lanfear",
+    "name": "Emily Lanfear",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KWW2PF8NNKWVPXS9KJSP1PP9.png",
+    "location": null,
+    "socials": []
+  },
+  "enrique-somoza": {
+    "slug": "enrique-somoza",
+    "name": "Enrique Somoza",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KY0CFW3DJ9J69XDCMWR1NNSG.jpg",
+    "location": "Product Manager",
+    "socials": []
+  },
+  "filipa-nobrega": {
+    "slug": "filipa-nobrega",
+    "name": "Filipa Nóbrega",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KZ1X62NSE3TRWSABF7J6JR84.webp",
+    "location": "Systems Engineer • Platform Engineering",
+    "socials": []
+  },
+  "fisher": {
+    "slug": "fisher",
+    "name": "Fisher Darling",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW463PVCFZWEEPCE2T84TW2R.jpg",
+    "location": null,
+    "socials": []
+  },
+  "francisco-content": {
+    "slug": "francisco-content",
+    "name": "Francisco Contente",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KY2CF3W577J0ES3RM3DTCG49.webp",
+    "location": null,
+    "socials": []
+  },
+  "fred-schott": {
+    "slug": "fred-schott",
+    "name": "Fred Schott",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW49HE62TBFWQKQNG8KP7ZXC.jpg",
+    "location": "Sr Engineering Manger, ETI (CEO of Astro: acquired 2026)",
+    "socials": [
+      {
+        "kind": "x",
+        "href": "https://x.com/FredKSchott"
+      }
+    ]
+  },
+  "georgie": {
+    "slug": "georgie",
+    "name": "Georgie Yoxall",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW45HTH4Y5JB9BR4J2PDNJZG.jpeg",
+    "location": "UK",
+    "socials": []
+  },
+  "goldbe": {
+    "slug": "goldbe",
+    "name": "Sharon Goldberg",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW488S3YN4RV24QXC7PM57EC.png",
+    "location": "Boston",
+    "socials": [
+      {
+        "kind": "x",
+        "href": "https://x.com/goldbe"
+      }
+    ]
+  },
+  "grant": {
+    "slug": "grant",
+    "name": "Grant Bourzikas",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW46SJJRBDYVMHZKVGKTMJ08.png",
+    "location": "Chief Security Officer",
+    "socials": [
+      {
+        "kind": "linkedin",
+        "href": "https://www.linkedin.com/in/grantbourzikas/"
+      },
+      {
+        "kind": "x",
+        "href": "https://x.com/GrantBourzikas"
+      }
+    ]
+  },
+  "gyeongjae-choi": {
+    "slug": "gyeongjae-choi",
+    "name": "Gyeongjae Choi",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KYT1GVVH6V865W8Z5B63CYZT.webp",
+    "location": "Senior Software Engineer",
+    "socials": []
+  },
+  "hannah-wang": {
+    "slug": "hannah-wang",
+    "name": "Hannah Wang",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KYHF9MV2X49QE0SXTCSPH1N2.jpeg",
+    "location": "Software Engineer Intern",
+    "socials": []
+  },
+  "hannes": {
+    "slug": "hannes",
+    "name": "Hannes Gerhart",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW46P53YA8A3G53W0H9FH0TT.jpg",
+    "location": "Berlin, Germany",
+    "socials": [
+      {
+        "kind": "linkedin",
+        "href": "https://linkedin.com/in/hannesgerhart"
+      }
+    ]
+  },
+  "iliana-xygkou": {
+    "slug": "iliana-xygkou",
+    "name": "Iliana Xygkou",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KYAGC1W8ZPJBM3V4CJ2523N8.png",
+    "location": "Research Engineering Intern",
+    "socials": [
+      {
+        "kind": "website",
+        "href": "https://ilianaxn.github.io/"
+      },
+      {
+        "kind": "linkedin",
+        "href": "https://www.linkedin.com/in/iliana-xygkou/"
+      }
+    ]
+  },
+  "jack-galilee": {
+    "slug": "jack-galilee",
+    "name": "Jack Galilee",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KZA3MX64PMX25X6GHJWTCKYT.jpg",
+    "location": "Senior Director, Engineering",
+    "socials": [
+      {
+        "kind": "linkedin",
+        "href": "https://www.linkedin.com/in/jgalilee/"
+      }
+    ]
+  },
+  "jacob-curtis": {
+    "slug": "jacob-curtis",
+    "name": "Jacob Curtis",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KYWTSMKPNBYED7CGRDERCH1G.jpg",
+    "location": "Sr. Systems Engineer",
+    "socials": []
+  },
+  "jake-schaeufele": {
+    "slug": "jake-schaeufele",
+    "name": "Jake Schaeufele",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KWHPYY93PKDF2943PJ1P6JTH.webp",
+    "location": "Senior Security Compliance FedRAMP Specialist",
+    "socials": []
+  },
+  "james-larisch": {
+    "slug": "james-larisch",
+    "name": "James Larisch",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW44C9J5HQA4MAD7AN1K285E.jpg",
+    "location": "Research Engineer",
+    "socials": [
+      {
+        "kind": "x",
+        "href": "https://x.com/jameslarisch"
+      }
+    ]
+  },
+  "jin-hee-lee": {
+    "slug": "jin-hee-lee",
+    "name": "Jin-Hee Lee",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW46GG1XJCDV61NM8YJGK6YN.jpg",
+    "location": null,
+    "socials": []
+  },
+  "joao-pedro-leite": {
+    "slug": "joao-pedro-leite",
+    "name": "João Pedro Leite",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KWW2Q3HR5NWBDTW5N6DCXWKT.webp",
+    "location": "Research Engineer • Emerg Tech & Incubation",
+    "socials": []
+  },
+  "justin-ridgely": {
+    "slug": "justin-ridgely",
+    "name": "Justin Ridgely",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KWW2PGKA3M43DHXBD4JK7ZH5.webp",
+    "location": "Payments Strategy Lead",
+    "socials": []
+  },
+  "kathy": {
+    "slug": "kathy",
+    "name": "Kathy Liao",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW45CCSZ168NDHJPTF31M9JS.png",
+    "location": "Seattle",
+    "socials": [
+      {
+        "kind": "x",
+        "href": "https://x.com/kathyyliao"
+      }
+    ]
+  },
+  "katie-visser": {
+    "slug": "katie-visser",
+    "name": "Katie Visser",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KXJNTKKMP1NE3Z3NQENZHHMY.webp",
+    "location": "Head of Policy Strategy",
+    "socials": []
+  },
+  "kenny": {
+    "slug": "kenny",
+    "name": "Kenny Johnson",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW471W94YNK8KYMJEK8P7RHD.jpeg",
+    "location": "Principal Product Manager",
+    "socials": [
+      {
+        "kind": "x",
+        "href": "https://x.com/KennyJohnsonATX"
+      }
+    ]
+  },
+  "kevin-flansburg": {
+    "slug": "kevin-flansburg",
+    "name": "Kevin Flansburg",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW452TM72EKFE8RQCD3JMXND.png",
+    "location": "Senior Manager, Engineering",
+    "socials": []
+  },
+  "kevin-guthrie": {
+    "slug": "kevin-guthrie",
+    "name": "Kevin Guthrie",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW47VQ8K1T55ANDEX70V1EEQ.jpg",
+    "location": null,
+    "socials": [
+      {
+        "kind": "x",
+        "href": "https://x.com/johnhurt"
+      }
+    ]
+  },
+  "kristian": {
+    "slug": "kristian",
+    "name": "Kristian Freeman",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW462MJYGBGN7HVTSXBB8KW4.jpg",
+    "location": "Austin, TX",
+    "socials": [
+      {
+        "kind": "website",
+        "href": "https://www.signalnerve.com"
+      },
+      {
+        "kind": "x",
+        "href": "https://x.com/kristianf_"
+      }
+    ]
+  },
+  "kuber-nandwani": {
+    "slug": "kuber-nandwani",
+    "name": "Kuber Nandwani",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KXRZS93GCE4CXP81WJ1TX25Y.webp",
+    "location": "Security Researcher & Analyst",
+    "socials": []
+  },
+  "lai-yi-ohlsen": {
+    "slug": "lai-yi-ohlsen",
+    "name": "Lai Yi Ohlsen",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW49DGMNXAW2CZQQAX92W97V.png",
+    "location": "Senior Product Manager",
+    "socials": []
+  },
+  "ling": {
+    "slug": "ling",
+    "name": "Ling Wu",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW467KF763JFZEBQ3XWDEM6N.JPG",
+    "location": null,
+    "socials": []
+  },
+  "luis-duarte": {
+    "slug": "luis-duarte",
+    "name": "Luís Duarte",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW4768W5B20EQMM9ZD5AQMED.png",
+    "location": "Systems Engineer",
+    "socials": []
+  },
+  "luke": {
+    "slug": "luke",
+    "name": "Luke Valenta",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW455BBR3DXDBC0E9512XF44.jpg",
+    "location": "Austin, TX",
+    "socials": [
+      {
+        "kind": "website",
+        "href": "https://lukevalenta.com/"
+      },
+      {
+        "kind": "x",
+        "href": "https://x.com/lukevalenta"
+      }
+    ]
+  },
+  "manish-pandit": {
+    "slug": "manish-pandit",
+    "name": "Manish Pandit",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KYVX7C6NS9762W5KTANHJ704.webp",
+    "location": "Systems Engineer",
+    "socials": []
+  },
+  "mar-witek": {
+    "slug": "mar-witek",
+    "name": "Mar Witek",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KZ235CPB4AH0E1QF256SHBFJ.webp",
+    "location": "Senior Systems Engineer • Developer Engineering",
+    "socials": []
+  },
+  "marina-elmore": {
+    "slug": "marina-elmore",
+    "name": "Marina Elmore",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW477HVM8X1SKDG8ADKQJ9T3.png",
+    "location": "Senior Product Manager",
+    "socials": []
+  },
+  "marissa-phul": {
+    "slug": "marissa-phul",
+    "name": "Marissa Phul",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KZE22MPC0Q34D7CRRGJ2MA5X.png",
+    "location": "Senior Growth Engineer",
+    "socials": [
+      {
+        "kind": "x",
+        "href": "https://x.com/transienterrors"
+      },
+      {
+        "kind": "linkedin",
+        "href": "https://www.linkedin.com/in/marissaphul/"
+      }
+    ]
+  },
+  "matt-carey": {
+    "slug": "matt-carey",
+    "name": "Matt Carey",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW46BHQSGCBKVGAAVQVS4V3E.png",
+    "location": "Senior Systems Engineer • London",
+    "socials": [
+      {
+        "kind": "x",
+        "href": "https://x.com/mattzcarey"
+      }
+    ]
+  },
+  "matt-lewis-2": {
+    "slug": "matt-lewis-2",
+    "name": "Matt Lewis",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW9WMRANK371K7W3Y3CXQT0M.webp",
+    "location": "Senior Systems Engineer",
+    "socials": []
+  },
+  "matt-simpson": {
+    "slug": "matt-simpson",
+    "name": "Matt Simpson",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KZ4XF9V911MSMP824RMR1TN9.jpg",
+    "location": "Software Engineer",
+    "socials": [
+      {
+        "kind": "linkedin",
+        "href": "https://www.linkedin.com/in/asmathew/"
+      }
+    ]
+  },
+  "matthew-conroy": {
+    "slug": "matthew-conroy",
+    "name": "Matthew Conroy",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KWW2PW1QZW47KMHA09RY62FC.jpg",
+    "location": "Senior Director, ETI • London",
+    "socials": []
+  },
+  "matthew-phillips": {
+    "slug": "matthew-phillips",
+    "name": "Matthew Phillips",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KZ4J8HE0RG26Q2E313B8V83G.png",
+    "location": "Principal Systems Engineer",
+    "socials": [
+      {
+        "kind": "website",
+        "href": "https://matthewphillips.info/"
+      },
+      {
+        "kind": "x",
+        "href": "https://x.com/matthewcp"
+      }
+    ]
+  },
+  "mia": {
+    "slug": "mia",
+    "name": "Mia Malden",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW4559TC07A12MQHAEK8YM1R.jpg",
+    "location": "Product Manager",
+    "socials": []
+  },
+  "michael-keane": {
+    "slug": "michael-keane",
+    "name": "Michael Keane",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW48NH30V32ND238KA4C7HFD.jpg",
+    "location": null,
+    "socials": []
+  },
+  "michelle": {
+    "slug": "michelle",
+    "name": "Michelle Chen",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW44R95PPSQQ82Z92P51M550.jpg",
+    "location": null,
+    "socials": [
+      {
+        "kind": "x",
+        "href": "https://x.com/_mchenco"
+      }
+    ]
+  },
+  "mike-english": {
+    "slug": "mike-english",
+    "name": "Mike English",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW456AKXY6NZWXBX72F7RG6T.png",
+    "location": "Principal Systems Engineer • Michigan",
+    "socials": []
+  },
+  "mike-escalante": {
+    "slug": "mike-escalante",
+    "name": "Mike Escalante",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW49ABPBC57VY77RQCNPXWNP.jpg",
+    "location": null,
+    "socials": []
+  },
+  "ming-lu": {
+    "slug": "ming-lu",
+    "name": "Ming Lu",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW449KZ4869TJZZSHHFJXPTB.png",
+    "location": "Principal Product Manager",
+    "socials": [
+      {
+        "kind": "x",
+        "href": "https://x.com//minglu"
+      }
+    ]
+  },
+  "nelson-duarte": {
+    "slug": "nelson-duarte",
+    "name": "Nelson Duarte",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW49P72CGQX08FQC903Q0E4F.jpg",
+    "location": "Portugal",
+    "socials": []
+  },
+  "nevi": {
+    "slug": "nevi",
+    "name": "Nevi Shah",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW45BZN18F7KC4GE3NPR8Z9J.png",
+    "location": null,
+    "socials": [
+      {
+        "kind": "x",
+        "href": "https://x.com/nevikashah"
+      }
+    ]
+  },
+  "nick-comer": {
+    "slug": "nick-comer",
+    "name": "Nick Comer",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW9WMBJG5ZDTS3AWWAWA2DVW.webp",
+    "location": "Manager, Engineering",
+    "socials": []
+  },
+  "nickhil-pattikonda": {
+    "slug": "nickhil-pattikonda",
+    "name": "Nickhil Pattikonda",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KZ4W3C38ZG2MNYJCQ7Q7RK7X.jpg",
+    "location": "Software Engineer Intern",
+    "socials": [
+      {
+        "kind": "linkedin",
+        "href": "https://www.linkedin.com/in/nickhilpat/"
+      }
+    ]
+  },
+  "oliver-payne": {
+    "slug": "oliver-payne",
+    "name": "Oliver Payne",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW46AC0A90AS7JQ9KWA8Q85Z.jpg",
+    "location": null,
+    "socials": []
+  },
+  "phil-hawksworth": {
+    "slug": "phil-hawksworth",
+    "name": "Phil Hawksworth",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KZCBH0CA3FX93V6XPK9HEK7W.jpg",
+    "location": "Principal Engineer",
+    "socials": [
+      {
+        "kind": "linkedin",
+        "href": "https://www.linkedin.com/in/philhawksworth/"
+      },
+      {
+        "kind": "website",
+        "href": "https://bsky.app/profile/philhawksworth.dev"
+      }
+    ]
+  },
+  "phillip": {
+    "slug": "phillip",
+    "name": "Phillip Jones",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW47CA63Q819PPAR7M8DTNQ3.jpg",
+    "location": null,
+    "socials": [
+      {
+        "kind": "x",
+        "href": "https://x.com/akaphill"
+      }
+    ]
+  },
+  "rita": {
+    "slug": "rita",
+    "name": "Rita Kozlov",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW4775C0A7PYM3T9XKH4PH9J.png",
+    "location": null,
+    "socials": [
+      {
+        "kind": "x",
+        "href": "https://x.com/ritakozlov_"
+      }
+    ]
+  },
+  "rohin": {
+    "slug": "rohin",
+    "name": "Rohin Lohe",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW4732TDPVKGF30GJC5C5KJV.jpg",
+    "location": null,
+    "socials": []
+  },
+  "rui-figueira": {
+    "slug": "rui-figueira",
+    "name": "Rui Figueira",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW44VN7XMZ4WCQMGQSPJ2B3Q.webp",
+    "location": "Senior Systems Engineer",
+    "socials": []
+  },
+  "ruskin-constant": {
+    "slug": "ruskin-constant",
+    "name": "Ruskin Constant",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW47BW07W83PCRTM6JP4W61R.webp",
+    "location": "Senior Manager, Engineering",
+    "socials": []
+  },
+  "ryan-noel": {
+    "slug": "ryan-noel",
+    "name": "Ryan Noel",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KZ1X993V2NQBSHZCEDTSYH99.webp",
+    "location": "Senior Product Manager • Product - Platform",
+    "socials": []
+  },
+  "sabina": {
+    "slug": "sabina",
+    "name": "Sabina Zejnilovic",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW49B114HP8HRQ7MA3FAFRSN.JPG",
+    "location": null,
+    "socials": []
+  },
+  "sam": {
+    "slug": "sam",
+    "name": "Sam Rhea",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW45B32X8M7A8CXY9C0SX0EQ.png",
+    "location": null,
+    "socials": [
+      {
+        "kind": "x",
+        "href": "https://x.com/LakeAustinBlvd"
+      }
+    ]
+  },
+  "sam-cabell": {
+    "slug": "sam-cabell",
+    "name": "Sam Cabell",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW9WMQHZ06NRJ1P977MAN3W6.webp",
+    "location": "Systems Engineer",
+    "socials": []
+  },
+  "scott-roe-meschke": {
+    "slug": "scott-roe-meschke",
+    "name": "Scott Roe-Meschke",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW46423166S2RP6H2395Z078.png",
+    "location": "Engineering Manager",
+    "socials": [
+      {
+        "kind": "x",
+        "href": "https://x.com/ScottRoeMeschke"
+      }
+    ]
+  },
+  "sebastiaan-neuteboom": {
+    "slug": "sebastiaan-neuteboom",
+    "name": "Sebastiaan Neuteboom",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW48GH720TA5A2634QYMAXZR.png",
+    "location": "Systems Engineer",
+    "socials": []
+  },
+  "shelley": {
+    "slug": "shelley",
+    "name": "Shelley Jones",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW48R153ZF4GWNZYC0QQPY6F.png",
+    "location": "London",
+    "socials": []
+  },
+  "sid": {
+    "slug": "sid",
+    "name": "Sid Chatterjee",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW47XJ0J0NXPCD8TWD8F0KKP.jpg",
+    "location": "London, United Kingdom",
+    "socials": [
+      {
+        "kind": "x",
+        "href": "https://x.com/chatsidhartha"
+      }
+    ]
+  },
+  "silverlock": {
+    "slug": "silverlock",
+    "name": "Matt Silverlock",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW492M11VMJ0WCWAND287DEN.jpeg",
+    "location": null,
+    "socials": [
+      {
+        "kind": "x",
+        "href": "https://x.com/elithrar"
+      }
+    ]
+  },
+  "simona-badoiu": {
+    "slug": "simona-badoiu",
+    "name": "Simona Badoiu",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW49BY2VVWXQKZQA2SJ3N42J.jpeg",
+    "location": null,
+    "socials": [
+      {
+        "kind": "x",
+        "href": "https://x.com/badoiu_simona"
+      }
+    ]
+  },
+  "thomas-rubini": {
+    "slug": "thomas-rubini",
+    "name": "Thomas Rubini",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KZ23W8FJDE19KMKKPMZSP5PP.webp",
+    "location": "Software Engineer Intern • R&D Interns",
+    "socials": []
+  },
+  "tiago-teles": {
+    "slug": "tiago-teles",
+    "name": "Tiago Teles",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KZAW99A81NNDP6P3SFH65HTE.webp",
+    "location": "R&D Intern",
+    "socials": []
+  },
+  "timo-reimann": {
+    "slug": "timo-reimann",
+    "name": "Timo Reimann",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KZ4ZCETTVNS8WXDGQ3XB26VB.jpg",
+    "location": "Systems Engineer",
+    "socials": [
+      {
+        "kind": "linkedin",
+        "href": "https://www.linkedin.com/in/timo-reimann/"
+      }
+    ]
+  },
+  "tom-lianza": {
+    "slug": "tom-lianza",
+    "name": "Tom Lianza",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW47F5DZ4RQ7MZN8EVG2J7A4.jpg",
+    "location": "San Francisco",
+    "socials": [
+      {
+        "kind": "x",
+        "href": "https://x.com/tlianza"
+      }
+    ]
+  },
+  "tomas-hobza": {
+    "slug": "tomas-hobza",
+    "name": "Tomáš Hobza",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KZ68VHPDKGWAD30V2CTC811Z.webp",
+    "location": "Software Engineer Intern  R&D Interns",
+    "socials": []
+  },
+  "vaishnav-kavitha": {
+    "slug": "vaishnav-kavitha",
+    "name": "Vaishnav Kavitha",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW9WMMZ8JJQ1SE783SASV4PJ.jpeg",
+    "location": "Software Engineer Intern",
+    "socials": [
+      {
+        "kind": "x",
+        "href": "https://x.com/wishee0"
+      }
+    ]
+  },
+  "vikram-grover": {
+    "slug": "vikram-grover",
+    "name": "Vikram Grover",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KXRZQ9V87C8WK94DX4J9EPSD.webp",
+    "location": "Lead Data Scientist",
+    "socials": []
+  },
+  "vincent-voci": {
+    "slug": "vincent-voci",
+    "name": "Vincent Voci",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW48RVKNDARQNRQJA3MNV87H.jpg",
+    "location": "Global Government Relations & Partnerships Director • Washington, D.C.",
+    "socials": []
+  },
+  "wesley": {
+    "slug": "wesley",
+    "name": "Wesley Evans",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW48NY89SHS2051YPQ8PN11B.jpeg",
+    "location": "San Francisco",
+    "socials": [
+      {
+        "kind": "x",
+        "href": "https://x.com/whywevans"
+      }
+    ]
+  },
+  "will-papper": {
+    "slug": "will-papper",
+    "name": "Will Papper",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KWW2PWAJT5VPPRZ9Y73A1FEB.webp",
+    "location": "Director of Product • Emerg Tech & Incubation",
+    "socials": []
+  },
+  "will-rowe": {
+    "slug": "will-rowe",
+    "name": "Will Rowe",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KZ9RTXYC845D1Y5KJHYETK71.jpg",
+    "location": "Staff Software Engineer",
+    "socials": [
+      {
+        "kind": "website",
+        "href": "https://willrowe.net/"
+      },
+      {
+        "kind": "x",
+        "href": "https://x.com/wil_rowe"
+      },
+      {
+        "kind": "linkedin",
+        "href": "https://www.linkedin.com/in/will-rowe-13219b136/"
+      },
+      {
+        "kind": "github",
+        "href": "https://github.com/will-rowe"
+      }
+    ]
+  },
+  "zach-albertson": {
+    "slug": "zach-albertson",
+    "name": "Zach Albertson",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KW9WMPKP5X812DFFWSFK61EG.png",
+    "location": "AI Strategy and Business Operations",
+    "socials": []
+  },
+  "zin-khant": {
+    "slug": "zin-khant",
+    "name": "Zin Khant",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KZ4W0QD64WYSDDV54ZT5MVB7.jpg",
+    "location": "Product Manager Intern",
+    "socials": [
+      {
+        "kind": "linkedin",
+        "href": "https://www.linkedin.com/in/zin-khant-993055216/"
+      }
+    ]
+  },
+  "zunayed-ali": {
+    "slug": "zunayed-ali",
+    "name": "Zunayed Ali",
+    "avatar": "https://blog.cloudflare.com/_emdash/api/media/file/01KZ1X7VHNGDVK1WPDK7WS7DWR.webp",
+    "location": "Senior Engineering Manager • Platform Engineering",
+    "socials": []
+  }
+}

@@ -1,0 +1,29 @@
+---
+import Section from "@/layouts/Section.astro";
+import { connectStats } from "../data";
+---
+
+<Section layout="headerless" noGridArea sectionEyebrow="Stats">
+  <div class="flex justify-between px-80">
+    <h2 class="w-320 text-heading-h2 text-text-base">
+      Build. Secure. Scale.<br />All on one platform.
+    </h2>
+
+    <div class="flex w-520 flex-col gap-40">
+      {connectStats.map((stat, index) => (
+        <div
+          class:list={[
+            "relative flex flex-col items-start gap-8 pb-40 whitespace-nowrap",
+            index < connectStats.length - 1 &&
+              "before:pointer-events-none before:absolute before:inset-x-0 before:bottom-0 before:h-px before:bg-border-muted",
+          ]}
+        >
+          <div class="text-heading-h1 text-text-base">{stat.value}</div>
+          <div class="text-body-medium text-text-default">
+            {stat.description}
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+</Section>

@@ -1,0 +1,81 @@
+---
+import type { InferGetStaticPropsType } from "astro";
+import ArchiveTable from "@/components/_pages/blog/ArchiveTable";
+import AuthorHeader from "@/components/_pages/blog/AuthorHeader.astro";
+import {
+  archiveEntries,
+  AUTHORS,
+  postsByAuthor,
+} from "@/components/_pages/blog/data";
+import PostGrid from "@/components/_pages/blog/PostGrid.astro";
+import Subscribe from "@/components/_pages/blog/Subscribe.astro";
+import Breadcrumb from "@/components/Breadcrumb.astro";
+import Container from "@/components/Container.astro";
+import Layout from "@/layouts/Layout.astro";
+import Section from "@/layouts/Section.astro";
+
+export function getStaticPaths() {
+  return Object.keys(AUTHORS).map((slug) => ({
+    params: { slug },
+    props: { slug },
+  }));
+}
+
+type Props = InferGetStaticPropsType<typeof getStaticPaths>;
+
+const { slug } = Astro.props;
+
+const author = AUTHORS[slug];
+const posts = postsByAuthor(slug);
+
+const rows = [posts.slice(0, 3), posts.slice(3, 6)].filter(
+  (row) => row.length > 0
+);
+
+const archive = archiveEntries(posts.slice(6));
+---
+
+<Layout
+  description={`Posts by ${author.name} on the Cloudflare blog.`}
+  title={`${author.name} | The Cloudflare Blog`}
+>
+  <Section layout="headerless" noGridArea>
+    <div class="px-80">
+      <Breadcrumb
+        items={[{ label: "Blog", href: "/blog" }, { label: "Authors" }]}
+      />
+
+      <div class="mt-48">
+        <AuthorHeader author={author} />
+      </div>
+    </div>
+
+    {rows.length > 0 && (
+      <div class="mt-80 flex flex-col gap-80 px-40">
+        {rows.map((row) => (
+          <div
+            class:list={[
+              row.length === 3
+                ? "w-full"
+                : row.length === 2
+                  ? "w-720"
+                  : "w-320",
+            ]}
+          >
+            <PostGrid posts={row} />
+          </div>
+        ))}
+      </div>
+    )}
+  </Section>
+
+  {archive.length > 0 && (
+    <Section layout="headerless" noGridArea>
+      <ArchiveTable client:visible entries={archive} />
+    </Section>
+  )}
+
+  <Container>
+    <Subscribe bordered={false} />
+  </Container>
+</Layout>

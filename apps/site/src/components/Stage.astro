@@ -1,0 +1,50 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+type Props = HTMLAttributes<"div">;
+
+const { class: className, ...attributes } = Astro.props;
+
+const corners = [
+  ["-top-6 -left-6", ""],
+  ["-top-6 -right-6", "rotate-90"],
+  ["-right-6 -bottom-6", "rotate-180"],
+  ["-bottom-6 -left-6", "-rotate-90"],
+];
+---
+
+<div
+  {...attributes}
+  aria-hidden="true"
+  class:list={[
+    "relative h-240 bg-background-surface before:inside-border before:z-30 before:border-border-default",
+    className,
+  ]}
+>
+  <slot />
+
+  {corners.map(([position, rotation]) => (
+    <div
+      class:list={[
+        "absolute z-40 size-12 rounded-full bg-background-base",
+        position,
+      ]}
+    >
+      <svg
+        class:list={["overflow-visible", rotation]}
+        width="12"
+        height="12"
+        fill="none"
+        aria-hidden="true"
+      >
+        <path
+          class="stroke-border-default"
+          d="M12 6A6 6 0 0 1 6 12"
+          stroke-linecap="square"
+        />
+      </svg>
+
+      <div class="absolute top-5 left-5 size-2 rounded-full bg-orange-900" />
+    </div>
+  ))}
+</div>

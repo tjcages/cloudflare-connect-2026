@@ -1,0 +1,5 @@
+<svg preserveAspectRatio="none" overflow="visible" width="40" height="16" viewBox="0 0 40 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="32" cy="8" r="5" fill="#FFA05B" />
+  <circle cx="24" cy="8" r="5.75" fill="#D39EFF" stroke="white" stroke-width="1.5" />
+  <circle cx="16" cy="8" r="5.75" fill="#5DC6FF" stroke="white" stroke-width="1.5" />
+</svg>

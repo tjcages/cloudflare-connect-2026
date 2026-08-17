@@ -1,0 +1,9 @@
+<svg preserveAspectRatio="none" overflow="visible" width="144" height="39" viewBox="0 0 144 39" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M16 15L0 11.5V39H144V0L128.446 10.0154L112.39 11.9231L96.3345 17.7143L80 10.0154L64 24L48 19L32.5 11L16 15Z" fill="url(#interpreter-chart-area)" fill-opacity="0.24"/>
+  <defs>
+    <linearGradient id="interpreter-chart-area" x1="72" y1="0" x2="72" y2="39" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1F72FF" style="stop-color:#1F72FF;stop-color:color(display-p3 0.1216 0.4471 1.0000);stop-opacity:1;"/>
+      <stop offset="1" stop-color="#0065FF" stop-opacity="0.02" style="stop-color:#0065FF;stop-color:color(display-p3 0.0000 0.3956 1.0000);stop-opacity:0.02;"/>
+    </linearGradient>
+  </defs>
+</svg>

@@ -1,0 +1,166 @@
+---
+import { Font } from "astro:assets";
+import "@/styles/globals.css";
+import Cta from "@/components/cta/Cta.astro";
+import Footer from "@/components/footer/Footer.astro";
+import Header from "@/components/header/Header.astro";
+
+interface Props {
+  description: string;
+  title: string;
+  header?: boolean;
+  main?: boolean;
+  /** Global product CTA band. Set false on pages with a page-local CTA (e.g. Connect). */
+  cta?: boolean;
+  footer?: boolean;
+  /** Header nav mode — `connect` uses Agenda / Speakers / Sessions / Resources. */
+  nav?: "default" | "connect";
+}
+
+const {
+  title,
+  description,
+  header = true,
+  main = true,
+  cta = true,
+  footer = true,
+  nav = "default",
+} = Astro.props;
+
+const canonical = Astro.url.href;
+const previewImage = new URL("/preview.png", Astro.site).href;
+---
+
+<!doctype html>
+<html
+  class:list={[
+    "overflow-x-clip antialiased",
+    nav === "connect" && "scroll-pt-80",
+  ]}
+  lang="en"
+>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href={import.meta.env.DEV ? "/favicon-dev.svg" : "/favicon.svg?v=4"}
+    />
+    <meta name="generator" content={Astro.generator} />
+    <style is:inline>
+      @property --zoom-ramp {
+        syntax: "<number>";
+        inherits: true;
+        initial-value: 1;
+      }
+
+      html {
+        --zoom-ramp: 1;
+      }
+
+      @media (min-width: 1800px) {
+        html:not([data-zoom-off]) {
+          --zoom-ramp: min(1 + ((100vw - 1800px) / 760px) * 0.25, 1.5);
+          zoom: var(--zoom-ramp);
+        }
+      }
+    </style>
+    <script is:inline>
+      const storedTheme = localStorage.getItem("theme") ?? "system";
+      document.documentElement.dataset.theme =
+        storedTheme === "system"
+          ? matchMedia("(prefers-color-scheme: dark)").matches
+            ? "dark"
+            : "light"
+          : storedTheme;
+
+      if (localStorage.getItem("debug-zoom-off")) {
+        document.documentElement.setAttribute("data-zoom-off", "");
+      }
+      addEventListener("keydown", (e) => {
+        if (e.code !== "KeyZ" || !e.shiftKey || e.altKey || e.ctrlKey) return;
+        if (e.target instanceof Element && e.target.closest("input, textarea"))
+          return;
+        const html = document.documentElement;
+        if (e.metaKey) {
+          html.toggleAttribute("data-zoom-off");
+          if (html.hasAttribute("data-zoom-off")) {
+            localStorage.setItem("debug-zoom-off", "1");
+          } else {
+            localStorage.removeItem("debug-zoom-off");
+          }
+        } else {
+          const zoom =
+            html.currentCSSZoom ??
+            parseFloat(getComputedStyle(html).getPropertyValue("--zoom-ramp"));
+          alert(`zoom: ${zoom || 1}`);
+        }
+      });
+    </script>
+    <script>
+      import { toggleTheme } from "@/components/theme/theme-transition";
+
+      addEventListener("keydown", (e) => {
+        if (
+          e.code !== "KeyT" ||
+          !e.shiftKey ||
+          e.altKey ||
+          e.ctrlKey ||
+          e.metaKey
+        )
+          return;
+        if (e.target instanceof Element && e.target.closest("input, textarea"))
+          return;
+        toggleTheme();
+      });
+    </script>
+    <link rel="canonical" href={canonical} />
+
+    <title>{title}</title>
+    <meta name="title" content={title} />
+    <meta content={description} name="description" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={previewImage} />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:url" content={canonical} />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={previewImage} />
+    <Font cssVariable="--font-stk-bureau-sans" preload />
+    <Font cssVariable="--font-stk-bureau-serif" />
+    <Font cssVariable="--font-paper-mono" />
+  </head>
+  <body class="relative bg-background-base font-sans text-text-base">
+    <div
+      class="pointer-events-none fixed top-0 centering-max-w-1200 z-10 h-screen before:inside-border-x before:border-border-default"
+    >
+    </div>
+
+    {header && <Header variant={nav} />}
+
+    {main ? (
+      <main>
+        <slot />
+      </main>
+    ) : (
+      <slot />
+    )}
+
+    {cta && <Cta />}
+    {footer && <Footer />}
+
+    {import.meta.env.DEV && (
+      <script
+        is:inline
+        src="/src/components/stripes-texture/stripes-stats-mount.ts"
+        type="module"
+      />
+    )}
+  </body>
+</html>

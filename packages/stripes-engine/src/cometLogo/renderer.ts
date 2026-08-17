@@ -1,12 +1,15 @@
 import { advanceCometLogoAnimation, createCometLogoAnimationState, type CometLogoAnimationState } from "./animation";
 import { normalizeCometLogoSettings, type CometLogoSettings } from "./config";
+import { COMET_LOGO_TRAIL_SEGMENT_COUNT } from "./points";
 import {
-  COMET_LOGO_ACTIVE_RENDER_POINT_COUNT,
-  COMET_LOGO_IDLE_RENDER_POINT_COUNT,
-  COMET_LOGO_TRAIL_SEGMENT_COUNT,
+  COMET_LOGO_DEFAULT_SHAPE,
+  cometLogoPointCounts,
   cometLogoPoolPointCount,
-} from "./points";
-import { COMET_LOGO_FRAGMENT_SHADER, COMET_LOGO_VERTEX_SHADER } from "./shaders";
+  normalizeCometLogoShape,
+  type CometLogoShape,
+  type CometLogoShapeInput,
+} from "./shape";
+import { buildCometLogoVertexShader, COMET_LOGO_FRAGMENT_SHADER } from "./shaders";
 
 export const COMET_LOGO_RENDER_SCALE = 0.5;
 
@@ -16,10 +19,15 @@ export type CometLogoPointer = {
   hovered: boolean;
 };
 
+export type CometLogoRendererOptions = {
+  shape?: CometLogoShapeInput;
+};
+
 export type CometLogoTextureRenderer = {
   canvas: HTMLCanvasElement;
   readonly width: number;
   readonly height: number;
+  readonly shape: CometLogoShape;
   resize(width: number, height: number): void;
   render(timeSec: number, pointer: CometLogoPointer, settings?: Partial<CometLogoSettings>): void;
   getAnimationState(): Readonly<CometLogoAnimationState>;
@@ -39,8 +47,8 @@ function compileShader(gl: WebGL2RenderingContext, type: number, source: string)
   return shader;
 }
 
-function createProgram(gl: WebGL2RenderingContext): WebGLProgram {
-  const vertex = compileShader(gl, gl.VERTEX_SHADER, COMET_LOGO_VERTEX_SHADER);
+function createProgram(gl: WebGL2RenderingContext, shape: CometLogoShape): WebGLProgram {
+  const vertex = compileShader(gl, gl.VERTEX_SHADER, buildCometLogoVertexShader(shape));
   const fragment = compileShader(gl, gl.FRAGMENT_SHADER, COMET_LOGO_FRAGMENT_SHADER);
   const program = gl.createProgram();
   if (!program) throw new Error("Could not create comet logo shader program.");
@@ -57,7 +65,13 @@ function createProgram(gl: WebGL2RenderingContext): WebGLProgram {
   return program;
 }
 
-export function createCometLogoTextureRenderer(width: number, height: number): CometLogoTextureRenderer {
+export function createCometLogoTextureRenderer(
+  width: number,
+  height: number,
+  options: CometLogoRendererOptions = {},
+): CometLogoTextureRenderer {
+  const shape = options.shape ? normalizeCometLogoShape(options.shape) : COMET_LOGO_DEFAULT_SHAPE;
+  const pointCounts = cometLogoPointCounts(shape);
   const canvas = document.createElement("canvas");
   const gl = canvas.getContext("webgl2", {
     alpha: false,
@@ -70,7 +84,7 @@ export function createCometLogoTextureRenderer(width: number, height: number): C
   });
   if (!gl) throw new Error("WebGL2 is required for the comet logo shader.");
 
-  const program = createProgram(gl);
+  const program = createProgram(gl, shape);
   const vao = gl.createVertexArray();
   if (!vao) {
     gl.deleteProgram(program);
@@ -97,6 +111,8 @@ export function createCometLogoTextureRenderer(width: number, height: number): C
       "FieldTrailLength",
       "FieldParticleSize",
       "LogoScale",
+      "LogoOffsetX",
+      "LogoOffsetY",
       "LogoParticleSize",
       "LogoTrailLength",
       "LogoMotion",
@@ -132,6 +148,8 @@ export function createCometLogoTextureRenderer(width: number, height: number): C
       "CenterClearSquareness",
       "CenterClearLeak",
       "CenterClearFalloff",
+      "CenterClearOffsetX",
+      "CenterClearOffsetY",
       "LogoDensity",
       "FormationEase",
       "FormationWiggle",
@@ -153,6 +171,7 @@ export function createCometLogoTextureRenderer(width: number, height: number): C
 
   return {
     canvas,
+    shape,
     get width() {
       return canvas.width;
     },
@@ -207,6 +226,8 @@ export function createCometLogoTextureRenderer(width: number, height: number): C
         FieldTrailLength: settings.fieldTrailLength,
         FieldParticleSize: settings.fieldParticleSize,
         LogoScale: settings.logoScale,
+        LogoOffsetX: settings.logoOffsetX * COMET_LOGO_RENDER_SCALE,
+        LogoOffsetY: settings.logoOffsetY * COMET_LOGO_RENDER_SCALE,
         LogoParticleSize: settings.logoParticleSize,
         LogoTrailLength: settings.logoTrailLength,
         LogoMotion: settings.logoMotion,
@@ -242,6 +263,8 @@ export function createCometLogoTextureRenderer(width: number, height: number): C
         CenterClearSquareness: settings.centerClearSquareness,
         CenterClearLeak: settings.centerClearLeak,
         CenterClearFalloff: settings.centerClearFalloff,
+        CenterClearOffsetX: settings.centerClearOffsetX * COMET_LOGO_RENDER_SCALE,
+        CenterClearOffsetY: settings.centerClearOffsetY * COMET_LOGO_RENDER_SCALE,
         LogoDensity: settings.logoDensity,
         FormationEase: settings.formationEase,
         FormationWiggle: settings.formationWiggle,
@@ -253,8 +276,8 @@ export function createCometLogoTextureRenderer(width: number, height: number): C
       gl.blendFunc(gl.ONE, gl.ONE);
       const renderPointCount =
         animation.mode === "field"
-          ? COMET_LOGO_IDLE_RENDER_POINT_COUNT
-          : COMET_LOGO_ACTIVE_RENDER_POINT_COUNT + cometLogoPoolPointCount(settings.logoDensity);
+          ? pointCounts.render
+          : pointCounts.activeRender + cometLogoPoolPointCount(settings.logoDensity, shape);
       gl.drawArraysInstanced(gl.TRIANGLES, 0, COMET_LOGO_TRAIL_SEGMENT_COUNT * 6, renderPointCount);
       gl.disable(gl.BLEND);
       gl.bindVertexArray(null);

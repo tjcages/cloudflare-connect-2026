@@ -1,0 +1,38 @@
+---
+const PILL_ROWS = [-18, 42, 102, 162, 222, 282];
+const CENTER_ROW = 102;
+
+interface Props {
+  id: "L" | "R";
+  columnClass: string | string[];
+  contentClass: string | string[];
+}
+
+const { id, columnClass, contentClass } = Astro.props;
+---
+
+<div
+  class:list={["absolute inset-y-0 z-1 w-124", columnClass]}
+  data-chip-id={id}
+>
+  <div class="absolute inset-0" data-pill-track>
+    {PILL_ROWS.map((top) => (
+      <div
+        class="absolute left-0 h-36 w-124 rounded-full bg-background-surface shadow-elevation-faint transition-[background-color,box-shadow] duration-450 ease-[cubic-bezier(0.6,0.6,0,1)] data-active:bg-background-base data-active:shadow-elevation-default"
+        data-pill
+        style={{ top: `${top}px` }}
+      />
+    ))}
+
+    <div
+      class:list={[
+        "pointer-events-none absolute left-0 h-36 w-124 py-8",
+        contentClass,
+      ]}
+      data-pill-content
+      style={{ top: `${CENTER_ROW}px` }}
+    >
+      <slot />
+    </div>
+  </div>
+</div>

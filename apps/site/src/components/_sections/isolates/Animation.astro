@@ -1,0 +1,46 @@
+---
+import Icon from "@/components/icon/Icon";
+import AnimationGrayBox from "./AnimationGrayBox.astro";
+import DashedLine from "@/components/dashed-line/DashedLine";
+import AnimationTraditional from "./AnimationTraditional.astro";
+import AnimationIsolates from "./AnimationIsolates.astro";
+import IsolatesCanvas from "./IsolatesCanvas";
+---
+
+<div
+  class="relative flex h-400 items-center justify-between px-160 py-80"
+  data-isolates-animation
+>
+  <AnimationTraditional />
+
+  <DashedLine
+    className="h-216 text-border-dashed"
+    animateTowards="top"
+    direction="vertical"
+  />
+
+  <div class="relative h-full w-160">
+    <AnimationGrayBox name={{ text: "User Code", position: "top" }}>
+      <Icon
+        name="code-brackets"
+        variant="duo"
+        color="orange"
+        className="size-24"
+      />
+    </AnimationGrayBox>
+
+    <AnimationGrayBox
+      name={{ text: "Process Overhead", position: "bottom" }}
+      centerAnchor
+    />
+  </div>
+
+  <DashedLine
+    className="h-216 text-border-dashed"
+    animateTowards="bottom"
+    direction="vertical"
+  />
+
+  <AnimationIsolates />
+  <IsolatesCanvas client:only="react" />
+</div>

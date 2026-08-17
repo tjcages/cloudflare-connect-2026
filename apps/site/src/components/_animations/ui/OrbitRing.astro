@@ -1,0 +1,69 @@
+---
+interface Props {
+  topArcClass: string;
+  bottomArcClass: string;
+  class?: string;
+  radius?: number;
+}
+
+const {
+  topArcClass,
+  bottomArcClass,
+  class: className = "top-1/2 left-1/2",
+  radius = 56,
+} = Astro.props;
+
+const point = (angle: number) => {
+  const radians = (angle * Math.PI) / 180;
+  const x = 80 + radius * Math.cos(radians);
+  const y = 80 + radius * Math.sin(radians);
+  return `${x.toFixed(4)} ${y.toFixed(4)}`;
+};
+
+const arc = (from: number, to: number) =>
+  `M${point(from)}A${radius} ${radius} 0 0 0 ${point(to)}`;
+
+const dashed = [arc(15, -105), arc(195, 75)];
+---
+
+<div
+  class:list={[
+    "pointer-events-none absolute size-160 -translate-x-1/2 -translate-y-1/2",
+    className,
+  ]}
+  aria-hidden="true"
+>
+  <svg
+    class="size-full"
+    width="160"
+    height="160"
+    viewBox="0 0 160 160"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    {dashed.map((d) => (
+      <path
+        class="stroke-(--color-neutral-7)"
+        d={d}
+        stroke-width="1.25"
+        stroke-linecap="round"
+        stroke-dasharray="0.01 8"
+      />
+    ))}
+  </svg>
+
+  <svg
+    class="absolute inset-0 size-full"
+    data-orbit-ring
+    width="160"
+    height="160"
+    viewBox="0 0 160 160"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path class:list={[bottomArcClass]} d={arc(60, 30)} stroke-linecap="round"
+    ></path>
+    <path class:list={[topArcClass]} d={arc(240, 210)} stroke-linecap="round"
+    ></path>
+  </svg>
+</div>

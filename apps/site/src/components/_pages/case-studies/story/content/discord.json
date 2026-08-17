@@ -1,0 +1,82 @@
+{
+  "slug": "discord",
+  "company": "Discord",
+  "sourceUrl": "https://www.cloudflare.com/case-studies/discord/",
+  "found": true,
+  "synthesized": false,
+  "title": "As Discord experiences explosive growth, they’re thankful Cloudflare helps keep bandwidth & hardware costs down and web performance high.",
+  "quote": {
+    "text": [
+      "“Knowing that we don’t have to worry about DDoS attacks against our API and gateway servers gives us the peace of mind to focus on improving our product.”"
+    ],
+    "author": "Stanislav Vishnevskiy",
+    "role": "CTO"
+  },
+  "summaryHeadline": "Discord scales to 2.4 million concurrent users while cutting hardware and bandwidth costs with Cloudflare’s CDN and always-on DDoS protection.",
+  "summaryBody": [
+    "Discord is a voice and text communication app built for online computer gamers, offering always-on servers where players can talk, chat, and organize while they play. The company’s goal is to become the de-facto standard communication app for PC gamers, and it has seen remarkable early success: as of July 2016, Discord boasted 2.4 million concurrent users and more than 25 million registrations, growing from just 25,000 concurrent users the year before.",
+    "That growth curve brought its own problems. A gamer-focused audience is a DDoS magnet — matches get heated, and rival players regularly try to knock each other offline — and Discord’s real-time voice and text infrastructure runs on persistent WebSockets connections that are far harder to protect and scale than ordinary web traffic. Every server that dropped meant frustrated gamers mid-match, so keeping the gateway up was inseparable from keeping the product usable."
+  ],
+  "sections": [
+    {
+      "heading": "The challenge: mitigating DDoS attacks on WebSockets servers at scale",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "As Discord prepared for rapid growth, the company needed an affordable way to quickly scale its existing hardware infrastructure while maintaining performance and security. On the performance side, Discord needed to move from serving content off a single homed server to a high-performing CDN partner that could serve static assets from all around the globe. On the security side, Discord needed to protect its WebSockets-based traffic from the rampant DDoS attacks it was experiencing. As CTO Stanislav Vishnevskiy explained, “Since we are a gamer focused product we attract a lot of users who love to DDoS each other during game matches. As we grew more popular the intensity and occurrences of these DDoS attacks increased to the point where our engineers were constantly dealing with them.”"
+        },
+        {
+          "type": "p",
+          "text": "“Before Cloudflare, we were using a large number of HAProxy boxes with DNS load balancing to be able to failover during DDoS attacks on our real-time gateways,” Vishnevskiy continued. That do-it-yourself approach was not sustainable: the initial hardware solution could cost Discord up to six figures annually at scale and would still require constant work from Discord’s engineers just to keep the lights on during an attack, rather than shipping features. Discord needed an affordable, easily scalable solution to stop these attacks — or, according to Vishnevskiy, the company’s customer experience and retention would significantly suffer: “Every single outage would result in frustrated customers. While most existing customers were tolerant to the outages, new customers that signed up during the issues retained poorly due to very bad first impressions. Every time a customer got frustrated and lapsed, it pushed us further from our goal of becoming the de-facto communication app for gamers.”"
+        },
+        {
+          "type": "p",
+          "text": "The stakes were higher than a typical website outage. Discord’s core product is a live, persistent connection — voice and text servers that gamers stay connected to for hours at a time — so a dropped gateway did not just mean a slow page load, it meant a match interrupted and a squad suddenly unable to talk to each other. That made reliability a product requirement, not just an operations concern."
+        }
+      ]
+    },
+    {
+      "heading": "The solution: a CDN with built-in security",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "In August 2015, Discord came to Cloudflare just as it hit 25,000 concurrent users, and Cloudflare provided immediate, lasting performance and security benefits. Discord easily scaled the business to 2.4 million concurrent users — over 9,000% growth in just one year — by leveraging [Cloudflare’s Content Delivery Network (CDN)](https://www.cloudflare.com/cdn/). Cloudflare’s CDN works by caching content across data centers in cities around the world and serving it directly to users from the nearest facility. Today, over 2 petabytes of Discord’s traffic per month is served directly from Cloudflare’s edge-side cache to Discord’s users."
+        },
+        {
+          "type": "p",
+          "text": "Discord, a Google Cloud customer, benefits on two fronts from that architecture. High-speed interconnections between Cloudflare and Google Cloud give customers a snappier application, and the offloaded caching and bandwidth saves Discord over $100,000 monthly on its Google Cloud bill."
+        }
+      ]
+    },
+    {
+      "heading": "Absorbing DDoS attacks without slowing down real-time traffic",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Beyond the cost and performance wins, Discord gets tremendous comfort from knowing Cloudflare’s security is always on, protecting and serving its traffic. As Jake Heinz, a software engineer at Discord, explained, “We have Cloudflare sit in front of our websockets servers to absorb Layer 7 attacks and various layer 3 & 4 reflection attacks. We have 2.4 million concurrent users connected through Cloudflare to us, and Cloudflare quickly and securely serves our traffic even with spikes of websocket events up to 2 million/second.”"
+        },
+        {
+          "type": "p",
+          "text": "That combination of [DDoS mitigation](https://www.cloudflare.com/ddos/) and edge caching means Discord’s engineers no longer have to scramble to keep gateway servers online during an attack — the kind of firefighting that used to eat into time they would rather spend building the product. Instead of racing to add more HAProxy boxes every time attack traffic spiked, Discord lets Cloudflare’s network absorb the load, whether it is a targeted Layer 7 flood aimed at a single match or a broader Layer 3/4 reflection attack aimed at the gateway itself."
+        }
+      ]
+    },
+    {
+      "heading": "Results: peace of mind at millions of concurrent users",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "By using Cloudflare, Discord continually saves hundreds of thousands of dollars in hardware and bandwidth costs while giving its users higher performance and a more secure, more reliable application. With DDoS protection handled at the edge, Discord’s engineering team can stay focused on improving the product instead of defending it — even as the platform keeps adding millions of new gamers who expect their voice and text servers to simply work."
+        },
+        {
+          "type": "p",
+          "text": "For a company whose growth depends on first impressions — new users who hit an outage in their first session rarely come back — that reliability compounds. Every match that stays connected, every voice channel that does not drop, is one more reason a gamer sticks with Discord instead of falling back to the de-facto standard it set out to replace."
+        }
+      ]
+    }
+  ],
+  "productsUsed": ["CDN", "DDoS Protection"],
+  "industry": "Gaming",
+  "region": "North America",
+  "date": "Jul 5, 2025"
+}

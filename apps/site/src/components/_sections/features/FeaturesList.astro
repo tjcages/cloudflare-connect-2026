@@ -1,0 +1,54 @@
+---
+import DashedLineGrid from "@/components/dashed-line/DashedLineGrid";
+import DottedLink from "@/components/DottedLink";
+import Item from "@/components/features/Item.astro";
+---
+
+<div
+  class="relative mx-auto grid max-w-1200 auto-rows-fr grid-cols-3 before:inside-border before:border-border-default"
+>
+  <Item iconName="money-hand" title="Only pay for what you use">
+    Pay only for execution time (<DottedLink
+      canvasFromBottom={-6}
+      client:visible={{ rootMargin: "200px" }}>CPU time</DottedLink
+    >), <br />
+    not idle time spent waiting on I/O.
+  </Item>
+
+  <Item iconName="map-pin-flat" title="Near your users, or your data">
+    Deploy once, run in Cloudflare's 330+ cities
+    <br />by default, or use <DottedLink
+      canvasFromBottom={-6}
+      client:visible={{ rootMargin: "200px" }}>Smart Placement</DottedLink
+    > to run near your data, to minimize end-to-end latency.
+  </Item>
+
+  <Item iconName="clock-snooze" title="No cold starts">
+    Don't keep users waiting, or spend your time
+    <br />on prewarming rube-goldberg machines.
+  </Item>
+
+  <Item class="pr-38" iconName="infinity" title="Infinite concurrency">
+    No need to pay for pre-provisioned concurrency. Just scale up based on
+    demand on your big launch days, no matter how many concurrent.
+  </Item>
+
+  <Item iconName="console" title="First-class local development">
+    Workers allows you to fully test your changes locally and allow you to get
+    in the flow, ahead of pushing your changes with <DottedLink
+      canvasFromBottom={-6}
+      client:visible={{ rootMargin: "200px" }}>workerd</DottedLink
+    >, our open.
+  </Item>
+
+  <Item iconName="brackets-2" title="Write in JS, TS, Python or Rust">
+    Choose from a template in your language
+    <br />to kickstart building an app.
+  </Item>
+
+  <DashedLineGrid
+    client:visible={{ rootMargin: "200px" }}
+    columns={3}
+    rows={2}
+  />
+</div>

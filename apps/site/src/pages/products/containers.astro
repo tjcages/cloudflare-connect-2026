@@ -1,0 +1,29 @@
+---
+import CodeTabs from "@/components/_pages/products/containers/CodeTabs.astro";
+import Features from "@/components/_pages/products/containers/Features.astro";
+import FullStack from "@/components/_pages/products/containers/full-stack/FullStack.astro";
+import Hero from "@/components/_pages/products/containers/hero/Hero.astro";
+import RealTime from "@/components/_pages/products/containers/real-time/RealTime.astro";
+import Products from "@/components/_sections/products/Products.astro";
+import Quote from "@/components/quote/Quote.astro";
+import Layout from "@/layouts/Layout.astro";
+---
+
+<Layout
+  title="Cloudflare Containers - Run Containers Globally Without Orchestration"
+  description="Run containers globally with one command. No Kubernetes, no regions. Run code written in any programming language, everywhere it's needed across Cloudflare's global network."
+>
+  <Hero />
+
+  <Features />
+
+  <RealTime />
+
+  <FullStack />
+
+  <CodeTabs />
+
+  <Quote brand="zendesk" />
+
+  <Products />
+</Layout>

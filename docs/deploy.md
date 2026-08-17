@@ -1,70 +1,65 @@
-# Deploy — `connect-shader` Worker
+# Deploy — Connect 2026 Workers
 
-**Single production target for all deploys** (local `pir deploy`, Workers Builds, branch promotes):
+This monorepo owns two independent Cloudflare Workers in account
+`944ca70087298faa2e84783db46162c5`.
 
-|                |                                                                                                                                                       |
-| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Worker         | `connect-shader`                                                                                                                                      |
-| Account        | `944ca70087298faa2e84783db46162c5`                                                                                                                    |
-| Dashboard      | [Workers → connect-shader → production](https://dash.cloudflare.com/944ca70087298faa2e84783db46162c5/workers/services/view/connect-shader/production) |
-| Live URL       | https://connect-shader.off-brand.workers.dev/                                                                                                         |
-| Client preview | https://connect-shader.off-brand.workers.dev/ (or `/client.html`)                                                                                     |
-| Full lab       | https://connect-shader.off-brand.workers.dev/lab.html                                                                                                 |
-
-## Important: what “live” means
-
-- **Production** (`https://connect-shader.off-brand.workers.dev/`) only updates after Workers Builds / `wrangler deploy` runs against `main`.
-- **PR / cloud-agent branches do not change production** until merged to `main`.
-- Hand off **Workers preview URLs** for PR review — never trycloudflare / session tunnels.
-
-## Config
-
-- Root: `wrangler.jsonc` → assets `apps/lab/dist`, name `connect-shader`
-- Lab: `apps/lab/wrangler.jsonc` → assets `./dist`, name `connect-shader`
-- Both must keep the same `name` + `account_id`. Do **not** rename the Worker or point deploys at another service.
-- `workers_dev: true` and `preview_urls: true` (required for versioned + branch preview hosts).
+| App          | Workspace   | Worker              | Production URL                                           |
+| ------------ | ----------- | ------------------- | -------------------------------------------------------- |
+| Refresh site | `apps/site` | `connect-2026-site` | https://connect-2026-site.off-brand.workers.dev/connect/ |
+| Shader tool  | `apps/lab`  | `connect-shader`    | https://connect-shader.off-brand.workers.dev/            |
 
 ## Commands
 
-```bash
-# From repo root (preferred) — requires `wrangler login` / API token
-pir build && pir deploy
-# or
-pnpm run deploy
+Use the repository aliases (`pi` and `pir`) rather than calling package managers directly.
 
-# Upload a version + aliased preview (does NOT promote production)
-pnpm run preview:upload
+```bash
+pir dev:site
+pir dev:shader
+pir build:all
+pir deploy:site
+pir deploy:shader
 ```
 
-Workers Builds (`WORKERS_CI=1`) runs `postinstall` → `pnpm run build`, then:
+`pir deploy` remains an alias for `deploy:shader` so the existing shader integration
+does not unexpectedly change targets.
 
-- **Production branch (`main`):** `wrangler deploy`
-- **Non-production branches / PRs:** `wrangler versions upload` (preview only)
+## Configuration ownership
 
-## PR preview URLs (automatic)
+- `apps/site/wrangler.jsonc` is the only deploy config for `connect-2026-site`.
+- `apps/lab/wrangler.jsonc` is the app-level deploy config for `connect-shader`.
+- Root `wrangler.jsonc` remains a compatibility config for the existing shader
+  Workers Builds integration.
 
-Cloudflare posts these on the PR when **Builds for non-production branches** is enabled:
+Never point either config at the other Worker name.
 
-| Kind   | Format                                                           |
-| ------ | ---------------------------------------------------------------- |
-| Branch | `https://<branch-slug>-connect-shader.off-brand.workers.dev/`    |
-| Commit | `https://<version-prefix>-connect-shader.off-brand.workers.dev/` |
+## Pull-request previews
 
-Branch slug = git branch with `/` → `-`, lowercased (e.g. `cursor/cf-17-…` → `cursor-cf-17-…`).
+The fallback GitHub workflow uploads version previews for both Workers without
+promoting production:
 
-### Dashboard checklist (one-time)
+| App          | Preview URL                                                        |
+| ------------ | ------------------------------------------------------------------ |
+| Refresh site | `https://<alias>-connect-2026-site.off-brand.workers.dev/connect/` |
+| Shader tool  | `https://<alias>-connect-shader.off-brand.workers.dev/`            |
 
-1. [connect-shader → Settings → Domains & Routes](https://dash.cloudflare.com/944ca70087298faa2e84783db46162c5/workers/services/view/connect-shader/production) → **Preview URLs = Enable**
-2. Settings → **Build** → Branch control → check **Builds for non-production branches** (must be an explicit checkbox — configuring “Version command” alone is not enough)
-3. **Build command:** `pnpm install` (postinstall builds assets when `WORKERS_CI=1`) or `pnpm run build`
-4. **Deploy command (`main`):** `npx wrangler deploy`
-5. **Version / non-prod command:** `npx wrangler versions upload`
-6. Push to a PR branch → Cloudflare bot comments **Branch Preview URL** + **Commit Preview URL** on the PR (`*-connect-shader.off-brand.workers.dev`)
+The workflow requires the repository secret `CLOUDFLARE_API_TOKEN`. Both Workers
+must have preview URLs enabled.
 
-**Status (CF-18):** Non-production Workers Builds are live — PRs receive Cloudflare bot comments with branch + commit preview links. The GitHub Actions workflow `.github/workflows/workers-preview.yml` is an optional fallback (`CLOUDFLARE_API_TOKEN`); without the secret it skips cleanly and does not fail the check.
+For Cloudflare Workers Builds, connect this GitHub repository to each Worker and
+use these settings:
 
-If every non-`main` commit stays **queued / 0 runs** forever, non-prod builds are not actually firing — re-toggle the Branch control checkbox, confirm no stuck build is holding the free-plan concurrent slot (limit 1), and check [Build history](https://dash.cloudflare.com/944ca70087298faa2e84783db46162c5/workers/services/view/connect-shader/production).
+### `connect-shader`
 
-Optional fallback secret: repo `CLOUDFLARE_API_TOKEN` enables `pnpm run preview:upload` from GitHub Actions.
+- Build command: `pnpm install` (the existing `WORKERS_CI=1` hook builds the shader)
+- Production deploy command: `pnpm --filter lab exec wrangler deploy`
+- Non-production command: `pnpm --filter lab exec wrangler versions upload`
 
-Cloud-agent checkouts often lack `CLOUDFLARE_API_TOKEN`. Do not loop on `wrangler deploy`. Production updates when Workers Builds on `main` finishes — confirm https://connect-shader.off-brand.workers.dev/ rather than claiming a local promote. CF-9 stays open until Ty explicitly promotes production.
+### `connect-2026-site`
+
+- Build environment variable: `WORKERS_BUILD_APP=site`
+- Build command: `pnpm install`
+- Production deploy command: `pnpm --filter @cloudflare-connect/site exec wrangler deploy`
+- Non-production command: `pnpm --filter @cloudflare-connect/site exec wrangler versions upload`
+
+Enable **Builds for non-production branches** for both Workers. Production only
+changes from `main` or an explicit production deploy.

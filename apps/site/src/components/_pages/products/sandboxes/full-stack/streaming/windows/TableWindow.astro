@@ -1,0 +1,68 @@
+---
+import CodeRows from "./CodeRows.astro";
+import StreamRow from "./StreamRow.astro";
+
+const rules = [
+  "inset-y-0 left-64 w-px",
+  "inset-y-0 left-136 w-px",
+  "inset-x-0 top-25 h-px",
+];
+---
+
+<div class="absolute inset-x-0 top-0 h-51 opacity-0" data-stream-lane="frame">
+  {rules.map((rule) => (
+    <div class:list={["absolute bg-border-default", rule]} />
+  ))}
+</div>
+
+<StreamRow
+  class={["top-11 left-10"]}
+  dashes={[
+    { width: "w-32" },
+    { width: "w-8", class: "bg-(--color-dynamic-purple-6)" },
+  ]}
+  lane="preview"
+  tall
+/>
+<StreamRow
+  class={["top-11 left-74"]}
+  dashes={[{ width: "w-38" }, { width: "w-16" }]}
+  lane="preview"
+  tall
+/>
+<StreamRow
+  class={["top-11 left-146"]}
+  dashes={[{ width: "w-13" }]}
+  lane="preview"
+  tall
+/>
+
+<StreamRow
+  class={["top-35 left-10"]}
+  dashes={[
+    { width: "w-25" },
+    { width: "w-12", class: "bg-(--color-dynamic-blue-6)" },
+  ]}
+  lane="preview"
+  tall
+/>
+<StreamRow
+  class={["top-35 left-74"]}
+  dashes={[{ width: "w-28" }, { width: "w-12" }]}
+  lane="preview"
+  tall
+/>
+<StreamRow
+  class={["top-35 left-146"]}
+  dashes={[{ width: "w-10" }]}
+  lane="preview"
+  tall
+/>
+
+<CodeRows
+  rows={[
+    { widths: ["w-13", "w-8", "w-11", "w-6", "w-9"] },
+    { widths: ["w-8", "w-12", "w-5", "w-10", "w-7", "w-4"] },
+    { widths: ["w-11", "w-6", "w-14", "w-3", "w-9"] },
+  ]}
+/>

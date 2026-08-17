@@ -1,0 +1,81 @@
+---
+import CodeTabs from "@/components/code-tabs/CodeTabs.astro";
+import type { DataProps } from "@/components/code-tabs/content/data";
+
+const data: DataProps[] = [
+  {
+    tabTitle: "Generate screenshots",
+    title: "Generate screenshots",
+    description:
+      "Take screenshots of web pages using the REST API or Workers bindings.",
+    docsHref:
+      "https://developers.cloudflare.com/browser-run/quick-actions/screenshot-endpoint/",
+    language: "bash",
+    terminalLabel: "CURL",
+    code: `curl -X POST 'https://api.cloudflare.com/client/v4/accounts/<accountId>/browser-rendering/screenshot' \\
+  -H 'Authorization: Bearer <apiToken>' \\
+  -H 'Content-Type: application/json' \\
+  -d '{
+    "html": "Hello World!",
+    "screenshotOptions": {
+      "omitBackground": true
+    }
+  }' \\
+  --output "screenshot.png"`,
+  },
+  {
+    tabTitle: "Run Playwright",
+    title: "Run Playwright for powering agentic workflows",
+    description:
+      "Use Playwright to automate complex browser interactions for AI agents.",
+    docsHref: "https://developers.cloudflare.com/browser-run/playwright/",
+    language: "typescript",
+    fileName: "playwright.ts",
+    code: `import { launch } from '@cloudflare/playwright';
+
+export default {
+  async fetch(request, env) {
+    const browser = await launch(env.MYBROWSER);
+    const page = await browser.newPage();
+
+    await page.goto('https://example.com');
+    const img = await page.screenshot();
+    await browser.close();
+
+    return new Response(img, {
+      headers: { 'content-type': 'image/png' },
+    });
+  },
+} satisfies ExportedHandler<Env>;`,
+  },
+  {
+    tabTitle: "Retrieve webpage",
+    title: "Retrieve webpage and generate markdown for AI consumption",
+    description:
+      "Extract content from web pages and convert to markdown format for AI processing.",
+    docsHref:
+      "https://developers.cloudflare.com/browser-run/quick-actions/markdown-endpoint/",
+    language: "bash",
+    terminalLabel: "CURL",
+    code: `curl -X POST 'https://api.cloudflare.com/client/v4/accounts/<accountId>/browser-rendering/markdown' \\
+  -H 'Content-Type: application/json' \\
+  -H 'Authorization: Bearer <apiToken>' \\
+  -d '{
+    "url": "https://example.com"
+  }'`,
+  },
+];
+---
+
+<CodeTabs data={data}>
+  <Fragment slot="title">
+    Headless browsers on standby <br />that you can use at scale without any
+    complicated setup
+  </Fragment>
+
+  <Fragment slot="description">
+    Eliminate the need to manage complex browser infrastructure by running
+    browser-based tasks like screenshots and PDF generation on Cloudflare's
+    global network.
+  </Fragment>
+</CodeTabs>

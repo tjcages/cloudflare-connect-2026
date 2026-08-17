@@ -1,20 +1,23 @@
 import {
-  COMET_LOGO_ACTIVE_RENDER_POINT_COUNT,
   COMET_LOGO_EVENT_GROUP_COUNT,
   COMET_LOGO_EVENT_SPARK_POINT_COUNT,
   COMET_LOGO_NEEDLE_SPARK_POINT_COUNT,
-  COMET_LOGO_POINTS,
-  COMET_LOGO_RENDER_POINT_COUNT,
-  COMET_LOGO_SPARK_ANCHOR_POINTS,
   COMET_LOGO_TRAIL_SEGMENT_COUNT,
 } from "./points";
+import { cometLogoPointCounts, type CometLogoShape, type CometLogoShapePoint } from "./shape";
 
-const logoPoints = COMET_LOGO_POINTS.map(([x, y]) => `vec2(${x.toFixed(5)}, ${y.toFixed(5)})`).join(",\n  ");
-const sparkAnchorPoints = COMET_LOGO_SPARK_ANCHOR_POINTS.map(([x, y]) => `vec2(${x.toFixed(5)}, ${y.toFixed(5)})`).join(
-  ",\n  ",
-);
+function glslPointArray(points: readonly CometLogoShapePoint[]): string {
+  return points.map(([x, y]) => `vec2(${x.toFixed(5)}, ${y.toFixed(5)})`).join(",\n  ");
+}
 
-export const COMET_LOGO_VERTEX_SHADER = `#version 300 es
+export function buildCometLogoVertexShader(shape: CometLogoShape): string {
+  const counts = cometLogoPointCounts(shape);
+  const logoPointCount = counts.logo;
+  const logoPoints = glslPointArray(shape.points);
+  const sparkAnchorCount = shape.sparkAnchorIndices.length;
+  const sparkAnchorPoints = glslPointArray(shape.sparkAnchorIndices.map((index) => shape.points[index]));
+
+  return `#version 300 es
 precision highp float;
 
 uniform vec2 uResolution;
@@ -36,6 +39,8 @@ uniform float uCenterClearAspect;
 uniform float uCenterClearSquareness;
 uniform float uCenterClearLeak;
 uniform float uCenterClearFalloff;
+uniform float uCenterClearOffsetX;
+uniform float uCenterClearOffsetY;
 uniform float uFieldAlign;
 uniform float uFormationDirectness;
 uniform float uFormationMaxTravel;
@@ -44,6 +49,8 @@ uniform float uFormationWiggle;
 uniform float uFieldTrailLength;
 uniform float uFieldParticleSize;
 uniform float uLogoScale;
+uniform float uLogoOffsetX;
+uniform float uLogoOffsetY;
 uniform float uLogoParticleSize;
 uniform float uLogoTrailLength;
 uniform float uLogoMotion;
@@ -103,10 +110,10 @@ const float MAX_TRAIL_WORLD = 0.22;
 const float LOGO_MAX_TRAIL_WORLD = 0.2;
 const float TAU = 6.28318530718;
 const int TRAIL_SEGMENT_COUNT = ${COMET_LOGO_TRAIL_SEGMENT_COUNT};
-const vec2 LOGO_POINTS[${COMET_LOGO_POINTS.length}] = vec2[${COMET_LOGO_POINTS.length}](
+const vec2 LOGO_POINTS[${logoPointCount}] = vec2[${logoPointCount}](
   ${logoPoints}
 );
-const vec2 SPARK_ANCHOR_POINTS[${COMET_LOGO_SPARK_ANCHOR_POINTS.length}] = vec2[${COMET_LOGO_SPARK_ANCHOR_POINTS.length}](
+const vec2 SPARK_ANCHOR_POINTS[${sparkAnchorCount}] = vec2[${sparkAnchorCount}](
   ${sparkAnchorPoints}
 );
 const vec2 QUAD[6] = vec2[6](
@@ -206,7 +213,7 @@ vec2 cubicHermite(vec2 start, vec2 startTangent, vec2 end, vec2 endTangent, floa
 vec2 fieldDirection(float id) {
   vec2 direction = vec2(hash11(id * 2.71), hash11(id * 4.93)) * 2.0 - 1.0;
   int alignIndex = int(floor(id - SEED * 17.173 + 0.5));
-  if (uFieldAlign > 0.0 && alignIndex >= 0 && alignIndex < ${COMET_LOGO_POINTS.length}) {
+  if (uFieldAlign > 0.0 && alignIndex >= 0 && alignIndex < ${logoPointCount}) {
     vec2 anchor = LOGO_POINTS[alignIndex];
     float anchorLength = length(anchor);
     float directionLength = length(direction);
@@ -220,6 +227,16 @@ vec2 fieldDirection(float id) {
   direction *= mix(0.58, 1.35, hash11(id * 8.11)) * uFieldSpread;
   float magnitude = length(direction);
   return direction / max(magnitude, 0.00001) * max(magnitude, 0.46 * uFieldSpread);
+}
+
+vec2 centerClearOffsetWorld() {
+  return vec2(uCenterClearOffsetX, -uCenterClearOffsetY) / max(0.5 * uResolution.y, 1.0);
+}
+
+// Moves the formed logo only. Every anchor stays logo-local, so directions
+// derived from an anchor keep pointing away from the logo, not the canvas.
+vec2 logoOffsetWorld() {
+  return vec2(uLogoOffsetX, -uLogoOffsetY) / max(0.5 * uResolution.y, 1.0);
 }
 
 float centerClearWorld(vec2 outward, float id) {
@@ -278,7 +295,7 @@ void fieldPoint(
   float magnitude = length(direction);
   vec2 outward = direction / max(magnitude, 0.00001);
   float travelled = magnitude / z - magnitude / (uFieldDepth + 0.24);
-  head = outward * (centerClearWorld(outward, id) + travelled);
+  head = centerClearOffsetWorld() + outward * (centerClearWorld(outward, id) + travelled);
   velocity = direction * uFieldSpeed / (z * z);
   float perspective = mix(0.28, 1.42, 1.0 - z / (uFieldDepth + 0.24));
   radiusPx = max(1.25, uResolution.y * 0.004 * perspective)
@@ -328,7 +345,7 @@ float formationTravelTime() {
 
 vec2 logoContourTangent(int index) {
   int previousIndex = max(0, index - 1);
-  int nextIndex = min(${COMET_LOGO_POINTS.length - 1}, index + 1);
+  int nextIndex = min(${logoPointCount - 1}, index + 1);
   vec2 contour = LOGO_POINTS[nextIndex] - LOGO_POINTS[previousIndex];
   return contour / max(length(contour), 0.00001);
 }
@@ -393,7 +410,7 @@ float sparkSizeScale(float sparkId, float time) {
 int sparkAnchorIndex(float sparkId, float time) {
   float groupSeed = sparkGroupSeed(sparkId);
   float cycleIndex = floor(sparkCycleValue(sparkId, time));
-  float anchor = mod(groupSeed * 29.0 + cycleIndex * 17.0, float(${COMET_LOGO_SPARK_ANCHOR_POINTS.length}));
+  float anchor = mod(groupSeed * 29.0 + cycleIndex * 17.0, float(${sparkAnchorCount}));
   return int(floor(anchor));
 }
 
@@ -405,6 +422,7 @@ vec2 sparkHead(float sparkId, float time, out float radiusPx) {
   vec2 origin = SPARK_ANCHOR_POINTS[anchorIndex] * uLogoScale;
   vec2 outward = origin / max(length(origin), 0.00001);
   vec2 tangent = vec2(-outward.y, outward.x);
+  origin += logoOffsetWorld();
   float progress = clamp(sparkCyclePhase(sparkId, time) / sparkActiveShare(kind), 0.0, 1.0);
   float travelEase = 1.0 - (1.0 - progress) * (1.0 - progress);
 
@@ -489,7 +507,7 @@ float gLogoBlend = 0.0;
 vec2 logoAnchor(int index) {
   vec2 anchor = LOGO_POINTS[index];
   if (gLogoBlend <= 0.0) return anchor;
-  return mix(anchor, LOGO_POINTS[(index + 1) % ${COMET_LOGO_POINTS.length}], gLogoBlend);
+  return mix(anchor, LOGO_POINTS[(index + 1) % ${logoPointCount}], gLogoBlend);
 }
 
 vec2 steeredHead(int index, float id, float time, float formation, out float radiusPx) {
@@ -505,7 +523,7 @@ vec2 steeredHead(int index, float id, float time, float formation, out float rad
   fieldPoint(id, formationDepartTime(id), departHead, departRadiusPx, departVelocity);
   radiusPx = departRadiusPx;
 
-  vec2 target = logoAnchor(index) * uLogoScale;
+  vec2 target = logoAnchor(index) * uLogoScale + logoOffsetWorld();
   // Cap the flight: a comet whose slot is further than uFormationMaxTravel is
   // re-seated on its own entry ray, just inside the nearest viewport edge, so
   // it enters from close by instead of crossing the whole canvas.
@@ -618,7 +636,8 @@ vec2 rejoinHead(int index, float id, float elapsed, out float radiusPx, out bool
   fieldPoint(id, uRejoinStartFieldTime + rejoinDuration, target, targetRadiusPx, targetVelocity);
 
   radiusPx = mix(startRadiusPx, targetRadiusPx, progress);
-  vec2 outward = start / max(length(start), 0.00001);
+  vec2 fromLogo = start - logoOffsetWorld();
+  vec2 outward = fromLogo / max(length(fromLogo), 0.00001);
   vec2 scatter = vec2(
     hash11(id * 12.91) * 2.0 - 1.0,
     hash11(id * 27.13) * 2.0 - 1.0
@@ -681,21 +700,21 @@ void main() {
   int index = gl_InstanceID;
   // Only the dedicated pool past the idle instances forms the logo; the idle
   // field keeps flying underneath it untouched.
-  int extraLogoIndex = index - ${COMET_LOGO_ACTIVE_RENDER_POINT_COUNT};
+  int extraLogoIndex = index - ${counts.activeRender};
   bool extraLogo = extraLogoIndex >= 0;
   if (extraLogo) {
-    index = extraLogoIndex % ${COMET_LOGO_POINTS.length};
+    index = extraLogoIndex % ${logoPointCount};
     gLogoBlend = hash11(float(gl_InstanceID) * 3.71 + 5.3);
   }
   bool logoParticle = extraLogo;
-  bool sparkParticle = !extraLogo && index >= ${COMET_LOGO_RENDER_POINT_COUNT};
+  bool sparkParticle = !extraLogo && index >= ${counts.render};
   float id = float(gl_InstanceID) + SEED * 17.173;
   float sourceParticleOpacity = logoParticle
     || sparkParticle
-    || index < ${COMET_LOGO_POINTS.length}
+    || index < ${logoPointCount}
     ? 1.0
     : 0.72;
-  float sparkId = float(max(index - ${COMET_LOGO_RENDER_POINT_COUNT}, 0));
+  float sparkId = float(max(index - ${counts.render}, 0));
   float currentSparkKind = sparkKind(sparkId, uFieldTime);
   float currentLocalFormation = logoParticle
     ? localFormation(id, uFormation)
@@ -963,6 +982,7 @@ void main() {
     int effectAnchorIndex = sparkAnchorIndex(sparkId, uFieldTime);
     vec2 effectCenter = SPARK_ANCHOR_POINTS[effectAnchorIndex] * uLogoScale;
     vec2 effectOutward = effectCenter / max(length(effectCenter), 0.00001);
+    effectCenter += logoOffsetWorld();
     float effectProgress = clamp(
       sparkCyclePhase(sparkId, uFieldTime) / sparkActiveShare(currentSparkKind),
       0.0,
@@ -1029,6 +1049,7 @@ void main() {
   vEffectRadiusPx = 0.0;
   vEffectSeed = 0.0;
 }`;
+}
 
 export const COMET_LOGO_FRAGMENT_SHADER = `#version 300 es
 precision highp float;

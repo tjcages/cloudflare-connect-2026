@@ -1,0 +1,110 @@
+import type { ListType } from "./types";
+
+export const commitNames = {
+  patch: [
+    "fix radius",
+    "fix mobile layout",
+    "fix button spacing",
+    "fix animation timing",
+    "fix overflow issue",
+    "fix state management",
+    "fix border styles",
+    "fix form behavior",
+    "update colors",
+    "update preview",
+    "update metadata",
+    "update dependencies",
+    "remove unused styles",
+    "clean up styles",
+    "rename variables",
+    "improve performance",
+    "optimize images",
+  ],
+
+  minor: [
+    "add dark mode",
+    "update navigation",
+    "add hover effects",
+    "add missing icons",
+    "add skeleton loader",
+    "change card layout",
+    "update typography",
+    "add validation rules",
+  ],
+
+  major: [
+    "redesign dashboard",
+    "migrate to new API",
+    "rebuild authentication",
+    "replace routing system",
+    "upgrade design system",
+    "adopt new architecture",
+  ],
+};
+export const initialData: ListType[] = [
+  {
+    title: "2cfd4c38.acme.com",
+    status: "Queued",
+    version: {
+      major: 1,
+      minor: 1,
+      patch: 9,
+    },
+    duration: 0,
+    environment: "Preview",
+    commitName: "remove mobile preview",
+    id: "deploy-2cfd4c38",
+  },
+  {
+    title: "efc91166.acme.com",
+    status: "Building",
+    version: {
+      major: 1,
+      minor: 1,
+      patch: 8,
+    },
+    duration: 13,
+    environment: "Production",
+    commitName: "update preview",
+    id: "deploy-efc91166",
+  },
+  {
+    title: "19e0d7442.acme.com",
+    status: "Deployed",
+    version: {
+      major: 1,
+      minor: 1,
+      patch: 7,
+    },
+    duration: 165,
+    environment: "Production",
+    commitName: "swap logos",
+    id: "deploy-19e0d7442",
+  },
+  {
+    title: "35007fb4.acme.com",
+    status: "Deployed",
+    version: {
+      major: 1,
+      minor: 1,
+      patch: 6,
+    },
+    duration: 525,
+    environment: "Production",
+    commitName: "fix radius",
+    id: "deploy-35007fb4",
+  },
+  {
+    title: "62d0d7442.acme.com",
+    status: "Deployed",
+    version: {
+      major: 1,
+      minor: 1,
+      patch: 5,
+    },
+    duration: 165,
+    environment: "Production",
+    commitName: "fix radius",
+    id: "deploy-62d0d7442",
+  },
+];

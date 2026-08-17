@@ -1,0 +1,83 @@
+---
+import IllustrationChip from "@/components/_animations/ui/IllustrationChip.astro";
+import OrbitRing from "@/components/_animations/ui/OrbitRing.astro";
+import Browser from "@/components/browser/Browser.astro";
+import Icon from "@/components/icon/Icon";
+import Stage from "@/components/Stage.astro";
+
+// Figma stacks the windows 172 apart — the window plus the 36 gap every
+// filmstrip in this repo leaves. Four slots, so the one that wraps below the
+// card has somewhere to go before it climbs back into view. The three numbers
+// travel as custom properties because visual.ts reads the pitch back off this
+// element: one owner, the way ContainerStream does it with --stream-pitch.
+const windowSize = { width: 208, height: 136 };
+const pitch = windowSize.height + 36;
+const slots = Array.from({ length: 4 }, (_, index) => (index - 1) * pitch);
+---
+
+<Stage
+  class="pointer-events-none"
+  data-sandboxes-fullstack-visual="sdk-control"
+>
+  <div class="overlay overflow-clip">
+    <div class="absolute inset-y-0 left-1/2 w-px bg-border-default"></div>
+    <div class="absolute inset-x-0 top-1/2 h-px bg-border-default"></div>
+
+    <OrbitRing
+      bottomArcClass="stroke-purple-900"
+      radius={60}
+      topArcClass="stroke-purple-800"
+    />
+
+    <IllustrationChip
+      active
+      chipId="U"
+      class="top-120 left-88 z-10"
+      shape="circle"
+      size="large"
+      sizePx={72}
+    >
+      <Icon color="orange" name="user" size={24} variant="duo" />
+    </IllustrationChip>
+
+    <IllustrationChip
+      active
+      chipId="C"
+      class="centering-size-0 z-10"
+      shape="circle"
+      size="xlarge"
+      sizePx={88}
+    >
+      <Icon color="purple" name="product-workers" size={32} variant="duo" />
+    </IllustrationChip>
+
+    <div
+      class="absolute top-52 left-[calc(50%+116px)] h-(--reel-window-height) w-(--reel-window-width)"
+      data-reel-stage
+      style={{
+        "--reel-window-width": `${windowSize.width}px`,
+        "--reel-window-height": `${windowSize.height}px`,
+        "--reel-pitch": `${pitch}px`,
+      }}
+    >
+      <div class="absolute inset-0" data-reel-track>
+        {slots.map((offset) => (
+          <div
+            class="absolute inset-0"
+            data-reel-slot
+            style={{ translate: `0 ${offset}px` }}
+          >
+            <div data-reel-nudge>
+              <Browser
+                class="h-(--reel-window-height) w-(--reel-window-width)"
+                data-reel-browser=""
+                reveal={false}
+                variant="sandbox"
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+</Stage>

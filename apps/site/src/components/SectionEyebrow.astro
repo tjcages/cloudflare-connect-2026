@@ -1,0 +1,22 @@
+---
+import Scramble from "@/components/scramble/Scramble";
+
+interface Props {
+  text: string;
+}
+
+const { text }: Props = Astro.props;
+---
+
+<Scramble
+  client:visible
+  text={text}
+  className="absolute top-0 left-full h-80 w-max px-40 py-30 text-decorative-small-high text-text-faint select-none"
+/>
+
+<Scramble
+  client:visible
+  group="sec"
+  text="SEC 0.{n}"
+  className="absolute top-0 right-full h-80 w-max px-40 py-30 text-decorative-small-high text-text-faint select-none"
+/>

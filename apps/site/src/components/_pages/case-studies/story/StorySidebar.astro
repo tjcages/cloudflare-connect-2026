@@ -1,0 +1,79 @@
+---
+import Button from "@/components/Button";
+import HoverArrow from "@/components/HoverArrow";
+import Icon from "@/components/icon/Icon";
+import { productIcons } from "../stories/data";
+import type { StoryDetail } from "./data";
+
+interface Props {
+  story: StoryDetail;
+}
+
+const { story } = Astro.props;
+const Logo = story.banner.Logo;
+---
+
+<aside
+  class="sticky top-160 flex h-[calc(100vh/var(--zoom-ramp,1)-240px)] min-h-max w-280 shrink-0 flex-col justify-between gap-80 self-start pr-40"
+>
+  <div class="flex flex-col gap-40">
+    <div class:list={[story.banner.brandClass, "flex h-32 items-center gap-8"]}>
+      {story.banner.wordmark ? (
+        <Logo aria-label={story.company} class="h-28 w-auto" role="img" />
+      ) : (
+        <>
+          <Logo aria-hidden="true" class="h-28 w-auto" />
+          <span class="text-label-large">{story.company}</span>
+        </>
+      )}
+    </div>
+
+    <div class="flex flex-col gap-16">
+      <span class="text-body-x-small text-text-default">Products used</span>
+
+      <ul class="flex flex-col gap-16">
+        {story.products.map((product) => (
+          <li class="flex">
+            <a
+              class="group flex min-w-0 items-center gap-4 text-text-base transition-colors duration-150 hover:text-orange-900"
+              href="#"
+            >
+              <Icon
+                color="orange"
+                name={productIcons[product]}
+                size={20}
+                variant="duo"
+              />
+              <span class="truncate px-4 text-label-x-small">{product}</span>
+              <HoverArrow className="-ml-4" />
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+
+    <div class="flex flex-col gap-16">
+      <span class="text-body-x-small text-text-default">Details</span>
+
+      <div class="flex flex-col gap-16">
+        <span class="flex items-center gap-4">
+          <Icon className="text-icon-muted" name="buildings" size={20} />
+          <span class="px-4 text-label-x-small text-text-base">
+            {story.industry}
+          </span>
+        </span>
+
+        <span class="flex items-center gap-4">
+          <Icon className="text-icon-muted" name="globe" size={20} />
+          <span class="px-4 text-label-x-small text-text-base">
+            {story.region}
+          </span>
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <Button className="self-start px-14" href="#" size="large">
+    <span>Contact enterprise sales</span>
+  </Button>
+</aside>

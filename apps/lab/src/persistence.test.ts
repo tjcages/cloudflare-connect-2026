@@ -498,18 +498,34 @@ describe("client preset ids in lab settings", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
   });
-  it("persists clientSizeId/layoutId/colorId/appearanceId", () => {
+  it("persists client Size/Layout/Color/Appearance/Graphic selections", () => {
     saveLabSettings({
       clientSizeId: "hero-16x9",
       clientLayoutId: "high-fan",
       clientColorId: "light",
       clientAppearanceId: "dark",
+      clientGraphicMode: "rain",
     });
     const loaded = loadLabSettings();
     expect(loaded.clientSizeId).toBe("hero-16x9");
     expect(loaded.clientLayoutId).toBe("high-fan");
     expect(loaded.clientColorId).toBe("light");
     expect(loaded.clientAppearanceId).toBe("dark");
+    expect(loaded.clientGraphicMode).toBe("rain");
+  });
+
+  it("persists shared style and color catalog selections", () => {
+    saveLabSettings({
+      clientLayoutId: "shared-style:style-123",
+      clientColorId: "shared-color:color-456",
+    });
+    const loaded = loadLabSettings();
+    expect(loaded.clientLayoutId).toBe("shared-style:style-123");
+    expect(loaded.clientColorId).toBe("shared-color:color-456");
+  });
+
+  it("defaults the client Graphic selection to Twizzler", () => {
+    expect(loadLabSettings().clientGraphicMode).toBe("twizzler");
   });
 
   it("maps legacy graphite color id to light", () => {

@@ -1,0 +1,158 @@
+---
+const TONES = {
+  neutral: "bg-darker/7",
+  purple: "bg-(--color-dynamic-purple-6)",
+  blue: "bg-(--color-dynamic-blue-6)",
+  green: "bg-(--color-dynamic-green-6)",
+  red: "bg-(--color-dynamic-red-6)",
+};
+
+type Tone = keyof typeof TONES;
+
+const verticals = [
+  { x: 64, delay: "" },
+  { x: 152, delay: "group-data-output/browser:delay-60" },
+];
+
+const horizontals = [
+  { y: 24, delay: "group-data-output/browser:delay-120" },
+  { y: 48, delay: "group-data-output/browser:delay-160" },
+  { y: 72, delay: "group-data-output/browser:delay-200" },
+];
+
+const rows: {
+  top: number;
+  delay: string;
+  cells: { left: number; segments: { width: number; tone: Tone }[] }[];
+}[] = [
+  {
+    top: 10,
+    delay: "group-data-output/browser:delay-280",
+    cells: [
+      {
+        left: 10,
+        segments: [
+          { width: 32, tone: "neutral" },
+          { width: 8, tone: "purple" },
+        ],
+      },
+      {
+        left: 74,
+        segments: [
+          { width: 32, tone: "neutral" },
+          { width: 12, tone: "neutral" },
+        ],
+      },
+      { left: 162, segments: [{ width: 10, tone: "neutral" }] },
+    ],
+  },
+  {
+    top: 34,
+    delay: "group-data-output/browser:delay-340",
+    cells: [
+      {
+        left: 10,
+        segments: [
+          { width: 25, tone: "neutral" },
+          { width: 12, tone: "blue" },
+        ],
+      },
+      {
+        left: 74,
+        segments: [
+          { width: 38, tone: "neutral" },
+          { width: 16, tone: "neutral" },
+        ],
+      },
+      { left: 162, segments: [{ width: 13, tone: "neutral" }] },
+    ],
+  },
+  {
+    top: 58,
+    delay: "group-data-output/browser:delay-400",
+    cells: [
+      {
+        left: 10,
+        segments: [
+          { width: 18, tone: "neutral" },
+          { width: 5, tone: "green" },
+        ],
+      },
+      {
+        left: 74,
+        segments: [
+          { width: 20, tone: "neutral" },
+          { width: 24, tone: "neutral" },
+        ],
+      },
+      { left: 162, segments: [{ width: 8, tone: "neutral" }] },
+    ],
+  },
+  {
+    top: 82,
+    delay: "group-data-output/browser:delay-460",
+    cells: [
+      {
+        left: 10,
+        segments: [
+          { width: 25, tone: "neutral" },
+          { width: 8, tone: "red" },
+        ],
+      },
+      {
+        left: 74,
+        segments: [
+          { width: 28, tone: "neutral" },
+          { width: 7, tone: "neutral" },
+        ],
+      },
+      { left: 162, segments: [{ width: 13, tone: "neutral" }] },
+    ],
+  },
+];
+---
+
+<div class="overlay">
+  {verticals.map(({ x, delay }) => (
+    <div
+      class:list={[
+        "absolute top-0 h-full w-px origin-top -translate-x-1/2 scale-y-0 bg-border-default transition-transform duration-350 ease-[cubic-bezier(0.6,0.6,0,1)] group-data-output/browser:scale-y-100",
+        delay,
+      ]}
+      style={{ left: `${x}px` }}
+    />
+  ))}
+  {horizontals.map(({ y, delay }) => (
+    <div
+      class:list={[
+        "absolute left-0 h-px w-full origin-left -translate-y-1/2 scale-x-0 bg-border-default transition-transform duration-350 ease-[cubic-bezier(0.6,0.6,0,1)] group-data-output/browser:scale-x-100",
+        delay,
+      ]}
+      style={{ top: `${y}px` }}
+    />
+  ))}
+
+  {rows.map(({ top, delay, cells }) => (
+    <div
+      class:list={[
+        "absolute inset-x-0 translate-y-4 opacity-0 transition-[opacity,translate] duration-350 ease-[cubic-bezier(0.6,0.6,0,1)] group-data-output/browser:translate-y-0 group-data-output/browser:opacity-100",
+        delay,
+      ]}
+      style={{ top: `${top}px` }}
+    >
+      {cells.map(({ left, segments }) => (
+        <div
+          class="absolute flex items-center gap-3"
+          style={{ left: `${left}px` }}
+        >
+          {segments.map(({ width, tone }) => (
+            <div
+              class:list={["h-4 shrink-0 rounded-4", TONES[tone]]}
+              style={{ width: `${width}px` }}
+            />
+          ))}
+        </div>
+      ))}
+    </div>
+  ))}
+</div>

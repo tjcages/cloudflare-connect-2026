@@ -1,0 +1,28 @@
+---
+import Section from "@/layouts/Section.astro";
+import Animation from "./Animation.astro";
+---
+
+<Section layout="split" eyebrow="Real Time" sectionEyebrow="Architecture">
+  <Fragment slot="title">
+    Serverless architecture, <br />from the ground up: <br />Isolates <span
+      class="text-text-subtle">vs.</span
+    >
+    <span class="text-orange-900">Containers</span>
+  </Fragment>
+
+  <Fragment slot="description">
+    Workers are built on unique architecture called isolates.
+    <br /><br />
+    Isolates are an order of magnitude more lightweight, which means they can easily
+    and quickly scale up and down to meet your needs.
+  </Fragment>
+
+  <Fragment slot="info">
+    <span class="contents text-label-x-small">Isolates</span> are an order of magnitude
+    lighter than containers, <br />
+    enabling faster startup, higher density, lower costs, and instant scale.
+  </Fragment>
+
+  <Animation />
+</Section>

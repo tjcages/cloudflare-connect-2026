@@ -1,0 +1,13 @@
+---
+import Stage from "@/components/Stage.astro";
+import HubPill from "@/components/_animations/hub-pill/HubPill.astro";
+import EnrichPill from "./EnrichPill";
+---
+
+<Stage data-email-fullstack-visual="enrich">
+  <div class="overlay overflow-clip">
+    <HubPill ringRadius={56}>
+      <EnrichPill client:visible />
+    </HubPill>
+  </div>
+</Stage>

@@ -1,0 +1,42 @@
+---
+import IllustrationChip from "@/components/_animations/ui/IllustrationChip.astro";
+import Browser from "@/components/browser/Browser.astro";
+import BrowserContent from "@/components/browser/BrowserContent.astro";
+import Icon from "@/components/icon/Icon";
+import Stage from "@/components/Stage.astro";
+---
+
+<Stage data-containers-fullstack-visual="latency">
+  <div class="overlay overflow-clip">
+    {Array.from({ length: 5 }, (_, index) => (
+      <IllustrationChip
+        active
+        chipId={`user-${index}`}
+        class="top-0 left-0 z-10 opacity-0"
+        data-latency-chip
+        grow={false}
+        shape="circle"
+        size="small"
+        sizePx={40}
+      >
+        <Icon
+          name="user"
+          variant="duo"
+          color="orange"
+          size={20}
+          className="[&_path]:stroke-[1.5]"
+        />
+      </IllustrationChip>
+    ))}
+
+    <div class="absolute top-40 left-1/2 z-20 -translate-x-1/2">
+      <div data-latency-nudge>
+        <div data-float>
+          <Browser class="h-136 w-208" variant="site-1" data-latency-browser>
+            <BrowserContent slot="viewport" />
+          </Browser>
+        </div>
+      </div>
+    </div>
+  </div>
+</Stage>

@@ -1,0 +1,37 @@
+---
+import CodeTabs from "@/components/_pages/products/workers/CodeTabs.astro";
+import Hero from "@/components/_pages/products/workers/hero/Hero.astro";
+import Pricing from "@/components/_pages/products/workers/Pricing.astro";
+import Layout from "@/layouts/Layout.astro";
+
+import Quote from "@/components/quote/Quote.astro";
+import Features from "@/components/_sections/features/Features.astro";
+
+import Products from "@/components/_sections/products/Products.astro";
+import Isolates from "@/components/_sections/isolates/Isolates.astro";
+import UseCases from "@/components/_pages/products/workers/use-cases/UseCases.astro";
+import Deploy from "@/components/_sections/deploy/Deploy.astro";
+---
+
+<Layout
+  title="Cloudflare Workers - Global Serverless Functions Platform"
+  description="Deploy serverless functions globally in seconds. No cold starts, 330+ cities, infinite concurrency, and pay only for CPU time. Support for JavaScript, TypeScript, Python, and Rust."
+>
+  <Hero />
+
+  <Features />
+
+  <Isolates />
+
+  <UseCases />
+
+  <CodeTabs />
+
+  <Deploy />
+
+  <Pricing />
+
+  <Quote brand="intercom" />
+
+  <Products />
+</Layout>

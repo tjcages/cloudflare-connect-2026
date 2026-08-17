@@ -8,6 +8,7 @@ import {
   ribbonGradientXSpan,
   ribbonGradientXYSpan,
   TWIZZLER_DEFAULTS,
+  advanceTwizzlerAnimationTime,
   twizzlerAnimationTime,
   twizzlerBendOffset,
   twizzlerDepthScale,
@@ -337,6 +338,14 @@ describe("Twizzler", () => {
   it("freezes every animation source when master speed is zero", () => {
     expect(twizzlerAnimationTime(12.5, 0)).toBe(0);
     expect(twizzlerAnimationTime(12.5, 0.8)).toBe(10);
+  });
+
+  it("keeps animation moving forward when speed decreases", () => {
+    const fastPhase = advanceTwizzlerAnimationTime(10, 1, 2);
+    const slowerPhase = advanceTwizzlerAnimationTime(fastPhase, 1, 0.25);
+    expect(fastPhase).toBe(12);
+    expect(slowerPhase).toBe(12.25);
+    expect(advanceTwizzlerAnimationTime(slowerPhase, 1, 0)).toBe(slowerPhase);
   });
 
   it("builds an orange-wave ribbon with layered Z paths and solid stroke color", () => {

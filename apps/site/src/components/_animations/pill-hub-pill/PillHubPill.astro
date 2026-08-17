@@ -1,0 +1,81 @@
+---
+import IllustrationChip from "@/components/_animations/ui/IllustrationChip.astro";
+import OrbitRing from "@/components/_animations/ui/OrbitRing.astro";
+import Icon from "@/components/icon/Icon";
+import type { IconColor } from "@/components/icon/Icon";
+import type { IconName } from "@/components/icon/icons.gen";
+import PillColumn from "./PillColumn.astro";
+import StatusPill from "./StatusPill";
+
+interface Props {
+  hub: { icon: IconName; color: IconColor };
+  mail: { icon: IconName; color: IconColor; label: string };
+  status: { labels: [string, ...string[]] };
+}
+
+const { hub, mail, status } = Astro.props;
+---
+
+<div
+  class="absolute inset-0"
+  data-illustration-root
+  data-hub-color={hub.color}
+  data-mail-color={mail.color}
+  data-status-count={String(status.labels.length)}
+  style={{
+    "--hub-color-900": `var(--color-${hub.color}-900)`,
+    "--hub-color-800": `var(--color-${hub.color}-800)`,
+  }}
+>
+  <div
+    class="absolute top-120 left-0 h-px w-full -translate-y-1/2 bg-border-default"
+  >
+  </div>
+  <div
+    class="absolute top-0 left-1/2 h-full w-px -translate-x-1/2 bg-border-default"
+  >
+  </div>
+
+  <PillColumn
+    columnClass="left-36"
+    contentClass={[
+      "flex items-center gap-4 px-12",
+      "scale-[0.9625] opacity-0 transition-[opacity,scale] duration-280 ease-[cubic-bezier(0.165,0.84,0.44,1)]",
+      "data-active:scale-100 data-active:opacity-100",
+    ]}
+    id="L"
+  >
+    <Icon color={mail.color} name={mail.icon} size={20} variant="duo" />
+    <span class="px-4 text-label-x-small whitespace-nowrap text-text-base">
+      {mail.label}
+    </span>
+  </PillColumn>
+
+  <PillColumn
+    columnClass="left-[calc(100%-160px)]"
+    contentClass="pr-12 pl-8"
+    id="R"
+  >
+    <StatusPill
+      client:visible={{ rootMargin: "200px" }}
+      labels={status.labels}
+    />
+  </PillColumn>
+
+  <OrbitRing
+    bottomArcClass="stroke-(--hub-color-900)"
+    radius={60}
+    topArcClass="stroke-(--hub-color-800)"
+  />
+
+  <IllustrationChip
+    active
+    chipId="C"
+    class="centering-size-0 z-1"
+    shape="circle"
+    size="xlarge"
+    sizePx={88}
+  >
+    <Icon color={hub.color} name={hub.icon} size={32} variant="duo" />
+  </IllustrationChip>
+</div>

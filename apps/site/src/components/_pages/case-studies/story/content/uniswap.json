@@ -1,0 +1,106 @@
+{
+  "slug": "uniswap",
+  "company": "Uniswap",
+  "sourceUrl": "https://www.cloudflare.com/case-studies/uniswap/",
+  "found": true,
+  "synthesized": false,
+  "title": "Uniswap Lab uses Cloudflare IPFS Gateway to securely serve their users",
+  "quote": {
+    "text": [
+      "“It’s just nice to have a company like Cloudflare build a product that enables us to use IPFS and serve our front end to our users. It’s super important to us that our users feel secure using our product — every bit of code that gets committed to our GitHub repository gets served securely to them, and they can verify that security and know they’re using the Uniswap interface in a way that feels safe.",
+      "I’m excited about the products Cloudflare is building. Having IPFS Gateway support running through Ethereum nodes is exciting, because even though I like being in a cutting-edge space, I also care about reliable products — and for that you need large organizations with a great track record of keeping the lights on.”"
+    ],
+    "author": "Connor McEwen",
+    "role": "Engineering Lead"
+  },
+  "summaryHeadline": "Uniswap Labs serves the interface for the largest Ethereum decentralized exchange through Cloudflare’s IPFS Gateway, giving users a verifiable, censorship-resistant way to access the protocol.",
+  "summaryBody": [
+    "Uniswap Labs helps develop the Uniswap protocol, the largest decentralized exchange (DEX) running on the Ethereum network. Ethereum is a decentralized blockchain that lets people run smart contracts, enabling a wide range of permissionless financial tools. Uniswap itself is built so the protocol never takes custody of user funds — people retain control of their own tokens and assets at all times.",
+    "That non-custodial philosophy extends up through the application layer. Uniswap Labs designs its front end to be as decentralized as possible, with a minimal footprint of third-party dependencies, and publishes it to the InterPlanetary File System (IPFS) so the interface itself can be verified and mirrored independently of any single company."
+  ],
+  "sections": [
+    {
+      "heading": "About Uniswap Labs",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Uniswap Labs is the team behind the Uniswap protocol, the largest decentralized exchange running on Ethereum. “Ethereum is a decentralized blockchain that allows people to run compute — to run smart contracts — and enables people to build a lot of financial tools that are permissionless,” says Connor McEwen, Engineering Lead at Uniswap Labs. Because the protocol never holds custody of user funds, people trading on Uniswap always retain control of their own tokens and assets."
+        },
+        {
+          "type": "p",
+          "text": "That same decentralization ethos shapes how Uniswap Labs builds and ships its user-facing application, not just the smart contracts underneath it."
+        }
+      ]
+    },
+    {
+      "heading": "The challenge: serving a Web3 interface without a centralized point of failure",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Uniswap’s engineering team wanted the interface that millions of traders use to be held to the same standards of decentralization and openness as the protocol itself. That meant finding a way to publish and serve the front end so that every version of the code was independently verifiable, resistant to tampering, and not dependent on a single centralized host — while still being fast and reliable enough for everyday use."
+        },
+        {
+          "type": "p",
+          "text": "“It’s super important to us that our users feel secure using our product,” McEwen says. “The main goal is just that every bit of code that gets committed to our GitHub repository gets served securely to our users, and they can verify that security and know they’re using the Uniswap interface in a way that they feel safe.”"
+        }
+      ]
+    },
+    {
+      "heading": "The solution: DNS, Workers, and the Cloudflare IPFS Gateway",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Uniswap Labs uses [Cloudflare DNS](https://www.cloudflare.com/application-services/products/dns/) for its domains, deploys the Uniswap interface to the IPFS network, and relies on the [Cloudflare IPFS Gateway](https://www.cloudflare.com/application-services/products/web3/) to serve that application to end users. A handful of supporting functions for the interface run on [Cloudflare Workers](https://www.cloudflare.com/developer-platform/products/workers/) as well."
+        },
+        {
+          "type": "p",
+          "text": "“We used DNS and then actually deployed to the IPFS network and then use the Cloudflare IPFS Gateway to serve the application to our users,” McEwen explains. “So we use that and then have a couple of functions that run on Cloudflare Workers, that are part of that interface.”"
+        }
+      ]
+    },
+    {
+      "heading": "Why IPFS Gateway fit Uniswap’s values",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "For a team building in the Web3 space, the choice of infrastructure is also a statement of values. “As people working in the Web3 space, we’re always interested in technologies and tools that embody the values we care about — decentralization and open accessibility,” McEwen says. “IPFS is a cool network that enables decentralized file storage and serving, and that aligned really well with how we wanted to build our application, and also with our reliability and security goals.”"
+        },
+        {
+          "type": "p",
+          "text": "Publishing to IPFS and serving it through Cloudflare’s gateway let Uniswap Labs carry its no-custody philosophy from the protocol into the interface: a minimal set of third-party dependencies, and a front end that users and third parties can fetch and verify independently rather than trusting a single centralized server."
+        }
+      ]
+    },
+    {
+      "heading": "Results: a verifiable, secure interface for every commit",
+      "blocks": [
+        {
+          "type": "list",
+          "ordered": false,
+          "items": [
+            "Every commit to Uniswap’s GitHub repository can be built and served to users through IPFS, giving traders a way to verify they’re using an untampered interface.",
+            "The Cloudflare IPFS Gateway removes the need for Uniswap Labs to operate and scale its own IPFS infrastructure to reach everyday users.",
+            "Cloudflare DNS and Workers round out the stack, handling domain resolution and supporting interface functions alongside the IPFS-served front end."
+          ]
+        },
+        {
+          "type": "p",
+          "text": "The result is an interface that matches the decentralized, non-custodial promise of the underlying protocol — served reliably enough for a mainstream audience."
+        }
+      ]
+    },
+    {
+      "heading": "Looking ahead",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "McEwen sees Cloudflare’s move into Web3 infrastructure as a meaningful signal for the ecosystem. “I’m excited about the products you all are building. I feel like having IPFS Gateway support running through Ethereum nodes — to me that’s exciting, because even though I like being in a hip, cutting-edge area, I also care about reliable products and products that people can use,” he says. “Sometimes for that you need large organizations like Cloudflare with a great track record of keeping stuff running and the lights on. So I’m excited that companies like Cloudflare are entering this domain to partner with smaller companies like us.”"
+        }
+      ]
+    }
+  ],
+  "productsUsed": ["Gateway", "Web3", "DNS", "Workers"],
+  "industry": "High Technology",
+  "region": "North America",
+  "date": "Apr 16, 2026"
+}

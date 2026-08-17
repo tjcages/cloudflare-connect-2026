@@ -1,0 +1,25 @@
+---
+import type { HTMLAttributes } from "astro/types";
+import Grid1 from "./_svg/grid-1.svg";
+import Grid2 from "./_svg/grid-2.svg";
+import Grid3 from "./_svg/grid-3.svg";
+
+interface Props extends HTMLAttributes<"div"> {
+  type?: 1 | 2 | 3;
+}
+
+const { type = 1, class: className, ...rest } = Astro.props;
+
+const Grid = { 1: Grid1, 2: Grid2, 3: Grid3 }[type];
+---
+
+<div
+  {...rest}
+  aria-hidden="true"
+  class:list={[
+    "pointer-events-none absolute -inset-0.5 text-border-muted",
+    className,
+  ]}
+>
+  <Grid class="size-full" />
+</div>

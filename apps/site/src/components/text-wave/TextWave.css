@@ -1,0 +1,42 @@
+.text-wave {
+  --wave-soft: var(--color-text-default);
+  --wave-mid: var(--color-text-loud);
+  --wave-bright: var(--color-text-base);
+
+  animation: text-wave var(--wave-duration, 0.9s) cubic-bezier(0.4, 0, 0.6, 1)
+    infinite;
+}
+
+@keyframes text-wave {
+  0% {
+    color: inherit;
+  }
+
+  5% {
+    color: var(--wave-soft);
+  }
+
+  11% {
+    color: var(--wave-mid);
+  }
+
+  17% {
+    color: var(--wave-bright);
+  }
+
+  24% {
+    color: var(--wave-mid);
+  }
+
+  30% {
+    color: var(--wave-soft);
+  }
+
+  36% {
+    color: inherit;
+  }
+
+  100% {
+    color: inherit;
+  }
+}

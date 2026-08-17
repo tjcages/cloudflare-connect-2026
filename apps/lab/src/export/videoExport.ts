@@ -1,5 +1,10 @@
 import type { TranscodeWebmToMp4Options } from "./ffmpeg";
-import { createLabExportCompositor, type LabVideoCompositorOptions } from "./videoCompositor";
+import {
+  createLabExportCompositor,
+  type LabVideoBackgroundFrame,
+  type LabVideoCompositorOptions,
+  type LabVideoLayer,
+} from "./videoCompositor";
 
 export const LAB_IMAGE_EXPORT_DURATION_SEC = 5;
 export const LAB_VIDEO_EXPORT_MAX_DURATION_SEC = 120;
@@ -11,19 +16,46 @@ export const LAB_VIDEO_EXPORT_FPS = 60;
  * Browsers may clamp; still request the top of the practical range.
  */
 export const LAB_VIDEO_EXPORT_BITRATE = 80_000_000;
+export const LAB_REALTIME_VIDEO_EXPORT_MAX_BITRATE = 50_000_000;
+export const LAB_REALTIME_VIDEO_EXPORT_HIGH_RESOLUTION_PIXELS = 2_500_000;
 
 const MP4_MIME_CANDIDATES = ["video/mp4;codecs=avc1", "video/mp4"] as const;
 const WEBM_MIME_CANDIDATES = ["video/webm;codecs=vp8", "video/webm;codecs=vp9", "video/webm"] as const;
 
 export type LabExportSourceKind = "video" | "image";
 
-export type LabVideoExportPhase = "idle" | "recording" | "loading-encoder" | "transcoding" | "done" | "failed";
+export type LabVideoExportPhase =
+  | "idle"
+  | "recording"
+  | "finishing"
+  | "loading-encoder"
+  | "transcoding"
+  | "done"
+  | "failed";
 
 export type MediaRecorderProfile = {
   mimeType: string;
   skipTranscode: boolean;
   extension: "mp4" | "webm";
 };
+
+export type RealtimeVideoExportProfile = { fps: 30 | 60; videoBitsPerSecond: number };
+
+/** Keep smaller canvases at 60fps; favor stable 30fps once retina output exceeds ~1440p. */
+export function resolveRealtimeVideoExportProfile(width: number, height: number): RealtimeVideoExportProfile {
+  const pixels = Math.max(1, Math.round(width)) * Math.max(1, Math.round(height));
+  const fps = pixels > LAB_REALTIME_VIDEO_EXPORT_HIGH_RESOLUTION_PIXELS ? 30 : 60;
+  return {
+    fps,
+    videoBitsPerSecond: Math.round(
+      Math.min(LAB_REALTIME_VIDEO_EXPORT_MAX_BITRATE, Math.max(12_000_000, pixels * fps * 0.16)),
+    ),
+  };
+}
+
+export function shouldCompositeVideoFrame(nowMs: number, lastFrameMs: number, fps: number): boolean {
+  return nowMs - lastFrameMs >= 1000 / Math.max(1, fps) - 0.5;
+}
 
 type CanvasCaptureTrack = MediaStreamTrack & { requestFrame?: () => void };
 
@@ -53,8 +85,14 @@ export function formatVideoExportStatusLabel(
 ): string {
   if (phase === "recording") {
     const elapsedSec = recording.elapsedMs / 1000;
+    if (recording.totalMs <= 0) {
+      return `Stop Recording · ${formatExportTime(elapsedSec)}`;
+    }
     const totalSec = recording.totalMs / 1000;
     return `Recording ${formatExportTime(elapsedSec)} / ${formatExportTime(totalSec)}`;
+  }
+  if (phase === "finishing") {
+    return "Finishing recording…";
   }
   if (phase === "loading-encoder") {
     return "Loading encoder…";
@@ -202,10 +240,11 @@ function waitVideoSeek(video: HTMLVideoElement, timeSec: number): Promise<void> 
 
 type RecordCanvasOptions = {
   fps: number;
-  durationMs: number;
+  durationMs?: number;
   mimeType: string;
   videoBitsPerSecond?: number;
   signal?: AbortSignal;
+  stopSignal?: AbortSignal;
   video?: HTMLVideoElement;
   startTimeSec?: number;
   onProgress?: (elapsedMs: number, totalMs: number) => void;
@@ -214,7 +253,7 @@ type RecordCanvasOptions = {
 };
 
 async function waitForRecordingEnd(options: RecordCanvasOptions): Promise<void> {
-  const { durationMs, signal, video, onProgress } = options;
+  const { durationMs, signal, stopSignal, video, onProgress } = options;
   const start = performance.now();
 
   await new Promise<void>((resolve) => {
@@ -226,19 +265,21 @@ async function waitForRecordingEnd(options: RecordCanvasOptions): Promise<void> 
       settled = true;
       video?.removeEventListener("ended", finish);
       signal?.removeEventListener("abort", finish);
+      stopSignal?.removeEventListener("abort", finish);
       resolve();
     };
 
     video?.addEventListener("ended", finish);
     signal?.addEventListener("abort", finish);
+    stopSignal?.addEventListener("abort", finish);
 
     const tick = () => {
       if (settled) {
         return;
       }
       const elapsed = performance.now() - start;
-      onProgress?.(elapsed, durationMs);
-      if (elapsed >= durationMs || signal?.aborted) {
+      onProgress?.(elapsed, durationMs ?? 0);
+      if ((durationMs !== undefined && elapsed >= durationMs) || signal?.aborted || stopSignal?.aborted) {
         finish();
         return;
       }
@@ -278,8 +319,12 @@ export async function recordCanvasToWebm(canvas: HTMLCanvasElement, options: Rec
   });
 
   let compositorRaf = 0;
-  const runCompositor = () => {
-    options.compositeFrame?.();
+  let lastCompositeAt = performance.now();
+  const runCompositor = (now: number) => {
+    if (shouldCompositeVideoFrame(now, lastCompositeAt, options.fps)) {
+      options.compositeFrame?.();
+      lastCompositeAt = now;
+    }
     compositorRaf = requestAnimationFrame(runCompositor);
   };
   if (options.compositeFrame) {
@@ -424,11 +469,19 @@ export type ExportLabVideoOptions = {
   sourceKind: LabExportSourceKind;
   video?: HTMLVideoElement;
   backgroundColor?: number;
+  getBackground?: () => LabVideoBackgroundFrame;
+  isSourceVisible?: () => boolean;
+  underlayLayers?: readonly LabVideoLayer[];
   underlayCanvases?: readonly HTMLCanvasElement[];
+  overlayLayers?: readonly LabVideoLayer[];
   overlayCanvases?: readonly HTMLCanvasElement[];
+  fps?: number;
+  videoBitsPerSecond?: number;
   startTimeSec?: number;
   durationSec?: number;
   signal?: AbortSignal;
+  /** Ends recording and continues through conversion/download. Unlike `signal`, this is not a cancellation. */
+  stopSignal?: AbortSignal;
   onPhase?: (phase: LabVideoExportPhase) => void;
   onProgress?: (elapsedMs: number, totalMs: number) => void;
   onTranscodeProgress?: (percent: number) => void;
@@ -447,11 +500,18 @@ export async function exportLabVideo(options: ExportLabVideoOptions): Promise<Bl
     sourceKind,
     video,
     backgroundColor,
+    getBackground,
+    isSourceVisible,
+    underlayLayers,
     underlayCanvases,
+    overlayLayers,
     overlayCanvases,
+    fps = LAB_VIDEO_EXPORT_FPS,
+    videoBitsPerSecond = LAB_VIDEO_EXPORT_BITRATE,
     startTimeSec: requestedStartTimeSec = 0,
     durationSec: requestedDurationSec,
     signal,
+    stopSignal,
     onPhase,
     onProgress,
     onTranscodeProgress,
@@ -465,6 +525,7 @@ export async function exportLabVideo(options: ExportLabVideoOptions): Promise<Bl
     throw new DOMException("Export aborted.", "AbortError");
   }
 
+  const recordsUntilStopped = stopSignal !== undefined && requestedDurationSec === undefined;
   const range = resolveRequestedExportRange(
     sourceKind,
     video?.duration ?? 0,
@@ -472,7 +533,7 @@ export async function exportLabVideo(options: ExportLabVideoOptions): Promise<Bl
     requestedDurationSec,
   );
   const { startTimeSec, durationSec } = range;
-  if (durationSec <= 0) {
+  if (!recordsUntilStopped && durationSec <= 0) {
     throw new Error("Invalid export duration.");
   }
 
@@ -481,15 +542,15 @@ export async function exportLabVideo(options: ExportLabVideoOptions): Promise<Bl
     throw new Error("Video recording is not supported in this browser.");
   }
 
-  const durationMs = durationSec * 1000;
+  let durationMs = recordsUntilStopped ? 0 : durationSec * 1000;
   const frameCount = resolveExportFrameCount(durationSec);
   const outputFilename = filename ?? `stripes-video.${profile.extension}`;
-  const useFastPath = canUseFastVideoExport(canvas, sourceKind) && video !== undefined;
+  const useFastPath = !recordsUntilStopped && canUseFastVideoExport(canvas, sourceKind) && video !== undefined;
 
   let savedVideoState: SavedVideoState | null = null;
   if (video) {
     savedVideoState = saveVideoState(video);
-    video.loop = false;
+    video.loop = recordsUntilStopped;
     video.currentTime = startTimeSec;
     video.pause();
     await waitVideoSeek(video, startTimeSec);
@@ -497,18 +558,27 @@ export async function exportLabVideo(options: ExportLabVideoOptions): Promise<Bl
 
   onPhase?.("recording");
 
-  const compositor = await createCompositor(canvas, { backgroundColor, underlayCanvases, overlayCanvases });
+  const compositor = await createCompositor(canvas, {
+    backgroundColor,
+    getBackground,
+    isSourceVisible,
+    underlayLayers,
+    underlayCanvases,
+    overlayLayers,
+    overlayCanvases,
+  });
   const recordCanvas = compositor.canvas;
   const compositeFrame = compositor.compositeFrame;
 
   let recordedBlob: Blob;
   try {
     const recorderOptions = {
-      fps: LAB_VIDEO_EXPORT_FPS,
-      durationMs,
+      fps,
+      durationMs: recordsUntilStopped ? undefined : durationMs,
       mimeType: profile.mimeType,
-      videoBitsPerSecond: LAB_VIDEO_EXPORT_BITRATE,
+      videoBitsPerSecond,
       signal,
+      stopSignal,
       onProgress,
       compositeFrame,
     };
@@ -516,11 +586,13 @@ export async function exportLabVideo(options: ExportLabVideoOptions): Promise<Bl
     if (useFastPath && video) {
       recordedBlob = await recordCanvasFast(recordCanvas, {
         ...recorderOptions,
+        durationMs,
         frameCount,
         video,
         startTimeSec,
       });
     } else {
+      const recordingStartedAt = performance.now();
       recordedBlob = await recordCanvasToWebm(recordCanvas, {
         ...recorderOptions,
         video,
@@ -532,6 +604,9 @@ export async function exportLabVideo(options: ExportLabVideoOptions): Promise<Bl
           }
         },
       });
+      if (recordsUntilStopped) {
+        durationMs = Math.max(1, performance.now() - recordingStartedAt);
+      }
     }
   } finally {
     if (video && savedVideoState) {

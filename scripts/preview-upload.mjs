@@ -4,7 +4,8 @@
  * Does not promote production. Requires CLOUDFLARE_API_TOKEN (or wrangler login).
  *
  * Usage (repo root):
- *   pnpm run preview:upload
+ *   pnpm run preview:upload:shader
+ *   pnpm run preview:upload:site
  *   PREVIEW_ALIAS=my-alias pnpm run preview:upload
  */
 import { execSync } from "node:child_process";
@@ -19,26 +20,37 @@ function branchSlug(branch) {
     .slice(0, 48);
 }
 
-const branch =
-  process.env.PREVIEW_BRANCH ||
-  execSync("git rev-parse --abbrev-ref HEAD", { encoding: "utf8" }).trim();
+const branch = process.env.PREVIEW_BRANCH || execSync("git rev-parse --abbrev-ref HEAD", { encoding: "utf8" }).trim();
 const alias = process.env.PREVIEW_ALIAS || branchSlug(branch);
+const target = process.argv[2];
+
+const targets = {
+  shader: { packageName: "lab", workerName: "connect-shader", path: "/" },
+  site: { packageName: "@cloudflare-connect/site", workerName: "connect-2026-site", path: "/connect/" },
+};
+
+if (!(target in targets)) {
+  console.error(`Choose a preview target: ${Object.keys(targets).join(" | ")}`);
+  process.exit(1);
+}
+
+const { packageName, workerName, path } = targets[target];
 
 if (!alias || !/^[a-z][a-z0-9-]*$/.test(alias)) {
   console.error(`Invalid preview alias: ${JSON.stringify(alias)}`);
   process.exit(1);
 }
 
-const previewHost = `${alias}-connect-shader.off-brand.workers.dev`;
+const previewHost = `${alias}-${workerName}.off-brand.workers.dev`;
 console.log(`Branch:  ${branch}`);
+console.log(`Target:  ${target}`);
 console.log(`Alias:   ${alias}`);
-console.log(`Preview: https://${previewHost}/`);
+console.log(`Preview: https://${previewHost}${path}`);
 
-execSync("pnpm run build", { stdio: "inherit" });
-execSync(`pnpm --filter lab exec wrangler versions upload --name connect-shader --preview-alias ${alias}`, {
+execSync(`pnpm --filter ${packageName} build`, { stdio: "inherit" });
+execSync(`pnpm --filter ${packageName} exec wrangler versions upload --name ${workerName} --preview-alias ${alias}`, {
   stdio: "inherit",
   env: process.env,
 });
 
-console.log(`\nBranch preview URL:\nhttps://${previewHost}/`);
-console.log(`https://${previewHost}/client.html`);
+console.log(`\nBranch preview URL:\nhttps://${previewHost}${path}`);

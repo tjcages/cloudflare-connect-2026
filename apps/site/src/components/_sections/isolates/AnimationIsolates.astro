@@ -1,0 +1,53 @@
+---
+import BoxName from "@/components/_animations/ui/BoxName.astro";
+import IsolatesGrid from "./_svg/IsolatesGrid.svg";
+import Box from "@/components/_animations/ui/Box.astro";
+import Icon from "@/components/icon/Icon";
+---
+
+<div class="relative h-full w-240">
+  <IsolatesGrid
+    class="absolute -top-80 centering-w-130 text-chips-background-orange"
+  />
+
+  <BoxName text="Workers v8 · Isolates" position="top" color="orange" />
+
+  <Box
+    colorName="orange"
+    height={240}
+    innerProps={{
+      "data-box-inner": "",
+      className:
+        "flex gap-20 p-16 flex-wrap text-(--box-color-900) transition-colors",
+    }}
+    width={240}
+  >
+    {Array.from({ length: 3 }, (_, index) => (
+      <>
+        <div
+          class="absolute top-0 h-full w-1 bg-border-faint"
+          style={{ left: `${40 + index * 68}px` }}
+        />
+        <div
+          class="absolute left-0 h-1 w-full bg-border-faint"
+          style={{ top: `${40 + index * 68}px` }}
+        />
+      </>
+    ))}
+
+    {Array.from({ length: 9 }).map(() => (
+      <div
+        class="relative flex-center size-48 rounded-full bg-background-base shadow-[0_0_0_1px_var(--isolate-ring)] transition-all [--isolate-ring:var(--color-border-muted)] **:transition-[fill,stroke] not-data-active:text-icon-subtle data-active:[--icon-color-primary:var(--color-orange-900)] data-active:[--icon-color-secondary:var(--color-orange-800)] data-active:[--isolate-ring:var(--color-isolate-ring-active)]"
+        data-active={undefined}
+        data-orbit-side="isolates"
+      >
+        <Icon
+          name="code-brackets"
+          variant="duo"
+          color="colorless"
+          className="size-20"
+        />
+      </div>
+    ))}
+  </Box>
+</div>

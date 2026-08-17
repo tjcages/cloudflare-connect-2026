@@ -30,7 +30,6 @@ import { createFlamesPass } from "./passes/flamesPass";
 import { createStarsPass } from "./passes/starsPass";
 import { createParticleFieldPass } from "./passes/particleFieldPass";
 import { createStarsState, stepStars, type StarsState } from "./stars/starsSim";
-import { createEdgeMaskPass } from "./passes/edgeMaskPass";
 import { resolveEdgeMaskPlacement } from "./edgeMask/edgeMaskPlacement";
 import { createCursorSplatPass } from "./passes/cursorSplatPass";
 import { createCursorTearPass } from "./passes/cursorTearPass";
@@ -72,7 +71,7 @@ import type { EngineConfig, RevealType } from "./config/types";
 import { createSourceTexture, type EngineSource, type SourceTexture } from "./source/sourceTexture";
 import { resolveSourceRect } from "./source/fit";
 import { resolveCellGrid, type CellGrid } from "./config/cellGrid";
-import { buildStripeLut, buildStripeOpacityLut, lutSignature } from "./field/stripeLut";
+import { buildBandValueLut, buildStripeLut, buildStripeOpacityLut, lutSignature } from "./field/stripeLut";
 import { effectiveStripes } from "./field/imageColorDensity";
 import { createDataTexture, updateDataTexture } from "./gl/dataTexture";
 import { bindRenderTarget, createMrtTarget, type MrtTarget, type RenderTarget } from "./gl/renderTarget";
@@ -80,6 +79,8 @@ import { detectBackgroundColor } from "./colors/backgroundDetect";
 import { extractVibrantColors, createSyntheticVibrantPalette, type VibrantColor } from "./colors/vibrantPalette";
 import { createColorDistPass } from "./passes/colorDistPass";
 import { createMaxReducePass } from "./passes/maxReducePass";
+import { createFramesRuntime } from "./frames/framesRuntime";
+import type { FramesOverlay } from "./frames/framesPaint";
 import { originForPosition, resolveRevealDurationMs, resolveBandRamp } from "./reveal/revealMath";
 import { createRevealClock } from "./reveal/revealClock";
 import { createWaterRevealSim, WATER_WHITE_K, WATER_GLOW } from "./reveal/waterRevealSim";
@@ -192,6 +193,12 @@ export type StripesEngine = {
   setRevealGate(open: boolean): void;
   readOutputPixels(): Uint8Array;
   readCellGrid(): CellGridReadback;
+  /**
+   * The `frames` overlay for the frame just rendered, or null while frames are
+   * off, the reveal has not finished, or no readback has landed yet. The host
+   * paints it: only the host can measure a document font.
+   */
+  readFramesOverlay(): FramesOverlay | null;
   getPerf(): PerfSnapshot;
   /** 0..1 eased surface motion of the "wave" cursor trail; 0 for other types. */
   getWaterActivity(): number;
@@ -258,6 +265,12 @@ export type SharedStripesEngine = {
    */
   settle(): void;
   rebuild(context: EngineContext): void;
+  /**
+   * The `frames` overlay for the frame just rendered, or null when there is
+   * nothing to draw. The worker cannot paint it — the host owns the 2D context
+   * the output is blitted onto — so it travels back over the protocol.
+   */
+  readFramesOverlay(): FramesOverlay | null;
   getPerf(): PerfSnapshot;
   /** 0..1 eased surface motion of the "wave" cursor trail; 0 for other types. */
   getWaterActivity(): number;
@@ -336,6 +349,8 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
 
   let stripeLutTex: WebGLTexture | null = null;
   let stripeOpacityLutTex: WebGLTexture | null = null;
+  let stripeBandValueLutTex: WebGLTexture | null = null;
+  let stripeBandCount = 0;
   let lutSig = "";
 
   const letterResources = createLetterResources(gl);
@@ -373,7 +388,6 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
   let lastRevealKind = revealPassKind();
   let lastFlamesEnabled = config.flames.enabled;
   let lastFlamesDirection = config.flames.direction;
-  let lastFieldEdgeMaskEnabled = resolveEdgeMaskPlacement(config) === "field";
   let lastRenderMode = config.renderMode;
   let lastCursorTrailEnabled = config.cursorTrail.enabled;
   let lastClickWaveEnabled = config.clickWave.enabled;
@@ -382,6 +396,8 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
   let lastColorsMode = config.colors.mode;
   let lastStarsEnabled = config.background.stars.enabled;
   const revealClock = createRevealClock(clock);
+  let framesRuntime = createFramesRuntime(gl);
+  let framesOverlay: FramesOverlay | null = null;
 
   function revealElapsedMs(): number {
     return revealClock.elapsedMs();
@@ -390,6 +406,17 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
   function revealAnimating(): boolean {
     if (!config.reveal.enabled) return false;
     return revealClock.animating(resolveRevealDurationMs(config.reveal));
+  }
+
+  /**
+   * Whether the reveal has actually played out, as opposed to merely stopped
+   * advancing. `revealAnimating()` answers false for a closed gate too, and the
+   * gate shuts whenever the element scrolls most of the way out — so anything
+   * that must not act on a half-assembled image asks this instead.
+   */
+  function revealSettled(): boolean {
+    if (!config.reveal.enabled) return true;
+    return revealClock.elapsedMs() >= resolveRevealDurationMs(config.reveal);
   }
 
   let detectedBgColor = config.colors.backgroundColor;
@@ -641,6 +668,13 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
     if (sig !== lutSig) {
       const bytes = buildStripeLut(stripes);
       const opacityBytes = buildStripeOpacityLut(stripes, config.stripeDots.density);
+      const bandValueBytes = buildBandValueLut(stripes);
+      stripeBandCount = stripes.length;
+      if (stripeBandValueLutTex) {
+        updateDataTexture(gl, stripeBandValueLutTex, bandValueBytes, 256, 1);
+      } else {
+        stripeBandValueLutTex = createDataTexture(gl, bandValueBytes, 256, 1);
+      }
       if (stripeLutTex) {
         updateDataTexture(gl, stripeLutTex, bytes, 256, 1);
       } else {
@@ -1175,29 +1209,6 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
       fieldChain.push({ field: "hookField", color: null, active: alwaysActive });
     }
 
-    const edgeMaskFieldPasses: Pass[] = [];
-    if (resolveEdgeMaskPlacement(config) === "field") {
-      const edgeMaskPass = createEdgeMaskPass(gl, quad);
-      const chainIndex = fieldChain.length;
-      edgeMaskFieldPasses.push({
-        name: "edgeMaskField",
-        render: () => {
-          const srcTex = pool.get(chainFieldAt(chainIndex), fieldSize.width, fieldSize.height, {
-            linear: true,
-          }).texture;
-          const maskedRT = pool.get("maskedField", fieldSize.width, fieldSize.height, { linear: true });
-          edgeMaskPass.render(maskedRT, srcTex, {
-            start: config.edgeMask.start,
-            end: config.edgeMask.end,
-            power: config.edgeMask.power,
-            sides: config.edgeMask.sides,
-          });
-        },
-        dispose: () => edgeMaskPass.dispose(),
-      });
-      fieldChain.push({ field: "maskedField", color: null, active: alwaysActive });
-    }
-
     const cursorFieldPasses: Pass[] = [];
     // The "wave" type replaces the particle trail entirely; it couples into the
     // field pass instead of adding passes here.
@@ -1501,6 +1512,8 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
           atlasGrid: letterResources.atlasGrid,
           cellColorTex: colorsModeActive ? pool.get("cellColor", cols, rows).texture : letterResources.dummyTex!,
           opacityTex: stripeOpacityLutTex!,
+          bandValueTex: stripeBandValueLutTex!,
+          stripeBandCount,
           cellDataA,
           cellDataB,
         };
@@ -1546,7 +1559,6 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         ...flamesFieldPasses,
         ...revealFieldPasses,
         ...hookFieldPasses,
-        ...edgeMaskFieldPasses,
         ...cursorFieldPasses,
         ...constellationFieldPasses,
         ...cometFieldPasses,
@@ -1659,7 +1671,6 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         ...flamesFieldPasses,
         ...revealFieldPasses,
         ...hookFieldPasses,
-        ...edgeMaskFieldPasses,
         ...cursorFieldPasses,
         ...constellationFieldPasses,
         ...cometFieldPasses,
@@ -1678,7 +1689,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
                 output.width,
                 output.height,
                 config.edgeMask,
-                resolveEdgeMaskPlacement(config) === "output",
+                resolveEdgeMaskPlacement(config) !== "none",
                 presentOriginX,
                 presentOriginY,
               );
@@ -1733,6 +1744,10 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
     quad = createFullscreenQuad(gl);
     pool = createRtPool(gl);
     gpuTimer = createGpuTimer(gl, gpuTimings);
+    // Its pack buffers and fence belong to the dead context, so it is dropped
+    // rather than disposed, exactly like the pool above.
+    framesRuntime = createFramesRuntime(gl);
+    framesOverlay = null;
     // Source texture is bound to the old GL context; null it so the caller
     // can re-set it. The SourceTexture.dispose() call is intentionally skipped
     // here because the old context is already lost and the GPU objects are gone.
@@ -1740,6 +1755,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
     // LUT texture is on the old context; reset so ensureLut() recreates it.
     stripeLutTex = null;
     stripeOpacityLutTex = null;
+    stripeBandValueLutTex = null;
     lutSig = "";
     letterResources.reset(gl);
     colorsMrt = null;
@@ -1778,6 +1794,26 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
   buildPasses();
   applySizes();
 
+  // Runs after the pipeline, while this frame's cell targets still hold its
+  // data, and before the flush that submits the readback's fence.
+  function updateFrames(nowMs: number): void {
+    const { cols, rows } = cellGrid;
+    framesOverlay = framesRuntime.update({
+      config,
+      cols,
+      rows,
+      valuesFbo: () => pool.get("cell", cols, rows).fbo,
+      settled: source !== null && revealSettled(),
+      nowMs,
+      // The same clock the stripe pass gets, so the CPU copy of the sparkle
+      // motion lands on the phase the shader drew.
+      timeSec: frameTimeSec,
+      cssWidth: cssW,
+      cssHeight: cssH,
+      dpr: getDpr(),
+    });
+  }
+
   function renderFrame() {
     if (lost) return;
     const t0 = clock.now();
@@ -1791,6 +1827,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
     endFillPass();
     runPipeline(passes, gpuTimer);
     lastPassFill = readFillFrame();
+    updateFrames(t0);
     gl.flush();
     const frameMs = clock.now() - lastFrameStart;
     lastFrameStart = t0;
@@ -1826,6 +1863,8 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
       maxReducePass?.dispose();
       waterSim?.dispose();
       waterSim = null;
+      framesRuntime.dispose();
+      framesOverlay = null;
       pool.dispose();
       quad.dispose();
       source?.dispose();
@@ -1836,6 +1875,10 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
       if (stripeOpacityLutTex) {
         gl.deleteTexture(stripeOpacityLutTex);
         stripeOpacityLutTex = null;
+      }
+      if (stripeBandValueLutTex) {
+        gl.deleteTexture(stripeBandValueLutTex);
+        stripeBandValueLutTex = null;
       }
       letterResources.dispose();
     },
@@ -1916,7 +1959,6 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         config.stripesEnabled !== lastStripesEnabled ||
         revealPassKind() !== lastRevealKind ||
         config.flames.enabled !== lastFlamesEnabled ||
-        (resolveEdgeMaskPlacement(config) === "field") !== lastFieldEdgeMaskEnabled ||
         config.renderMode !== lastRenderMode ||
         config.cursorTrail.enabled !== lastCursorTrailEnabled ||
         config.cursorTrail.type !== lastCursorTrailType ||
@@ -1947,7 +1989,6 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         lastStripesEnabled = config.stripesEnabled;
         lastRevealKind = revealPassKind();
         lastFlamesEnabled = config.flames.enabled;
-        lastFieldEdgeMaskEnabled = resolveEdgeMaskPlacement(config) === "field";
         lastRenderMode = config.renderMode;
         lastCursorTrailEnabled = config.cursorTrail.enabled;
         lastCursorTrailType = config.cursorTrail.type;
@@ -2019,6 +2060,9 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
       }
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);
       return { cols, rows, values, colors };
+    },
+    readFramesOverlay() {
+      return framesOverlay;
     },
     getPerf() {
       return perf.snapshot();
