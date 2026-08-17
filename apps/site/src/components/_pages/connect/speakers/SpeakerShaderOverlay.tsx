@@ -1,6 +1,7 @@
 import {
   createStripesEngine,
   paintFramesOverlay,
+  type EngineConfig,
   type StripesEngine,
 } from "@necatikcl/stripes-engine";
 import { useEffect, useRef } from "react";
@@ -39,6 +40,12 @@ const isInside = (clientX: number, clientY: number, rect: DOMRect) =>
   clientX <= rect.right &&
   clientY >= rect.top &&
   clientY <= rect.bottom;
+
+const colorNumber = (value: string, fallback: number) => {
+  const normalized = value.trim().replace(/^#/, "");
+  if (!/^[\da-f]{6}$/i.test(normalized)) return fallback;
+  return Number.parseInt(normalized, 16);
+};
 
 const paintPartialFrameOutline = (
   context: CanvasRenderingContext2D,
@@ -355,14 +362,126 @@ export default function SpeakerShaderOverlay() {
       engine?.setConfig({
         grid: {
           ...SPEAKER_SHADER_CONFIG.grid,
-          cellWidth: settings.cellSize,
-          cellHeight: settings.cellSize,
+          cellWidth: settings.gridCellWidth,
+          cellHeight: settings.gridCellHeight,
+          gapX: settings.gridGapX,
+          gapY: settings.gridGapY,
+          cornerRadius: settings.gridCornerRadius,
+          overlapAmount: settings.gridOverlap,
+          orientation: settings.gridOrientation,
+          angleDeg: settings.gridAngle,
         },
+        stripesEnabled: settings.stripesEnabled,
+        fieldScale: settings.fieldScale,
+        stripes: settings.stripes.map((stripe) => ({
+          color: colorNumber(
+            stripe.color,
+            SPEAKER_SHADER_CONFIG.stripes[0].color
+          ),
+          startFrom: stripe.startFrom,
+          width: stripe.width,
+          opacity: stripe.opacity,
+        })),
         adjustments: {
           ...SPEAKER_SHADER_CONFIG.adjustments,
           brightness: settings.brightness,
+          exposure: settings.exposure,
           contrast: settings.contrast,
+          blackPoint: settings.blackPoint,
+          whitePoint: settings.whitePoint,
+          gamma: settings.gamma,
+          invert: settings.invert,
+          posterizeLevels: settings.posterizeLevels,
+          thresholdBias: settings.thresholdBias,
+          noiseAmount: settings.noiseAmount,
+          blurRadius: settings.blurRadius,
+          sharpenAmount: settings.sharpenAmount,
         },
+        sparkle: {
+          ...SPEAKER_SHADER_CONFIG.sparkle,
+          width: {
+            ...SPEAKER_SHADER_CONFIG.sparkle.width,
+            enabled: settings.sparkleWidthEnabled,
+            coverage: settings.sparkleWidthCoverage,
+            swingPx: settings.sparkleSwing,
+          },
+          stripe: {
+            ...SPEAKER_SHADER_CONFIG.sparkle.stripe,
+            enabled: settings.sparkleStripeEnabled,
+            coverage: settings.sparkleStripeCoverage,
+            maxBrightness: settings.sparkleBrightness,
+            speed: settings.sparkleSpeed,
+            hueDriftDeg: settings.sparkleHueDrift,
+            saturationBoost: settings.sparkleSaturation,
+          },
+        },
+        stripeDots: {
+          ...SPEAKER_SHADER_CONFIG.stripeDots,
+          enabled: settings.dotsEnabled,
+          density: settings.dotsDensity,
+          randomVisibility: settings.dotsVisibility,
+          sizePx: settings.dotsSize,
+          brightness: settings.dotsBrightness,
+          hueDriftDeg: settings.dotsHueDrift,
+          saturationBoost: settings.dotsSaturation,
+        },
+        stripeBorder: {
+          ...SPEAKER_SHADER_CONFIG.stripeBorder,
+          enabled: settings.borderEnabled,
+          minWidthPx: settings.borderMinWidth,
+          density: settings.borderDensity,
+        },
+        gridLines: {
+          ...SPEAKER_SHADER_CONFIG.gridLines,
+          enabled: settings.gridLinesEnabled,
+          brightness: settings.gridLinesBrightness,
+          density: settings.gridLinesDensity,
+        },
+        frames: {
+          ...SPEAKER_SHADER_CONFIG.frames,
+          enabled: settings.engineFramesEnabled,
+          luminanceThreshold: settings.engineFrameThreshold,
+          highlightedStripeCount: settings.engineFrameStripeCount,
+          groupDistanceCells: settings.engineFrameDistance,
+          color: colorNumber(
+            settings.engineFrameColor,
+            SPEAKER_SHADER_CONFIG.frames.color
+          ),
+        },
+        cursorTrail: {
+          ...SPEAKER_SHADER_CONFIG.cursorTrail,
+          enabled: settings.trailEnabled && !reducedMotion.matches,
+          particleRadius: settings.trailRadius,
+          particleAlpha: settings.trailAlpha,
+          particleLifeMs: settings.trailLife,
+          pushStrengthPx: settings.trailPush,
+        },
+        colors: {
+          ...SPEAKER_SHADER_CONFIG.colors,
+          mode: settings.colorMode,
+          stripeBlendMode:
+            settings.stripeBlendMode as EngineConfig["colors"]["stripeBlendMode"],
+          imageColorLightness: settings.imageColorLightness,
+          imageColorDensity: settings.imageColorDensity,
+          imageColorRemoveThin: settings.imageColorRemoveThin,
+          imageColorBoostThick: settings.imageColorBoostThick,
+        },
+        renderMode: settings.renderMode as EngineConfig["renderMode"],
+        renderIntensity: settings.renderIntensity,
+        renderParams: [
+          settings.renderParamA,
+          settings.renderParamB,
+          settings.renderParamC,
+          settings.renderParamD,
+        ],
+        renderColorA: colorNumber(
+          settings.renderColorA,
+          SPEAKER_SHADER_CONFIG.renderColorA
+        ),
+        renderColorB: colorNumber(
+          settings.renderColorB,
+          SPEAKER_SHADER_CONFIG.renderColorB
+        ),
       });
       if (visible && reducedMotion.matches) renderOnce();
     };
@@ -405,6 +524,7 @@ export default function SpeakerShaderOverlay() {
       );
       engine = createStripesEngine(renderCanvas, { dpr: renderDpr, seed: 1 });
       engine.setConfig(SPEAKER_SHADER_CONFIG);
+      applyFrameSettings(settingsRef.current);
       if (reducedMotion.matches) {
         engine.setConfig({
           reveal: { ...SPEAKER_SHADER_CONFIG.reveal, enabled: false },
