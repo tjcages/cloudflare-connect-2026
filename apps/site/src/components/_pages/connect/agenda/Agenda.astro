@@ -3,6 +3,7 @@ import Button from "@/components/Button";
 import DashedLine from "@/components/dashed-line/DashedLine";
 import Section from "@/layouts/Section.astro";
 import { connectAgenda, connectHero } from "../data";
+import AgendaTwizzlerOverlay from "./AgendaTwizzlerOverlay";
 ---
 
 <Section
@@ -18,7 +19,7 @@ import { connectAgenda, connectHero } from "../data";
     <span>Register Now</span>
   </Button>
 
-  <div class="relative flex flex-col gap-48 p-40">
+  <div data-agenda-twizzler-root class="relative flex flex-col gap-48 p-40">
     {connectAgenda.map((item, index) => (
       <Fragment>
         {index > 0 && (
@@ -31,8 +32,11 @@ import { connectAgenda, connectHero } from "../data";
         )}
 
         <div class="flex flex-col gap-16">
-          <div class="relative h-200 overflow-clip bg-background-surface after:inside-border after:border-border-muted">
-            <div class="flex size-full flex-col justify-end gap-8 p-32">
+          <div
+            data-agenda-twizzler-aperture
+            class="relative h-200 overflow-clip bg-background-surface after:inside-border after:z-20 after:border-border-muted"
+          >
+            <div class="relative z-10 flex size-full flex-col justify-end gap-8 p-32">
               <div class="text-decorative-small text-text-faint uppercase">
                 {item.day}
               </div>
@@ -44,5 +48,9 @@ import { connectAgenda, connectHero } from "../data";
         </div>
       </Fragment>
     ))}
+
+    <div class="pointer-events-none absolute inset-0 z-0">
+      <AgendaTwizzlerOverlay client:visible={{ rootMargin: "240px" }} />
+    </div>
   </div>
 </Section>
