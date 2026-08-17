@@ -2,6 +2,7 @@
 import Container from "@/components/Container.astro";
 import SectionEyebrow from "@/components/SectionEyebrow.astro";
 import { connectSpeakers } from "../data";
+import SpeakerShaderOverlay from "./SpeakerShaderOverlay";
 ---
 
 <Container class="scroll-mt-80" id="speakers">
@@ -17,11 +18,15 @@ import { connectSpeakers } from "../data";
   </div>
 
   <div
+    data-speaker-shader-root
     class="relative grid grid-cols-3 gap-y-40 p-40 before:inside-border before:border-border-muted"
   >
     {connectSpeakers.map((speaker) => (
       <div class="flex flex-col gap-24 px-24">
-        <div class="relative h-320 w-full overflow-clip bg-background-surface after:inside-border after:border-border-muted">
+        <div
+          data-speaker-shader-aperture
+          class="relative h-320 w-full overflow-clip bg-background-surface after:inside-border after:border-border-muted"
+        >
           <img
             src={speaker.image}
             alt={speaker.name}
@@ -40,6 +45,9 @@ import { connectSpeakers } from "../data";
         </div>
       </div>
     ))}
+    <div class="pointer-events-none absolute inset-0 z-10">
+      <SpeakerShaderOverlay client:visible={{ rootMargin: "240px" }} />
+    </div>
   </div>
 
   <div class="h-80"></div>

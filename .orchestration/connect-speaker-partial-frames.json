@@ -1,0 +1,423 @@
+{
+  "schemaVersion": 1,
+  "root": {
+    "agentId": "root",
+    "identity": "user-facing-root"
+  },
+  "target": {
+    "outcome": "Deliver the Meet our speakers effect on current cloudflare-connect-2026 main so animated partial frames move through one section-global surface and reveal the shader only inside frame interiors by default",
+    "nonNegotiables": [
+      "Root alone owns progression, acceptance, integration, verification, and readiness",
+      "Base all work on current tjcages/cloudflare-connect-2026 main and preserve unrelated local or remote changes",
+      "Default speaker portraits remain visible and shader pixels render only inside moving partial-frame interiors",
+      "Frames and interaction use one continuous section-global simulation rather than independent per-card engines",
+      "Honor repository-defined local and installed PR verification without creating or weakening verification infrastructure"
+    ],
+    "scope": {
+      "in": [
+        "apps/site Meet our speakers section",
+        "current packages/stripes-engine public APIs required by that section",
+        "partial-frame masking and shared pointer/click behavior",
+        "focused tests, integrated repository checks, pull request, and site preview"
+      ],
+      "out": [
+        "other Connect sections",
+        "lab authoring UX changes",
+        "production deployment",
+        "merge",
+        "verification infrastructure changes"
+      ]
+    },
+    "authority": {
+      "allowed": [
+        "create an isolated worktree from current origin/main",
+        "inspect current site, lab, and engine code",
+        "edit scoped site files after seams are settled",
+        "run repository-defined checks and local previews",
+        "commit, push a feature branch, and open a draft pull request"
+      ],
+      "ownerOnly": [
+        "merge",
+        "production deployment",
+        "changes to verification infrastructure"
+      ]
+    }
+  },
+  "readiness": {
+    "criteria": [
+      {
+        "id": "current-main",
+        "description": "The implementation is derived from and integrates cleanly with the authoritative current main revision",
+        "required": true,
+        "status": "verified",
+        "evidence": [
+          "origin/main and the isolated worktree both resolve to 4c83a129c2c01def1eee4164d8c382668693b082",
+          "authoritative remote is git@github.com:tjcages/cloudflare-connect-2026.git",
+          "root independently confirmed the speaker, route, engine API, and Astro island seams",
+          "the only untracked repository path before implementation is the root-owned .orchestration ledger"
+        ],
+        "deferredByUser": false
+      },
+      {
+        "id": "partial-frame-mask",
+        "description": "Default portraits remain visible while shader pixels appear only inside moving partial-frame interiors",
+        "required": true,
+        "status": "verified",
+        "evidence": [
+          "root browser captures show portraits unchanged outside moving frame intersections and transparent portrait gutters inside a straddling frame",
+          "three host-owned partial frames use deterministic section-space paths and continuous row-band-clipped outlines",
+          "focused geometry and config tests passed 11/11 on the integrated implementation"
+        ],
+        "deferredByUser": false
+      },
+      {
+        "id": "shared-surface",
+        "description": "Frames move through one section-global simulation and can transition between portrait apertures without resetting",
+        "required": true,
+        "status": "verified",
+        "evidence": [
+          "static review confirms exactly one production createStripesEngine call and one engine render per tick",
+          "integrated compositor uses one compound clip and one output drawImage blit per tick for all frame-aperture fragments",
+          "browser captures at different times show frame positions crossing speaker-card gaps without per-card resets"
+        ],
+        "deferredByUser": false
+      },
+      {
+        "id": "interaction-resilience",
+        "description": "Pointer and click interaction, responsive resizing, reduced motion, loading, and WebGL failure preserve a usable speaker section",
+        "required": true,
+        "status": "verified",
+        "evidence": [
+          "root browser pointer move and click produced an updated interactive shader state with zero console warnings or errors",
+          "ResizeObserver, image-load source refresh, offscreen pause, deterministic reduced-motion pose, capped DPR 1.75, and portrait-preserving failure fallback are present",
+          "desktop and narrow viewport browser checks kept shader and outlines bounded to portrait row bands; existing site-wide narrow-layout defects were not expanded into this scope"
+        ],
+        "deferredByUser": false
+      },
+      {
+        "id": "verification",
+        "description": "Required repository local checks and installed PR checks pass on the integrated current revision",
+        "required": true,
+        "status": "pending",
+        "evidence": [],
+        "deferredByUser": false
+      },
+      {
+        "id": "delivery",
+        "description": "A reviewable pull request and clickable connect-2026-site branch preview exist for the speakers route",
+        "required": true,
+        "status": "pending",
+        "evidence": [],
+        "deferredByUser": false
+      }
+    ]
+  },
+  "criticalPath": {
+    "nextGate": "Root commits and pushes the accepted implementation, opens a review pull request, observes installed checks, and obtains the site branch preview",
+    "blockedPaths": [
+      "Repository-required pi/pir command wrappers are unavailable in this environment; required verification cannot run until restored or explicitly waived"
+    ],
+    "remainingAuthorizedPaths": [
+      "isolated speaker-section implementation",
+      "integrated verification and review delivery"
+    ]
+  },
+  "workstreams": [
+    {
+      "id": "current-main-audit",
+      "role": "Current-main site seam analyst",
+      "objective": "Map the current monorepo speaker section, site conventions, relevant main-branch drift, and safest integration footprint",
+      "why": "The previous implementation targeted a superseded repository and cannot be transplanted without proving current seams",
+      "owner": "worker-current-main-audit",
+      "authoritativeInputs": [
+        "origin/main at 4c83a129c2c01def1eee4164d8c382668693b082",
+        "AGENTS.md",
+        "apps/site",
+        "git history since the prior marketing-repository implementation"
+      ],
+      "dependencies": [],
+      "writeClaims": [],
+      "forbidden": [
+        "repository writes",
+        "dependency changes",
+        "spawning subagents",
+        "merge, publish, or deployment"
+      ],
+      "expectedOutput": "A current-main integration map with exact paths, conventions, drift risks, and recommended site-only write claim",
+      "stopConditions": [
+        "origin/main changes during the audit",
+        "speaker implementation requires a structural change outside apps/site",
+        "authoritative repository identity becomes ambiguous"
+      ],
+      "maySpawn": false,
+      "requiresUserAuthority": false,
+      "requiredEvidence": [
+        "exact current revision and dirty-state proof",
+        "speaker section and test/preview seam map",
+        "comparison against relevant prior implementation concepts",
+        "identified shared-file and regression risks"
+      ],
+      "evidence": [
+        "origin/main remained stable at 4c83a129c2c01def1eee4164d8c382668693b082 during audit and root challenge",
+        "Speakers.astro is the sole existing integration seam and a site-only speaker-directory write claim is sufficient",
+        "current workspace engine exposes the required imperative createStripesEngine and frame overlay APIs",
+        "current FramesConfig omits four legacy cosmetic fields whose supplied values equal current hardcoded painter defaults"
+      ],
+      "reliedOn": true,
+      "state": "done",
+      "transitions": [
+        { "state": "candidate", "by": "root" },
+        { "state": "scoped", "by": "root" },
+        { "state": "assigned", "by": "root" },
+        { "state": "active", "by": "worker-current-main-audit" },
+        { "state": "submitted", "by": "worker-current-main-audit" },
+        { "state": "challenged", "by": "root" },
+        { "state": "integrated", "by": "root" },
+        { "state": "verified", "by": "root" },
+        { "state": "done", "by": "root" }
+      ],
+      "acceptance": {
+        "reviewedBy": "root",
+        "scope": "pass",
+        "truth": "pass",
+        "evidenceQuality": "pass",
+        "interactionSafety": "pass",
+        "residualRisk": "acceptable",
+        "decision": "accept"
+      }
+    },
+    {
+      "id": "frame-mask-audit",
+      "role": "Engine partial-frame semantics analyst",
+      "objective": "Determine the exact current engine/lab data path for moving frames and how to mask shader pixels to frame interiors while retaining one section-global engine",
+      "why": "The visual correction depends on distinguishing frame overlays, partial surfaces, and shader reveal masks without inventing incompatible behavior",
+      "owner": "worker-frame-mask-audit",
+      "authoritativeInputs": [
+        "packages/stripes-engine",
+        "apps/lab partial-surface renderer",
+        "the user-provided production configuration from the prior run",
+        "the live section-grid-generator behavior"
+      ],
+      "dependencies": [],
+      "writeClaims": [],
+      "forbidden": [
+        "repository writes",
+        "dependency changes",
+        "spawning subagents",
+        "merge, publish, or deployment"
+      ],
+      "expectedOutput": "An evidence-backed rendering algorithm, API seam, mask geometry recommendation, tests, and performance risks",
+      "stopConditions": [
+        "one shared engine cannot expose stable frame geometry",
+        "the behavior requires a second WebGL context",
+        "engine internals must change before a site implementation is possible"
+      ],
+      "maySpawn": false,
+      "requiresUserAuthority": false,
+      "requiredEvidence": [
+        "exact current engine symbols and frame coordinate space",
+        "proof of whether readFramesOverlay or readCellGrid is authoritative",
+        "algorithm for shader-inside-frame-only compositing",
+        "interaction, clipping, and performance risk analysis"
+      ],
+      "evidence": [
+        "lab SurfaceArea kind frame and normalized points are the authoritative partial-surface mask model",
+        "lab compositor clips engine pixels to surface points; readFramesOverlay is only the optional luminance-derived decorative overlay",
+        "site algorithm renders one section-global engine once, composites through moving host frame rectangles intersected with portrait apertures, and paints continuous outlines across gaps",
+        "readCellGrid is rejected because it performs synchronous readPixels; current readFramesOverlay uses the non-blocking production path",
+        "engine test suite passed 54 files and 690 tests at the audited current revision"
+      ],
+      "reliedOn": true,
+      "state": "done",
+      "transitions": [
+        { "state": "candidate", "by": "root" },
+        { "state": "scoped", "by": "root" },
+        { "state": "assigned", "by": "root" },
+        { "state": "active", "by": "worker-frame-mask-audit" },
+        { "state": "submitted", "by": "worker-frame-mask-audit" },
+        { "state": "challenged", "by": "root" },
+        { "state": "integrated", "by": "root" },
+        { "state": "verified", "by": "root" },
+        { "state": "done", "by": "root" }
+      ],
+      "acceptance": {
+        "reviewedBy": "root",
+        "scope": "pass",
+        "truth": "pass",
+        "evidenceQuality": "pass",
+        "interactionSafety": "pass",
+        "residualRisk": "acceptable",
+        "decision": "accept"
+      }
+    },
+    {
+      "id": "speaker-implementation",
+      "role": "Speaker partial-frame implementer",
+      "objective": "Implement the accepted partial-frame-only speaker effect in the settled site write claim",
+      "why": "A bounded writer is needed after current seams and frame semantics are accepted",
+      "owner": "worker-partial-frame-writer",
+      "authoritativeInputs": [
+        "accepted current-main-audit",
+        "accepted frame-mask-audit",
+        "user-supplied production configuration"
+      ],
+      "dependencies": [
+        "current-main-audit",
+        "frame-mask-audit"
+      ],
+      "writeClaims": [
+        "apps/site/src/components/_pages/connect/speakers"
+      ],
+      "forbidden": [
+        "apps/lab",
+        "packages/stripes-engine until explicitly re-scoped by root",
+        "other site sections",
+        "verification infrastructure",
+        "merge, production deployment"
+      ],
+      "expectedOutput": "A focused site implementation and tests matching the accepted rendering algorithm",
+      "stopConditions": [
+        "audit dependency is not accepted",
+        "required files overlap another writer",
+        "current main drifts incompatibly"
+      ],
+      "maySpawn": false,
+      "requiresUserAuthority": false,
+      "requiredEvidence": [
+        "focused unit/component tests",
+        "one-engine invariant",
+        "frame-only shader mask invariant",
+        "browser behavior at desktop and responsive widths"
+      ],
+      "evidence": [
+        "submission stayed inside the exclusive speaker directory and preserved one createStripesEngine instance",
+        "root focused tests passed 11/11 and current Astro build completed 352 pages",
+        "browser evidence confirmed shader-only portrait intersections, outlines crossing gaps, metadata safety, pointer/click behavior, and zero console warnings/errors",
+        "root rejected the initial compositor because it performed one full-canvas blit per mask fragment instead of one compound-clipped blit per tick",
+        "revised compositor uses one compound clip, one shader blit, and at most one decorative-overlay paint per tick",
+        "root reran focused tests 11/11, all site tests 51/51, Astro diagnostics 579 files with 0 errors, the 352-page site build, focused lint/format, and production-browser acceptance"
+      ],
+      "reliedOn": true,
+      "state": "done",
+      "transitions": [
+        { "state": "candidate", "by": "root" },
+        { "state": "scoped", "by": "root" },
+        { "state": "assigned", "by": "root" },
+        { "state": "active", "by": "worker-partial-frame-writer" },
+        { "state": "submitted", "by": "worker-partial-frame-writer" },
+        { "state": "challenged", "by": "root" },
+        { "state": "rejected", "by": "root" },
+        { "state": "assigned", "by": "root" },
+        { "state": "active", "by": "worker-partial-frame-writer" },
+        { "state": "submitted", "by": "worker-partial-frame-writer" },
+        { "state": "challenged", "by": "root" },
+        { "state": "integrated", "by": "root" },
+        { "state": "verified", "by": "root" },
+        { "state": "done", "by": "root" }
+      ],
+      "acceptance": {
+        "reviewedBy": "root",
+        "scope": "pass",
+        "truth": "pass",
+        "evidenceQuality": "pass",
+        "interactionSafety": "pass",
+        "residualRisk": "acceptable",
+        "decision": "accept"
+      }
+    },
+    {
+      "id": "root-integration",
+      "role": "Root orchestrator and integration owner",
+      "objective": "Challenge audits and implementation, integrate authoritative state, verify the user workflow, and deliver review artifacts",
+      "why": "Readiness depends on combined visual truth, current-main compatibility, repository verification, and deployed preview evidence",
+      "owner": "root",
+      "authoritativeInputs": [
+        "user request",
+        "validated ledger",
+        "AGENTS.md",
+        "origin/main"
+      ],
+      "dependencies": [],
+      "writeClaims": [
+        ".orchestration/connect-speaker-partial-frames.json",
+        "system:git-delivery"
+      ],
+      "forbidden": [
+        "merge",
+        "production deployment",
+        "verification infrastructure changes",
+        "unrelated main-branch cleanup"
+      ],
+      "expectedOutput": "Accepted integrated implementation with current checks, browser evidence, pull request, and site preview",
+      "stopConditions": [
+        "user authority is required for a new shared-engine capability",
+        "required delivery credentials are unavailable",
+        "main changes incompatibly after implementation starts"
+      ],
+      "maySpawn": false,
+      "requiresUserAuthority": false,
+      "requiredEvidence": [
+        "root challenge records",
+        "integrated repository checks",
+        "desktop and responsive browser evidence",
+        "pull request and site preview URLs"
+      ],
+      "evidence": [],
+      "reliedOn": true,
+      "state": "active",
+      "transitions": [
+        { "state": "candidate", "by": "root" },
+        { "state": "scoped", "by": "root" },
+        { "state": "active", "by": "root" }
+      ]
+    }
+  ],
+  "verification": {
+    "applicable": true,
+    "revision": "4c83a129c2c01def1eee4164d8c382668693b082",
+    "sources": [
+      "AGENTS.md",
+      "package.json",
+      "installed pull-request checks after push"
+    ],
+    "localChecks": [
+      {
+        "name": "full repository verification",
+        "command": "pir verify",
+        "required": true,
+        "status": "pending",
+        "evidence": "",
+        "waivedByUser": false
+      },
+      {
+        "name": "end-to-end and visual goldens",
+        "command": "pir test:e2e",
+        "required": true,
+        "status": "pending",
+        "evidence": "",
+        "waivedByUser": false
+      }
+    ],
+    "prChecks": [],
+    "noPrChecksReason": "Feature branch has not been pushed; installed PR checks have not yet been inspected",
+    "notApplicableReason": ""
+  },
+  "program": {
+    "status": "in-progress",
+    "readinessDeclaredBy": null,
+    "integratedChecks": [],
+    "delivery": {
+      "status": "pending",
+      "artifacts": [],
+      "notApplicableReason": ""
+    },
+    "limitations": [
+      "Merge and production deployment remain owner-only",
+      "Linear is connected read-only in this session; issue creation/update tools are unavailable"
+    ],
+    "blockers": [
+      "Repository-required pi/pir command wrappers are unavailable in this environment"
+    ],
+    "userApprovalEvidence": []
+  }
+}
