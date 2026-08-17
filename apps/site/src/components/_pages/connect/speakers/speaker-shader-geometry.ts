@@ -19,12 +19,20 @@ export type CursorFrameSeed = {
   center: Point;
   width: number;
   height: number;
-  createdAtSec: number;
 };
 
-export type CursorFrameVisual = {
-  rect: Rect;
-  opacity: number;
+export type FloatingFrameSettings = {
+  count?: number;
+  widthScale?: number;
+  heightScale?: number;
+  horizontalSpeed?: number;
+  verticalSpeed?: number;
+};
+
+export type CursorFrameSettings = {
+  widthScale?: number;
+  heightScale?: number;
+  follow?: number;
 };
 
 export type MaskFragment = {
@@ -135,37 +143,63 @@ const FLOATING_FRAME_SPECS: readonly FloatingFrameSpec[] = [
 ] as const;
 
 export const FLOATING_FRAME_COUNT = FLOATING_FRAME_SPECS.length;
-export const CURSOR_FRAME_LIFE_SEC = 0.95;
 
 /** A stable authored pose used instead of time-based movement in reduced motion. */
 export const REDUCED_MOTION_POSE_SEC = 7.25;
 
-const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+const clamp = (value: number, min: number, max: number) =>
+  Math.min(max, Math.max(min, value));
 
-const smoothPingPong = (timeSec: number, durationSec: number, phase: number) => {
+const smoothPingPong = (
+  timeSec: number,
+  durationSec: number,
+  phase: number
+) => {
   const cycle = (((timeSec / durationSec + phase) % 1) + 1) % 1;
   return 0.5 - 0.5 * Math.cos(cycle * Math.PI * 2);
 };
 
-export const measureRelativeRect = (root: DOMRect, aperture: DOMRect, zoom = 1): Rect => ({
+export const measureRelativeRect = (
+  root: DOMRect,
+  aperture: DOMRect,
+  zoom = 1
+): Rect => ({
   x: (aperture.left - root.left) / zoom,
   y: (aperture.top - root.top) / zoom,
   width: aperture.width / zoom,
   height: aperture.height / zoom,
 });
 
-export const mapClientPointToRoot = (clientX: number, clientY: number, root: DOMRect, zoom = 1) => ({
+export const mapClientPointToRoot = (
+  clientX: number,
+  clientY: number,
+  root: DOMRect,
+  zoom = 1
+) => ({
   x: (clientX - root.left) / zoom,
   y: (clientY - root.top) / zoom,
 });
 
 /** Source crop for CSS `object-fit: cover; object-position: 50% 0%`. */
-export const objectCoverSourceRect = (source: Size, destination: Size, positionX = 0.5, positionY = 0): Rect => {
-  if (source.width <= 0 || source.height <= 0 || destination.width <= 0 || destination.height <= 0) {
+export const objectCoverSourceRect = (
+  source: Size,
+  destination: Size,
+  positionX = 0.5,
+  positionY = 0
+): Rect => {
+  if (
+    source.width <= 0 ||
+    source.height <= 0 ||
+    destination.width <= 0 ||
+    destination.height <= 0
+  ) {
     return { x: 0, y: 0, width: 0, height: 0 };
   }
 
-  const scale = Math.max(destination.width / source.width, destination.height / source.height);
+  const scale = Math.max(
+    destination.width / source.width,
+    destination.height / source.height
+  );
   const width = destination.width / scale;
   const height = destination.height / scale;
 
@@ -190,10 +224,16 @@ export const intersectRects = (a: Rect, b: Rect): Rect | null => {
  * Converts portrait apertures into full-width visual bands. Frame outlines may
  * cross the horizontal gutters in these bands without ever entering metadata.
  */
-export const resolvePortraitBands = (apertures: readonly Rect[], stageWidth: number, rowTolerancePx = 2): Rect[] => {
+export const resolvePortraitBands = (
+  apertures: readonly Rect[],
+  stageWidth: number,
+  rowTolerancePx = 2
+): Rect[] => {
   const rows: Rect[][] = [];
   for (const aperture of [...apertures].sort((a, b) => a.y - b.y)) {
-    const row = rows.find((candidate) => Math.abs(candidate[0].y - aperture.y) <= rowTolerancePx);
+    const row = rows.find(
+      (candidate) => Math.abs(candidate[0].y - aperture.y) <= rowTolerancePx
+    );
     if (row) row.push(aperture);
     else rows.push([aperture]);
   }
@@ -209,17 +249,39 @@ export const resolveFloatingFrames = (
   timeSec: number,
   portraitBands: readonly Rect[],
   reducedMotion = false,
+  settings: FloatingFrameSettings = {}
 ): Rect[] => {
   if (portraitBands.length === 0) return [];
   const resolvedTime = reducedMotion ? REDUCED_MOTION_POSE_SEC : timeSec;
+  const count = clamp(
+    Math.round(settings.count ?? FLOATING_FRAME_COUNT),
+    0,
+    FLOATING_FRAME_COUNT
+  );
+  const widthScale = clamp(settings.widthScale ?? 1, 0.35, 2);
+  const heightScale = clamp(settings.heightScale ?? 1, 0.35, 2);
+  const horizontalSpeed = clamp(settings.horizontalSpeed ?? 1, 0, 4);
+  const verticalSpeed = clamp(settings.verticalSpeed ?? 1, 0, 4);
 
-  return FLOATING_FRAME_SPECS.map((spec) => {
+  return FLOATING_FRAME_SPECS.slice(0, count).map((spec) => {
     const band = portraitBands[spec.row % portraitBands.length];
-    const width = clamp(band.width * spec.width, 48, band.width);
-    const height = clamp(band.height * spec.height, 40, band.height);
+    const width = clamp(band.width * spec.width * widthScale, 48, band.width);
+    const height = clamp(
+      band.height * spec.height * heightScale,
+      40,
+      band.height
+    );
     const travel = Math.max(0, band.width - width);
-    const progressX = smoothPingPong(resolvedTime, spec.durationXSec, spec.phaseX);
-    const progressY = smoothPingPong(resolvedTime, spec.durationYSec, spec.phaseY);
+    const progressX = smoothPingPong(
+      resolvedTime * horizontalSpeed,
+      spec.durationXSec,
+      spec.phaseX
+    );
+    const progressY = smoothPingPong(
+      resolvedTime * verticalSpeed,
+      spec.durationYSec,
+      spec.phaseY
+    );
     const normalizedX = spec.fromX + (spec.toX - spec.fromX) * progressX;
     const normalizedY = spec.fromY + (spec.toY - spec.fromY) * progressY;
 
@@ -235,55 +297,67 @@ export const resolveFloatingFrames = (
 export const createCursorFrame = (
   point: Point,
   portraitBands: readonly Rect[],
-  createdAtSec: number,
+  settings: CursorFrameSettings = {}
 ): CursorFrameSeed | null => {
   const band = portraitBands.find(
     (candidate) =>
       point.x >= candidate.x &&
       point.x <= candidate.x + candidate.width &&
       point.y >= candidate.y &&
-      point.y <= candidate.y + candidate.height,
+      point.y <= candidate.y + candidate.height
   );
   if (!band) return null;
 
-  const width = clamp(band.width * 0.15, 84, 210);
-  const height = clamp(band.height * 0.34, 64, 132);
+  const width = clamp(
+    band.width * 0.15 * (settings.widthScale ?? 1),
+    48,
+    band.width
+  );
+  const height = clamp(
+    band.height * 0.34 * (settings.heightScale ?? 1),
+    40,
+    band.height
+  );
   const center = {
     x: clamp(point.x, band.x + width / 2, band.x + band.width - width / 2),
     y: clamp(point.y, band.y + height / 2, band.y + band.height - height / 2),
   };
 
-  return { center, width, height, createdAtSec };
+  return { center, width, height };
 };
 
-export const resolveCursorFrame = (
+export const moveCursorFrame = (
   seed: CursorFrameSeed,
-  timeSec: number,
-  reducedMotion = false,
-): CursorFrameVisual | null => {
-  const ageSec = Math.max(0, timeSec - seed.createdAtSec);
-  if (!reducedMotion && ageSec >= CURSOR_FRAME_LIFE_SEC) return null;
+  point: Point,
+  portraitBands: readonly Rect[],
+  settings: CursorFrameSettings = {}
+): CursorFrameSeed => {
+  const target = createCursorFrame(point, portraitBands, settings);
+  if (!target) return seed;
 
-  const progress = reducedMotion ? 1 : clamp(ageSec / CURSOR_FRAME_LIFE_SEC, 0, 1);
-  const eased = 1 - (1 - progress) ** 3;
-  const fade = clamp((progress - 0.62) / 0.38, 0, 1);
-  const scale = reducedMotion ? 1 : (0.72 + eased * 0.34) * (1 - fade);
-  const width = seed.width * scale;
-  const height = seed.height * scale;
-
+  const follow = clamp(settings.follow ?? 1, 0.01, 1);
   return {
-    rect: {
-      x: seed.center.x - width / 2,
-      y: seed.center.y - height / 2,
-      width,
-      height,
+    center: {
+      x: seed.center.x + (target.center.x - seed.center.x) * follow,
+      y: seed.center.y + (target.center.y - seed.center.y) * follow,
     },
-    opacity: reducedMotion ? 1 : 1 - fade,
+    width: seed.width + (target.width - seed.width) * follow,
+    height: seed.height + (target.height - seed.height) * follow,
   };
 };
 
+export const cursorFrameRect = (seed: CursorFrameSeed): Rect => ({
+  x: seed.center.x - seed.width / 2,
+  y: seed.center.y - seed.height / 2,
+  width: seed.width,
+  height: seed.height,
+});
+
 /** One shader render is reused for every frame/aperture intersection. */
-export const buildPartialFramePlan = (frames: readonly Rect[], apertures: readonly Rect[]): PartialFramePlan => {
+export const buildPartialFramePlan = (
+  frames: readonly Rect[],
+  apertures: readonly Rect[]
+): PartialFramePlan => {
   const maskFragments: MaskFragment[] = [];
   frames.forEach((frame, frameIndex) => {
     apertures.forEach((aperture, apertureIndex) => {

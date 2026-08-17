@@ -12,6 +12,12 @@ import {
   type PanelSliderField,
 } from "@tjcages/panels/dev";
 import { useCallback, useEffect, useState } from "react";
+import {
+  publishSpeakerFrameSettings,
+  SPEAKER_FRAME_DEFAULTS,
+  SPEAKER_FRAME_PANEL_ID,
+  type SpeakerFrameSettings,
+} from "../speakers/speaker-frame-controls";
 import { CONNECT_HERO_TWIZZLER_DEFAULTS } from "./twizzler-defaults";
 
 interface Props {
@@ -74,6 +80,16 @@ function slider(
   max: number,
   step: number
 ): PanelSliderField<TwizzlerHeroSettings> {
+  return { type: "slider", key, label, min, max, step };
+}
+
+function frameSlider(
+  key: keyof SpeakerFrameSettings & string,
+  label: string,
+  min: number,
+  max: number,
+  step: number
+): PanelSliderField<SpeakerFrameSettings> {
   return { type: "slider", key, label, min, max, step };
 }
 
@@ -144,11 +160,44 @@ const TWIZZLER_FIELDS: PanelField<TwizzlerHeroSettings>[] = [
   slider("speed", "Speed", 0, 40, 0.01),
 ];
 
-const PANEL_ID = "connect-twizzler-hero-v3";
+const FRAME_FIELDS: PanelField<SpeakerFrameSettings>[] = [
+  { type: "section", title: "Frames" },
+  frameSlider("frameCount", "Frame count", 0, 6, 1),
+  frameSlider("frameWidth", "Frame width", 0.35, 2, 0.01),
+  frameSlider("frameHeight", "Frame height", 0.35, 2, 0.01),
+
+  { type: "section", title: "Frame motion" },
+  frameSlider("horizontalSpeed", "Horizontal speed", 0, 4, 0.01),
+  frameSlider("verticalSpeed", "Vertical speed", 0, 4, 0.01),
+
+  { type: "section", title: "Pointer frame" },
+  frameSlider("cursorWidth", "Pointer width", 0.35, 2, 0.01),
+  frameSlider("cursorHeight", "Pointer height", 0.35, 2, 0.01),
+  frameSlider("cursorFollow", "Follow", 0.01, 1, 0.01),
+
+  { type: "section", title: "Shader inside frames" },
+  frameSlider("shaderOpacity", "Opacity", 0, 1, 0.01),
+  frameSlider("cellSize", "Cell size", 3, 24, 1),
+  frameSlider("brightness", "Brightness", -1, 1, 0.01),
+  frameSlider("contrast", "Contrast", 0, 3, 0.01),
+];
+
+type ShaderTarget = "twizzler" | "frames";
+
+const TWIZZLER_PANEL_ID = "connect-twizzler-hero-v3";
+const TARGET_STORAGE_KEY = "connect:shader-controls-target";
 
 export default function ConnectTwizzlerControls({ onSettingsChange }: Props) {
-  const [values, setValues] = useState<TwizzlerHeroSettings>(() =>
-    loadPersistedPanelValues(PANEL_ID, TWIZZLER_HERO_DEFAULTS)
+  const [twizzlerValues, setTwizzlerValues] = useState<TwizzlerHeroSettings>(
+    () => loadPersistedPanelValues(TWIZZLER_PANEL_ID, TWIZZLER_HERO_DEFAULTS)
+  );
+  const [frameValues, setFrameValues] = useState<SpeakerFrameSettings>(() =>
+    loadPersistedPanelValues(SPEAKER_FRAME_PANEL_ID, SPEAKER_FRAME_DEFAULTS)
+  );
+  const [target, setTarget] = useState<ShaderTarget>(() =>
+    localStorage.getItem(TARGET_STORAGE_KEY) === "frames"
+      ? "frames"
+      : "twizzler"
   );
   const [open, setOpen] = useState(true);
   const togglePanel = useCallback(() => setOpen((current) => !current), []);
@@ -159,22 +208,72 @@ export default function ConnectTwizzlerControls({ onSettingsChange }: Props) {
     onSettingsChange(
       normalizeTwizzlerSettings({
         ...CONNECT_HERO_TWIZZLER_DEFAULTS,
-        ...values,
+        ...twizzlerValues,
       })
     );
-  }, [onSettingsChange, values]);
+  }, [onSettingsChange, twizzlerValues]);
+
+  useEffect(() => {
+    publishSpeakerFrameSettings(frameValues);
+  }, [frameValues]);
+
+  const titleSelector = (
+    <select
+      aria-label="Shader controls"
+      value={target}
+      onChange={(event) => {
+        const next = event.target.value as ShaderTarget;
+        setTarget(next);
+        localStorage.setItem(TARGET_STORAGE_KEY, next);
+      }}
+      style={{
+        minWidth: 142,
+        border: 0,
+        background: "transparent",
+        color: "inherit",
+        font: "inherit",
+        fontWeight: 600,
+      }}
+    >
+      <option value="twizzler">Connect Twizzler</option>
+      <option value="frames">Speaker Frames</option>
+    </select>
+  );
+
+  if (target === "frames") {
+    return (
+      <Panel
+        id={SPEAKER_FRAME_PANEL_ID}
+        title=""
+        titleSlot={titleSelector}
+        open={open}
+        onClose={() => setOpen(false)}
+        onOpen={() => setOpen(true)}
+        values={frameValues}
+        defaults={SPEAKER_FRAME_DEFAULTS}
+        fields={FRAME_FIELDS}
+        onChange={setFrameValues}
+        prompts={[]}
+        defaultTheme="dark"
+        showThemeToggle={false}
+        showAnimation={false}
+        showExport={false}
+      />
+    );
+  }
 
   return (
     <Panel
-      id={PANEL_ID}
-      title="Connect Twizzler"
+      id={TWIZZLER_PANEL_ID}
+      title=""
+      titleSlot={titleSelector}
       open={open}
       onClose={() => setOpen(false)}
       onOpen={() => setOpen(true)}
-      values={values}
+      values={twizzlerValues}
       defaults={TWIZZLER_HERO_DEFAULTS}
       fields={TWIZZLER_FIELDS}
-      onChange={setValues}
+      onChange={setTwizzlerValues}
       prompts={[]}
       defaultTheme="dark"
       showThemeToggle={false}
