@@ -1,0 +1,61 @@
+---
+import BrowserCarousel from "@/components/browser-carousel/BrowserCarousel.astro";
+import angularLogo from "@/components/browser-carousel/logos/angular.svg?url";
+import astroLogoDark from "@/components/browser-carousel/logos/astro-dark.svg?url";
+import astroLogo from "@/components/browser-carousel/logos/astro.svg?url";
+import gatsbyLogo from "@/components/browser-carousel/logos/gatsby.svg?url";
+import hugoLogo from "@/components/browser-carousel/logos/hugo.svg?url";
+import nextjsLogoDark from "@/components/browser-carousel/logos/nextjs-dark.svg?url";
+import nextjsLogo from "@/components/browser-carousel/logos/nextjs.svg?url";
+import nuxtLogo from "@/components/browser-carousel/logos/nuxt.svg?url";
+import reactLogo from "@/components/browser-carousel/logos/react.svg?url";
+import vueLogo from "@/components/browser-carousel/logos/vue.svg?url";
+import type { BrowserCarouselItem } from "@/components/browser-carousel/types";
+
+const items = [
+  {
+    id: "next-react",
+    variant: "grid-2",
+    logos: [
+      {
+        src: nextjsLogo,
+        darkSrc: nextjsLogoDark,
+        width: 24,
+        height: 24,
+      },
+      { src: reactLogo, width: 23, height: 20.4635 },
+    ],
+  },
+  {
+    id: "nuxt-vue",
+    variant: "grid-2",
+    logos: [
+      { src: nuxtLogo, width: 24, height: 24 },
+      { src: vueLogo, width: 23, height: 20 },
+    ],
+  },
+  {
+    id: "astro-angular",
+    variant: "grid-2",
+    logos: [
+      {
+        src: astroLogo,
+        darkSrc: astroLogoDark,
+        width: 32,
+        height: 32,
+      },
+      { src: angularLogo, width: 24, height: 24 },
+    ],
+  },
+  {
+    id: "gatsby-hugo",
+    variant: "grid-2",
+    logos: [
+      { src: gatsbyLogo, width: 24, height: 24 },
+      { src: hugoLogo, width: 22, height: 24 },
+    ],
+  },
+] as const satisfies readonly BrowserCarouselItem[];
+---
+
+<BrowserCarousel items={items} dwellSeconds={1.8125} />

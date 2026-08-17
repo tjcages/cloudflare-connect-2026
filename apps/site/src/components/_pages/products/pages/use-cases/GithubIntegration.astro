@@ -1,0 +1,48 @@
+---
+import githubSvg from "@/components/_sections/deploy/_svg/GithubLogo.svg?raw";
+import Browser from "@/components/browser/Browser.astro";
+import BrowserContent from "@/components/browser/BrowserContent.astro";
+import Icon from "@/components/icon/Icon";
+import Stage from "@/components/Stage.astro";
+---
+
+<Stage class="pointer-events-none" data-pages-visual="github">
+  <div class="overlay overflow-clip">
+    <div class="absolute inset-y-0 left-1/2 w-px bg-border-default"></div>
+    <div class="absolute inset-x-0 top-1/2 h-px bg-border-default"></div>
+
+    <div
+      class="absolute top-84 left-52 z-10 flex-center size-72 rounded-full bg-background-base text-icon-base shadow-elevation-default"
+      data-chip-id="G"
+    >
+      <div class="size-32 [&>svg]:size-full">
+        <Fragment set:html={githubSvg} />
+      </div>
+    </div>
+
+    <div
+      class="absolute centering-size-88 z-10 flex-center rounded-full bg-background-base shadow-elevation-default"
+      data-chip-id="C"
+    >
+      <Icon
+        name="cloudflare"
+        variant="duo"
+        color="orange"
+        className="h-32 w-48"
+      />
+    </div>
+
+    <div class="absolute top-52 left-[calc(50%+116px)] z-10" data-browser-stage>
+      <div data-browser-nudge>
+        <div data-float>
+          <Browser class="h-136 w-208" variant="app" data-browser>
+            <Fragment slot="viewport">
+              <BrowserContent />
+              <div class="overlay z-20 opacity-0" data-browser-wave></div>
+            </Fragment>
+          </Browser>
+        </div>
+      </div>
+    </div>
+  </div>
+</Stage>

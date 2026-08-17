@@ -1,0 +1,28 @@
+---
+import Agenda from "@/components/_pages/connect/agenda/Agenda.astro";
+import RegisterCta from "@/components/_pages/connect/cta/RegisterCta.astro";
+import { connectMeta } from "@/components/_pages/connect/data";
+import Faq from "@/components/_pages/connect/faq/Faq.astro";
+import Hero from "@/components/_pages/connect/hero/Hero.astro";
+import Pillars from "@/components/_pages/connect/pillars/Pillars.astro";
+import Speakers from "@/components/_pages/connect/speakers/Speakers.astro";
+import Stats from "@/components/_pages/connect/stats/Stats.astro";
+import Tickets from "@/components/_pages/connect/tickets/Tickets.astro";
+import Layout from "@/layouts/Layout.astro";
+---
+
+<Layout
+  title={connectMeta.title}
+  description={connectMeta.description}
+  cta={false}
+  nav="connect"
+>
+  <Hero />
+  <Pillars />
+  <Speakers />
+  <Stats />
+  <Tickets />
+  <Agenda />
+  <Faq />
+  <RegisterCta />
+</Layout>

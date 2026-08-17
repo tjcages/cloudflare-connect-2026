@@ -1,0 +1,75 @@
+---
+import CodeTabs from "@/components/code-tabs/CodeTabs.astro";
+import type { DataProps } from "@/components/code-tabs/content/data";
+
+const data: DataProps[] = [
+  {
+    tabTitle: "Deploy a static site",
+    title: "Deploy a Static Site with Next.js",
+    description:
+      "Use Cloudflare Pages to deploy a static site with Next.js or React.",
+    language: "jsx",
+    fileName: "nextjs-pages.js",
+    code: `import { NextPage } from 'next';
+export default function HomePage() {
+  return <div>Welcome to my Pages site!</div>;
+}`,
+  },
+  {
+    tabTitle: "Build a serverless API",
+    title: "Build a Serverless API with Flask",
+    description: "Use Cloudflare Pages to build a serverless API with Flask.",
+    language: "python",
+    fileName: "flask-pages.py",
+    code: `from flask import Flask, jsonify
+
+app = Flask(__name__)
+
+@app.route('/api/data')
+def get_data():
+    return jsonify({'message': 'Hello from Pages!'})
+
+if __name__ == '__main__':
+    app.run()`,
+  },
+  {
+    tabTitle: "Deploy with GitHub",
+    title: "Deploy with GitHub Integration",
+    description:
+      "Use Cloudflare Pages to deploy a site with GitHub integration.",
+    language: "shell",
+    fileName: "deploy-pages.sh",
+    code: `curl -X POST \\
+  https://api.cloudflare.com/client/v4/pages/projects \\
+  -H 'Authorization: Bearer YOUR_API_TOKEN' \\
+  -H 'Content-Type: application/json' \\
+  -d '{"name":"my-pages-project","github":{"repo":"my-github-repo"}}'`,
+  },
+  {
+    tabTitle: "Add web analytics",
+    title: "Add Web Analytics",
+    description: "Use Cloudflare Pages to add web analytics to your site.",
+    language: "html",
+    fileName: "index.html",
+    code: `<html>
+  <head>
+    <script src="https://cdn.cloudflare.com/analytics.js"></script>
+  </head>
+  <body>
+    <h1>Welcome to my Pages site!</h1>
+  </body>
+</html>`,
+  },
+];
+---
+
+<CodeTabs data={data}>
+  <Fragment slot="title">
+    Code Examples for <br />Cloudflare Pages
+  </Fragment>
+
+  <Fragment slot="description">
+    Explore code examples for building and deploying <br />full-stack
+    applications
+  </Fragment>
+</CodeTabs>

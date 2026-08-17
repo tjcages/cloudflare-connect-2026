@@ -1,0 +1,143 @@
+---
+import RegisterCta from "@/components/_pages/connect/cta/RegisterCta.astro";
+import {
+  universityFaq,
+  universityHero,
+  universityIncluded,
+  universityPageMeta,
+  universitySchedule,
+  universityWhy,
+} from "@/components/_pages/connect/page-data/university";
+import FaqList from "@/components/_pages/connect/shared/FaqList.astro";
+import SubpageHero from "@/components/_pages/connect/shared/SubpageHero.astro";
+import Item from "@/components/features/Item.astro";
+import DashedLineGrid from "@/components/dashed-line/DashedLineGrid";
+import Icon from "@/components/icon/Icon";
+import Section from "@/layouts/Section.astro";
+import Layout from "@/layouts/Layout.astro";
+---
+
+<Layout
+  title={universityPageMeta.title}
+  description={universityPageMeta.description}
+  cta={false}
+  nav="connect"
+>
+  <SubpageHero {...universityHero} />
+
+  <Section
+    class="scroll-mt-80"
+    layout="center"
+    eyebrow="Training"
+    sectionEyebrow="Training"
+    title={universityWhy.title}
+    description={universityWhy.body}
+    headerClass="pb-72!"
+  >
+    <div
+      class="relative grid grid-cols-2 before:inside-border before:border-border-default"
+    >
+      {universityWhy.features.map((feature) => (
+        <Item
+          class="h-full min-h-262"
+          iconName={feature.iconName}
+          title={feature.title}
+        >
+          {feature.body}
+        </Item>
+      ))}
+
+      <DashedLineGrid
+        client:visible={{ rootMargin: "200px" }}
+        columns={2}
+        rows={1}
+      />
+    </div>
+  </Section>
+
+  <Section
+    class="scroll-mt-80"
+    layout="split"
+    eyebrow="Schedule"
+    sectionEyebrow="Schedule"
+    title={universitySchedule.title}
+    description={universitySchedule.body}
+  >
+    <div
+      class="relative grid grid-cols-2 before:inside-border before:border-border-default"
+    >
+      {universitySchedule.days.map((day) => (
+        <div class="relative flex flex-col gap-24 p-40">
+          <div class="text-decorative-small text-text-faint uppercase">
+            {day.date} · {day.label}
+          </div>
+          <div class="text-heading-h3 text-text-base">{day.title}</div>
+          <p class="text-body-medium text-text-default">{day.body}</p>
+        </div>
+      ))}
+    </div>
+  </Section>
+
+  <Section
+    class="scroll-mt-80"
+    layout="center"
+    eyebrow="Included"
+    sectionEyebrow="Pass"
+    title={universityIncluded.title}
+    description={universityIncluded.intro}
+    headerClass="pb-72!"
+  >
+    <div
+      class="relative flex flex-col before:inside-border before:border-border-default"
+    >
+      <div class="relative grid grid-cols-2">
+        {universityIncluded.items.map((item) => (
+          <Item
+            class="h-full min-h-262"
+            iconName={item.iconName}
+            title={item.title}
+          >
+            {item.body}
+          </Item>
+        ))}
+
+        <DashedLineGrid
+          client:visible={{ rootMargin: "200px" }}
+          columns={2}
+          rows={2}
+        />
+      </div>
+
+      <div
+        class="relative flex h-80 items-center gap-20 bg-background-surface px-40 text-body-x-small text-text-default"
+      >
+        <div
+          class="relative flex-center size-40 shrink-0 rounded-full bg-background-surface before:inside-border before:border-border-default"
+        >
+          <Icon name="info-simple" size={20} className="text-icon-default" />
+        </div>
+        <div>
+          <span class="contents text-label-x-small">Note:</span>{" "}
+          {universityIncluded.note}
+        </div>
+      </div>
+    </div>
+  </Section>
+
+  <Section
+    class="scroll-mt-80"
+    id="faq"
+    layout="center"
+    eyebrow="FAQ"
+    sectionEyebrow="FAQ"
+    title="Frequently asked questions"
+    description="University pass, training, and certification."
+    headerClass="pb-72!"
+  >
+    <div class="mx-auto w-full max-w-720 px-40 pt-80 pb-80">
+      <FaqList items={universityFaq} />
+    </div>
+  </Section>
+
+  <RegisterCta />
+</Layout>

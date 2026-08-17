@@ -1,0 +1,69 @@
+{
+  "slug": "agents-week-welcome",
+  "title": "Welcome to Agents Week",
+  "excerpt": "Agents Week explores how cloud infrastructure must evolve to serve autonomous agents rather than human browsers. Join us as we unpack the storage, execution, and security primitives needed for an agent-native web.",
+  "publishedAt": "2026-08-02T16:00:00.000Z",
+  "sourceUrl": "https://blog.cloudflare.com/agents-week-welcome/",
+  "tags": ["agents", "agents-week", "ai", "workers", "developer-platform"],
+  "authors": ["rita"],
+  "cover": {
+    "src": "https://blog.cloudflare.com/_emdash/api/media/file/01KYZDT3S6ATPE291NTTTYKKMV.png",
+    "alt": ""
+  },
+  "blocks": [
+    {
+      "type": "p",
+      "text": "This week is Agents Week."
+    },
+    {
+      "type": "p",
+      "text": "As we started thinking about and planning the week, we wrestled with a broader question of what it means to support this new era of agents and what a purpose-built foundation for agents actually looks like. Which brought us to a simpler framing: what is an Agent Cloud?"
+    },
+    {
+      "type": "p",
+      "text": "We quickly realized however, that our framing was wrong. Not because it’s the wrong question to ask, but because of who we were asking — ourselves, instead of our agents. It’s no longer about us and what we think, but about what agents need."
+    },
+    {
+      "type": "p",
+      "text": "That, in a nutshell, is what Agents Week is about."
+    },
+    {
+      "type": "p",
+      "text": "The cloud we have today, and the web it sits on, were built for people. Every layer assumes a human is watching: pages designed to hold your attention, dashboards to click through, interfaces tuned for how we read and decide. But agents don't work that way. They don't get distracted, tired or fatigued… and they have their own needs around speed, structure, and access."
+    },
+    {
+      "type": "image",
+      "src": "https://blog.cloudflare.com/_emdash/api/media/file/01KYZCTHC688NR2KQA59ZQVRV0.png",
+      "alt": "BLOG-3449_image2.png"
+    },
+    {
+      "type": "p",
+      "text": "An Agent Cloud has to do two things at once. It has to set us up for an agent-native future, where the primitives are built for agents from the ground up rather than retrofitted from human tools. And realistically, it has to meet us where we are today, acting as a translation layer between the human-shaped web that exists now and the agent-shaped one we're moving toward."
+    },
+    {
+      "type": "p",
+      "text": "That's the throughline for the next five days: the shape of a cloud built for agents and humans and how they interact. The week will explore the theme through what that means for the primitives and execution layer you need, the updated agentic software development lifecycle, how organizations can securely enable employees and agents to interact with safe controls, how this shapes the agentic web, and finally, grounding all of it in the reality of agents and humans today."
+    },
+    {
+      "type": "p",
+      "text": "Going back to the question: what does your agent need from an Agent Cloud? Well, rather than copy and pasting responses we got from our agents, we encourage you to ask your own agent that, and share any interesting insights and responses you get. Here’s an example prompt for you to use, but we encourage you to explore answers of your own:"
+    },
+    {
+      "type": "p",
+      "text": "_What do you, as an agent, need from an agent cloud? Imagine things across the categories of a storage & compute cloud and the execution and storage primitives you need, your dev lifecycle (adlc - like sdlc but with humans taken out of the loop), secure access to systems of record within an organization to get deep work done, and the web (discovery, access, payments...)._"
+    },
+    {
+      "type": "p",
+      "text": "Let us know what your agent says by replying here, we’d love to see the responses!"
+    },
+    {
+      "type": "p",
+      "text": "[Follow along on the blog this week](https://blog.cloudflare.com/) for the latest innovations around Agents, and [reach out on X](https://x.com/CloudflareDev) to join in the conversation."
+    },
+    {
+      "type": "image",
+      "src": "https://blog.cloudflare.com/_emdash/api/media/file/01KYZCTHBMQ9VPJVW57S25H03X.png",
+      "alt": "BLOG-3449_image1.png"
+    }
+  ]
+}

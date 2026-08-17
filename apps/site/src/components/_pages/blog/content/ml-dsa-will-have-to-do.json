@@ -1,0 +1,611 @@
+{
+  "slug": "ml-dsa-will-have-to-do",
+  "title": "Why we cannot wait for better post-quantum signature algorithms",
+  "excerpt": "NIST is advancing nine new post-quantum signature algorithms as potential candidates for future standardization. We take a closer look at all of them, and argue that while they are in the works and show great potential, we should use ML-DSA for now — the best currently available. ",
+  "publishedAt": "2026-07-09T14:00:00.000Z",
+  "sourceUrl": "https://blog.cloudflare.com/ml-dsa-will-have-to-do/",
+  "tags": ["cryptography", "post-quantum", "research", "security"],
+  "authors": ["bas", "christopher-patton"],
+  "cover": {
+    "src": "https://blog.cloudflare.com/_emdash/api/media/file/01KYN1RPDXF8ZMCRX3ZR83HG10.png",
+    "alt": ""
+  },
+  "blocks": [
+    {
+      "type": "p",
+      "text": "RSA and ECC, cryptographic algorithms that we have all relied on for decades, are [vulnerable](https://blog.cloudflare.com/the-quantum-menace/) to the attack of sufficiently advanced quantum computers. Such quantum computers do not exist yet, but they seem to be coming [sooner](https://scottaaronson.blog/?p=9718) than expected. Luckily, the solution is already available: migrate to ML-KEM encryption and ML-DSA signatures, which are designed to be resistant to quantum attack. They were standardized [in 2024](https://blog.cloudflare.com/nists-first-post-quantum-standards/) by the U.S. National Institute of Standards and Technology (NIST) after an eight-year open international competition."
+    },
+    {
+      "type": "p",
+      "text": "The migration to post-quantum cryptography is in full swing now. At the time of writing, the majority of traffic handled by Cloudflare is already using ML-KEM encryption, and is thus secured against the threat to data posed by [harvest-now-decrypt-later](https://en.wikipedia.org/wiki/Harvest_now,_decrypt_later) attacks. But encryption is only one part of the equation: to be fully secure against quantum computers capable of breaking classical cryptography, we aim to deploy post-quantum signatures to protect authentication systems from unauthorized access. We are [targeting 2029](https://blog.cloudflare.com/post-quantum-roadmap) for Cloudflare to be fully post-quantum secure."
+    },
+    {
+      "type": "p",
+      "text": "ML-DSA, the best all-around post-quantum signature scheme standardized today, has its downsides: it’s much larger on the wire, and many [tricks](https://github.com/fancy-cryptography/fancy-cryptography) we were able to perform with RSA and ECC simply cannot be done with ML-DSA. There are better post-quantum signature schemes on the horizon: last month, NIST [announced](https://groups.google.com/a/list.nist.gov/g/pqc-forum/c/LXoTAe5AN78/m/ZXgBCNlgDAAJ) that it is advancing nine post-quantum signature schemes to the third round of the “[signatures on-ramp](https://csrc.nist.gov/projects/pqc-dig-sig)”. And a draft standard for [FN-DSA](https://falcon-sign.info/) (née Falcon), which was picked from the previous competition, is expected imminently."
+    },
+    {
+      "type": "p",
+      "text": "We have been very interested in advances in post-quantum signature algorithms, and wrote about the progress in [2021](https://blog.cloudflare.com/sizing-up-post-quantum-signatures/), [2022](https://blog.cloudflare.com/nist-post-quantum-surprise/), [2024](https://blog.cloudflare.com/another-look-at-pq-signatures/), and [2025](https://blog.cloudflare.com/pq-2025/#signatures-on-the-horizon). In this blog post we’ll treat you to the latest developments in great detail."
+    },
+    {
+      "type": "p",
+      "text": "But first we have to deal with the elephant in the room: These new signature algorithms will not be ready in time for the PQ transition — not even close, as we [will see later on](#timelines). The problem is arriving too soon for us to wait. ML-DSA is available today, and it will have to do for the first migration. As Eric Rescorla [wrote](https://educatedguesswork.org/posts/pq-emergency/) in 2024:"
+    },
+    {
+      "type": "quote",
+      "text": "You go to war with the algorithms you have, not the ones you wish you had."
+    },
+    {
+      "type": "p",
+      "text": "Nonetheless, the search for better post-quantum signature algorithms is crucial for several reasons, and we firmly believe it is still the best use of NIST’s limited resources."
+    },
+    {
+      "type": "p",
+      "text": "Let’s have a look at the signature algorithms in detail. After that we’ll look at the timeline for their availability, and the reasons why we still need them."
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "The signature algorithms",
+      "id": "the-signature-algorithms"
+    },
+    {
+      "type": "p",
+      "text": "In the table below, we compare the candidate signature algorithms that progressed to the third round (marked by 🤔), with classical algorithms vulnerable to quantum attack (marked by ❌), and the post-quantum algorithms that are already standardized ( ✅) or soon will be (📝). Each candidate proposes several variants. We list the most relevant variants to TLS, the protocol used to secure connections on the Internet. To explore all variants, check out [Thom Wigger](https://thomwiggers.nl/)s' [signatures zoo](https://pqshield.github.io/nist-sigs-zoo/)."
+    },
+    {
+      "type": "table",
+      "head": [
+        "",
+        "",
+        "",
+        "Sizes (bytes)",
+        "CPU time (lower is better)",
+        "",
+        ""
+      ],
+      "rows": [
+        [
+          "Family",
+          "Name variant",
+          "A",
+          "Public key",
+          "Signature",
+          "Signing",
+          "Verification"
+        ],
+        ["Elliptic curves", "Ed25519", "❌", "32", "64", "0.15", "1.3"],
+        ["Factoring", "RSA 2048", "❌", "272", "256", "80", "0.4"],
+        [
+          "Lattices",
+          "ML-DSA 44",
+          "✅",
+          "1,312",
+          "2,420",
+          "1 (baseline)",
+          "1 (baseline)"
+        ],
+        ["Symmetric", "SLH-DSA 128s", "✅", "32", "7,856", "14,000", "40"],
+        ["SLH-DSA 128f", "✅", "32", "17,088", "720", "110", ""],
+        ["SLH-DSA 128-24", "📝", "32", "3,856", "7,000,000 ⚠️", "4", ""],
+        ["LMS M24\\_H20\\_W8", "✅", "48", "1,112", "2.9 ⚠️", "8.4", ""],
+        ["Lattices", "FN-DSA 512", "📝", "897", "666", "3 ⚠️", "0.7"],
+        ["Lattices", "HAWK 512", "🤔", "1,024", "555", "0.25", "1.2"],
+        [
+          "Proof of knowledge",
+          "MQOM L1-gf16-fast-5r",
+          "🤔",
+          "60",
+          "3,280",
+          "8",
+          "20"
+        ],
+        ["SDitH SDitH2-L1-gf2-fast", "🤔", "70", "4,484", "15", "40", ""],
+        ["FAEST EM-128f", "🤔", "32", "5,060", "4.2", "9", ""],
+        ["Isogeny", "SQIsign I", "🤔", "65", "148", "300 ⚠️", "50"],
+        ["Multivariate", "MAYO one", "🤔", "1,420", "454", "2.1", "0.4"],
+        ["MAYO two", "🤔", "4,912", "186", "1.1", "0.8", ""],
+        ["QR-UOV I-(127 156 54 3)", "🤔", "24,225", "200", "9.3", "20", ""],
+        ["SNOVA (24,5,4)", "🤔", "1,016", "248", "1.2", "1.7", ""],
+        ["SNOVA (25,8,3)", "🤔", "2,320", "165", "1", "1.5", ""],
+        ["SNOVA (37,17,2)", "🤔", "9,842", "124", "0.8", "1.3", ""],
+        ["UOV Is-pkc", "🤔", "66,576", "96", "0.3", "2.4", ""],
+        ["UOV Ip-pkc", "🤔", "43,576", "128", "0.3", "2", ""]
+      ]
+    },
+    {
+      "type": "p",
+      "text": "A few more remarks on this table: Most candidates have multiple variants in every security level. We show the most relevant variants for TLS at the 128-bit security level, the gold standard for security. CPU times are taken from the [signatures zoo](https://pqshield.github.io/nist-sigs-zoo/) in June 2026, which collected them from the round two submission documents and later advances. Candidates are allowed to make changes for the third round, which will influence these numbers. Some will improve (both in compute and size), whereas others will regress to counter new attacks. Check out the zoo for the latest numbers. We marked FN-DSA and SQIsign signing with a ⚠️️, as both are hard to implement in a fast and [timing side-channel secure](https://blog.cloudflare.com/kyber-isnt-broken/#side-channel-attacks) manner. LMS signing has a ⚠️, as secure LMS signing requires keeping state across signatures, and the listed signing time assumes a 32MB cache. The 128-24 variant of SLH-DSA is marked with a ⚠️️ as it’s meant to create fewer than 2^24 signatures."
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "No \"all-star\" algorithm",
+      "id": "no-all-star-algorithm"
+    },
+    {
+      "type": "p",
+      "text": "One thing that stands out immediately is that the quantum-vulnerable elliptic curves signature algorithm Ed25519 is by far the best all-around choice (ignoring its quantum vulnerability): it has the best numbers in almost every single metric, including public key size, signature size, and signing time. It’s only beaten on verification time, but it’s more than fast enough for the vast majority of applications."
+    },
+    {
+      "type": "p",
+      "text": "This is quite different than the roster of post-quantum algorithms. Instead of a single \"all-star\" algorithm, we have roughly two categories of schemes: the \"specialists\" that approach our trusty elliptic curve signatures on some metrics, but are problematic on others, which make them great in the right deployment scenario. Then there are the “generalists”, such as ML-DSA, which don’t perform as well as elliptic curves on all metrics, but so far as downsides go, are pretty balanced."
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Specialists",
+      "id": "specialists"
+    },
+    {
+      "type": "p",
+      "text": "Let’s start with the specialists."
+    },
+    {
+      "type": "heading",
+      "level": 3,
+      "text": "SQIsign: small signatures / slow signing",
+      "id": "sqisign-small-signatures-slow-signing"
+    },
+    {
+      "type": "p",
+      "text": "If you just look at the bytes on the wire, then **SQIsign** looks like an almost perfect drop-in replacement for elliptic curve cryptography. With signatures of 148 bytes and public keys of 65 bytes, it beats RSA-2048. Unfortunately there is no free lunch: SQIsign has three weak points. First, it’s the most complex algorithm on the docket. Secondly, its signature creation and verification is quite slow. Finally, it’s difficult to implement signature creation in a timing side-channel secure way and doing so comes with a performance penalty to boot."
+    },
+    {
+      "type": "p",
+      "text": "That doesn’t sound great so far, but it was much worse: when we had a [look back in 2024](https://blog.cloudflare.com/another-look-at-pq-signatures/#sqisign), there was not yet any timing side-channel secure implementation and signature verification was 20x slower. Furthermore there has been welcome progress on simplifying the scheme."
+    },
+    {
+      "type": "p",
+      "text": "Despite these dramatic improvements, it is unlikely (side-channel secure) signing will be fast enough in the foreseeable future to be used in typical _online_ cases such as the TLS handshake. However, for _offline_ cases, such as CA signatures or DNSSEC, where it’s the verification time that’s more important than the signing time, SQIsign might have an application."
+    },
+    {
+      "type": "p",
+      "text": "But the topic we should really discuss is security. SQIsign is based on [isogenies](https://blog.cloudflare.com/sidh-go/). Rather famously, SIKE, another algorithm based on isogenies, got broken [badly](https://eprint.iacr.org/2022/975.pdf) in a late stage of the first NIST PQC competition that standardized ML-DSA. SIKE is often brought up as a cautionary example showing that post-quantum cryptography could break suddenly. This requires some nuance. First, there were already concerns about SIKE’s security, and in particular the _torsion points_ that led to the break. Because of these concerns, SIKE was not selected for standardization, but deferred to an additional [round](https://nvlpubs.nist.gov/nistpubs/ir/2022/NIST.IR.8413-upd1.pdf) of evaluation before it was broken. (Indeed, this is an example of the NIST process working well.) SQIsign doesn’t use torsion points, and there is no similar concern as there was for SIKE."
+    },
+    {
+      "type": "p",
+      "text": "One other notable security property is that the best known attacks on SQIsign are generic brute force, just like with classical attacks on well-selected elliptic curves. This is quite different from RSA, lattices, and multivariate where the attack algorithms have been slowly improving, pushing the parameters towards bigger signatures. Nonetheless, the mathematics behind isogenies is very rich, and compared to the other algorithms, there is a lot of _mathematical attack surface_. Still, its security seems more sound than the structured multivariate algorithms we’ll discuss later."
+    },
+    {
+      "type": "p",
+      "text": "SQIsign is an algorithm with tremendous potential. It’d be a shame to standardize it too early. To the authors, we’d like to share the following wishlist:"
+    },
+    {
+      "type": "list",
+      "ordered": false,
+      "items": [
+        "Ideally verification time is decreased even further, even if this trades off against signing time and signature size: SQIsign signatures are already small enough, and offline signing time has some slack anyway.",
+        "The timing side-channel secure implementation should be the default, especially if signing time is decreased further, which would tempt some online signing applications.",
+        "But above all, our wish is for SQIsign to be simplified."
+      ]
+    },
+    {
+      "type": "heading",
+      "level": 3,
+      "text": "UOV: tiny signatures / huge public keys",
+      "id": "uov-tiny-signatures-huge-public-keys"
+    },
+    {
+      "type": "p",
+      "text": "**UOV** (unbalanced oil and vinegar) is a classic multivariate signature algorithm originally proposed in 1999. It has tiny signatures: only 96 bytes. The trade-off? A huge public key: 66kB. That wouldn’t help for a TLS server certificate, whose public key is transmitted over the wire when setting up a connection, but it would be a help for cases where the public key is predistributed."
+    },
+    {
+      "type": "p",
+      "text": "Let’s take the WebPKI as an example. A typical browser trusts about a hundred root certificates and 30 certificate transparency logs, whose public keys would add up to about 8MB when using UOV."
+    },
+    {
+      "type": "image",
+      "src": "https://blog.cloudflare.com/_emdash/api/media/file/01KW46E2RMBD4SKQV2T6BTFFAV.png",
+      "alt": "The public keys and signatures in a typical TLS connection.",
+      "caption": "The public keys and signatures in a typical TLS connection."
+    },
+    {
+      "type": "p",
+      "text": "Since the root certificate is transmitted to clients out of band, one idea is to use a UOV signature there. But this is not a slam dunk; because of its size, a UOV root certificate would be impractical to be cross-signed where the root is used as an intermediate. At the same time, cross signs and intermediates become less attractive anyway with any larger post-quantum signatures. This encourages more root certificates to be included directly with clients. This would again favor UOV, but to a point: if the number of root certificates grows above a thousand, we’d be dealing with more than 66MB of key material, which would make up a substantial portion of the browsers’ download size (e.g., 90MB for Firefox 151.)"
+    },
+    {
+      "type": "p",
+      "text": "**Multivariate security**"
+    },
+    {
+      "type": "p",
+      "text": "What about the security? Over the years, many variants of UOV have been proposed that use some extra mathematical structure to reduce the size of the public key. These _structured multivariate_ schemes have had a spotty track record with schemes such as [Rainbow](https://eprint.iacr.org/2022/214) and [GeMMS](https://eprint.iacr.org/2021/1677) being broken quite badly. It is important to distinguish these from UOV itself, whose security track record is much better, but not perfect."
+    },
+    {
+      "type": "p",
+      "text": "As with many cryptographic schemes, there were growing pains in the early years, as basic attacks and parametrization pitfalls were discovered. In fact, the “U” in UOV is a remnant of that: it stands for _unbalanced_, which is a fix to a parameter-setting mistake in the 1997 oil-and-vinegar scheme on which UOV is based: the original scheme had an equal number of _oil_ and _vinegar_variables in the quadratic system of equations used as the public key, which turns out to allow for [an attack](https://weizmann.elsevierpure.com/en/publications/cryptanalysis-of-the-oil-and-vinegar-signature-scheme-2/). In case you’re curious about the colorful name: the system of equations contains vinegar x vinegar and oil x vinegar, but no oil x oil terms. It’s like vinaigrette with small separate oil droplets. Back to the history: from 2005 to 2020 was a quiet period for multivariate signatures: understanding of UOV grew, but there weren’t any new attacks on typical parameters."
+    },
+    {
+      "type": "p",
+      "text": "This changed in 2020 with the [discovery](https://eprint.iacr.org/2020/1343.pdf) of the _intersection attack_ which built on the ideas of the original attack on balanced oil-and-vinegar. The intersection attack removes about 30 bits of security from a then-proposed 128-bit parameter set. A considerable blow, but not fatal: slightly adjusting parameters mitigates the attack completely, with minor increase in key and signature size."
+    },
+    {
+      "type": "p",
+      "text": "A bigger shock was the 2025 [publication](https://eprint.iacr.org/2025/1143.pdf) of the idea to use [_wedges_](https://en.wikipedia.org/wiki/Exterior_algebra) to attack multivariate schemes. The initial impact on UOV was minor: only a few bits (again at the 128-bit security level.) The worry was that this idea came out of left field, and it wasn’t clear how far the approach could be taken. That concern was partly justified: the wedges idea was very fruitful and several subsequent attacks have been built on it, reducing security by about 15 bits. However, it also became [clear](https://eprint.iacr.org/2026/298) that the wedges attack and generalizations can be seen as a special cases of existing attacks such as the _intersection attack_ over truncated rings — thus much more familiar than we thought. Again, these attacks can be mitigated with only minor increases in key and signature size."
+    },
+    {
+      "type": "p",
+      "text": "What to make of all of this? Such a history of attacks is not uncommon: over the last 25 years lattices have seen larger reductions in security, although this has calmed down over the recent years. Notwithstanding, lattice-based cryptography deployed in production today uses conservative parameter sets well above 128-bits to hedge against future cryptanalysis. We’d want to do the same with UOV. Signature size only grows linearly with the security level, costing just 260 bytes even at the 256-bit security level. Unfortunately, the public key size is cubic in security level: 446kB for 256-bit. Conveniently, UOV (as most multivariate schemes) has a lot of flexibility in picking parameter sets at various intermediate security levels."
+    },
+    {
+      "type": "p",
+      "text": "UOV is a foundational scheme with narrow but real use cases. Going forward, we’d like to see a parameter set with a bit of margin above 128 bits, say 160 bits, to hedge against future cryptanalytic improvements."
+    },
+    {
+      "type": "heading",
+      "level": 3,
+      "text": "QR-UOV: small signatures / large public keys",
+      "id": "qr-uov-small-signatures-large-public-keys"
+    },
+    {
+      "type": "p",
+      "text": "Like SNOVA and MAYO which we’ll discuss later on, **QR-UOV** is a structured multivariate scheme: it’s a variant of UOV that adds more structure to the public key to reduce its size. The gains are modest: at best we’re looking at 12kB public keys, but signature verification is impractically slow for that particular parameter set. The more realistic parameter sets start at 24kB public keys."
+    },
+    {
+      "type": "p",
+      "text": "With respect to security, QR-UOV is the only multivariate scheme that did not have to adjust its original (round one) parameters in response to new attacks. This is somewhat surprising as any attack on UOV can also be applied to QR-UOV. The explanation is that the attacks do apply, but the natural parameters for QR-UOV happen to make them ineffective. On the other hand, there were already several attacks known that use the specific extra structure that QR-UOV adds: indeed, for some of the parameter sets, the structure-specific attacks are the best attacks. This should be contrasted with MAYO, where there is no known attack against the extra structure MAYO adds. (We’ll get back to MAYO and SNOVA later in this post.)"
+    },
+    {
+      "type": "p",
+      "text": "Compared to last round, QR-UOV signing and verification time improved significantly, but it is still comparatively slow. All in all, QR-UOV is a hard sell: it adds exploitable structure to UOV without pushing key sizes down to general-purpose sizes."
+    },
+    {
+      "type": "heading",
+      "level": 3,
+      "text": "Hash-based signatures",
+      "id": "hash-based-signatures"
+    },
+    {
+      "type": "p",
+      "text": "**Stateful hash-based signatures**"
+    },
+    {
+      "type": "p",
+      "text": "The very first standardized post-quantum signature algorithms are the stateful hash-based [LMS, HSS](https://www.rfc-editor.org/rfc/rfc8554.html) and [XMSS(MT)](https://datatracker.ietf.org/doc/html/rfc8391). They have very small public keys, and for many parameter sets the signatures are much smaller than those of ML-DSA-44. To boot, their security is based on that of hashes, which are well-understood and already a cornerstone of cryptography. That makes hash-based signature algorithms a very conservative choice, and there is no need to hedge with higher security levels."
+    },
+    {
+      "type": "p",
+      "text": "So, what’s the catch?"
+    },
+    {
+      "type": "p",
+      "text": "There are two. The big one is keeping the eponymous state. These stateful hash-based signature schemes are built out of one-time-signature keys which are collected into Merkle trees. The signer has to keep track of which one-time-signature keys have been used, which can be as simple as just a counter. If the signer mucks it up, though, and accidentally uses the same one-time-signature key twice on a different message, then anyone can [likely](https://eprint.iacr.org/2016/1042) use those two signatures to create their own signature on any message. You have to keep a lot in mind to keep the state correctly. Some considerations: you want to make sure that updates are written to storage before handing out the signature; you don’t want the old state to be restored from a backup; and you can’t export/import a private key from one place to another without agreeing on how to split or keep the state. The state is, as Adam Langley [pointed out](https://www.imperialviolet.org/2013/07/18/hashsig.html) several years ago, a huge foot-cannon."
+    },
+    {
+      "type": "p",
+      "text": "Another downside is that the most competitive parameter sets can only create a modest number of signatures. The 1,112 byte signatures (as listed in the table above) can only be used to create about a million signatures. You can explore the trade-offs with this [calculator](https://westerbaan.name/~bas/hashcalc/)."
+    },
+    {
+      "type": "p",
+      "text": "Together this leaves a very small niche for stateful hash-based signatures: signers have to be able to keep state; signature size has to be a real concern; and signers have to be OK with a hard limit on the number of signatures."
+    },
+    {
+      "type": "p",
+      "text": "**SLH-DSA: conservative security / large and slow**"
+    },
+    {
+      "type": "p",
+      "text": "**SLH-DSA** is a hash-based signature that doesn’t have the low signature limit and avoids the problem of keeping the state. The basic idea is to make the number of one-time-signature keys so large that you can pick one at random without having to worry about using the same one twice, since the chance of picking the same one twice is diminishingly small. SLH-DSA is a bit more efficient than that, by replacing the one-time-signature key as a building block with a few-time-signature key, where security degrades gracefully if keys are occasionally reused. It still comes at a cost. SLH-DSA has two variants, one that optimizes for small signature size, and one that optimizes for fast signing. The size-optimized one is not small at all at 8kB, and the signing-optimized one is even slower than SQIsign."
+    },
+    {
+      "type": "p",
+      "text": "**Fewer signature variants of SLH-DSA**"
+    },
+    {
+      "type": "p",
+      "text": "NIST has [proposed](https://csrc.nist.gov/pubs/sp/800/230/ipd) to standardize an additional parameter set for SLH-DSA with much smaller signatures, but that can only be used to create about 16 million signatures before security reduces. At 3.8kB the signatures are still larger than those of ML-DSA-44, but the combined public key and signature size is very close. The parameter set was chosen to make signature verification fast at the cost of signing time. The signing time is very bad indeed."
+    },
+    {
+      "type": "p",
+      "text": "**Use cases**"
+    },
+    {
+      "type": "p",
+      "text": "So why ever use SLH-DSA? The selling point is the conservative security. For a long-term trusted key that is hard to replace, it could make sense if the application can stomach the large signature and slow verification of the standardized variants or the slow signing time of the newly proposed one. There are two more caveats to add. First, it’s better to set things up so that key algorithms are not burned-in and can be replaced after the fact. And secondly, in most cases systems (such as secure connections with TLS) do not just depend on signatures, but also on key agreement. There is no hash-based key agreement mechanism, so we end up needing to trust something less conservative, like lattices, anyway."
+    },
+    {
+      "type": "heading",
+      "level": 3,
+      "text": "FN-DSA: small key and signatures / subtle signing",
+      "id": "fn-dsa-small-key-and-signatures-subtle-signing"
+    },
+    {
+      "type": "p",
+      "text": "Comparing the numbers, FN-DSA-512 (née Falcon) looks much better than ML-DSA-44 on almost every metric: faster verification, smaller public key, and much smaller signatures at 666 bytes. Signing is three times slower, but it’s still 25x faster than RSA-2048. To boot it’s already picked to become FIPS 206. So why don’t we consider FN-DSA to be a general-purpose algorithm?"
+    },
+    {
+      "type": "p",
+      "text": "It’s because it’s difficult to implement FN-DSA signing securely. The most well-known sharp edge of FN-DSA is that it is most naturally and efficiently implemented using hardware-accelerated [floating-point arithmetic](https://en.wikipedia.org/wiki/Floating-point_arithmetic). This is a first for a cryptographic standard. One big challenge with it is that we have little experience implementing fast floating-point arithmetic in a side-channel safe way. What we know so far is that it’s subtle and not very robust: a safe implementation of FN-DSA signing using the Floating-Point Unit (FPU) for one processor might not be safe for another. Instead of relying on the FPU, the floating point operations can be emulated. This is easier to get right, but about 20 times slower, making it about as slow as RSA-2048. There has been some welcome [progress recently](https://github.com/fixed-point-fndsa/fxp-falcon-py) to implement FN-DSA signing safely using fixed-point arithmetic, which is much faster than the floating-point emulation. So just use that and FN-DSA is good to go? This presumes a level of awareness that might not be warranted. Anecdotally at conferences, every time we saw a presenter compare post-quantum signature algorithms including FN-DSA in benchmarks, they couldn’t answer whether floating-point emulation was used."
+    },
+    {
+      "type": "p",
+      "text": "Another consequence of using floating points is that it’s difficult to make test vectors for signing. Just one example of this is that the outcome of _a+(b+c)_ and _(a+b)+c_ are only guaranteed to be close, but not the same. That means that to have useful test vectors, the FN-DSA specification would need to be very precise on the order of floating-point operations. Another example is _a\\*b+c_, which can be computed in two steps (multiply and then add), or at once using [fused-multiply-add](https://en.wikipedia.org/wiki/Multiply%E2%80%93accumulate_operation) (FMA). The latter is faster, but again gives a slightly different answer as rounding happens only once. Not all processors support FMA, but for those that do, compilers typically automatically use FMA for the performance boost. There are also mathematical optimizations that cause trouble. For instance, the reference implementation computes a value (norm) in a faster roundabout way using [Parseval’s theorem](https://en.wikipedia.org/wiki/Parseval%27s_theorem). Mathematically the answer is exactly the same, but as floating-points are only an approximation, the resulting value is ever so slightly different. Similarly, the safe fixed-point arithmetic implementation gives slightly different results."
+    },
+    {
+      "type": "p",
+      "text": "Why is this a problem? It is because it is still the humble test vector that catches most implementation bugs in practice. Other more refined methods like formal verification will certainly catch more, but test vectors are hard to beat in simplicity."
+    },
+    {
+      "type": "p",
+      "text": "Another surprising sharp edge from not having a fixed implementation is the following. From two deterministic signatures created by slightly different implementations from the same private key, one can [derive parts of that private key](https://eprint.iacr.org/2024/1709). FN-DSA does not use deterministic signatures, instead adding a randomizer to thwart this. There is a tension with testing: you need a deterministic interface to test signing, but you don’t want that to be used to create actual signatures."
+    },
+    {
+      "type": "p",
+      "text": "How to deal with the wiggle room in the FN-DSA specification will undoubtedly be a point of discussion. The discrepancy between the implementations might actually have a silver lining: NIST could decide to generate the test vectors ([CAVP](https://csrc.nist.gov/projects/cryptographic-algorithm-validation-program)) from the fixed-point arithmetic implementation. That the more risky floating-point implementation wouldn’t pass the test vectors would be a feature, not a bug, as it would steer implementations towards the safer fixed-point version!"
+    },
+    {
+      "type": "p",
+      "text": "You can read about a few other interesting sharp edges in [this blog post](https://keymaterial.net/2026/05/13/so-you-want-to-deploy-fn-dsa/). Stepping back from the specifics, the main point is that FN-DSA is a complicated scheme. It’s not a surprise that it took NIST a [couple of years](https://csrc.nist.gov/csrc/media/presentations/2025/fips-206-fn-dsa-(falcon%29/images-media/fips_206-perlner_2.1.pdf) (not counting the current limbo) just to write the draft standard. It’ll take longer than usual for the final standard to come out and for cryptographic libraries to add support. FN-DSA is farther away than it seems. We’ll compare timelines later in this blog post."
+    },
+    {
+      "type": "p",
+      "text": "If the numbers are still very tempting, there is one last thing you should be aware of: FN-DSA-512 is parametrized for 128-bit security compared to ML-DSA-44’s generous 160 bits. If lattice cryptanalysis improves, there is no middle security level: the next step-up is all the way to FN-DSA-1024 at 256 bits. FN-DSA-1024 has double the key and signature sizes and signing and verifying times of FN-DSA-512. An FN-DSA-1024 signature is still half the size of that of ML-DSA-44, but the _public key+signature_ only differs about 20%."
+    },
+    {
+      "type": "p",
+      "text": "To close the discussion of FN-DSA, it is good to emphasize that all difficulties with FN-DSA are on the signing side: the verification of an FN-DSA signature is very straightforward."
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "General-purpose algorithms",
+      "id": "general-purpose-algorithms"
+    },
+    {
+      "type": "p",
+      "text": "Now let’s turn to the algorithms that are meant to be general-purpose replacements for ML-DSA."
+    },
+    {
+      "type": "heading",
+      "level": 3,
+      "text": "HAWK",
+      "id": "hawk"
+    },
+    {
+      "type": "p",
+      "text": "**HAWK** is a curious case. In many aspects it’s similar to FN-DSA: a structured lattice hash-then-sign scheme with similar sizes for signatures and public keys with a missing middle security level. The main benefit of HAWK over FN-DSA is that signing is very fast and doesn’t use floating-point arithmetic, although it’s not a simple algorithm either. This comes with a trade-off: HAWK is based on and introduces a new security assumption, the _lattice isomorphism problem_(LIP). In 2024, two years after the introduction of HAWK, it was discovered that this problem is [easy to solve](https://eprint.iacr.org/2024/441) in the special case of totally real number fields, which aren’t used in HAWK or any other cryptography. In 2025, this attack was [extended](https://eprint.iacr.org/2025/280.pdf) to a broader class of number fields. This hasn’t yet applied to HAWK, but it’s getting closer. A new paper [published](https://eprint.iacr.org/2026/1318.pdf) in June 2026 suggests there is a way to extend the attack to HAWK. An error has been found in the paper, although it’s yet unclear how fundamental it is to the approach. Regardless, the trajectory is concerning."
+    },
+    {
+      "type": "p",
+      "text": "Even ignoring the potential attacks, HAWK faces some headwinds: its additional security assumption prevents it from displacing FN-DSA, but its practical benefits (especially considering the lack of middle security level) fall short of that of the structured multivariate candidates. It also doesn't increase diversity in security assumptions, an outcome that NIST is hoping for."
+    },
+    {
+      "type": "heading",
+      "level": 3,
+      "text": "Proof-of-knowledge schemes",
+      "id": "proof-of-knowledge-schemes"
+    },
+    {
+      "type": "p",
+      "text": "FAEST, MQOM, and SDitH all share a similar overall structure. Their public keys are instances of some hard problem and their secret keys are the solutions."
+    },
+    {
+      "type": "list",
+      "ordered": false,
+      "items": [
+        "A **FAEST** public key is the AES-encryption of a known plaintext under a secret key.",
+        "**MQOM** gets its name from the Multivariate Quadratic problem, which is closely related to (but more conservative than) the cryptographic assumptions underlying the multivariate schemes. The public key is a system of quadratic equations, and the secret key is a solution to that system of equations.",
+        "**SDitH** is based on the hardness of the Syndrome Decoding problem for random linear codes. This problem is related to the code-based schemes submitted to the original NIST competition, but these were eliminated in the third round."
+      ]
+    },
+    {
+      "type": "p",
+      "text": "In all cases, a signature is a [zero-knowledge proof](https://en.wikipedia.org/wiki/Zero-knowledge_proof) that the signer knows the solution of that hard problem, while at the same time (almost as an afterthought) acknowledging the message-to-be-signed as part of the proof."
+    },
+    {
+      "type": "p",
+      "text": "Many signature schemes are zero-knowledge proofs like this behind the scenes, notably ML-DSA, SQIsign, and Ed25519. Why don’t we group those with _proof of knowledge_ schemes too?"
+    },
+    {
+      "type": "p",
+      "text": "The difference is generalizability: the [zero-knowledge proof used for ML-DSA](https://blog.cloudflare.com/lattice-crypto-primer/#warm-up) is only able to prove something about a specific LWE problem as used in ML-DSA: the proof uses mathematical structure in the key. There are [ways](https://eprint.iacr.org/2022/1341.pdf) to create zero-knowledge proofs using lattices for any general statement, but those proof systems are very different from ML-DSA, and would create rather larger signatures on the order of 50kB."
+    },
+    {
+      "type": "p",
+      "text": "In contrast, the proof system used in FAEST, MQOM, and SDitH can be used to prove arbitrary statements. For instance, FAEST can be modified to use the hard problem of MQOM instead. This leads to a more efficient scheme called [KuMQuat](https://eprint.iacr.org/2024/490.pdf). (We’ll get to some performance numbers later on.) Conversely, MQOM can be adjusted to use AES as the hard problem."
+    },
+    {
+      "type": "p",
+      "text": "This flexibility is great for two reasons. First, it doesn’t require any specific mathematical structure in the hard problem used, and thus we can pick a very conservative problem such as breaking AES. Some problems lead to a more efficient signature than others, as we see with MQ as used in MQOM. MQ is still quite a conservative assumption: it does not contain the hidden subspace used in UOV and thus the other multivariate signatures. Neither the [intersection nor wedges attacks](#multivariate-security) apply to it. In fact, the MQ-problem is NP-hard. To be secure, one still needs to pick the correct size of the problem, and although MQ has been studied for quite a while, it certainly has not seen the same scrutiny as deployed algorithms like AES."
+    },
+    {
+      "type": "p",
+      "text": "The second and greater benefit is that we’re able to create much more than just a plain signature scheme from a general zero-knowledge proof system: we can create [blind signatures](https://eprint.iacr.org/2026/109.pdf) and even full-fledged anonymous credentials."
+    },
+    {
+      "type": "p",
+      "text": "Here it’s good to note a limitation: the size of the proofs for all three grows linearly with the statement proven. In technical terms: they’re not _succinct_ like [STARKs](https://aszepieniec.github.io/stark-anatomy/) and [LaBRADOR](https://eprint.iacr.org/2022/1341.pdf), which outperform them handily for large statements. It’s another example where sometimes it’s better to pick the approach that’s not optimal asymptotically."
+    },
+    {
+      "type": "p",
+      "text": "Back to advantages: apart from the hard problem chosen, and the security of hash functions, these three schemes don’t require any further security assumption. This makes FAEST as conservative as SLH-DSA."
+    },
+    {
+      "type": "p",
+      "text": "So what’s the difference except for the chosen hard problem? These schemes started off quite differently, but have been improving and converging since the first round. The proof system in MQOM is a bit simpler than FAEST, but it also does not perform as well: [KuMQuat](https://eprint.iacr.org/2024/490.pdf) (FAEST+MQ) outperforms MQOM."
+    },
+    {
+      "type": "p",
+      "text": "Talking about performance, let’s start with a comparison to SLH-DSA. All three schemes have variants that outperform any standardised SLH-DSA parameter set and often by a good margin. SLH-DSA does have one distinct advantage: the verification routine is simpler to implement."
+    },
+    {
+      "type": "p",
+      "text": "Against ML-DSA-44 the comparison is more interesting. All schemes have a smooth trade-off between runtime and signature size. To illustrate, here are trade-offs [reported](https://eprint.iacr.org/2024/490.pdf) for KuMQuat (FAEST+MQ.) Verification times are close to signing times."
+    },
+    {
+      "type": "image",
+      "src": "https://blog.cloudflare.com/_emdash/api/media/file/01KXDA9RWV414GRFVJ1Y3TBY1Q.png",
+      "alt": "image2.png"
+    },
+    {
+      "type": "p",
+      "text": "KuMQuat can be parametrized to have somewhat smaller signatures than ML-DSA-44 at the cost of long signing (and verification) runtime. At the other end, it can have similar signing time as ML-DSA-44, at the cost of larger signatures, although the public key+signature size is still similar."
+    },
+    {
+      "type": "p",
+      "text": "These schemes have improved quite a bit over the years, and we expect some improvements still. Although they won’t improve upon ML-DSA as dramatically as some of the other schemes considered, their conservative security and especially their potential for broader applications like anonymous credentials make them very appealing. To showcase the flexibility of the underlying zero-knowledge proof system, we’d like each scheme in this category to present numbers on how well they’d perform with a different underlying hard problem."
+    },
+    {
+      "type": "heading",
+      "level": 3,
+      "text": "Structured multivariate: MAYO versus SNOVA",
+      "id": "structured-multivariate-mayo-versus-snova"
+    },
+    {
+      "type": "p",
+      "text": "Like QR-UOV discussed earlier, MAYO and SNOVA are variants of UOV that add extra structure to the public key to reduce its size. MAYO and SNOVA take two different approaches: SNOVA makes aggressive bets to get the best performance, whereas MAYO treads carefully with a conservative design."
+    },
+    {
+      "type": "p",
+      "text": "SNOVA does have impressive performance. Its main parameter set has 248 byte signatures (smaller than RSA-2048!) with only a 1kB public key. It beats every other post-quantum scheme (except SQIsign) on public key+signature size and has great runtime."
+    },
+    {
+      "type": "p",
+      "text": "MAYO’s performance is nothing to scoff at either. MAYOone has the best verification time and its 454 byte signatures are still smaller than those of FN-DSA-512, HAWK-512, and RSA-4096. Combined with its 1,420 byte public key, MAYOone does slightly fall behind FN-DSA-512 and HAWK-512. However, MAYO takes the lead again if we ask for some security margin. FN-DSA and HAWK have a missing middle security level and thus need to bump all the way to the 256-bit security, whereas MAYO’s granularity can add extra security at the cost of slightly increasing public key and signature sizes."
+    },
+    {
+      "type": "table",
+      "head": ["", "Security", "Public key", "Signature", "PK + Sig"],
+      "rows": [
+        ["HAWK-1024", "256", "2,440", "1,221", "3,661"],
+        ["FN-DSA-1024", "256", "1,793", "1,280", "3,073"],
+        ["MAYO at 174 bit security", "174", "1,600", "550", "2,150"]
+      ]
+    },
+    {
+      "type": "p",
+      "text": "If that wasn’t good enough, both MAYO and SNOVA allow for a trade-off between signature and public key size. Thus, we can get even smaller signatures for public keys that are transmitted ahead of time. Pushed to the extreme, MAYO becomes UOV."
+    },
+    {
+      "type": "p",
+      "text": "So far we have discussed performance. What about the security? MAYO adds a “whipping” structure on top of UOV: any attack on UOV will also work for MAYO, but there might be attacks specific to the whipping structure of MAYO. So far no attacks on the whipping structure, and thus on MAYO specifically, have been found. The worst that has happened is that some UOV attacks have affected some MAYO variants more than typical UOV parameter sets, due to the UOV parameter choices that are natural for MAYO."
+    },
+    {
+      "type": "p",
+      "text": "This is in stark contrast to SNOVA. SNOVA has been hit quite hard on its specific structure several times. In response, the SNOVA team has not just tweaked parameters, but continuously changed the actual structure. Every time, they take the leap forward and propose a new SNOVA with even better performance. We noted this [last year](https://blog.cloudflare.com/pq-2025/#the-fight-between-mayo-versus-snova) and the pattern has continued, whereas MAYO’s basic design is stable."
+    },
+    {
+      "type": "p",
+      "text": "Furthermore, the structure SNOVA uses [can be](https://eprint.iacr.org/2024/1297.pdf) [seen](https://eprint.iacr.org/2026/659) as a special form of the whipping map that MAYO uses. That means that any MAYO-specific attack would apply to SNOVA, but not the other way around."
+    },
+    {
+      "type": "p",
+      "text": "All in all, we’ve seen a lot of progress on the understanding of multivariate security. NIST [wrote](https://csrc.nist.gov/pubs/ir/8610/final) that they expect an extra round before standardizing a multivariate scheme. That seems prudent. To us, it’s unclear whether SNOVA would be ready by then, but MAYO so far seems to have matured well."
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Timelines",
+      "id": "timelines"
+    },
+    {
+      "type": "p",
+      "text": "Now, let’s have a look ahead and sketch when these new signature algorithms might become usable."
+    },
+    {
+      "type": "heading",
+      "level": 3,
+      "text": "Progress for ML-DSA so far",
+      "id": "progress-for-ml-dsa-so-far"
+    },
+    {
+      "type": "p",
+      "text": "It’s illustrative to look at ML-DSA."
+    },
+    {
+      "type": "table",
+      "head": ["November 2017", "Submitted to the competition"],
+      "rows": [
+        ["January 2019", "Progressed to the second round"],
+        ["July 2020", "Progressed to third round"],
+        ["July 2022", "Selected for standardization"],
+        ["August 2023", "Initial public draft"],
+        ["August 2024", "Final NIST standard"],
+        ["October 2025", "ML-DSA certificate standard (RFC 9881)"],
+        ["April 2025", "OpenSSL 3.5.0 adds support for ML-DSA"],
+        ["August 2025", "Debian Trixie released with OpenSSL 3.5.0"],
+        ["December 2025", "TLS IANA codepoint for ML-DSA registered"],
+        ["March 2026", "First CMVP certificates for ML-DSA module"],
+        ["July 2026 (expected)", "Hybrid ML-DSA certificate standard"],
+        ["August 2026 (expected)", "RFC for use of ML-DSA in TLS"],
+        [
+          "Early 2027 (expected)",
+          "Availability first ML-DSA certificates in WebPKI"
+        ]
+      ]
+    },
+    {
+      "type": "p",
+      "text": "After NIST selected Dilithium to become ML-DSA, it took a year to draft a proposal for the standard, and another year for the algorithm standard to be published. The algorithm standard is not enough: protocols need to agree on how to integrate ML-DSA. For certificates that took another year. That’s not the end of it: software needs to add support for ML-DSA and its integration into protocols."
+    },
+    {
+      "type": "p",
+      "text": "These steps are not purely sequential: work on software implementation of ML-DSA started before the final standard. Also, protocol integration standards are often “done” before they’re a final standard. For instance, the use of ML-DSA in TLS is done, but at the time of writing it’ll take a couple of months before the RFC for that is out. Notably OpenSSL jumped the gun and added support for ML-DSA before the IANA codepoints were assigned. Notably missing still is agreement on which hybrid signatures should be used in TLS ([or at all](https://keymaterial.net/2026/06/18/on-hybrid-signatures/)), for which (at the time of writing) no IANA code points have been assigned."
+    },
+    {
+      "type": "heading",
+      "level": 3,
+      "text": "When will these new signature algorithms be ready for use?",
+      "id": "when-will-these-new-signature-algorithms-be-ready-for-use"
+    },
+    {
+      "type": "p",
+      "text": "So where does that leave us for new signature algorithms? If the **FN-DSA** draft is released today, and it progresses at the same rate as ML-DSA, then we’d perhaps have some early software support in early 2029, but no significant deployment. Looking at the time it took to write the FN-DSA draft standard, it is likely that the final standard, protocol integrations, and software support will progress slowly as well. We would not expect FN-DSA to be widely available before 2033."
+    },
+    {
+      "type": "p",
+      "text": "The progress in cryptanalysis of **multivariate** schemes gave NIST pause: they wrote that they expect multivariate to at least take another round of about two years. On the other hand, multivariate schemes are reasonably easy to implement. That means we might see a multivariate NIST standard in 2031, and wider product availability not earlier than 2034."
+    },
+    {
+      "type": "p",
+      "text": "NIST is more confident in the security of **SQIsign** than that of multivariate. Not unlike FN-DSA, SQIsign is a difficult scheme to standardise and implement. At the same time, a lot of progress is made in simplifying SQIsign. It seems likely that SQIsign will make large changes for the third round, and will thus require a fourth round of evaluation. In either case, wide availability before 2035 seems unlikely."
+    },
+    {
+      "type": "p",
+      "text": "As discussed [above](#hawk), **HAWK** occupies an awkward middle ground between FN-DSA and structured multivariate candidates. If it were standardized, which seems unlikely even before the recent progress in cryptanalysis, we wouldn’t expect product availability before 2034."
+    },
+    {
+      "type": "p",
+      "text": "That leaves the _proof of knowledge_ algorithms **MQOM**, **SDitH**, and **FAEST**. We’ve seen dramatic improvements to these schemes over the rounds. If that rate of change holds, it’ll require another round, but if it’s stable now, a proof of knowledge algorithm will be the first new NIST standard to see the light in 2030. If it’s out this early, it’ll likely not outperform ML-DSA dramatically. Nonetheless, it’ll still be very welcome to build anonymous credentials and other primitives beyond signatures."
+    },
+    {
+      "type": "p",
+      "text": "So, should you wait on one of these signatures for your post-quantum migration? Given recent advances in quantum hardware and software, we don’t believe we can afford to wait. At Cloudflare, we’re aiming to be [fully migrated by 2029](https://blog.cloudflare.com/post-quantum-roadmap). None of these signatures will be out in time. Deadlines of most regulators vary between 2030 and 2035. These did not account for recent progress, and we expect them to be adjusted. We saw just this with the [June 2026 US executive order](https://blog.cloudflare.com/post-quantum-eo-2026/) setting a 2031 deadline. Even if deadlines weren’t changed, we wouldn’t advise waiting."
+    },
+    {
+      "type": "p",
+      "text": "Why? Deploying post-quantum signatures in 2034 to beat a 2035 deadline is not enough. In a system of any reasonable size, you can’t upgrade everything all at once. You’ll need a transition period where both post-quantum and traditional signatures are supported. And supporting both allows for a downgrade attack. The most straightforward way to prevent such downgrades is to disable classical cryptography. That will take time, and is frankly not even an option in many sufficiently distributed systems like the WebPKI. We will cover how to deal with downgrades in a future blog post. In the meantime [here](https://www.chromium.org/Home/chromium-security/post-quantum-auth-roadmap/) is some reading if you’re curious. In any case, dealing with downgrades will take time."
+    },
+    {
+      "type": "p",
+      "text": "It seems clear these new post-quantum signature algorithms will not be ready to use in time for the first migration. So why bother?"
+    },
+    {
+      "type": "heading",
+      "level": 3,
+      "text": "Why we still need them",
+      "id": "why-we-still-need-them"
+    },
+    {
+      "type": "p",
+      "text": "We’ve had [50 years](https://ee.stanford.edu/~hellman/publications/24.pdf) to weave public key cryptography all through our digital society. We have a few short years left to make it all quantum secure. For most of these upgrades the procedure is clear: drop in post-quantum cryptography. Easier said than done: it’s a monumental task. But then there are cases that are fundamentally harder. There's no all-star signature in a post-quantum world, and there are cases where the size of ML-DSA is a problem. With enough resources and stakeholder agreement, systems can be re-engineered to work well with these larger signatures. Indeed, thanks to ongoing re-engineering, the post-quantum WebPKI is shaping up to [perform better](https://blog.cloudflare.com/bootstrap-mtc) than the quantum-vulnerable one of today. It is unrealistic to expect that this will happen for every system before it’s too late. Some will have to accept a performance cost. Others will need to deal with the security gap in other ways, such as restricting access, tunneling, more monitoring, or a myriad of other measures that are costly on their own. Once smaller post-quantum signatures arrive, these compensating controls can be removed, and full efficiency and security restored."
+    },
+    {
+      "type": "p",
+      "text": "An indirect, but no less important benefit of the ongoing NIST competition is its help in furthering post-quantum cryptography beyond basic primitives: it isn’t just key agreement and signatures that are quantum vulnerable. There is a long tail of [_fancy_cryptographic primitives](https://github.com/fancy-cryptography/fancy-cryptography) out there used in production, such as anonymous credentials, PAKEs, and threshold signatures to name a few. For most, post-quantum variants are not readily available or are understudied. For some, the same goal can be achieved without fancy cryptography, but with a regrettable regression in subtle privacy goals. NIST cannot run a competition to define a post-quantum standard for each of these specific primitives, but luckily the signatures competition has been a huge help here."
+    },
+    {
+      "type": "p",
+      "text": "The most clear example is FAEST. Although designed as a signature scheme, its underlying machinery (VOLEitH) can be repurposed in combination with a multivariate scheme like MAYO, to create an efficient [post-quantum anonymous credential](https://www.usenix.org/system/files/conference/usenixsecurity26/sec26_prepub_baum.pdf). Without the signatures competition, VOLEitH wouldn’t be as developed and vetted as it is today."
+    },
+    {
+      "type": "p",
+      "text": "Many of the candidate schemes briefly point out their usefulness apart from signatures. We hope to see more of the indirect applications of these schemes highlighted."
+    },
+    {
+      "type": "p",
+      "text": "Despite great signatures and more advanced cryptography on the horizon, we should not forget the task at hand: staying secure in the immediate future."
+    }
+  ]
+}

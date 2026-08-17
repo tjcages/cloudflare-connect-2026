@@ -129,21 +129,12 @@ export const COMET_LOGO_POINTS = [
   [0.06077, 0.48298],
 ] as const satisfies readonly (readonly [number, number])[];
 
-export const COMET_LOGO_POINT_COUNT = COMET_LOGO_POINTS.length;
-export const COMET_LOGO_SPARK_ANCHOR_POINTS = COMET_LOGO_POINTS.filter(
-  (_, index) => index <= 20 || (index >= 36 && index <= 46) || index >= 79,
+export const COMET_LOGO_SPARK_ANCHOR_INDICES = COMET_LOGO_POINTS.map((_, index) => index).filter(
+  (index) => index <= 20 || (index >= 36 && index <= 46) || index >= 79,
 );
-export const COMET_LOGO_IDLE_BACKGROUND_POINT_COUNT = 160;
-export const COMET_LOGO_BACKGROUND_POINT_COUNT = COMET_LOGO_IDLE_BACKGROUND_POINT_COUNT;
+export const COMET_LOGO_BACKGROUND_POINT_COUNT = 160;
 export const COMET_LOGO_NEEDLE_SPARK_POINT_COUNT = 48;
 export const COMET_LOGO_EVENT_SPARK_POINT_COUNT = 48;
 export const COMET_LOGO_EVENT_GROUP_COUNT = 8;
 export const COMET_LOGO_SPARK_POINT_COUNT = COMET_LOGO_NEEDLE_SPARK_POINT_COUNT + COMET_LOGO_EVENT_SPARK_POINT_COUNT;
-export const COMET_LOGO_IDLE_RENDER_POINT_COUNT = COMET_LOGO_POINT_COUNT + COMET_LOGO_IDLE_BACKGROUND_POINT_COUNT;
-export const COMET_LOGO_RENDER_POINT_COUNT = COMET_LOGO_POINT_COUNT + COMET_LOGO_BACKGROUND_POINT_COUNT;
-export const COMET_LOGO_ACTIVE_RENDER_POINT_COUNT = COMET_LOGO_RENDER_POINT_COUNT + COMET_LOGO_SPARK_POINT_COUNT;
 export const COMET_LOGO_TRAIL_SEGMENT_COUNT = 8;
-
-export function cometLogoPoolPointCount(logoDensity: number): number {
-  return Math.max(1, Math.round(logoDensity * COMET_LOGO_POINT_COUNT));
-}

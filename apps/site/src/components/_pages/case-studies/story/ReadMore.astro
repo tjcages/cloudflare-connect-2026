@@ -1,0 +1,44 @@
+---
+import Container from "@/components/Container.astro";
+import Card from "../cards/Card.astro";
+import { CASE_CARDS, type CaseCardName } from "../cards/data";
+
+interface Props {
+  slug: string;
+}
+
+const { slug } = Astro.props;
+
+const names = Object.keys(CASE_CARDS) as CaseCardName[];
+
+let start = names.indexOf(slug as CaseCardName);
+if (start === -1) {
+  let sum = 0;
+  for (const char of slug) sum += char.charCodeAt(0);
+  start = sum % names.length;
+}
+
+const picks = [-3, -2, -1].map(
+  (offset) => names[(start + offset + names.length) % names.length]
+);
+---
+
+<Container as="section" aria-labelledby="read-more-heading">
+  <div class="pt-120 pb-80">
+    <h2
+      class="text-center text-heading-h2 text-text-base"
+      id="read-more-heading"
+    >
+      Read more customer stories
+    </h2>
+
+    <div class="mx-40 mt-80 flex justify-between">
+      {picks.map((name, index) => (
+        <>
+          {index > 0 && <div class="h-440 w-px self-start bg-border-muted" />}
+          <Card name={name} width={320} />
+        </>
+      ))}
+    </div>
+  </div>
+</Container>

@@ -1,0 +1,15 @@
+---
+import cloudflareLogo from "@/components/icon/_svg/cloudflare.svg?url";
+import BrowserCarousel from "@/components/browser-carousel/BrowserCarousel.astro";
+import type { BrowserCarouselItem } from "@/components/browser-carousel/types";
+
+const items = [
+  {
+    id: "cloudflare",
+    variant: "grid-1",
+    logos: [{ src: cloudflareLogo, width: 36, height: 24 }],
+  },
+] as const satisfies readonly BrowserCarouselItem[];
+---
+
+<BrowserCarousel items={items} />

@@ -1,0 +1,29 @@
+---
+import Container from "@/components/Container.astro";
+import LogoCloudStrip from "./LogoCloudStrip";
+
+interface Props {
+  variant?: "default" | "pages";
+  dividers?: boolean;
+}
+
+const { variant = "default", dividers = true } = Astro.props;
+---
+
+<Container data-logo-cloud={variant} class="h-120">
+  <LogoCloudStrip
+    {variant}
+    {dividers}
+    client:visible={{ rootMargin: "200px" }}
+  />
+</Container>
+
+<style is:inline>
+  [data-logo-cloud="pages"] {
+    --logo-cloud-ink: var(--color-text-base);
+  }
+
+  :root[data-theme="dark"] {
+    --logo-cloud-ink: var(--color-neutral-12);
+  }
+</style>

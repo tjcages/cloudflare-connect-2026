@@ -1,0 +1,166 @@
+---
+import { CELL_SIZE } from "@/components/_animations/constants";
+import type { IProductsBox } from "@/components/_animations/products/box/types";
+import Products from "@/components/_animations/products/Products.astro";
+import { compileBoxes } from "@/components/_animations/products/utils/compileBoxes";
+import Section from "@/layouts/Section.astro";
+
+const CARD_WIDTH = 1120;
+const REQUEST_DROP = 35;
+
+const lanes: IProductsBox[] = [
+  {
+    id: "north-america-east",
+    name: { text: "North America", position: "bottom" },
+    icon: "user",
+    size: 1,
+    color: "red",
+    position: { x: 88, y: 52 },
+    connectTo: ["newark"],
+    connectToEdge: true,
+  },
+  {
+    id: "north-america-south",
+    name: { text: "North America", position: "bottom" },
+    icon: "user",
+    size: 1,
+    color: "blue",
+    position: { x: 88, y: 188 },
+    connectTo: ["atlanta"],
+    connectToEdge: true,
+  },
+  {
+    id: "east-asia",
+    name: { text: "East Asia", position: "bottom" },
+    icon: "user",
+    size: 1,
+    color: "green",
+    position: { x: 88, y: 324 },
+    connectTo: ["tokyo"],
+    connectToEdge: true,
+  },
+  {
+    id: "newark",
+    name: { text: "USA, Newark", position: "bottom" },
+    icon: "product-workers",
+    size: 1,
+    color: "purple",
+    position: { x: 376, y: 52 },
+    connectTo: ["durable-object-americas"],
+  },
+  {
+    id: "atlanta",
+    name: { text: "USA, Atlanta", position: "bottom" },
+    icon: "product-workers",
+    size: 1,
+    color: "purple",
+    position: { x: 376, y: 188 },
+    connectTo: ["durable-object-americas"],
+  },
+  {
+    id: "tokyo",
+    name: { text: "Japan, Tokyo", position: "bottom" },
+    icon: "product-workers",
+    size: 1,
+    color: "purple",
+    position: { x: 376, y: 324 },
+    connectTo: ["durable-object-asia"],
+  },
+  {
+    id: "durable-object-americas",
+    name: { text: "Durable Object", position: "bottom" },
+    icon: "product-durable-objects",
+    size: 1,
+    color: "orange",
+    position: { x: 664, y: 120 },
+    connectTo: ["container-americas"],
+  },
+  {
+    id: "durable-object-asia",
+    name: { text: "Durable Object", position: "bottom" },
+    icon: "product-durable-objects",
+    size: 1,
+    color: "orange",
+    position: { x: 664, y: 280 },
+    connectTo: ["container-asia"],
+  },
+  {
+    id: "container-americas",
+    name: { text: "Container", position: "bottom" },
+    icon: "product-containers",
+    size: 1,
+    color: "orange",
+    position: { x: 952, y: 120 },
+    connectToEdge: true,
+  },
+  {
+    id: "container-asia",
+    name: { text: "Container", position: "bottom" },
+    icon: "product-containers",
+    size: 1,
+    color: "orange",
+    position: { x: 952, y: 280 },
+    connectToEdge: true,
+  },
+];
+
+const boxes: IProductsBox[] = compileBoxes(lanes);
+const compiled = new Map(lanes.map((box, index) => [box.id, boxes[index]]));
+
+// Each badge sits at the midpoint of the connector it labels, and the engine
+// reveals it by the id of the box that connector feeds.
+const requests = [
+  ["north-america-east", "newark"],
+  ["north-america-south", "atlanta"],
+  ["east-asia", "tokyo"],
+].map(([fromId, toId]) => {
+  const from = compiled.get(fromId)!;
+  const to = compiled.get(toId)!;
+  return {
+    id: to.id,
+    x: (from.position.x + CELL_SIZE + to.position.x) / 2,
+    y: from.position.y + CELL_SIZE / 2 + REQUEST_DROP,
+  };
+});
+---
+
+<Section layout="split" eyebrow="Real Time" sectionEyebrow="Architecture">
+  <Fragment slot="title">
+    Serverless meets stateful: <br />Orchestrate Containers <br />with Workers
+  </Fragment>
+
+  <Fragment slot="description">
+    <div class="-ml-29 w-549">
+      Use Workers to handle requests, route traffic, and <br />manage sessions –
+      Containers to run any code in full isolation.
+      <br /><br />
+      Scale workloads globally without clusters, control planes, or cold starts.
+    </div>
+  </Fragment>
+
+  <div class="relative h-480">
+    <Products
+      boxes={boxes}
+      edgeStyle="solid"
+      pulse={{
+        canvasWidth: CARD_WIDTH,
+        edgeThrows: false,
+        duration: 1.33,
+        ease: [0.5, 0.5, 0.5, 1],
+        handoff: -0.293,
+        spawn: [1.8, 2.45],
+        stagger: 1.4,
+      }}
+    />
+
+    {requests.map((request) => (
+      <div
+        class="absolute flex h-20 -translate-x-1/2 -translate-y-1/2 items-center rounded-full bg-background-base px-10 text-decorative-tiny text-text-muted opacity-0 transition-opacity duration-350 ease-[cubic-bezier(0.6,0.6,0,1)] before:inner-border before:border-border-default before:[transition:none] data-revealed:opacity-100"
+        data-connector-badge={request.id}
+        style={{ left: request.x + "px", top: request.y + "px" }}
+      >
+        <span data-connector-badge-text>Request</span>
+      </div>
+    ))}
+  </div>
+</Section>

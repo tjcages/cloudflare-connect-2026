@@ -1,0 +1,18 @@
+---
+import DashedLineGrid from "@/components/dashed-line/DashedLineGrid";
+import Section from "@/layouts/Section.astro";
+---
+
+<Section noGridArea layout="headerless" sectionEyebrow="Features">
+  <div
+    class="relative grid grid-cols-3 before:inside-border before:border-border-default"
+  >
+    <slot />
+
+    <DashedLineGrid
+      client:visible={{ rootMargin: "200px" }}
+      columns={3}
+      rows={1}
+    />
+  </div>
+</Section>

@@ -1,0 +1,121 @@
+<svg width="1600" height="640" viewBox="0 0 800 320" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_carrefour)">
+<rect width="800" height="320" fill="black"/>
+<g opacity="0.3" filter="url(#glow0_carrefour)">
+<circle cx="176" cy="-47" r="207" fill="url(#paint0_carrefour)"/>
+</g>
+<g opacity="0.3" filter="url(#glow1_carrefour)">
+<circle cy="412" r="347" fill="url(#paint1_carrefour)"/>
+</g>
+<g opacity="0.2" filter="url(#glow2_carrefour)">
+<circle cx="710" cy="-56" r="287" fill="url(#paint2_carrefour)"/>
+</g>
+<g opacity="0.3" filter="url(#glow3_carrefour)">
+<circle cx="552" cy="386" r="321" fill="url(#paint3_carrefour)"/>
+</g>
+<g filter="url(#logo_carrefour)">
+<g transform="translate(-120 -360) scale(52)">
+<g>
+<g>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M5.91351 3.93834C5.94911 3.90382 5.98259 3.88993 6.01141 3.88993C6.06304 3.88993 6.09935 3.93498 6.09767 3.98995C6.09609 4.02256 6.08173 4.05838 6.04965 4.08979C4.76637 5.65215 3.8331 7.47806 3.8331 10.0112C3.8331 12.5422 4.76637 14.3331 6.04965 15.8947C6.08173 15.9262 6.09609 15.9626 6.09767 15.9946C6.09935 16.0489 6.06304 16.0947 6.01141 16.0947C5.98259 16.0947 5.94911 16.0808 5.91351 16.0461L0.446941 10.8688C0.174124 10.6399 0 10.3728 0 9.99276C0 9.61108 0.174124 9.34469 0.446941 9.11756L5.91351 3.93834Z" fill="white"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M10.1166 3.5C7.97622 3.5 7.13953 6.4706 7.13953 10.0113C7.13953 13.5528 7.97622 16.4839 10.1166 16.4839C11.4009 16.4839 12.4957 15.7472 12.4995 15.1418C12.4997 15.0095 12.4478 14.8824 12.3342 14.7715C11.7258 14.1956 11.4875 13.6197 11.4852 13.112C11.4818 12.1422 12.3411 11.4195 13.1328 11.4195C14.2218 11.4195 14.864 12.2579 14.864 13.3431C14.864 14.371 14.4157 15.2283 13.9295 15.9135C13.9106 15.9422 13.9021 15.9727 13.9021 16.0004C13.9027 16.0545 13.9345 16.0985 13.983 16.0985C14.0126 16.0985 14.0471 16.0831 14.0846 16.046L19.5527 10.8688C19.8257 10.6399 20 10.3728 20 9.9928C20 9.61112 19.8257 9.34464 19.5527 9.11751L14.0846 3.93838C14.0471 3.9017 14.0126 3.88634 13.983 3.88634C13.9341 3.88634 13.9027 3.9307 13.9021 3.98463C13.9021 4.01242 13.9106 4.04322 13.9295 4.07196C14.4157 4.75636 14.864 5.61465 14.864 6.64181C14.864 7.72619 14.2218 8.56549 13.1328 8.56549C12.3411 8.56549 11.4818 7.84329 11.4852 6.87317C11.4875 6.36506 11.7258 5.78922 12.3342 5.2139C12.4478 5.10188 12.4997 4.97572 12.4995 4.84343C12.4957 4.23721 11.4009 3.5 10.1166 3.5Z" fill="white"/>
+</g>
+</g>
+</g>
+</g>
+</g>
+<defs>
+<filter id="logo_carrefour" x="-120" y="-360" width="1040" height="1096" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feColorMatrix in="SourceGraphic" type="matrix" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 0.001 0" result="shape"/>
+<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+<feOffset dy="1"/>
+<feGaussianBlur stdDeviation="1"/>
+<feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1"/>
+<feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.4 0"/>
+<feComposite in2="SourceAlpha" operator="in"/>
+<feBlend mode="normal" in2="shape" result="effect1_innerShadow_carrefour"/>
+<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+<feOffset dy="2"/>
+<feGaussianBlur stdDeviation="2"/>
+<feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1"/>
+<feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.16 0"/>
+<feComposite in2="SourceAlpha" operator="in"/>
+<feBlend mode="normal" in2="effect1_innerShadow_carrefour" result="effect2_innerShadow_carrefour"/>
+<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+<feOffset dy="4"/>
+<feGaussianBlur stdDeviation="4"/>
+<feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1"/>
+<feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.12 0"/>
+<feComposite in2="SourceAlpha" operator="in"/>
+<feBlend mode="normal" in2="effect2_innerShadow_carrefour" result="effect3_innerShadow_carrefour"/>
+<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+<feOffset dy="8.8"/>
+<feGaussianBlur stdDeviation="4.92"/>
+<feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1"/>
+<feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.12 0"/>
+<feComposite in2="SourceAlpha" operator="in"/>
+<feBlend mode="normal" in2="effect3_innerShadow_carrefour" result="effect4_innerShadow_carrefour"/>
+<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+<feOffset dy="22"/>
+<feGaussianBlur stdDeviation="13.12"/>
+<feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1"/>
+<feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.24 0"/>
+<feComposite in2="SourceAlpha" operator="in"/>
+<feComposite operator="arithmetic" k1="0" k2="1" k3="1" k4="0" in2="effect4_innerShadow_carrefour" result="effect5_innerShadow_carrefour"/>
+<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+<feOffset dy="35.2"/>
+<feGaussianBlur stdDeviation="22.96"/>
+<feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1"/>
+<feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.24 0"/>
+<feComposite in2="SourceAlpha" operator="in"/>
+<feComposite operator="arithmetic" k1="0" k2="1" k3="1" k4="0" in2="effect5_innerShadow_carrefour" result="effect6_innerShadow_carrefour"/>
+<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+<feOffset dy="52.8"/>
+<feGaussianBlur stdDeviation="36.08"/>
+<feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1"/>
+<feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.12 0"/>
+<feComposite in2="SourceAlpha" operator="in"/>
+<feComposite operator="arithmetic" k1="0" k2="1" k3="1" k4="0" in2="effect6_innerShadow_carrefour" result="effect7_innerShadow_carrefour"/>
+</filter>
+<filter id="glow0_carrefour" x="-87" y="-310" width="526" height="526" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+<feGaussianBlur stdDeviation="22.96" result="effect1_foregroundBlur_carrefour"/>
+</filter>
+<radialGradient id="paint0_carrefour" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(176 -47) rotate(90) scale(207 232.729)">
+<stop stop-color="white"/>
+<stop offset="1" stop-opacity="0"/>
+</radialGradient>
+<filter id="glow1_carrefour" x="-403" y="9" width="806" height="806" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+<feGaussianBlur stdDeviation="22.96" result="effect1_foregroundBlur_carrefour"/>
+</filter>
+<radialGradient id="paint1_carrefour" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(0 412) rotate(90) scale(347 390.13)">
+<stop stop-color="white"/>
+<stop offset="1" stop-opacity="0"/>
+</radialGradient>
+<filter id="glow2_carrefour" x="367" y="-399" width="686" height="686" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+<feGaussianBlur stdDeviation="22.96" result="effect1_foregroundBlur_carrefour"/>
+</filter>
+<radialGradient id="paint2_carrefour" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(710 -56) rotate(90) scale(287 322.672)">
+<stop stop-color="white"/>
+<stop offset="1" stop-opacity="0"/>
+</radialGradient>
+<filter id="glow3_carrefour" x="175" y="9" width="754" height="754" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+<feGaussianBlur stdDeviation="22.96" result="effect1_foregroundBlur_carrefour"/>
+</filter>
+<radialGradient id="paint3_carrefour" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(552 386) rotate(90) scale(321 360.898)">
+<stop stop-color="white"/>
+<stop offset="1" stop-opacity="0"/>
+</radialGradient>
+<clipPath id="clip0_carrefour">
+<rect width="800" height="320" fill="white"/>
+</clipPath>
+</defs>
+</svg>

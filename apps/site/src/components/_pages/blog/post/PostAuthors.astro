@@ -1,0 +1,54 @@
+---
+import Button from "@/components/Button";
+import { authorsOf, type Post } from "../data";
+
+interface Props {
+  post: Post;
+}
+
+const { post } = Astro.props;
+
+const authors = authorsOf(post);
+---
+
+<div class="flex items-center gap-16">
+  <div class="flex items-center">
+    {authors.map((author, index: number) => (
+      <div
+        class:list={[
+          "relative size-28 shrink-0 overflow-clip rounded-full bg-background-surface before:inner-border before:border-darker/7 before:[transition:none]",
+          index > 0 && "-ml-8 ring-2 ring-background-base",
+        ]}
+      >
+        <img
+          alt=""
+          class="size-full object-cover"
+          height={28}
+          loading="lazy"
+          src={author.avatar}
+          width={28}
+        />
+      </div>
+    ))}
+  </div>
+
+  <div class="flex flex-wrap items-center gap-4">
+    {authors.map((author, index: number) => (
+      <>
+        {index > 0 && (
+          <span class="text-body-x-small text-text-muted">
+            {index === authors.length - 1 ? "and" : ","}
+          </span>
+        )}
+
+        <Button
+          href={`/blog/author/${author.slug}`}
+          size="default"
+          variant="link-button"
+        >
+          {author.name}
+        </Button>
+      </>
+    ))}
+  </div>
+</div>

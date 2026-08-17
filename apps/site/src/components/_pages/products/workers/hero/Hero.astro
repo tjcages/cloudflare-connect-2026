@@ -1,0 +1,126 @@
+---
+import type { IProductsBox } from "@/components/_animations/products/box/types";
+import Products from "@/components/_animations/products/Products.astro";
+import { compileBoxes } from "@/components/_animations/products/utils/compileBoxes";
+import Button from "@/components/Button";
+import CodePiece from "@/components/code-piece/CodePiece.astro";
+import CornerDots from "@/components/CornerDots";
+import HeroGrid from "@/components/hero-grid/HeroGrid.astro";
+import Icon from "@/components/icon/Icon";
+import Scramble from "@/components/scramble/Scramble";
+import SectionEyebrow from "@/components/SectionEyebrow.astro";
+
+const boxes: IProductsBox[] = compileBoxes([
+  {
+    id: "worker",
+    name: { text: "Workers", position: "bottom" },
+    icon: "product-workers",
+    size: 1,
+    color: "purple",
+    counter: { type: "duplicates", count: 2 },
+    position: { x: 160, y: 240 },
+    connectTo: ["api"],
+    connectToEdge: true,
+  },
+  {
+    id: "api",
+    name: { text: "API", position: "bottom" },
+    icon: "product-api",
+    size: 1,
+    color: "blue",
+    counter: {
+      type: "routes",
+      data: [
+        { method: "GET", path: "/products" },
+        { method: "POST", path: "/users/profile" },
+        { method: "POST", path: "/order" },
+      ],
+    },
+    position: { x: 320, y: 80 },
+    connectTo: ["workers"],
+  },
+  {
+    id: "workers",
+    name: { text: "Workers", position: "top", loud: true },
+    icon: "product-workers",
+    size: 3,
+    color: "purple",
+    position: { x: 480, y: 160 },
+    connectTo: ["kv"],
+  },
+  {
+    id: "kv",
+    name: { text: "KV", position: "bottom" },
+    icon: "product-kv",
+    size: 1,
+    color: "green",
+    position: { x: 800, y: 80 },
+    connectTo: ["durable-object"],
+  },
+  {
+    id: "durable-object",
+    name: { text: "Durable Object", position: "bottom" },
+    icon: "product-durable-objects",
+    size: 1,
+    color: "orange",
+    counter: { type: "duplicates", count: 2 },
+    position: { x: 960, y: 240 },
+    connectToEdge: true,
+  },
+]);
+---
+
+<div class="relative mx-auto max-w-1200 pt-280 pb-120">
+  <HeroGrid />
+  <SectionEyebrow text="Hero" />
+
+  <CornerDots count={4} faintClassName="z-30" />
+
+  <Products boxes={boxes} />
+
+  <CodePiece
+    duotone
+    code="const { results } = await stmt.all();"
+    align="right"
+    class="absolute top-480 -left-80 w-240"
+  />
+
+  <CodePiece
+    duotone
+    code={`import { DurableObject } from "cloudflare:workers";`}
+    align="left"
+    class="absolute top-560 -right-80 w-320"
+  />
+
+  <div class="mx-auto max-w-640 select-auto">
+    <Scramble
+      client:visible
+      preset="eyebrow-hero"
+      segments={[
+        { text: "07 · " },
+        { text: "COMPUTE", className: "text-orange-900" },
+      ]}
+      className="py-32 text-center text-decorative-small text-text-faint"
+    />
+
+    <h1 class="mb-16 text-center text-heading-h1">
+      Deploy serverless functions globally in seconds
+    </h1>
+
+    <div class="mx-auto mb-40 max-w-500 text-center text-body-large">
+      Cloudflare Workers are fast, elastic, and serverless functions that scale
+      automatically from zero to millions of requests.
+    </div>
+
+    <div class="flex justify-center gap-12">
+      <Button size="large">
+        <Icon name="cloudflare" className="h-20 w-30" />
+        <span>Start building for free</span>
+      </Button>
+
+      <Button variant="secondary" size="large" className="px-14">
+        <span>View docs</span>
+      </Button>
+    </div>
+  </div>
+</div>

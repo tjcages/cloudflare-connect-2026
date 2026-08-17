@@ -1,0 +1,29 @@
+---
+import Box from "@/components/_animations/ui/Box.astro";
+import Icon from "@/components/icon/Icon";
+---
+
+<Box
+  colorName="orange"
+  height={120}
+  innerProps={{
+    "data-box-inner": "",
+    className: "flex-center text-(--box-color-900) transition-colors",
+  }}
+  width={120}
+>
+  <div class="absolute top-0 centering-w-1 h-full bg-border-faint"></div>
+  <div class="absolute centering-h-1 left-0 w-full bg-border-faint"></div>
+
+  <div
+    class="relative flex-center size-48 rounded-full bg-background-base shadow-elevation-default dark:shadow-[0_0_0_1px_var(--color-isolate-ring-active)]"
+    data-orbit-side="traditional"
+  >
+    <Icon
+      name="code-brackets"
+      variant="duo"
+      color="orange"
+      className="size-20"
+    />
+  </div>
+</Box>

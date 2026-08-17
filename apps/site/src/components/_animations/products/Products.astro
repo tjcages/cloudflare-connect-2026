@@ -1,0 +1,85 @@
+---
+import { CELL_SIZE } from "../constants";
+import Box from "../ui/Box.astro";
+import BoxName from "../ui/BoxName.astro";
+import BoxInner from "./box/BoxInner.astro";
+import BoxTooltip from "./box/BoxTooltip.astro";
+import type { IProductsBox } from "./box/types";
+import ProductsCanvas from "./connectors/ProductsCanvas";
+import type { PulseOptions } from "./connectors/pulse";
+import Connectors from "./connectors/Connectors.astro";
+import DashedConnections from "./connectors/DashedConnections.astro";
+
+import "./Products.css";
+
+interface Props {
+  boxes: IProductsBox[];
+  pulse?: PulseOptions;
+  edgeStyle?: "dashed" | "solid";
+}
+
+const { boxes, pulse, edgeStyle } = Astro.props;
+---
+
+<div class="flex gap-12" data-products-canvas>
+  <div
+    aria-hidden="true"
+    class="pointer-events-none absolute inset-0"
+    data-products-visual
+  >
+  </div>
+  <Connectors boxes={boxes} />
+  <DashedConnections
+    boxes={boxes}
+    canvasWidth={pulse?.canvasWidth}
+    variant={edgeStyle}
+  />
+
+  {boxes.map((box: IProductsBox) => (
+    <div
+      class="group absolute"
+      data-product-box
+      id={box.id}
+      style={{
+        left: box.position.x + "px",
+        top: box.position.y + "px",
+        height: CELL_SIZE + "px",
+        width: CELL_SIZE * box.size + "px",
+        "--box-active-100": `var(--color-chips-background-${box.color})`,
+        "--box-active-900": `var(--color-${box.color}-900)`,
+        "--box-active-800": `var(--color-${box.color}-800)`,
+        "--box-active-chip-shadow": `var(--shadow-chip-${box.color})`,
+      }}
+    >
+      <Box
+        color="var(--box-color-100)"
+        height={CELL_SIZE}
+        innerProps={{
+          "data-box-inner": "",
+          className: "flex text-(--box-color-900) transition-colors",
+        }}
+        relyOnActive
+        width={CELL_SIZE * box.size}
+      >
+        <BoxInner icon={box.icon} size={box.size} />
+
+        {box.counter && (
+          <div class="absolute top-3 left-[calc(50%+18px)] flex-center size-14 -translate-x-1/2 rounded-full bg-(--box-color-100) text-decorative-chip text-(--box-color-900) transition-colors group-data-active:group-hover:bg-(--box-color-900) group-data-active:group-hover:text-text-inverse">
+            {box.counter.type === "routes" ? "/" : box.counter.count}
+          </div>
+        )}
+      </Box>
+
+      <BoxName {...box.name} relyOnActive reveal />
+
+      {box.counter && <BoxTooltip box={box} counter={box.counter} />}
+    </div>
+  ))}
+
+  <ProductsCanvas
+    boxes={boxes}
+    edgeStyle={edgeStyle}
+    pulse={pulse}
+    client:only="react"
+  />
+</div>

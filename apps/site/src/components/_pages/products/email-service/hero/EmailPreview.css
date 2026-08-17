@@ -1,0 +1,25 @@
+.ghost-bar::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -60%;
+  width: 60%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in oklab, var(--color-darker) 6%, transparent) 50%,
+    transparent 100%
+  );
+  animation: ghost-sweep 1.3s linear infinite;
+}
+
+@keyframes ghost-sweep {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(266%);
+  }
+}

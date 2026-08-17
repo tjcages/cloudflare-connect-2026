@@ -1,0 +1,105 @@
+---
+import CodeTabs from "@/components/code-tabs/CodeTabs.astro";
+import type { DataProps } from "@/components/code-tabs/content/data";
+
+const data: DataProps[] = [
+  {
+    tabTitle: "Access data from D1",
+    title: "Access data from D1",
+    description:
+      "Efficiently interact with your database using Cloudflare's D1 service, allowing for streamlined data retrieval and manipulation within your applications, enhancing overall performance.",
+    language: "typescript",
+    code: `export default {
+  async fetch(request, env) {
+    const url = new URL(request.url);
+    const id = url.searchParams.get('id');
+
+    const todo = await env.DB.prepare(
+      'SELECT * FROM todos WHERE id = ?',
+    )
+      .bind(id)
+      .first();
+
+    return Response.json(todo);
+  },
+} satisfies ExportedHandler<Env>;`,
+  },
+  {
+    tabTitle: "Persist your to-do",
+    title: "Persist your to-do list with Workers KV",
+    description:
+      "Utilize Cloudflare's KV storage to manage your to-do list, ensuring data persistence and easy retrieval, while enabling you to create and manage tasks seamlessly within your application.",
+    language: "typescript",
+    code: `const TODOS_KEY = 'todos';
+
+async function listTodos(
+  kv: KVNamespace,
+): Promise<Todo[]> {
+  const todos =
+    (await kv.get<Todo[]>(TODOS_KEY, 'json')) ?? [];
+  return todos.sort(
+    (a, b) => b.createdAt - a.createdAt,
+  );
+}
+
+async function createTodo(
+  kv: KVNamespace,
+  text: string,
+): Promise<Todo> {
+  const todo: Todo = {
+    id: crypto.randomUUID(),
+    text,
+    completed: false,
+    createdAt: Date.now(),
+  };
+
+  const todos = await listTodos(kv);
+  todos.push(todo);
+  await kv.put(TODOS_KEY, JSON.stringify(todos));
+
+  return todo;
+}`,
+  },
+  {
+    tabTitle: "Generate images",
+    title: "Generate images on the fly with AI models",
+    description:
+      "Leverage AI capabilities to dynamically generate images based on user input, integrating advanced image processing features directly into your Cloudflare Workers applications.",
+    language: "typescript",
+    code: `export default {
+  async fetch(request, env) {
+    const inputs = {
+      prompt: 'cats vibe coding an application',
+    };
+
+    const response = await env.AI.run(
+      '@cf/black-forest-labs/flux-1-schnell',
+      inputs,
+    );
+
+    const image = Uint8Array.from(
+      atob(response.image),
+      (m) => m.codePointAt(0)!,
+    );
+
+    return new Response(image, {
+      headers: {
+        'content-type': 'image/jpeg',
+      },
+    });
+  },
+} satisfies ExportedHandler<Env>;`,
+  },
+];
+---
+
+<CodeTabs data={data}>
+  <Fragment slot="title">
+    Hello World to full-stack on a <br />single integrated platform
+  </Fragment>
+
+  <Fragment slot="description">
+    Go beyond hello world by connecting to any resources you need — database,
+    <br />storage, browser rendering, images and more with a simple binding.
+  </Fragment>
+</CodeTabs>

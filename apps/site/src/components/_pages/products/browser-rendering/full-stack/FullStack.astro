@@ -1,0 +1,83 @@
+---
+import Button from "@/components/Button";
+import DashedLine from "@/components/dashed-line/DashedLine";
+import Icon from "@/components/icon/Icon";
+import Section from "@/layouts/Section.astro";
+import type { AstroComponentFactory } from "astro/runtime/server/index.js";
+import Bot from "./Bot.astro";
+import FullStackCanvas from "./FullStackCanvas";
+import Libraries from "./libraries/Libraries.astro";
+import Pool from "./Pool.astro";
+import Render from "./Render.astro";
+
+const blocks: {
+  stage: AstroComponentFactory;
+  title: string;
+  body: string;
+}[] = [
+  {
+    stage: Pool,
+    title: "Global pool of browsers.",
+    body: "Deployed on Cloudflare's network. <br />Enables faster cold starts and lower latency across use cases.",
+  },
+  {
+    stage: Render,
+    title: "REST API support.",
+    body: "Browser Run offers easy, fast setup for <br />tasks like screenshotting, extracting content, generating PDFs, <br />snapshotting and capturing structured data with JSON or <br />markdown for AI.",
+  },
+  {
+    stage: Libraries,
+    title: "Supports common browser libraries.",
+    body: "Playwright &amp; Puppeteer <br />support. Gives developers full control when needed with standard <br />automation tools.",
+  },
+  {
+    stage: Bot,
+    title: '"Well-behaved" Bot mode.',
+    body: "Identifies itself as a bot using <br />cryptographic signatures. Ensures compliant, ethical scraping — <br />distinguishes Cloudflare from competitors that bypass bot <br />protections.",
+  },
+];
+---
+
+<Section
+  layout="sticky"
+  eyebrow="Full Stack"
+  sectionEyebrow="Features"
+  title="Made for programmable browsing"
+  description="Deployed on Cloudflare's network."
+>
+  <Button
+    className="w-fit"
+    href="https://dash.cloudflare.com/sign-up"
+    size="large"
+    slot="action"
+  >
+    <Icon name="cloudflare" className="h-20 w-30" />
+    <span>Start building for free</span>
+  </Button>
+
+  <div class="relative flex flex-col gap-48 p-40 pb-64" data-fullstack-grid>
+    {blocks.map(({ stage: Stage, title, body }, index) => (
+      <Fragment>
+        {index > 0 && (
+          <div class="relative h-0">
+            <DashedLine
+              className="absolute inset-x-0 -top-0.5 w-full text-border-dashed"
+              direction="horizontal"
+            />
+          </div>
+        )}
+
+        <div class="flex flex-col gap-24">
+          <Stage />
+
+          <p class="text-body-medium text-text-default">
+            <span class="pr-3 text-label-medium text-text-base">{title}</span>{" "}
+            <Fragment set:html={body} />
+          </p>
+        </div>
+      </Fragment>
+    ))}
+
+    <FullStackCanvas client:only="react" />
+  </div>
+</Section>

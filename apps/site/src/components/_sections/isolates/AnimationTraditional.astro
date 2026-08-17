@@ -1,0 +1,17 @@
+---
+import BoxName from "@/components/_animations/ui/BoxName.astro";
+import AnimationTraditionalBox from "./AnimationTraditionalBox.astro";
+import TraditionalGrid from "./_svg/TraditionalGrid.svg";
+---
+
+<div class="relative h-full w-240">
+  <TraditionalGrid
+    class="absolute -top-80 centering-w-130 text-chips-background-orange"
+  />
+
+  <BoxName text="Traditional Architecture" position="top" color="orange" />
+
+  <div class="grid grid-cols-2">
+    {Array.from({ length: 4 }).map(() => <AnimationTraditionalBox />)}
+  </div>
+</div>

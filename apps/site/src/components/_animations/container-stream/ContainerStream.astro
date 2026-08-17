@@ -1,0 +1,142 @@
+---
+import Browser from "@/components/browser/Browser.astro";
+import DashedLine from "@/components/dashed-line/DashedLine";
+import Icon from "@/components/icon/Icon";
+import type { IconColor } from "@/components/icon/Icon";
+import type { IconName } from "@/components/icon/icons.gen";
+
+interface Props {
+  source: { icon: IconName; color: IconColor };
+  report?: { color: IconColor };
+  window: { width: number; height: number };
+  chipX: number;
+  columnX: number;
+  rules?: "cross" | "horizontal";
+  slots?: number;
+}
+
+const {
+  source,
+  report,
+  window: windowSize,
+  chipX,
+  columnX,
+  rules = "cross",
+  slots = 4,
+} = Astro.props;
+
+// Both hold across every card Figma draws: the dashed frame clears the browser by
+// 16 on each side, and the filmstrip leaves a 36 gap between windows.
+const frameWidth = windowSize.width + 32;
+const frameHeight = windowSize.height + 32;
+const pitch = windowSize.height + 36;
+
+const offsets = Array.from(
+  { length: slots },
+  (_, index) => (index - 1) * pitch
+);
+---
+
+<div
+  class="overlay overflow-clip"
+  data-stream-root
+  data-source-color={source.color}
+  data-report-color={report?.color}
+  style={{
+    "--stream-window-width": `${windowSize.width}px`,
+    "--stream-window-height": `${windowSize.height}px`,
+    "--stream-window-x": `calc(50% - ${windowSize.width / 2}px)`,
+    "--stream-window-y": `calc(50% - ${windowSize.height / 2}px)`,
+    "--stream-frame-width": `${frameWidth}px`,
+    "--stream-frame-height": `${frameHeight}px`,
+    "--stream-frame-x": `calc(50% - ${frameWidth / 2}px)`,
+    "--stream-frame-y": `calc(50% - ${frameHeight / 2}px)`,
+    "--stream-chip-x": `${chipX - 32}px`,
+    "--stream-column-shift": `${columnX - 240}px`,
+    "--stream-pitch": `${pitch}px`,
+    "--stream-report-color": report && `var(--color-${report.color}-900)`,
+  }}
+>
+  {rules === "cross" && (
+    <div class="absolute inset-y-0 left-1/2 w-px bg-border-default" />
+  )}
+  <div class="absolute inset-x-0 top-1/2 h-px bg-border-default"></div>
+
+  <div class="absolute inset-y-0 left-(--stream-column-shift) w-full">
+    <div
+      class="absolute top-(--stream-frame-y) left-(--stream-frame-x) h-(--stream-frame-height) w-(--stream-frame-width)"
+    >
+      <DashedLine
+        animateTowards="right"
+        className="absolute -inset-x-0.5 -top-0.5 text-border-dashed"
+        direction="horizontal"
+      />
+      <DashedLine
+        animateTowards="bottom"
+        className="absolute -inset-y-0.5 -right-0.5 text-border-dashed"
+        direction="vertical"
+      />
+      <DashedLine
+        animateTowards="left"
+        className="absolute -inset-x-0.5 -bottom-0.5 text-border-dashed"
+        direction="horizontal"
+      />
+      <DashedLine
+        animateTowards="top"
+        className="absolute -inset-y-0.5 -left-0.5 text-border-dashed"
+        direction="vertical"
+      />
+    </div>
+
+    <div class="absolute inset-0" data-stream-track>
+      {offsets.map((offset) => (
+        <div
+          class="absolute top-(--stream-window-y) left-(--stream-window-x) h-(--stream-window-height) w-(--stream-window-width)"
+          data-stream-slot
+          style={{ translate: `0 ${offset}px` }}
+        >
+          <div data-stream-nudge>
+            <Browser
+              class="h-(--stream-window-height) w-(--stream-window-width)"
+              variant="syntax"
+              reveal={false}
+              data-stream-browser
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+
+  <div
+    class="absolute centering-h-64 left-(--stream-chip-x) z-10 flex-center w-64 rounded-full bg-background-base shadow-elevation-default"
+    data-chip-id="A"
+  >
+    <Icon color={source.color} name={source.icon} size={24} variant="duo" />
+  </div>
+
+  {report && (
+    <div
+      class="absolute centering-h-64 right-32 z-10 grid w-64 place-items-center rounded-full bg-background-base shadow-elevation-default"
+      data-chip-id="W"
+    >
+      <div class="col-start-1 row-start-1 flex-center" data-stream-loader>
+        <Icon
+          name="loader"
+          size={24}
+          className="animate-spin text-icon-muted [animation-duration:0.7s] [animation-timing-function:steps(8)] [&_path]:stroke-[1.042]"
+        />
+      </div>
+      <div
+        class="col-start-1 row-start-1 flex-center opacity-0"
+        data-stream-check
+      >
+        <Icon
+          name="checkmark-1-medium"
+          size={24}
+          className="text-(--stream-report-color)"
+        />
+      </div>
+    </div>
+  )}
+</div>

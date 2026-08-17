@@ -1,0 +1,38 @@
+---
+import Browser from "@/components/browser/Browser.astro";
+import Stage from "@/components/Stage.astro";
+import AutoScaleCounter from "./AutoScaleCounter";
+
+const nodes = [
+  { index: 4, position: "-top-64 -ml-332" },
+  { index: 5, position: "-top-64 ml-124" },
+  { index: 6, position: "top-208 -ml-332" },
+  { index: 7, position: "top-208 ml-124" },
+  { index: 3, position: "top-208 -ml-104" },
+  { index: 1, position: "top-72 -ml-332" },
+  { index: 2, position: "top-72 ml-124" },
+  { index: 0, position: "top-72 -ml-104" },
+];
+---
+
+<Stage class="group/trend pointer-events-none" data-auto-scale="">
+  <div class="overlay overflow-clip">
+    <div class="absolute inset-y-0 left-1/2 w-px bg-border-default"></div>
+    <div class="absolute inset-x-0 top-[calc(50%+28px)] h-px bg-border-default">
+    </div>
+
+    <AutoScaleCounter client:visible={{ rootMargin: "200px" }} />
+
+    {nodes.map(({ index, position }) => (
+      <div class:list={["absolute left-1/2", position]}>
+        <Browser
+          class="h-116 w-208"
+          variant="app"
+          reveal={false}
+          data-active={index === 0 ? true : undefined}
+          data-scale-node={index}
+        />
+      </div>
+    ))}
+  </div>
+</Stage>

@@ -1,0 +1,109 @@
+---
+import cn from "classnames";
+import Icon from "@/components/icon/Icon";
+import type { IBoxCounter, IProductsBox } from "./types";
+
+interface Props {
+  box: IProductsBox;
+  counter: IBoxCounter;
+}
+
+const { box, counter } = Astro.props;
+---
+
+<div
+  aria-hidden="true"
+  class="pointer-events-none fixed top-0 left-0 z-70 rounded-14 bg-background-base opacity-0 shadow-elevation-default blur-[3px] transition-[opacity,filter] duration-250 group-data-active:group-hover:opacity-100 group-data-active:group-hover:blur-none"
+  data-box-tooltip
+>
+  {counter.type === "routes" && (
+    <div class="flex w-200 flex-col gap-10 px-12 py-13">
+      {counter.data.map((route) => (
+        <div class="flex items-center gap-10 font-mono whitespace-nowrap">
+          <span
+            class={cn(
+              "relative flex-center w-48 rounded-full py-3.5 text-[11px] leading-none uppercase before:inside-border before:border-border-muted",
+              route.method === "GET" ? "text-green-900" : "text-blue-900"
+            )}
+          >
+            {route.method}
+          </span>
+          <span class="text-[12px] text-text-base">{route.path}</span>
+        </div>
+      ))}
+    </div>
+  )}
+
+  {counter.type === "duplicates" && (
+    <div class="flex gap-8 p-8">
+      {Array.from({ length: counter.count }).map(() => (
+        <div class="relative flex-center size-48 rounded-7 before:inside-border before:inset-0 before:border-border-muted">
+          <Icon color={box.color} name={box.icon} size={24} variant="duo" />
+        </div>
+      ))}
+    </div>
+  )}
+</div>
+
+<script>
+  import {
+    autoUpdate,
+    computePosition,
+    flip,
+    offset,
+    shift,
+  } from "@floating-ui/dom";
+  import { animate } from "motion";
+
+  document.querySelectorAll("[data-product-box]").forEach((box) => {
+    const tooltip = box.querySelector("[data-box-tooltip]");
+    if (!(box instanceof HTMLElement) || !(tooltip instanceof HTMLElement))
+      return;
+
+    let entering = false;
+    let rise = 8;
+
+    const update = () => {
+      computePosition(box, tooltip, {
+        strategy: "fixed",
+        placement: "top",
+        middleware: [
+          offset(({ placement }) => (placement.startsWith("bottom") ? 33 : 8)),
+          flip({ padding: 8 }),
+          shift({ padding: 8 }),
+        ],
+      }).then(({ x, y, placement }) => {
+        Object.assign(tooltip.style, { left: `${x}px`, top: `${y}px` });
+        rise = placement.startsWith("bottom") ? -8 : 8;
+
+        if (entering) {
+          entering = false;
+          const hidden = getComputedStyle(tooltip).opacity === "0";
+          animate(
+            tooltip,
+            { y: hidden ? [rise, 0] : 0 },
+            { type: "spring", duration: 0.5, bounce: 0.4 }
+          );
+        }
+      });
+    };
+
+    let cleanup: (() => void) | undefined;
+
+    box.addEventListener("mouseenter", () => {
+      entering = true;
+      cleanup = autoUpdate(box, tooltip, update);
+    });
+
+    box.addEventListener("mouseleave", () => {
+      cleanup?.();
+      cleanup = undefined;
+      entering = false;
+      animate(
+        tooltip,
+        { y: rise },
+        { type: "spring", duration: 0.5, bounce: 0.4 }
+      );
+    });
+  });
+</script>

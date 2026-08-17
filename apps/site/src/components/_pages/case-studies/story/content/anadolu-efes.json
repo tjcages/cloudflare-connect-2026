@@ -1,0 +1,141 @@
+{
+  "slug": "anadolu-efes",
+  "company": "Anadolu Efes",
+  "sourceUrl": "https://www.cloudflare.com/case-studies/anadolu-efes/",
+  "found": true,
+  "synthesized": false,
+  "title": "Anadolu Efes centralises security and networking on Cloudflare to improve speed, resilience, and control.",
+  "quote": {
+    "text": [
+      "“Cloudflare is now our network and security hub. Users are securely connected the moment they open their device — whether they’re in the office, at home, or in a café. Security follows them everywhere.”"
+    ],
+    "author": "Tahir Çelebi",
+    "role": "Group Architecture and Technology Director"
+  },
+  "summaryHeadline": "Anadolu Efes accelerates sales and strengthens business continuity with Cloudflare’s Zero Trust",
+  "summaryBody": [
+    "With a 57-year heritage and headquartered in Istanbul, Anadolu Efes has established itself as an integral part of social life and one of the world’s leading brewing companies. According to the Barth Report, the company ranks as the 10th largest beer producer globally by production volume and 5th in Europe. Through exports to more than 70 countries and employing approximately 3,500 people, Anadolu Efes serves over 750 million consumers worldwide.",
+    "Placing sustainability and digitalization at the core of its business model, Anadolu Efes focuses on creating long-term value for society, implementing projects across sustainable agriculture, environmental protection, culture and art, entrepreneurship, and sports."
+  ],
+  "sections": [
+    {
+      "heading": "Addressing business and operational risk",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Before adopting Cloudflare, Anadolu Efes maintained high-traffic digital platforms while digitising its sales, logistics, and analytics platforms. The company soon discovered that all of these digital services — and the employees and customers using them — demanded a new, more consolidated approach to connectivity and security."
+        },
+        {
+          "type": "p",
+          "text": "Specifically, Anadolu Efes faced two distinct but related problems across its digital portfolio: maintaining applications in light of modern attacks, and reducing the complexity of legacy IT network infrastructure. “Our network structure had become too complex to support the speed the business required,” explains Simge Güngör, Information Security & Operations Supervisor, Anadolu Efes. “When connectivity slowed, it directly affected sales operations and business continuity.”"
+        },
+        {
+          "type": "p",
+          "text": "Rather than resolving these problems in isolation, Anadolu Efes consolidated web application security, workforce security, and cloud networking on Cloudflare’s [connectivity cloud](https://www.cloudflare.com/connectivity-cloud/), a unified platform of security, connectivity, and developer services built on a single cloud network. This consolidated approach makes it easier for Anadolu Efes to manage security and connectivity across its entire digital portfolio."
+        }
+      ]
+    },
+    {
+      "heading": "Ensuring digital sales resiliency",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "To strengthen application security and resilience, Anadolu Efes placed its public-facing web applications behind Cloudflare [Web Application Firewall (WAF)](https://www.cloudflare.com/application-security/web-application-firewall/) and [DDoS protection](https://www.cloudflare.com/ddos/). This architecture now delivers over 100 applications to employees and partners across Turkey, Georgia, Moldova, and Kazakhstan, while transforming onboarding in countries like the Netherlands and Germany by reducing deployment times from days to mere minutes."
+        },
+        {
+          "type": "p",
+          "text": "A prime example of this agility is the seasonal warehouse in Izmir, which was integrated into the network without any hardware investment; by using SIM-enabled handheld terminals equipped with the WARP agent and AD authentication, the team achieved full operational readiness instantly."
+        },
+        {
+          "type": "p",
+          "text": "“Cloudflare’s protection is at the highest level available in the market,” says Simge Güngör. “Attackers only see Cloudflare IPs. They cannot see our internal infrastructure, which limits what they can do.” Today, Cloudflare blocks approximately 1 million malicious requests per month, using the same global network and control plane that also powers Anadolu Efes’ user connectivity and Zero Trust access. “This has significantly improved our confidence in our overall security posture,” Simge Güngör adds."
+        }
+      ]
+    },
+    {
+      "heading": "From VPNs to Zero Trust: a centralised security and network hub",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Next, Anadolu Efes modernised its internal security and networking approach by replacing its traditional virtual private network (VPN) with capabilities from [Cloudflare One](https://www.cloudflare.com/zero-trust/), a secure access service edge (SASE) platform. In this way, Anadolu Efes extended Cloudflare’s protections from its public-facing web apps to its users and devices."
+        },
+        {
+          "type": "p",
+          "text": "Previously, users relied on VPN connections that required frequent reauthentication, disconnected every 12 hours, and generated consistent complaints — especially from remote workers and third-party consultants. “With our VPN, users had to reconnect constantly. It slowed them down and created frustration,” Simge Güngör explains."
+        },
+        {
+          "type": "p",
+          "text": "Instead, Anadolu Efes onboarded Cloudflare’s zero trust network access (ZTNA) service, embracing a modern, cloud-native approach to authenticate users based on identity and context. The full migration from VPN to Cloudflare was completed in 2025. For employees, the authentication experience is consistent across locations, whether they are working at home or in offices, cafés, factories, or hotels. Cloudflare’s device client automatically secures connectivity whenever an employee turns on a device, without the manual steps required by the prior VPN, while contractors can access applications via a browser without installing the device client — simplifying deployment for Anadolu Efes’ IT team."
+        },
+        {
+          "type": "p",
+          "text": "In parallel, Anadolu Efes replaced its traditional MPLS with Cloudflare’s WAN-as-a-service, enabling it to securely connect branches, warehouses, and offices over GRE and IPsec tunnels while centrally managing routing, security, and performance policies. Cloudflare has effectively become Anadolu Efes’ centralised network and security control plane, replacing fragmented regional solutions with a single platform for application security, user access, and global connectivity."
+        }
+      ]
+    },
+    {
+      "heading": "Speed that directly impacts sales performance",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Connectivity speed was not just a technical issue but a business one for Anadolu Efes. Before Cloudflare, average latency across their workforce applications was 250 milliseconds. By routing traffic through Cloudflare’s global Anycast network and [Magic WAN](https://www.cloudflare.com/network-services/products/magic-wan/), latency dropped to 30–40 milliseconds."
+        },
+        {
+          "type": "p",
+          "text": "“This improvement is critical for our field-based sales teams, who rely on real-time access to data while visiting shops, restaurants, bars, and distributors throughout the day,” Simge Güngör explains. “Faster access means less waiting and more time engaging with customers.” By accelerating access to reports, inventory data, and analytics over a single, cloud-native connectivity and security layer, Cloudflare enables sales teams to move faster from location to location, answer questions on the spot, and make informed decisions in real time — driving increased productivity, a better user experience, and a stronger professional presence in front of customers."
+        }
+      ]
+    },
+    {
+      "heading": "Rapid site onboarding and flexible expansion",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Anadolu Efes frequently needs to activate new locations — from temporary warehouses to small regional sales offices. Historically, bringing these sites online required leased lines, physical hardware, and coordination with multiple network providers, often taking weeks or even months."
+        },
+        {
+          "type": "p",
+          "text": "By extending its Zero Trust architecture with Cloudflare Magic WAN, Anadolu Efes fundamentally changed this model. New locations can now be brought online in hours or days, without MPLS links, point-to-point circuits, or on-site firewalls, using the same Cloudflare platform already securing users and applications globally. Users connect securely over standard internet connections, including mobile networks, and gain immediate access to the applications they need."
+        }
+      ]
+    },
+    {
+      "heading": "Looking ahead: building a scalable foundation for future growth",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "As Anadolu Efes continues to expand its digital footprint and adopt cloud-based platforms such as SAP and Microsoft 365, the need for centralised security, consistent performance, and simplified management has become even more critical. “Cloudflare is becoming one of our strategic partners,” says Tahir Çelebi. “With Cloudflare at the centre of our network architecture, Anadolu Efes is establishing a cloud-native connectivity foundation designed to scale users, applications, and security together as the business grows.”"
+        },
+        {
+          "type": "p",
+          "text": "In the near future, Anadolu Efes plans to:"
+        },
+        {
+          "type": "list",
+          "ordered": false,
+          "items": [
+            "Evaluate Bring Your Own Device (BYOD) models for mobile and field-based sales teams",
+            "Implement AI Security and AI Gateway solutions to manage shadow AI, scale operations, and ensure cost predictability",
+            "Deploy Data Loss Prevention (DLP) solutions to address increasing regulatory demands and expanding corporate liabilities",
+            "Broaden the AI Security scope to incorporate user-to-machine (U2M) and machine-to-machine (M2M) interactions",
+            "Migrate its compute environment to Cloudflare’s edge"
+          ]
+        },
+        {
+          "type": "p",
+          "text": "These initiatives will allow Anadolu Efes to expand into new markets, support a more mobile workforce, and adopt emerging technologies — including AI-driven sales and analytics — without increasing complexity or risk. “In today’s environment, speed and security must be addressed together,” Simge Güngör concludes. “With Cloudflare, we are building a scalable and resilient infrastructure that enables us to grow, adapt, and remain secure as the business evolves.”"
+        }
+      ]
+    }
+  ],
+  "productsUsed": [
+    "WAF",
+    "DDoS Protection",
+    "Access",
+    "Magic Transit",
+    "Gateway"
+  ],
+  "industry": "Manufacturing",
+  "region": "Europe, Middle East & Africa",
+  "date": "Mar 14, 2025"
+}

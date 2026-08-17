@@ -1,0 +1,143 @@
+---
+import RegisterCta from "@/components/_pages/connect/cta/RegisterCta.astro";
+import { REGISTER_URL } from "@/components/_pages/connect/data";
+import {
+  partnerAwards,
+  partnerExtend,
+  partnerFaq,
+  partnerHero,
+  partnerPageMeta,
+  partnerWhy,
+} from "@/components/_pages/connect/page-data/partner";
+import FaqList from "@/components/_pages/connect/shared/FaqList.astro";
+import SubpageHero from "@/components/_pages/connect/shared/SubpageHero.astro";
+import Item from "@/components/features/Item.astro";
+import Button from "@/components/Button";
+import DashedLineGrid from "@/components/dashed-line/DashedLineGrid";
+import Icon from "@/components/icon/Icon";
+import Section from "@/layouts/Section.astro";
+import Layout from "@/layouts/Layout.astro";
+---
+
+<Layout
+  title={partnerPageMeta.title}
+  description={partnerPageMeta.description}
+  cta={false}
+  nav="connect"
+>
+  <SubpageHero {...partnerHero} />
+
+  <Section
+    class="scroll-mt-80"
+    layout="center"
+    eyebrow="Why attend"
+    sectionEyebrow="Why attend"
+    title={partnerWhy.title}
+    description={partnerWhy.body}
+    headerClass="pb-72!"
+  >
+    <div
+      class="relative flex flex-col before:inside-border before:border-border-default"
+    >
+      <div class="relative grid grid-cols-2">
+        {partnerWhy.items.map((item) => (
+          <Item
+            class="h-full min-h-262"
+            iconName={item.iconName}
+            title={item.title}
+          >
+            {item.body}
+          </Item>
+        ))}
+
+        <DashedLineGrid
+          client:visible={{ rootMargin: "200px" }}
+          columns={2}
+          rows={2}
+        />
+      </div>
+
+      {/* Tickets / Isolates full-card info — snaps to elevated card rails */}
+      <div
+        class="relative flex h-80 items-center gap-20 bg-background-surface px-40 text-body-x-small text-text-default"
+      >
+        <div
+          class="relative flex-center size-40 shrink-0 rounded-full bg-background-surface before:inside-border before:border-border-default"
+        >
+          <Icon name="info-simple" size={20} className="text-icon-default" />
+        </div>
+        <div>
+          <span class="contents text-label-x-small">
+            {partnerWhy.featuredSpeaker.label}:
+          </span>{" "}
+          {partnerWhy.featuredSpeaker.name} — {partnerWhy.featuredSpeaker.role}
+        </div>
+      </div>
+    </div>
+  </Section>
+
+  <Section
+    class="scroll-mt-80"
+    layout="split"
+    eyebrow="Recognition"
+    sectionEyebrow="Awards"
+    title={partnerAwards.title}
+    description={partnerAwards.body}
+  >
+    <div
+      class="relative flex min-h-320 flex-col justify-end gap-8 bg-background-surface p-40 before:inside-border before:border-border-muted"
+    >
+      <div class="text-decorative-small text-text-faint uppercase">
+        Recognition
+      </div>
+      <div class="text-heading-h3 text-text-base">Partner Awards</div>
+      <p class="max-w-480 text-body-medium text-text-default">
+        Honoring outstanding achievements, innovation, and impact across the
+        Cloudflare Partner Network.
+      </p>
+    </div>
+  </Section>
+
+  <Section
+    class="scroll-mt-80"
+    layout="split"
+    eyebrow="Oct 19–21"
+    sectionEyebrow="Connect"
+    title={partnerExtend.title}
+    description={partnerExtend.body}
+  >
+    <Button slot="action" className="w-fit" href={REGISTER_URL} size="large">
+      <span>Register for Connect</span>
+    </Button>
+
+    <div
+      class="relative flex min-h-320 flex-col justify-end gap-8 bg-background-surface p-40 before:inside-border before:border-border-muted"
+    >
+      <div class="text-decorative-small text-text-faint uppercase">
+        Oct 19–21
+      </div>
+      <div class="text-heading-h3 text-text-base">Stay for Connect</div>
+      <p class="max-w-480 text-body-medium text-text-default">
+        Learn alongside customers, broaden your network, and close the week at
+        func(tion) — our closing party at Oracle Park.
+      </p>
+    </div>
+  </Section>
+
+  <Section
+    class="scroll-mt-80"
+    id="faq"
+    layout="center"
+    eyebrow="FAQ"
+    sectionEyebrow="FAQ"
+    title="Frequently asked questions"
+    description="Eligibility, registration types, and what to expect."
+    headerClass="pb-72!"
+  >
+    <div class="mx-auto w-full max-w-720 px-40 pt-80 pb-80">
+      <FaqList items={partnerFaq} />
+    </div>
+  </Section>
+
+  <RegisterCta />
+</Layout>

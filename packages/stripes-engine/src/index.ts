@@ -15,6 +15,12 @@ export type {
   CustomRevealFrame,
   CustomRevealPass,
 } from "./engine";
+export { buildFrameGroups } from "./frames/frameGroups";
+export type { FrameGroup } from "./frames/frameGroups";
+export { resolveFrameBoxes } from "./frames/frameBoxes";
+export type { FrameBox } from "./frames/frameBoxes";
+export { paintFramesOverlay } from "./frames/framesPaint";
+export type { FramesOverlay } from "./frames/framesPaint";
 export { compileProgram, createFullscreenQuad } from "./gl/program";
 export type { FullscreenQuad } from "./gl/program";
 export { bindRenderTarget, createRenderTarget, disposeRenderTarget, resizeRenderTarget } from "./gl/renderTarget";
@@ -28,6 +34,7 @@ export type { Size } from "./gl/resolution";
 export type { CursorTrailPoint } from "./cursorTrail/cursorTrailSim";
 export type { EngineContext } from "./gl/context";
 export { bandIndexForValue } from "./field/cellBand";
+export { edgeMaskAlpha } from "./edgeMask/edgeMaskMath";
 export { stripeDotBandEligibility } from "./field/stripeLut";
 export { applyImageColorDensity, effectiveStripes } from "./field/imageColorDensity";
 export type { PerfSnapshot } from "./perf/perfCollector";
@@ -89,14 +96,32 @@ export {
 export type { CometLogoAnimationMode, CometLogoAnimationState } from "./cometLogo/animation";
 export {
   COMET_LOGO_BACKGROUND_POINT_COUNT,
-  COMET_LOGO_IDLE_BACKGROUND_POINT_COUNT,
-  COMET_LOGO_IDLE_RENDER_POINT_COUNT,
-  COMET_LOGO_POINT_COUNT,
   COMET_LOGO_POINTS,
-  COMET_LOGO_RENDER_POINT_COUNT,
+  COMET_LOGO_SPARK_ANCHOR_INDICES,
   COMET_LOGO_TRAIL_SEGMENT_COUNT,
 } from "./cometLogo/points";
+export {
+  COMET_LOGO_DEFAULT_SHAPE,
+  COMET_LOGO_DEFAULT_SHAPE_HEIGHT,
+  cometLogoPointCounts,
+  cometLogoPoolPointCount,
+  cometLogoShapeBounds,
+  cometLogoShapeFromImage,
+  cometLogoShapeFromSvg,
+  cometLogoShapeFromSvgPath,
+  normalizeCometLogoShape,
+} from "./cometLogo/shape";
+export type {
+  CometLogoImageShapeOptions,
+  CometLogoPointCounts,
+  CometLogoShape,
+  CometLogoShapeBounds,
+  CometLogoShapeInput,
+  CometLogoShapePoint,
+  CometLogoSvgPathShapeOptions,
+  CometLogoTracedShapeOptions,
+} from "./cometLogo/shape";
 export { COMET_LOGO_CONFIG_VERSION, COMET_LOGO_DEFAULTS, normalizeCometLogoSettings } from "./cometLogo/config";
 export type { CometLogoSettings } from "./cometLogo/config";
 export { COMET_LOGO_RENDER_SCALE, createCometLogoTextureRenderer } from "./cometLogo/renderer";
-export type { CometLogoPointer, CometLogoTextureRenderer } from "./cometLogo/renderer";
+export type { CometLogoPointer, CometLogoRendererOptions, CometLogoTextureRenderer } from "./cometLogo/renderer";

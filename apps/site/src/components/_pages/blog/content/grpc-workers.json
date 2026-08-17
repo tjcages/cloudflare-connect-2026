@@ -1,0 +1,211 @@
+{
+  "slug": "grpc-workers",
+  "title": "Cloudflare Workers and Containers now support inbound TCP connections and gRPC",
+  "excerpt": "Cloudflare Workers now support inbound TCP connections via Spectrum, allowing direct socket forwarding to Durable Objects and Containers. Developers can run full-duplex gRPC applications or leverage automatic gRPC-to-gRPC-web translation directly within Workers.",
+  "publishedAt": "2026-08-03T13:00:00.000Z",
+  "sourceUrl": "https://blog.cloudflare.com/grpc-workers/",
+  "tags": [
+    "agents-week",
+    "workers",
+    "containers",
+    "developers",
+    "grpc",
+    "product-news"
+  ],
+  "authors": ["mar-witek", "thomas-rubini"],
+  "cover": {
+    "src": "https://blog.cloudflare.com/_emdash/api/media/file/01KZ21KFNREJ92D2GV77M4BES4.png",
+    "alt": ""
+  },
+  "blocks": [
+    {
+      "type": "p",
+      "text": "AI is changing how people interact with computers, and voice is becoming an increasingly important part of that shift. Real-time assistants, AI-powered dictation, and other voice interfaces need low-latency communication between clients, models, and supporting services. Many developers use [gRPC](https://grpc.io/), a Remote Procedure Call (RPC) framework built on HTTP/2 and TCP, for this infrastructure."
+    },
+    {
+      "type": "p",
+      "text": "Ever since Workers [launched in 2017](https://blog.cloudflare.com/introducing-cloudflare-workers/), we’ve been expanding their capabilities, including adding the ability to [open outbound TCP connections](https://blog.cloudflare.com/workers-tcp-socket-api-connect-databases/) and a [JavaScript-native RPC system](https://blog.cloudflare.com/workers-javascript-modules/) built on [Cap’n Proto](https://capnproto.org/). And so as part of Agents Week, we’re extending Workers in the other direction, supporting inbound TCP connections and adding new ways to run gRPC applications on Cloudflare."
+    },
+    {
+      "type": "p",
+      "text": "Today, we’re announcing:"
+    },
+    {
+      "type": "list",
+      "ordered": false,
+      "items": [
+        "**connect(socket)** — a new [handler](https://developers.cloudflare.com/workers/runtime-apis/handlers/) in the Workers runtime that lets your Worker directly accept an inbound TCP socket provided by [Spectrum](https://developers.cloudflare.com/spectrum/) (Cloudflare’s ingress proxy for non-HTTP traffic)",
+        "**Full-duplex, bi-directional gRPC from Cloudflare Containers** — forward the socket from your Worker to your gRPC server running in a container",
+        "**Workers can serve unary and server-streaming gRPC APIs and call gRPC servers**— you write your code using [gRPC-web](https://grpc.io/docs/platforms/web/), and Cloudflare automatically converts incoming and outgoing requests to gRPC"
+      ]
+    },
+    {
+      "type": "p",
+      "text": "We’re introducing this in private beta — you can sign up [here](https://forms.gle/Q2SoJLUKjBFGxBgW6)."
+    },
+    {
+      "type": "p",
+      "text": "Let’s dig into each of these below."
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "connect(socket) from your Worker to Durable Objects and Containers",
+      "id": "connect-socket-from-your-worker-to-durable-objects-and-containers"
+    },
+    {
+      "type": "p",
+      "text": "The Workers runtime now provides a [connect() handler](https://developers.cloudflare.com/workers/runtime-apis/handlers/) that accepts a socket that you can read from and write to:"
+    },
+    {
+      "type": "code",
+      "lang": null,
+      "code": "export default {\n\tasync connect(socket): Promise<void> {\n\t\tconst writer = socket.writable.getWriter();\n\t\tawait writer.write(new TextEncoder().encode(\"Hello, world!\\n\"));\n\t\tawait writer.close();\n\t},\n} satisfies ExportedHandler;"
+    },
+    {
+      "type": "p",
+      "text": "You can pass this socket from one Worker to another Worker, or from a Worker to a Durable Object. This lets your Worker control where an incoming TCP connection is routed:"
+    },
+    {
+      "type": "code",
+      "lang": null,
+      "code": "import { DurableObject } from \"cloudflare:workers\";\n\nexport class SocketDurableObject extends DurableObject<Env> {\n\tasync connect(socket: Socket): Promise<void> {\n\t\t// Echo bytes from inside the Durable Object\n\t\tawait socket.readable.pipeTo(socket.writable);\n\t}\n}\n\nexport default {\n\tasync connect(socket, env): Promise<void> {\n\t\tconst stub = env.SOCKET_DO.getByName(\"my-server\");\n\t\tconst durableObjectSocket = stub.connect(\"host:port\");\n\n\t\tawait Promise.all([\n\t\t\tsocket.readable.pipeTo(durableObjectSocket.writable),\n\t\t\tdurableObjectSocket.readable.pipeTo(socket.writable),\n\t\t]);\n\t},\n} satisfies ExportedHandler<Env>;"
+    },
+    {
+      "type": "p",
+      "text": "You can pass a socket from a Durable Object to [its Container](https://developers.cloudflare.com/durable-objects/api/container/):"
+    },
+    {
+      "type": "code",
+      "lang": null,
+      "code": "import { DurableObject } from \"cloudflare:workers\";\n\nexport class SocketContainer extends DurableObject<Env> {\n\tconstructor(ctx: DurableObjectState, env: Env) {\n\t\tsuper(ctx, env);\n\t\tthis.ctx.container!.start();\n\t}\n\n\tasync connect(socket: Socket): Promise<void> {\n\t\tconst containerSocket = this.ctx.container!\n\t\t\t.getTcpPort(8080)\n\t\t\t.connect(\"10.0.0.1:8080\");\n\n\t\tawait containerSocket.opened;\n\n\t\tawait Promise.all([\n\t\t\tsocket.readable.pipeTo(containerSocket.writable),\n\t\t\tcontainerSocket.readable.pipeTo(socket.writable),\n\t\t]);\n\t}\n}"
+    },
+    {
+      "type": "p",
+      "text": "And then handle the socket in the container:"
+    },
+    {
+      "type": "code",
+      "lang": null,
+      "code": "# server.py\nimport socketserver\n\nclass Handler(socketserver.BaseRequestHandler):\n    def handle(self):\n        while data := self.request.recv(64 * 1024):\n            self.request.sendall(b\"Echo: \" + data)\n\nclass Server(socketserver.ThreadingTCPServer):\n    allow_reuse_address = True\n    daemon_threads = True\n\nwith Server((\"0.0.0.0\", 8080), Handler) as server:\n    server.serve_forever()"
+    },
+    {
+      "type": "p",
+      "text": "This gives you full control over the entire path from client to your server running in a container on Cloudflare, opening the door to full-duplex communication between client and server running any program, in any language, for any TCP-based protocol."
+    },
+    {
+      "type": "p",
+      "text": "To expose the raw TCP socket to the client, we’re introducing a new type of [Spectrum](https://developers.cloudflare.com/spectrum/) application, where you specify a Worker that you want incoming TCP connections to be routed to. [Spectrum](https://developers.cloudflare.com/spectrum/) is Cloudflare’s ingress proxy for non-HTTP traffic, and allows Cloudflare to sit in front of any TCP or UDP application."
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Bidirectional gRPC from Cloudflare Containers",
+      "id": "bidirectional-grpc-from-cloudflare-containers"
+    },
+    {
+      "type": "p",
+      "text": "[gRPC](https://grpc.io/) is a well-established and popular Remote Procedure Call (RPC) framework that was initially released by Google almost 10 years ago, and is now used across mobile apps, distributed systems, and most recently — voice AI applications."
+    },
+    {
+      "type": "p",
+      "text": "Real-time voice AI applications demand low-latency, and both client and server to be able to send messages to each other over a single, persistent connection. WebSockets and Durable Objects are excellent fits for this, and the Cloudflare Agents SDK provides [@cloudflare/voice](https://developers.cloudflare.com/agents/communication-channels/voice/) to make this easy. But there is a ton of software out there that uses gRPC for real-time client-server communication."
+    },
+    {
+      "type": "p",
+      "text": "Using the APIs described above, you can now deploy gRPC servers to Cloudflare, written in any language, with full support for bidirectional streaming between client and server. This lets you take advantage of Cloudflare’s network of [330+ locations](https://www.cloudflare.com/network/) and handle requests much closer to clients than is possible elsewhere. We’re excited about the doors this opens up for low-latency voice and colocated inference."
+    },
+    {
+      "type": "p",
+      "text": "For example, here’s a minimal gRPC server that echoes messages it receives back to the client:"
+    },
+    {
+      "type": "code",
+      "lang": null,
+      "code": "package main\n\nimport (\n\t\"io\"\n\t\"log\"\n\t\"net\"\n\n\tpb \"example/proto\"\n\t\"google.golang.org/grpc\"\n)\n\ntype server struct {\n\tpb.UnimplementedByteStreamServer\n}\n\nfunc (server) Chat(stream pb.ByteStream_ChatServer) error {\n\tif err := stream.Send(&pb.ByteChunk{\n\t\tPayload: []byte(\"connected\\n\"),\n\t}); err != nil {\n\t\treturn err\n\t}\n\n\tfor {\n\t\tmessage, err := stream.Recv()\n\n\t\tif err == io.EOF {\n\t\t\treturn stream.Send(&pb.ByteChunk{\n\t\t\t\tPayload: []byte(\"goodbye\\n\"),\n\t\t\t})\n\t\t}\n\t\tif err != nil {\n\t\t\treturn err\n\t\t}\n\n\t\tif err := stream.Send(&pb.ByteChunk{\n\t\t\tPayload: append([]byte(\"echo: \"), message.Payload...),\n\t\t}); err != nil {\n\t\t\treturn err\n\t\t}\n\t}\n}\n\nfunc main() {\n\tlistener, err := net.Listen(\"tcp\", \":50051\")\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\n\tgrpcServer := grpc.NewServer()\n\tpb.RegisterByteStreamServer(grpcServer, &server{})\n\n\tlog.Println(\"gRPC server listening on :50051\")\n\tlog.Fatal(grpcServer.Serve(listener))\n}"
+    },
+    {
+      "type": "p",
+      "text": "With this, there’s pretty much no gRPC-based application that you can’t deploy to Cloudflare, no matter what language it’s in or dependencies it relies on. But what if you need to do something simpler, and just serve a basic gRPC server or connect from a Worker to a gRPC server running somewhere else?"
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Workers as gRPC servers and clients with gRPC to gRPC-web conversion — no container needed",
+      "id": "workers-as-grpc-servers-and-clients-with-grpc-to-grpc-web-conversion-no-container-needed"
+    },
+    {
+      "type": "p",
+      "text": "[gRPC-web](https://grpc.io/docs/platforms/web/basics/) is a browser-compatible version of gRPC. Web browsers don’t expose the lower-level HTTP/2 features that gRPC requires, and there is no raw TCP Socket API built into web browsers — this is why the WebSocket API exists, and why Workers have supported WebSockets [since 2021](https://blog.cloudflare.com/introducing-websockets-in-workers/)."
+    },
+    {
+      "type": "p",
+      "text": "HTTP/2 splits each request and response into small binary messages called [frames](https://httpwg.org/specs/rfc7540.html#FramingLayer). This is core to how a single HTTP/2 or HTTP/3 connection is able to multiplex — many requests can be interleaved over one connection. Each frame has a stream ID, allowing the receiver to reassemble it into the correct request or response. gRPC depends on this stream-level control for efficient streaming, cancellation, flow control, and [trailers](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Trailer)."
+    },
+    {
+      "type": "p",
+      "text": "Web platform APIs like [fetch()](https://developers.cloudflare.com/workers/runtime-apis/fetch/) don’t provide this control. So how can we make it simple and easy to use gRPC from Cloudflare Workers — without clients needing to make any changes? We translate incoming gRPC to gRPC-web, and translate outgoing gRPC-web to gRPC."
+    },
+    {
+      "type": "p",
+      "text": "We’ve actually used gRPC-web within Cloudflare’s reverse proxy since 2020, when we wrote about the [Road to gRPC](https://blog.cloudflare.com/road-to-grpc/#converting-to-http11) on the Cloudflare blog. We convert requests to HTTP/1.1 so that messages can be inspected and gRPC apps can benefit from [Cloudflare’s security features](https://www.cloudflare.com/solutions/security/), like WAF rules and Bot Management."
+    },
+    {
+      "type": "p",
+      "text": "Now, in private beta and then rolling out to everyone, we’re extending this so that given a Protocol Buffer (protobuf) definition file like this:"
+    },
+    {
+      "type": "code",
+      "lang": null,
+      "code": "syntax = \"proto3\";\n\npackage hello;\n\nservice Greeter {\n  rpc SayHello (HelloRequest) returns (HelloReply);\n}\n\nmessage HelloRequest {\n  string name = 1;\n}\n\nmessage HelloReply {\n  string message = 1;\n}"
+    },
+    {
+      "type": "p",
+      "text": "You can write a unary gRPC server in a Worker in just a few lines of code, using the [@connectrpc/connect](https://connectrpc.com/) open-source package:"
+    },
+    {
+      "type": "code",
+      "lang": null,
+      "code": "import { createConnectRouter } from \"@connectrpc/connect\";\nimport {\n  universalServerRequestFromFetch,\n  universalServerResponseToFetch,\n} from \"@connectrpc/connect/protocol\";\nimport { Greeter } from \"./gen/hello_pb\";\n\nconst router = createConnectRouter();\n\nrouter.service(Greeter, {\n  sayHello: ({ name }) => ({ message: `Hello, ${name}!` }),\n});\n\nconst handlers = new Map(\n  router.handlers.map((handler) => [handler.requestPath, handler]),\n);\n\nexport default {\n  async fetch(request: Request): Promise<Response> {\n    const handler = handlers.get(new URL(request.url).pathname);\n    return universalServerResponseToFetch(\n      await handler(universalServerRequestFromFetch(request, {})),\n    );\n  },\n} satisfies ExportedHandler;"
+    },
+    {
+      "type": "p",
+      "text": "You can make outbound requests to external gRPC servers this way too, by using the client built into [@connectrpc/connect](http://@connectrpc/connect):"
+    },
+    {
+      "type": "code",
+      "lang": null,
+      "code": "import { createClient } from \"@connectrpc/connect\";\nimport { createGrpcWebTransport } from \"@connectrpc/connect-web\";\nimport { Greeter } from \"./gen/hello_pb\";\n\nconst client = createClient(\n  Greeter,\n  createGrpcWebTransport({\n    baseUrl: \"https://grpc.example.com\",\n    fetch: (input, init) =>\n      fetch(input, { ...init, redirect: \"manual\" }),\n  }),\n);\n\nexport default {\n  async fetch(): Promise<Response> {\n    const reply = await client.sayHello({ name: \"Workers\" });\n    return Response.json(reply);\n  },\n} satisfies ExportedHandler;"
+    },
+    {
+      "type": "p",
+      "text": "Your code uses gRPC-web, but when it speaks to the outside world, it is automatically translated into gRPC. This means that clients and servers that you already depend on don’t need to change. For example, you can:"
+    },
+    {
+      "type": "list",
+      "ordered": false,
+      "items": [
+        "**Provide gRPC backends to mobile apps that speak gRPC** — Many mobile apps already use gRPC to reduce network payloads, serialize data more efficiently, and generate strongly-typed client libraries. You can now build the backend server for mobile apps on Workers, while still using established gRPC native libraries like [grpc-swift-2](https://www.swift.org/blog/grpc-swift-2/) and [grpc-kotlin](https://grpc.io/docs/languages/kotlin/quickstart/).",
+        "**Put a Worker in front of an existing gRPC backend** — So many developers already put Workers in front of existing REST APIs to move performance critical work closer to the user, or to incrementally move state into [Durable Objects](https://developers.cloudflare.com/durable-objects/). Now you can do this with existing gRPC backends as well, or build new APIs and services that fetch data from your existing gRPC backend."
+      ]
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "What’s next for Socket Workers and gRPC on Cloudflare",
+      "id": "what-s-next-for-socket-workers-and-grpc-on-cloudflare"
+    },
+    {
+      "type": "p",
+      "text": "We’re introducing everything from this post in private beta — you can sign up [here](https://forms.gle/Q2SoJLUKjBFGxBgW6)."
+    },
+    {
+      "type": "p",
+      "text": "At Cloudflare, we use [Cap’n Proto](https://capnproto.org/) and [Cap’n Web](https://blog.cloudflare.com/capnweb-javascript-rpc-library/) and the [JavaScript-native RPC system that is built into Cloudflare Workers](https://blog.cloudflare.com/javascript-native-rpc/) instead of gRPC. And when we ship things, we always aim to be using them ourselves. So in this case, we want to first work closely with a smaller set of developers using gRPC, and make sure we’ve nailed it before turning this on for everyone."
+    },
+    {
+      "type": "p",
+      "text": "More broadly, we’re excited to continue to push the bounds of what types of traffic the Workers platform can serve, going beyond TCP and into UDP-based protocols. Keep [telling us what you want to build](https://x.com/CloudflareDev) on Workers, and we’ll keep pushing the bounds of what is possible."
+    }
+  ]
+}

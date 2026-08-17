@@ -1,0 +1,63 @@
+---
+import IllustrationChip from "@/components/_animations/ui/IllustrationChip.astro";
+import OrbitRing from "@/components/_animations/ui/OrbitRing.astro";
+import Icon from "@/components/icon/Icon";
+
+interface Props {
+  ringRadius: number;
+}
+
+const { ringRadius } = Astro.props;
+
+const PILL_ROWS = [-28, 36, 100, 164, 228, 292];
+const CENTER_ROW = 100;
+---
+
+<div class="absolute inset-0" data-illustration-root>
+  <div
+    class="absolute top-120 left-0 h-px w-full -translate-y-1/2 bg-border-default"
+  >
+  </div>
+  <div
+    class="absolute top-0 left-120 h-full w-px -translate-x-1/2 bg-border-default"
+  >
+  </div>
+
+  <div class="absolute inset-y-0 left-220 z-1 w-204" data-chip-id="R">
+    <div class="absolute inset-0" data-pill-track>
+      {PILL_ROWS.map((row) => (
+        <div
+          class="absolute left-0 h-40 w-full rounded-full bg-background-surface shadow-elevation-faint transition-[background-color,box-shadow] data-active:bg-background-base data-active:shadow-elevation-default"
+          data-pill
+          style={{ top: `${row}px` }}
+        />
+      ))}
+
+      <div
+        class="pointer-events-none absolute left-0 h-40 w-full"
+        data-pill-content
+        style={{ top: `${CENTER_ROW}px` }}
+      >
+        <slot />
+      </div>
+    </div>
+  </div>
+
+  <OrbitRing
+    bottomArcClass="stroke-purple-900"
+    class="top-1/2 left-120"
+    radius={ringRadius}
+    topArcClass="stroke-purple-800"
+  />
+
+  <IllustrationChip
+    active
+    chipId="C"
+    class="top-1/2 left-120 z-1"
+    shape="circle"
+    size="xlarge"
+    sizePx={88}
+  >
+    <Icon color="purple" name="product-workers" size={32} variant="duo" />
+  </IllustrationChip>
+</div>

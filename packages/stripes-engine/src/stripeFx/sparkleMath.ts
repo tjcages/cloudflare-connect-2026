@@ -1,7 +1,7 @@
 export const SPARKLE_BASE_PERIOD_MIN_SEC = 0.21;
 export const SPARKLE_BASE_PERIOD_MAX_SEC = 0.55;
 
-function fract(x: number): number {
+export function fract(x: number): number {
   return x - Math.floor(x);
 }
 

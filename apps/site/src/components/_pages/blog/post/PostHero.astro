@@ -1,0 +1,25 @@
+---
+import Breadcrumb from "@/components/Breadcrumb.astro";
+import { tagsOf, type Post } from "../data";
+
+interface Props {
+  post: Post;
+}
+
+const { post } = Astro.props;
+
+const [tag] = tagsOf(post);
+
+const trail = [
+  { label: "Blog", href: "/blog" },
+  ...(tag ? [{ label: tag.label, href: `/blog/tag/${tag.slug}` }] : []),
+];
+---
+
+<div class="flex flex-col items-center gap-20">
+  <Breadcrumb items={trail} />
+
+  <h1 class="w-full text-center text-blog-h1 wrap-break-word text-text-base">
+    {post.title}
+  </h1>
+</div>

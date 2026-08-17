@@ -1,0 +1,90 @@
+---
+import Stage from "@/components/Stage.astro";
+import Browser from "@/components/browser/Browser.astro";
+import BrowserCarouselCanvas from "./BrowserCarouselCanvas";
+import type { BrowserCarouselItem } from "./types";
+
+interface Props {
+  items: readonly BrowserCarouselItem[];
+  dwellSeconds?: number;
+}
+
+const { items, dwellSeconds } = Astro.props;
+
+if (items.length === 0) {
+  throw new Error("BrowserCarousel requires at least one item");
+}
+
+const windowCount = Math.max(5, Math.ceil(5 / items.length) * items.length);
+const windows = Array.from({ length: windowCount }, (_, index) => {
+  const itemIndex = (index - 2 + items.length) % items.length;
+  return items[itemIndex];
+});
+---
+
+<Stage
+  class="pointer-events-none"
+  data-browser-carousel=""
+  data-browser-carousel-dwell={dwellSeconds}
+>
+  <BrowserCarouselCanvas client:only="react" />
+
+  <div class="overlay overflow-clip">
+    <div class="absolute top-[calc(50%-12px)] left-1/2 z-10 -translate-y-1/2">
+      <div
+        class="-ml-568 flex gap-24 will-change-transform"
+        data-browser-carousel-row
+      >
+        {windows.map((item, index) => (
+          <div
+            class="relative shrink-0 will-change-transform has-data-active:z-20"
+            data-browser-carousel-item={item.id}
+            data-float
+          >
+            <Browser
+              class="h-136 w-208"
+              variant={item.variant}
+              reveal={false}
+              data-active={index === 2 ? true : undefined}
+            >
+              <div
+                class:list={[
+                  "absolute top-52 z-10 flex transition-all duration-450 ease-[cubic-bezier(0.6,0.6,0,1)]",
+                  item.logos.length === 1 ? "centering-w-56" : "left-28 gap-40",
+                ]}
+              >
+                {item.logos.map((logo, logoIndex) => (
+                  <div
+                    class:list={[
+                      "flex-center h-56 w-56 scale-75 rounded-full bg-background-base opacity-0 shadow-elevation-default blur-[2px] transition-all duration-450 ease-[cubic-bezier(0.6,0.6,0,1)] group-data-active/browser:scale-100 group-data-active/browser:opacity-100 group-data-active/browser:blur-[0px]",
+                      logoIndex === 0
+                        ? "group-data-active/browser:delay-400"
+                        : "group-data-active/browser:delay-500",
+                    ]}
+                  >
+                    <img
+                      class:list={[logo.darkSrc && "dark:hidden"]}
+                      src={logo.src}
+                      width={logo.width}
+                      height={logo.height}
+                      alt=""
+                    />
+                    {logo.darkSrc && (
+                      <img
+                        class="hidden dark:block"
+                        src={logo.darkSrc}
+                        width={logo.width}
+                        height={logo.height}
+                        alt=""
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+            </Browser>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+</Stage>

@@ -39,6 +39,13 @@ export type StripeCellUniforms = {
   imageColorLightness: number;
   imageColorDensity: number;
   opacityTex: WebGLTexture;
+  bandValueTex: WebGLTexture;
+  stripeBandCount: number;
+  edgeMaskEnabled: boolean;
+  edgeMaskStart: number;
+  edgeMaskEnd: number;
+  edgeMaskPower: number;
+  edgeMaskSides: [number, number, number, number];
   gradientEnabled: boolean;
   gradientDirection: number;
   gradientStopCount: number;
@@ -51,6 +58,7 @@ export const CELL_TEXTURE_UNIT = 0;
 export const LUT_TEXTURE_UNIT = 1;
 export const CELL_COLOR_TEXTURE_UNIT = 4;
 export const OPACITY_LUT_TEXTURE_UNIT = 5;
+export const BAND_VALUE_LUT_TEXTURE_UNIT = 8;
 
 export function stripeCellLocations(gl: WebGL2RenderingContext, program: WebGLProgram) {
   const u = (n: string) => gl.getUniformLocation(program, n);
@@ -58,6 +66,13 @@ export function stripeCellLocations(gl: WebGL2RenderingContext, program: WebGLPr
     cell: u("uCell"),
     lut: u("uLut"),
     opacityLut: u("uOpacityLut"),
+    bandValueLut: u("uBandValueLut"),
+    stripeBandCount: u("uStripeBandCount"),
+    edgeMaskEnabled: u("uEdgeMaskEnabled"),
+    edgeMaskStart: u("uEdgeMaskStart"),
+    edgeMaskEnd: u("uEdgeMaskEnd"),
+    edgeMaskPower: u("uEdgeMaskPower"),
+    edgeMaskSides: u("uEdgeMaskSides"),
     cellColor: u("uCellColor"),
     grid: u("uGridCount"),
     cellPx: u("uCellPx"),
@@ -118,9 +133,18 @@ export function bindStripeCellUniforms(
   gl.activeTexture(gl.TEXTURE0 + OPACITY_LUT_TEXTURE_UNIT);
   gl.bindTexture(gl.TEXTURE_2D, p.opacityTex);
   gl.uniform1i(L.opacityLut, OPACITY_LUT_TEXTURE_UNIT);
+  gl.activeTexture(gl.TEXTURE0 + BAND_VALUE_LUT_TEXTURE_UNIT);
+  gl.bindTexture(gl.TEXTURE_2D, p.bandValueTex);
+  gl.uniform1i(L.bandValueLut, BAND_VALUE_LUT_TEXTURE_UNIT);
   gl.activeTexture(gl.TEXTURE0 + CELL_COLOR_TEXTURE_UNIT);
   gl.bindTexture(gl.TEXTURE_2D, p.cellColorTex);
   gl.uniform1i(L.cellColor, CELL_COLOR_TEXTURE_UNIT);
+  gl.uniform1f(L.stripeBandCount, p.stripeBandCount);
+  gl.uniform1f(L.edgeMaskEnabled, p.edgeMaskEnabled ? 1 : 0);
+  gl.uniform1f(L.edgeMaskStart, p.edgeMaskStart);
+  gl.uniform1f(L.edgeMaskEnd, p.edgeMaskEnd);
+  gl.uniform1f(L.edgeMaskPower, p.edgeMaskPower);
+  gl.uniform4f(L.edgeMaskSides, ...p.edgeMaskSides);
   gl.uniform2f(L.grid, p.cols, p.rows);
   gl.uniform2f(L.cellPx, p.cellW, p.cellH);
   gl.uniform1f(L.cellMin, p.cellMin);

@@ -1,0 +1,17 @@
+.building-icon-rotate {
+  animation: deploy-list-item-status-spin 0.5s linear infinite;
+}
+
+.queued-icon-rotate {
+  animation: deploy-list-item-status-spin 1.5s linear infinite;
+}
+
+@keyframes deploy-list-item-status-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}

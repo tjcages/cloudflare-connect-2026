@@ -1,0 +1,77 @@
+---
+import IllustrationChip from "@/components/_animations/ui/IllustrationChip.astro";
+import Icon from "@/components/icon/Icon";
+import RunChipIcon from "./RunChipIcon";
+import RunRowLabel from "./RunRowLabel";
+
+const rows = [
+  { row: 1 as const, chipTop: "top-80", pillTop: "top-56" },
+  { row: 2 as const, chipTop: "top-160", pillTop: "top-136" },
+  { row: 3 as const, chipTop: "top-240", pillTop: "top-216" },
+];
+---
+
+<div class="absolute inset-0" data-illustration-root data-usecases-visual="run">
+  <div
+    aria-hidden="true"
+    class="pointer-events-none absolute inset-20 bg-[radial-gradient(circle,var(--color-neutral-6)_0.625px,transparent_0.625px)] bg-size-[20px_20px]"
+  >
+  </div>
+
+  <div aria-hidden="true" class="pointer-events-none absolute inset-0">
+    <div
+      class="absolute inset-y-0 left-80 w-px -translate-x-0.5 bg-border-muted"
+    >
+    </div>
+    {rows.map(({ chipTop }) => (
+      <div
+        class:list={[
+          chipTop,
+          "absolute inset-x-0 h-px -translate-y-0.5 bg-border-muted",
+        ]}
+      />
+    ))}
+  </div>
+
+  {rows.map(({ row, chipTop, pillTop }) => (
+    <div class="group/row" data-run-row={row} data-state="pending">
+      <IllustrationChip
+        chipId={`S${row}`}
+        class:list={[chipTop, "left-80", "z-1"]}
+        grow={false}
+        shape="circle"
+        size="small"
+      >
+        <RunChipIcon client:visible row={row} />
+      </IllustrationChip>
+
+      <div
+        data-run-pill
+        class:list={[
+          pillTop,
+          "z-1",
+          "absolute right-56 left-136 h-48 rounded-full bg-background-surface transition-[background-color,box-shadow] duration-300",
+          "before:inside-border before:border-border-muted before:transition-opacity before:duration-300",
+          "group-data-[state=active]/row:bg-background-base group-data-[state=active]/row:shadow-elevation-default group-data-[state=active]/row:before:opacity-0",
+        ]}
+      >
+        <div class="flex h-full items-center gap-12 overflow-clip rounded-[inherit] px-16">
+          <div class="relative size-20">
+            <span class="absolute inset-0 text-center text-mono-x-small text-text-faint transition-[opacity,scale] duration-300 group-data-[state=done]/row:scale-75 group-data-[state=done]/row:opacity-0">
+              0{row}
+            </span>
+            <span class="absolute inset-0 flex scale-75 items-center justify-center text-icon-muted opacity-0 transition-[opacity,scale,color] duration-300 group-data-[state=done]/row:scale-100 group-data-[state=done]/row:opacity-100">
+              <Icon name="checkmark-1-medium" size={20} />
+            </span>
+          </div>
+
+          <span class="text-mono-x-small text-text-faint">·</span>
+
+          <span class="text-body-x-small text-text-subtle transition-colors duration-300 group-data-[state=active]/row:text-purple-900">
+            <RunRowLabel client:visible row={row} />
+          </span>
+        </div>
+      </div>
+    </div>
+  ))}
+</div>

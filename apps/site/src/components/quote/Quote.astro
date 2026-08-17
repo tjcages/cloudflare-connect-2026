@@ -1,0 +1,99 @@
+---
+import "./Quote.css";
+import { Image } from "astro:assets";
+import Eyebrow from "../Eyebrow";
+import { QUOTE_PRESETS } from "./quotes";
+import QuoteTexture from "./QuoteTexture";
+import type { QuoteBrand } from "./texture-config";
+import Section from "@/layouts/Section.astro";
+
+interface Props {
+  brand: QuoteBrand;
+}
+
+const { brand } = Astro.props;
+const {
+  paragraphs,
+  author,
+  cardClassName = "h-560",
+  texture,
+  textureDark,
+} = QUOTE_PRESETS[brand];
+---
+
+<Section
+  class:list={[
+    `eyebrow-${brand}`,
+    "selection:bg-(--eyebrow-color-badge,var(--color-orange-900))",
+  ]}
+  layout="headerless"
+  sectionEyebrow="Quote"
+  cardClass={[cardClassName, "overflow-clip"]}
+>
+  <div class="absolute top-1/2 right-0 size-560 -translate-y-1/2">
+    <QuoteTexture
+      client:visible
+      brand={brand}
+      darkSrc={textureDark?.src}
+      src={texture.src}
+    />
+  </div>
+
+  <div class="relative flex h-full flex-col justify-between py-96 pl-120">
+    <div class="max-w-480">
+      <Eyebrow
+        client:visible
+        className={`eyebrow-${brand}`}
+        direction="left"
+        title="Quote"
+      />
+
+      <div class="relative mt-28 text-quote-small font-light text-text-base">
+        <span class="absolute -left-10">“</span>
+        <span
+          >{paragraphs.map((paragraph, index) => (
+            <Fragment>
+              {index > 0 && (
+                <Fragment>
+                  <br />
+                  <br />
+                </Fragment>
+              )}
+              {paragraph}
+            </Fragment>
+          ))}</span
+        ><span class="select-none">”</span>
+      </div>
+    </div>
+    {author && (
+      <div class="flex gap-20">
+        {author.avatar ? (
+          <Image
+            class="rounded-full"
+            width={48}
+            height={48}
+            densities={[1, 2]}
+            quality="max"
+            src={author.avatar}
+            alt={author.name}
+          />
+        ) : (
+          author.initials && (
+            <div
+              class="flex-center size-48 rounded-full bg-background-muted text-label-large text-text-base"
+              aria-hidden="true"
+            >
+              {author.initials}
+            </div>
+          )
+        )}
+        <div class="flex flex-col gap-2">
+          <div class="text-label-large text-text-base">{author.name}</div>
+          <div class="text-body-small text-text-base [&>span]:text-text-muted">
+            <span>{author.role}</span> @{author.company}
+          </div>
+        </div>
+      </div>
+    )}
+  </div>
+</Section>

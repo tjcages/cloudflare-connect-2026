@@ -1,0 +1,24 @@
+@keyframes dashed-line-march {
+  to {
+    transform: translate3d(
+      var(--dashed-line-x),
+      var(--dashed-line-y),
+      0
+    );
+  }
+}
+
+.dashed-line-animate {
+  animation: dashed-line-march 0.75s linear infinite;
+}
+
+@keyframes dashed-circle-march {
+  to {
+    stroke-dashoffset: var(--dashed-circle-travel);
+  }
+}
+
+.dashed-circle-animate {
+  stroke-dashoffset: 0;
+  animation: dashed-circle-march 0.75s linear infinite;
+}

@@ -1,0 +1,27 @@
+---
+import Catalog from "@/components/catalog/Catalog";
+import CatalogHero from "@/components/catalog/CatalogHero.astro";
+import { catalogSolutionGroups } from "@/constants/solutions";
+import Layout from "@/layouts/Layout.astro";
+---
+
+<Layout
+  title="Cloudflare Solutions - Blueprints for Your Workloads"
+  description="Explore solution blueprints tailored to the workloads you are building on Cloudflare. Browse solutions by workload, by capability, and by industry."
+>
+  <CatalogHero>
+    <Fragment slot="heading">Cloudflare Solutions</Fragment>
+    <Fragment slot="description">
+      Explore solution blueprints tailored to the workloads <br />you are
+      building on Cloudflare.
+    </Fragment>
+  </CatalogHero>
+  <Catalog
+    client:load
+    categoriesLabel="Solution categories"
+    columns={2}
+    groups={catalogSolutionGroups}
+    noun={{ singular: "solution", plural: "solutions" }}
+    searchPlaceholder={'Search for a solution (eg: "Security")'}
+  />
+</Layout>

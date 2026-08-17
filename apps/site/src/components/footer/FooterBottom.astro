@@ -1,0 +1,46 @@
+---
+import Protection from "./_svg/Protection.svg";
+
+const footerBottomItems = [
+  {
+    label: "Privacy Policy",
+    href: "#",
+  },
+  {
+    label: "Report Security Issues",
+    href: "#",
+  },
+  {
+    label: "Terms of Use",
+    href: "#",
+  },
+  {
+    label: "Trademark",
+    href: "#",
+  },
+  {
+    label: "Your Privacy Choices",
+    href: "#",
+    icon: Protection,
+  },
+];
+---
+
+<div
+  class="relative flex items-center justify-end gap-16 px-40 py-30 text-body-x-small"
+>
+  {footerBottomItems.map((item, index) => (
+    <>
+      {index !== 0 && <div class="text-text-subtle">·</div>}
+
+      <a
+        href={item.href}
+        class="flex items-center gap-8 text-text-default transition hover:text-text-base"
+      >
+        {item.icon && <item.icon />}
+
+        {item.label}
+      </a>
+    </>
+  ))}
+</div>

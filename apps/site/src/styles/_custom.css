@@ -1,0 +1,420 @@
+.case-card-skyscanner {
+  background: #0770e3;
+}
+
+.case-card-shopify {
+  background: #95bf47;
+}
+
+.case-card-uniswap {
+  background: #ff37c7;
+}
+
+.case-card-discord {
+  background: #5865f2;
+}
+
+.case-card-anadolu-efes {
+  background: #004a8c;
+}
+
+.case-card-delivery-hero {
+  background: #d62026;
+}
+
+.case-card-envato {
+  background: #87e64b;
+}
+
+.case-card-canva {
+  background: linear-gradient(180deg, #992bff, #5a32fa, #13a3b5, #93e8f6);
+}
+
+.case-card-teamviewer {
+  background: #3056ef;
+}
+
+.case-card-vsco {
+  background: #121212;
+}
+
+.case-card-liveblocks {
+  background: #121212;
+}
+
+.case-card-elementor {
+  background: #ed01ee;
+}
+
+.case-card-docker {
+  background: #2560ff;
+}
+
+.case-card-stack-overflow {
+  background: #f48024;
+}
+
+.case-card-squiz {
+  background: #001822;
+}
+
+.case-card-mod-io {
+  background: #0891a8;
+}
+
+.case-card-zendesk {
+  background: #03363d;
+}
+
+.case-card-carrefour {
+  background: #004e9f;
+}
+
+.case-card-polestar {
+  background: #121212;
+}
+
+.case-card-onetrust {
+  background: #4a8f2c;
+}
+
+.case-card-esl {
+  background: #1d1d1b;
+}
+
+.case-card-bitso {
+  background: #5463ff;
+}
+
+.case-card-mitsubishi-gas-chemical {
+  background: #e60012;
+}
+
+.case-card-fullscript {
+  background: #729a3f;
+}
+
+.case-card-cybernews {
+  background: #121212;
+}
+
+.post-cover-surface {
+  background: #002679;
+}
+
+.story-brand-skyscanner {
+  color: #0770e3;
+}
+
+.story-brand-shopify {
+  color: #629b3c;
+}
+
+.story-brand-uniswap {
+  color: #ff37c7;
+}
+
+.story-brand-discord {
+  color: #5865f2;
+}
+
+.story-brand-anadolu-efes {
+  color: #004a8c;
+}
+
+.story-brand-delivery-hero {
+  color: #d62026;
+}
+
+.story-brand-envato {
+  color: #449014;
+}
+
+.story-brand-canva {
+  color: #6c35e1;
+}
+
+.story-brand-teamviewer {
+  color: #3056ef;
+}
+
+.story-brand-vsco {
+  color: #040404;
+}
+
+.story-brand-liveblocks {
+  color: #121212;
+}
+
+.story-brand-elementor {
+  color: #ed01ee;
+}
+
+.story-brand-docker {
+  color: #2560ff;
+}
+
+.story-brand-stack-overflow {
+  color: #da670b;
+}
+
+.story-brand-squiz {
+  color: #001822;
+}
+
+.story-brand-mod-io {
+  color: #067e93;
+}
+
+.story-brand-zendesk {
+  color: #03363d;
+}
+
+.story-brand-carrefour {
+  color: #004e9f;
+}
+
+.story-brand-polestar {
+  color: #000000;
+}
+
+.story-brand-onetrust {
+  color: #4c8c2b;
+}
+
+.story-brand-esl {
+  color: #1d1d1b;
+}
+
+.story-brand-bitso {
+  color: #5463ff;
+}
+
+.story-brand-mitsubishi-gas-chemical {
+  color: #e60012;
+}
+
+.story-brand-fullscript {
+  color: #6c8f3a;
+}
+
+.story-brand-cybernews {
+  color: #000000;
+}
+
+@supports (background: color(display-p3 0 0 0)) {
+  .case-card-skyscanner {
+    background: color(display-p3 0.0275 0.4392 0.8902);
+  }
+
+  .case-card-shopify {
+    background: color(display-p3 0.5843 0.749 0.2784);
+  }
+
+  .case-card-uniswap {
+    background: color(display-p3 1 0.2157 0.7804);
+  }
+
+  .case-card-discord {
+    background: color(display-p3 0.3451 0.3961 0.949);
+  }
+
+  .case-card-anadolu-efes {
+    background: color(display-p3 0 0.2902 0.549);
+  }
+
+  .case-card-delivery-hero {
+    background: color(display-p3 0.8392 0.1255 0.149);
+  }
+
+  .case-card-envato {
+    background: color(display-p3 0.5294 0.902 0.2941);
+  }
+
+  .case-card-canva {
+    background: linear-gradient(
+      180deg,
+      color(display-p3 0.6 0.1686 1),
+      color(display-p3 0.3529 0.1961 0.9804),
+      color(display-p3 0.0745 0.6392 0.7098),
+      color(display-p3 0.5765 0.9098 0.9647)
+    );
+  }
+
+  .case-card-teamviewer {
+    background: color(display-p3 0.1882 0.3373 0.9373);
+  }
+
+  .case-card-vsco {
+    background: color(display-p3 0.0706 0.0706 0.0706);
+  }
+
+  .case-card-liveblocks {
+    background: color(display-p3 0.0706 0.0706 0.0706);
+  }
+
+  .case-card-elementor {
+    background: color(display-p3 0.9294 0.0039 0.9333);
+  }
+
+  .case-card-docker {
+    background: color(display-p3 0.1451 0.3765 1);
+  }
+
+  .case-card-stack-overflow {
+    background: color(display-p3 0.9569 0.502 0.1412);
+  }
+
+  .case-card-squiz {
+    background: color(display-p3 0 0.0941 0.1333);
+  }
+
+  .case-card-mod-io {
+    background: color(display-p3 0.0314 0.5686 0.6588);
+  }
+
+  .case-card-zendesk {
+    background: color(display-p3 0.0118 0.2118 0.2392);
+  }
+
+  .case-card-carrefour {
+    background: color(display-p3 0 0.3059 0.6235);
+  }
+
+  .case-card-polestar {
+    background: color(display-p3 0.0706 0.0706 0.0706);
+  }
+
+  .case-card-onetrust {
+    background: color(display-p3 0.2902 0.5608 0.1725);
+  }
+
+  .case-card-esl {
+    background: color(display-p3 0.1137 0.1137 0.1059);
+  }
+
+  .case-card-bitso {
+    background: color(display-p3 0.3294 0.3882 1);
+  }
+
+  .case-card-mitsubishi-gas-chemical {
+    background: color(display-p3 0.902 0 0.0706);
+  }
+
+  .case-card-fullscript {
+    background: color(display-p3 0.4471 0.6039 0.2471);
+  }
+
+  .case-card-cybernews {
+    background: color(display-p3 0.0706 0.0706 0.0706);
+  }
+
+  .story-brand-skyscanner {
+    color: color(display-p3 0.0275 0.4392 0.8902);
+  }
+
+  .story-brand-shopify {
+    color: color(display-p3 0.3843 0.6078 0.2353);
+  }
+
+  .story-brand-uniswap {
+    color: color(display-p3 1 0.2157 0.7804);
+  }
+
+  .story-brand-discord {
+    color: color(display-p3 0.3451 0.3961 0.949);
+  }
+
+  .story-brand-anadolu-efes {
+    color: color(display-p3 0 0.2902 0.549);
+  }
+
+  .story-brand-delivery-hero {
+    color: color(display-p3 0.8392 0.1255 0.149);
+  }
+
+  .story-brand-envato {
+    color: color(display-p3 0.2667 0.5647 0.0784);
+  }
+
+  .story-brand-canva {
+    color: color(display-p3 0.4235 0.2078 0.8824);
+  }
+
+  .story-brand-teamviewer {
+    color: color(display-p3 0.1882 0.3373 0.9373);
+  }
+
+  .story-brand-vsco {
+    color: color(display-p3 0.0157 0.0157 0.0157);
+  }
+
+  .story-brand-liveblocks {
+    color: color(display-p3 0.0706 0.0706 0.0706);
+  }
+
+  .story-brand-elementor {
+    color: color(display-p3 0.9294 0.0039 0.9333);
+  }
+
+  .story-brand-docker {
+    color: color(display-p3 0.1451 0.3765 1);
+  }
+
+  .story-brand-stack-overflow {
+    color: color(display-p3 0.8549 0.4039 0.0431);
+  }
+
+  .story-brand-squiz {
+    color: color(display-p3 0 0.0941 0.1333);
+  }
+
+  .story-brand-mod-io {
+    color: color(display-p3 0.0235 0.4941 0.5765);
+  }
+
+  .story-brand-zendesk {
+    color: color(display-p3 0.0118 0.2118 0.2392);
+  }
+
+  .story-brand-carrefour {
+    color: color(display-p3 0 0.3059 0.6235);
+  }
+
+  .story-brand-polestar {
+    color: color(display-p3 0 0 0);
+  }
+
+  .story-brand-onetrust {
+    color: color(display-p3 0.298 0.549 0.1686);
+  }
+
+  .story-brand-esl {
+    color: color(display-p3 0.1137 0.1137 0.1059);
+  }
+
+  .story-brand-bitso {
+    color: color(display-p3 0.3294 0.3882 1);
+  }
+
+  .story-brand-mitsubishi-gas-chemical {
+    color: color(display-p3 0.902 0 0.0706);
+  }
+
+  .story-brand-fullscript {
+    color: color(display-p3 0.4235 0.5608 0.2275);
+  }
+
+  .story-brand-cybernews {
+    color: color(display-p3 0 0 0);
+  }
+}
+
+:root[data-theme="dark"] .story-brand-vsco,
+:root[data-theme="dark"] .story-brand-liveblocks,
+:root[data-theme="dark"] .story-brand-squiz,
+:root[data-theme="dark"] .story-brand-polestar,
+:root[data-theme="dark"] .story-brand-esl,
+:root[data-theme="dark"] .story-brand-cybernews {
+  color: #ffffff;
+}

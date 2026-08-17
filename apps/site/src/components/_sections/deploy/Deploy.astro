@@ -1,0 +1,51 @@
+---
+import GridArea from "@/components/GridArea";
+import DeployGithub from "./DeployGithub";
+import DeployOrbit from "./DeployOrbit";
+import DeployTerminal from "./DeployTerminal";
+import DeployList from "./list/List";
+import Section from "./DeploySection.astro";
+import SectionLayout from "@/layouts/Section.astro";
+---
+
+<SectionLayout layout="headerless" sectionEyebrow="Deploy" noGridArea>
+  <div class="relative mx-auto flex max-w-640 flex-col pt-40">
+    <Section
+      iconName="rocket"
+      title="Deploy with confidence, even on Fridays"
+      description="Go from localhost to global in seconds"
+    >
+      <DeployTerminal client:visible />
+    </Section>
+
+    <Section
+      iconName="merged-simple"
+      title="...or by clicking merge"
+      description="Cloudflare Workers connects directly to your Git repository,
+allowing you to deploy however, whenever you want"
+    >
+      <DeployGithub client:visible />
+    </Section>
+
+    <div class="relative mt-96">
+      <DeployOrbit client:visible />
+
+      <div class="mb-8 text-center text-heading-h2 text-orange-900">
+        Go <span class="italic">fast</span>, <span class="text-text-base"
+          >or slow</span
+        >
+      </div>
+      <div class="mb-40 text-center text-body-medium text-text-default">
+        Workers enables you to instantly deploy to all 330+ cities, or gradually
+        roll out <br />changes to a percentage of your users. If errors spike
+        up, roll back when you need.
+      </div>
+    </div>
+
+    <div class="relative mb-40 p-40">
+      <GridArea className="overlay bg-background-surface" />
+
+      <DeployList client:visible />
+    </div>
+  </div>
+</SectionLayout>

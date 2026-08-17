@@ -1,0 +1,17 @@
+---
+import SideHubSide from "@/components/_animations/side-hub-side/SideHubSide.astro";
+import Stage from "@/components/Stage.astro";
+---
+
+<Stage data-containers-fullstack-visual="compute">
+  <div class="overlay overflow-clip">
+    <SideHubSide
+      left={{
+        color: "green",
+        items: [{ icon: "file-text" }, { icon: "images" }, { icon: "videos" }],
+      }}
+      hub={{ icon: "product-containers", color: "orange" }}
+      right={{ color: "green", items: [{ icon: "server-2" }] }}
+    />
+  </div>
+</Stage>

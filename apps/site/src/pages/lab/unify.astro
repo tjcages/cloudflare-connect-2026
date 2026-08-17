@@ -1,0 +1,302 @@
+---
+import BrowserRenderingCanvas from "@/components/_pages/products/browser-rendering/full-stack/FullStackCanvas";
+import ContainersCanvas from "@/components/_pages/products/containers/full-stack/FullStackCanvas";
+import EmailCanvas from "@/components/_pages/products/email-service/full-stack/FullStackCanvas";
+import PagesCanvas from "@/components/_pages/products/pages/use-cases/UseCasesCanvas";
+import SandboxesCanvas from "@/components/_pages/products/sandboxes/full-stack/FullStackCanvas";
+import WfpCanvas from "@/components/_pages/products/workers-for-platforms/full-stack/FullStackCanvas";
+import WorkersCanvas from "@/components/_pages/products/workers/use-cases/UseCasesCanvas";
+import {
+  FAMILIES,
+  MECHANISMS,
+  RULES,
+  STANDALONE,
+} from "@/components/_lab/unify/families";
+import Layout from "@/layouts/Layout.astro";
+
+const stats = [
+  { value: "19", label: "card animations shipped" },
+  { value: "2,451", label: "lines of per-card choreography" },
+  { value: "17", label: "sequencers, 12 hand-rolled" },
+  { value: "6", label: "reel implementations" },
+  { value: "197", label: "feedback quotes mined" },
+  { value: "27 / 32", label: "sessions hit reuse friction" },
+];
+
+const verdictClass = {
+  merge: "text-orange-900",
+  extract: "text-purple-900",
+};
+
+const verdictLabel = {
+  merge: "merge into one component",
+  extract: "extract the mechanism",
+};
+---
+
+<Layout
+  cta={false}
+  description="Which card animations can merge, what their props would be, and the rules to bake in."
+  footer={false}
+  header={false}
+  title="Animation unification"
+>
+  {import.meta.env.DEV ? (
+    <main class="p-40">
+      <h1 class="text-heading-h5 text-text-base">Card animation unification</h1>
+
+      <p class="mt-8 max-w-760 text-body-small text-text-muted">
+        Every card animation in the repo, grouped by what it actually is. The
+        stages below are live and running — a family is a set of cards you can
+        watch side by side and see the same shape twice. Merging keeps the
+        nuances as props; nothing here proposes one look for all.
+      </p>
+
+      <p class="mt-8 max-w-760 text-body-small text-text-muted">
+        Three independent passes grouped the cards, then two skeptics tried to
+        refute every family against the real files. They cut four members —
+        GitHub integration, API request and Libraries lost their families, and
+        the two globe cards turned out to share an engine rather than a cycle.
+        Those cuts are listed with their reasons rather than hidden.
+      </p>
+
+      <div
+        data-containers-fullstack-grid
+        data-email-fullstack-grid
+        data-fullstack-grid
+        data-pages-usecases-grid
+        data-sandboxes-fullstack-grid
+        data-usecases-grid
+        data-wfp-fullstack-grid
+      >
+        <div class="mt-24 flex flex-wrap gap-x-40 gap-y-16">
+          {stats.map(({ value, label }) => (
+            <div>
+              <div class="text-label-medium text-text-base">{value}</div>
+
+              <div class="text-mono-x-small text-text-faint">{label}</div>
+            </div>
+          ))}
+        </div>
+
+        <section class="mt-56">
+          <h2 class="text-label-medium text-text-base">
+            The four duplicated mechanisms
+          </h2>
+
+          <p class="mt-4 max-w-760 text-body-small text-text-muted">
+            Before the cards: these are copied in every family below. Extracting
+            them is what makes card N cheap, independently of any merge.
+          </p>
+
+          <div class="mt-16 flex flex-col gap-px bg-border-default">
+            {MECHANISMS.map(({ name, copies, evidence, fix }) => (
+              <div class="flex flex-wrap gap-x-24 gap-y-8 bg-background-base py-16">
+                <div class="w-200 shrink-0">
+                  <div class="text-label-small text-text-base">{name}</div>
+
+                  <div class="mt-2 text-mono-x-small text-orange-900">
+                    {copies}
+                  </div>
+                </div>
+
+                <div class="max-w-560 flex-1 text-body-small text-text-muted">
+                  {evidence}
+                </div>
+
+                <div class="max-w-360 flex-1 text-body-small text-text-default">
+                  {fix}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {FAMILIES.map((family) => (
+          <section class="mt-56">
+            <div class="flex flex-wrap items-baseline gap-x-16 gap-y-4">
+              <h2 class="text-label-medium text-text-base">{family.name}</h2>
+
+              <span
+                class:list={["text-mono-x-small", verdictClass[family.verdict]]}
+              >
+                {verdictLabel[family.verdict]}
+              </span>
+
+              <span class="text-mono-x-small text-text-faint">
+                {family.members.length} cards · {family.effort} effort
+              </span>
+            </div>
+
+            <p class="mt-8 max-w-760 text-body-small text-text-muted">
+              {family.core}
+            </p>
+
+            <div class="mt-24 flex flex-wrap gap-x-32 gap-y-40">
+              {family.members.map((member) => (
+                <div class="w-480">
+                  {member.component ? (
+                    member.tall ? (
+                      <div class="relative h-320 bg-background-surface after:inside-border after:z-1 after:border-border-muted">
+                        <div class="overlay overflow-clip">
+                          <member.component />
+                        </div>
+                      </div>
+                    ) : (
+                      <member.component />
+                    )
+                  ) : (
+                    <div class="flex h-240 items-center justify-center bg-background-surface after:inside-border after:border-border-muted">
+                      <span class="text-mono-x-small text-text-faint">
+                        lives on a worktree — not renderable here
+                      </span>
+                    </div>
+                  )}
+
+                  <div class="mt-16 flex items-baseline justify-between gap-16">
+                    <span class="text-label-small text-text-base">
+                      {member.name}
+                    </span>
+
+                    <span class="text-mono-x-small text-text-faint">
+                      {member.page}
+                    </span>
+                  </div>
+
+                  <p class="mt-4 max-w-480 text-body-small text-text-muted">
+                    {member.delta}
+                  </p>
+
+                  <p class="mt-4 text-mono-x-small text-text-faint">
+                    {member.source}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            <div class="mt-32 flex flex-wrap gap-x-40 gap-y-24">
+              <div class="max-w-560 flex-1">
+                <div class="text-mono-x-small text-text-faint">
+                  proposed props
+                </div>
+
+                <div class="mt-8 flex flex-col gap-8">
+                  {family.props.map(({ prop, type, why }) => (
+                    <div>
+                      <div class="text-mono-x-small text-text-base">
+                        {prop}
+                        <span class="text-text-faint">: {type}</span>
+                      </div>
+
+                      <div class="text-body-small text-text-muted">{why}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div class="max-w-360 flex-1">
+                <div class="text-mono-x-small text-text-faint">
+                  what is duplicated today
+                </div>
+
+                <p class="mt-8 text-body-small text-text-muted">
+                  {family.duplication}
+                </p>
+
+                {family.blockers && (
+                  <p class="mt-8 text-body-small text-orange-900">
+                    {family.blockers}
+                  </p>
+                )}
+              </div>
+            </div>
+          </section>
+        ))}
+
+        <section class="mt-56">
+          <h2 class="text-label-medium text-text-base">Stays standalone</h2>
+
+          <p class="mt-4 max-w-760 text-body-small text-text-muted">
+            These are not near-duplicates of anything. Forcing them into a
+            family would cost a behaviour-shaped prop, which is the line this
+            study does not cross.
+          </p>
+
+          <div class="mt-24 flex flex-wrap gap-x-32 gap-y-40">
+            {STANDALONE.map((card) => (
+              <div class="w-480">
+                {card.tall ? (
+                  <div class="relative h-320 bg-background-surface after:inside-border after:z-1 after:border-border-muted">
+                    <div class="overlay overflow-clip">
+                      {card.component && <card.component />}
+                    </div>
+                  </div>
+                ) : (
+                  card.component && <card.component />
+                )}
+
+                <div class="mt-16 flex items-baseline justify-between gap-16">
+                  <span class="text-label-small text-text-base">
+                    {card.name}
+                  </span>
+
+                  <span class="text-mono-x-small text-text-faint">
+                    {card.page}
+                  </span>
+                </div>
+
+                <p class="mt-4 max-w-480 text-body-small text-text-muted">
+                  {card.why}
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section class="mt-56 mb-80">
+          <h2 class="text-label-medium text-text-base">Rules to bake in</h2>
+
+          <p class="mt-4 max-w-760 text-body-small text-text-muted">
+            Distilled from 197 of your own messages this week. The count is how
+            many separate sessions raised it — a lesson you repeated is a
+            default that should have existed.
+          </p>
+
+          <div class="mt-16 flex flex-col gap-px bg-border-default">
+            {RULES.map(({ title, rule, target, sessions, quote }) => (
+              <div class="flex flex-wrap gap-x-24 gap-y-8 bg-background-base py-16">
+                <div class="w-200 shrink-0">
+                  <div class="text-label-small text-text-base">{title}</div>
+
+                  <div class="mt-2 text-mono-x-small text-text-faint">
+                    {target} · {sessions} sessions
+                  </div>
+                </div>
+
+                <div class="max-w-560 flex-1 text-body-small text-text-muted">
+                  {rule}
+                </div>
+
+                <div class="max-w-360 flex-1 text-body-small text-text-faint italic">
+                  “{quote}”
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <BrowserRenderingCanvas client:only="react" />
+        <ContainersCanvas client:only="react" />
+        <EmailCanvas client:only="react" />
+        <PagesCanvas client:only="react" />
+        <SandboxesCanvas client:only="react" />
+        <WfpCanvas client:only="react" />
+        <WorkersCanvas client:only="react" />
+      </div>
+    </main>
+  ) : (
+    <main class="p-40">
+      <p class="text-body-small text-text-muted">Dev only.</p>
+    </main>
+  )}
+</Layout>

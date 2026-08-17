@@ -1,0 +1,70 @@
+---
+import IllustrationChip from "@/components/_animations/ui/IllustrationChip.astro";
+import IllustrationGrid from "@/components/_animations/ui/IllustrationGrid.astro";
+import Icon from "@/components/icon/Icon";
+import Badge from "@/components/_animations/ui/Badge";
+import OrbitRing from "@/components/_animations/ui/OrbitRing.astro";
+import CategoryBadge from "./CategoryBadge";
+import CategoryIcon from "./CategoryIcon";
+---
+
+<div
+  class="absolute inset-0"
+  data-illustration-root
+  data-usecases-visual="serverless"
+>
+  <IllustrationGrid type={2} />
+
+  <OrbitRing
+    bottomArcClass="stroke-purple-800"
+    topArcClass="stroke-(--color-purple-900)"
+  />
+
+  <IllustrationChip
+    size="large"
+    shape="circle"
+    class="top-160 left-80 z-1"
+    chipId="L"
+    active
+  >
+    <Icon name="user" variant="duo" color="orange" size={24} />
+  </IllustrationChip>
+
+  <IllustrationChip
+    size="xlarge"
+    shape="circle"
+    class="centering-size-0 z-1"
+    chipId="C"
+    active
+  >
+    <Icon name="product-workers" variant="duo" color="purple" size={28} />
+  </IllustrationChip>
+
+  <IllustrationChip
+    size="large"
+    shape="circle"
+    class="top-160 left-[calc(100%-80px)] z-1"
+    chipId="R"
+    active
+  >
+    <CategoryIcon client:visible />
+  </IllustrationChip>
+
+  <Badge
+    className="absolute top-32 left-1/2 z-10 -translate-x-1/2 text-purple-900"
+  >
+    Workers
+  </Badge>
+
+  <Badge
+    className="absolute bottom-32 left-80 z-10 -translate-x-1/2 text-text-default"
+  >
+    User
+  </Badge>
+
+  <div
+    class="pointer-events-none absolute bottom-32 left-[calc(100%-80px)] z-10 -translate-x-1/2"
+  >
+    <CategoryBadge client:visible />
+  </div>
+</div>

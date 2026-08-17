@@ -1,0 +1,35 @@
+---
+import Carousel, {
+  type CarouselProps,
+} from "@/components/_sections/carousel/Carousel.astro";
+
+const data: CarouselProps[] = [
+  {
+    title: "Screenshot API",
+    description:
+      "Instantly generate website thumbnails and social sharing images with the /screenshot REST API.",
+    href: "#",
+    type: "screenshot",
+  },
+  {
+    title: "AI Browser Automation",
+    description:
+      "Power AI agents to interact with websites and extract data where APIs don’t exist.",
+    href: "#",
+    type: "automation",
+  },
+  {
+    title: "PDF Generation",
+    description:
+      "Convert fully rendered web pages and HTML into production-ready PDFs with a single REST API request.",
+    href: "#",
+    type: "generation",
+  },
+];
+---
+
+<Carousel data={data} eyebrowTitle="BROWSER RUN">
+  <Fragment slot="title">Ideal for agentic workflows</Fragment>
+
+  <Fragment slot="description">You can use Browser Rendering to:</Fragment>
+</Carousel>

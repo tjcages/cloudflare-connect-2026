@@ -43,8 +43,10 @@ jobs:
             ALIAS=$(printf '%s' "$BRANCH" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//; s/^(.{48}).*/\1/')
           fi
           echo "alias=$ALIAS" >> "$GITHUB_OUTPUT"
-          echo "url=https://${ALIAS}-connect-shader.off-brand.workers.dev/" >> "$GITHUB_OUTPUT"
-          echo "PR preview: https://${ALIAS}-connect-shader.off-brand.workers.dev/"
+          echo "shader_url=https://${ALIAS}-connect-shader.off-brand.workers.dev/" >> "$GITHUB_OUTPUT"
+          echo "site_url=https://${ALIAS}-connect-2026-site.off-brand.workers.dev/connect/" >> "$GITHUB_OUTPUT"
+          echo "Shader preview: https://${ALIAS}-connect-shader.off-brand.workers.dev/"
+          echo "Site preview: https://${ALIAS}-connect-2026-site.off-brand.workers.dev/connect/"
 
       - name: Upload Worker version (preview alias)
         id: upload
@@ -64,15 +66,16 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const url = '${{ steps.alias.outputs.url }}';
+            const shaderUrl = '${{ steps.alias.outputs.shader_url }}';
+            const siteUrl = '${{ steps.alias.outputs.site_url }}';
             const alias = '${{ steps.alias.outputs.alias }}';
             const body = [
-              '## Workers preview URL',
+              '## Workers preview URLs',
               '',
-              `**PR preview:** ${url}`,
-              `**Client:** ${url}client.html`,
+              `**Refresh site:** ${siteUrl}`,
+              `**Shader tool:** ${shaderUrl}`,
               '',
-              `Alias \`${alias}-connect-shader\` (not production).`,
+              `Preview alias: \`${alias}\` (not production).`,
             ].join('\n');
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,

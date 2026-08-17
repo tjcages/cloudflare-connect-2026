@@ -1,0 +1,49 @@
+---
+import Button from "@/components/Button";
+import Icon from "@/components/icon/Icon";
+import Scramble from "@/components/scramble/Scramble";
+import WindowHero from "@/layouts/window-hero/WindowHero.astro";
+import EmailRuns from "./EmailRuns";
+---
+
+<WindowHero>
+  <Scramble
+    slot="eyebrow"
+    client:visible
+    preset="eyebrow-hero"
+    segments={[
+      { text: "05 · ", className: "[word-spacing:4.75px]" },
+      { text: "EMAIL SERVICE", className: "text-orange-900" },
+    ]}
+    className="text-decorative-small text-text-faint"
+  />
+
+  <Fragment slot="title">
+    Email for applications, <br />workflows, and agents
+  </Fragment>
+
+  <Fragment slot="description">
+    <p>
+      Cloudflare Email Service gives your applications and agents <br />a native
+      way to send transactional email, receive inbound <br />messages, and
+      automate workflows on a global network.
+    </p>
+  </Fragment>
+
+  <Fragment slot="action">
+    <Button size="large" href="https://dash.cloudflare.com/sign-up">
+      <Icon name="cloudflare" className="h-20 w-30" />
+      <span>Start building for free</span>
+    </Button>
+
+    <Button
+      variant="secondary"
+      size="large"
+      href="https://developers.cloudflare.com/email-service/"
+    >
+      <span>View docs</span>
+    </Button>
+  </Fragment>
+
+  <EmailRuns client:visible />
+</WindowHero>

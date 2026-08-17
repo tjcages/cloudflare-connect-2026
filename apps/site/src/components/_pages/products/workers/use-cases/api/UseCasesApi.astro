@@ -1,0 +1,96 @@
+---
+import IllustrationChip from "@/components/_animations/ui/IllustrationChip.astro";
+import IllustrationGrid from "@/components/_animations/ui/IllustrationGrid.astro";
+import Icon from "@/components/icon/Icon";
+import Badge from "@/components/_animations/ui/Badge";
+import OrbitRing from "@/components/_animations/ui/OrbitRing.astro";
+---
+
+<div class="absolute inset-0" data-illustration-root data-usecases-visual="api">
+  <IllustrationGrid type={1} />
+
+  <OrbitRing
+    bottomArcClass="stroke-(--color-orange-900)"
+    topArcClass="stroke-orange-800"
+  />
+
+  <div class="flex flex-wrap gap-4">
+    <IllustrationChip
+      size="medium"
+      shape="circle"
+      class="top-80 left-80 z-1"
+      chipId="L1"
+      active={false}
+      hideContentPassive
+    >
+      <Icon name="user" variant="duo" size={24} />
+    </IllustrationChip>
+
+    <IllustrationChip
+      size="medium"
+      shape="circle"
+      class="top-160 left-0 z-1"
+      chipId="LF"
+      active={false}
+      hideContentPassive
+    />
+
+    <IllustrationChip
+      size="medium"
+      shape="circle"
+      class="top-240 left-80 z-1"
+      chipId="L3"
+      active={false}
+      hideContentPassive
+    >
+      <Icon name="user" variant="duo" size={24} />
+    </IllustrationChip>
+
+    <IllustrationChip
+      size="xlarge"
+      class="centering-size-0 z-1"
+      shape="circle"
+      chipId="C"
+      active
+    >
+      <Icon name="cloudflare" className="h-28 w-42" variant="duo" />
+    </IllustrationChip>
+
+    <IllustrationChip
+      size="medium"
+      shape="diamond"
+      class="top-80 left-[calc(100%-80px)] z-1"
+      chipId="R1"
+      active={false}
+      hideContentPassive
+    >
+      <Icon name="server" variant="duo" size={24} />
+    </IllustrationChip>
+
+    <IllustrationChip
+      size="medium"
+      shape="diamond"
+      class="top-160 left-full z-1"
+      chipId="RF"
+      active={false}
+      hideContentPassive
+    />
+
+    <IllustrationChip
+      size="medium"
+      shape="diamond"
+      class="top-240 left-[calc(100%-80px)] z-1"
+      chipId="R3"
+      active={false}
+      hideContentPassive
+    >
+      <Icon name="server" variant="duo" size={24} />
+    </IllustrationChip>
+  </div>
+
+  <Badge
+    className="absolute bottom-32 left-1/2 z-10 -translate-x-1/2 text-text-default"
+  >
+    API Request
+  </Badge>
+</div>

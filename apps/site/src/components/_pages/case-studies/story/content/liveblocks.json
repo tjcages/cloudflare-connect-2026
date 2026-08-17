@@ -1,0 +1,104 @@
+{
+  "slug": "liveblocks",
+  "company": "Liveblocks",
+  "sourceUrl": "https://www.cloudflare.com/case-studies/liveblocks/",
+  "found": true,
+  "synthesized": false,
+  "title": "Liveblocks capitalizes on the Cloudflare Developer Platform to provide developers with pre-built, real-time collaboration features",
+  "quote": {
+    "text": [
+      "“Cloudflare released Durable Objects at just the right time for us. It is the perfect solution for supporting real-time collaborative use cases.”"
+    ],
+    "author": "Olivier Foucherot",
+    "role": "Senior Software Developer"
+  },
+  "summaryHeadline": "Liveblocks scales real-time collaboration to half a billion daily requests while keeping its engineering team lean using the Cloudflare Developer Platform",
+  "summaryBody": [
+    "Founded in 2021, Liveblocks enables software developers to easily add pre-built collaborative features to their apps. Developers can quickly incorporate commenting, multi-person editing, notifications, AI copiloting, live cursors, and other customizable features into their software — capabilities that app users increasingly expect, whether they’re designing a website together or contributing feedback during a livestream event, no matter where everyone is located.",
+    "Liveblocks enables software engineering teams to meet those user expectations and avoid the time-consuming work of building collaborative app features themselves. To further streamline development, Liveblocks provides a fully hosted, scalable WebSocket infrastructure for building and running collaborative capabilities, built on the [Cloudflare Developer Platform](https://developers.cloudflare.com/)."
+  ],
+  "sections": [
+    {
+      "heading": "The challenge: scaling WebSocket infrastructure for real-time collaboration",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "In constructing its collaborative experience, the Liveblocks team initially used AWS EC2 containers with a MongoDB database. But it was difficult to scale WebSocket servers and database storage with the containers. “We needed a more scalable approach to support real-time collaboration,” says Olivier Foucherot, senior software developer at Liveblocks."
+        }
+      ]
+    },
+    {
+      "heading": "Building real-time collaboration with Cloudflare Durable Objects",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Just when the Liveblocks team began searching for an alternative approach, a new solution appeared. “Cloudflare released [Durable Objects](https://developers.cloudflare.com/durable-objects/) at just the right time for us,” says Foucherot. “It is the perfect solution for supporting real-time collaborative use cases.”"
+        },
+        {
+          "type": "p",
+          "text": "Durable Objects are Cloudflare Workers that combine compute with durable storage, streamlining how organizations build and run stateful serverless apps. By allowing teams to avoid a piecemeal approach, Durable Objects fundamentally changes how modern, full-stack applications are developed. Objects are automatically provisioned close to users to minimize latency, and organizations can provision millions of them around the world. “There is not currently another out-of-the-box solution that does what Durable Objects does,” says Jonathan Rowny, principal software engineer at Liveblocks. “And if there seems to be one, it’s probably just hosted on Durable Objects.”"
+        },
+        {
+          "type": "p",
+          "text": "Using Durable Objects, Liveblocks built “rooms” for real-time collaboration. “When app users connect to a room over WebSocket, they are forwarded to a Durable Object, which contains the state of the room,” says Rowny. “When someone provides an update, everyone connected to the room sees it. Developers don’t have to worry about CRDTs (conflict-free replicated data types), operational transforms, or anything like that. They just connect users directly to Durable Objects for real-time features.”"
+        }
+      ]
+    },
+    {
+      "heading": "Tapping into additional Cloudflare developer services",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Along with Durable Objects, the Liveblocks team is capitalizing on several other Cloudflare capabilities to support the company’s platform. For example, the Liveblocks team uses [Cloudflare R2](https://developers.cloudflare.com/r2/) object storage to store essential information from collaborative work, such as attachments included with comments in a collaborative app and document version histories. In addition, the team uses [Cloudflare Queues](https://developers.cloudflare.com/queues/), which is integrated with Cloudflare Workers, to provide reliable application message queues."
+        },
+        {
+          "type": "p",
+          "text": "Meanwhile, Cloudflare Workers KV helps the team enhance platform performance. “We use Workers KV to provide a cache for edge users,” says Rowny. “By looking up data quickly, Workers KV allows us to skip another round trip to our databases.” For these and other capabilities, the Liveblocks team selected the Cloudflare enterprise plan early on. “Cloudflare’s enterprise plan gives us access to the most advanced enterprise tools,” says Rowny. “We also like maintaining a stable, predictable spending model.”"
+        }
+      ]
+    },
+    {
+      "heading": "Delivering real-time performance with the Cloudflare network",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Providing real-time collaboration capabilities requires extremely low latency between Liveblocks collaborative rooms and end users. Fortunately, Durable Objects are available across Cloudflare’s massive network. “Cloudflare Durable Objects are automatically provisioned geographically close to where they are first requested, so end users experience very low latency,” says Rowny. “For our live cursors feature, we’re able to show cursors moving at 60 frames per second, which is incredibly fast — and that’s thanks to the Cloudflare global network.”"
+        }
+      ]
+    },
+    {
+      "heading": "Scaling to half a billion requests per day, without scaling costs",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "By building on the highly scalable Cloudflare platform, Liveblocks has been able to support a fast-growing customer base cost-effectively. “We might process up to half a billion messages through Workers in a 24-hour period,” says Rowny. “But we’ve been able to control our costs with Cloudflare.”"
+        },
+        {
+          "type": "p",
+          "text": "Cloudflare’s WebSocket Hibernation capability helps keep costs low by eliminating billable duration charges during periods of inactivity. “We can have a collaborative room that is live — still pinging Cloudflare, with users still connected. If nothing is happening in that room, it will hibernate,” says Rowny. “The hibernation capability reduces our costs and enables us to keep our prices low, which is a huge competitive advantage.” WebSocket Hibernation also simplifies billing — for both Liveblocks and their customers. “We can bill for monthly active users and not have to worry about passing along compute minutes to customers,” says Rowny. “As a result, our customers can more easily anticipate their monthly costs. It would not be as simple on any other platform.”"
+        },
+        {
+          "type": "p",
+          "text": "That efficiency extends to headcount. “We have a very small team of 10 engineers at Liveblocks,” says Foucherot. “We’re able to keep that team small and efficient because of Cloudflare.” “Without Cloudflare, hosting WebSocket servers might have required at least four additional people just for management,” says Rowny. “Using Durable Objects, we can provide serverless capabilities without a dedicated team for managing the environment. Meanwhile, our existing team can focus less on administration and more on innovation.”"
+        }
+      ]
+    },
+    {
+      "heading": "Continuing to explore and innovate with Cloudflare",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Looking ahead, the Liveblocks team is eager to explore additional Cloudflare capabilities and services for developers. For example, [Workers for Platforms](https://developers.cloudflare.com/cloudflare-for-platforms/workers-for-platforms/) would enable the company to give their customers greater flexibility for how they use Liveblocks. “With Workers for Platforms, developers could more easily deploy customized versions of features to their own workspaces,” says Rowny. The team is also looking forward to implementing logging and observability functionality within Workers. “Gaining more visibility into our environment while simplifying logging would be amazing for us,” says Rowny."
+        },
+        {
+          "type": "p",
+          "text": "In the meantime, the Liveblocks team continues to eliminate obstacles for developers to deliver collaborative apps with a serverless architecture. “Many developers have anxieties about the hidden costs of serverless,” says Rowny. “Cloudflare eliminates those anxieties. By using Cloudflare, we can maximize the benefits of the serverless approach for organizations and help their developers stay focused on innovation.”"
+        }
+      ]
+    }
+  ],
+  "productsUsed": ["Workers", "Durable Objects", "Queues", "Workers KV", "R2"],
+  "industry": "High Technology",
+  "region": "North America",
+  "date": "Oct 27, 2025"
+}

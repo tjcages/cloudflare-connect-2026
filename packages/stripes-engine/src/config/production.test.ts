@@ -64,7 +64,7 @@ describe("production config", () => {
 
     const production = createProductionConfig(config);
 
-    expect(production).not.toHaveProperty("frames");
+    expect(production.frames).toMatchObject({ enabled: true, fontSizePx: 22 });
     expect(Object.keys(production.reveal ?? {})).toEqual(["enabled", "type", "water"]);
     expect(Object.keys(production.sparkle ?? {})).toEqual(["width"]);
     expect(production.background).toHaveProperty("gradient");

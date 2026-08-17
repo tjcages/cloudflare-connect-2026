@@ -1,0 +1,66 @@
+body::-webkit-scrollbar,
+.hide-scrollbar::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+* {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+html:has(body.overflow-hidden) {
+  overflow: hidden;
+  touch-action: none;
+}
+
+img,
+video {
+  max-width: unset;
+  user-select: none;
+  pointer-events: none;
+  -webkit-user-drag: none;
+  image-rendering: optimizeQuality;
+}
+
+*:focus {
+  outline: 0;
+}
+
+html {
+  overscroll-behavior: none;
+}
+
+section {
+  position: relative;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p {
+  user-select: text;
+}
+
+button {
+  text-align: left;
+  user-select: none;
+  cursor: pointer;
+}
+
+*::selection {
+  background-color: var(--color-orange-900);
+  color: var(--color-text-inverse);
+}
+
+.bg-orange-900 *::selection {
+  background-color: color-mix(in srgb, #000000 25%, transparent);
+}
+
+
+.pointer-events-none {
+  user-select: none;
+}

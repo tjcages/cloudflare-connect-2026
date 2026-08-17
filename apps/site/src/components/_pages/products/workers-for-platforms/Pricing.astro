@@ -1,0 +1,47 @@
+---
+import Pricing from "@/components/_sections/pricing/Pricing.astro";
+
+const columns = [
+  {
+    label: "Component",
+    width: "auto",
+    field: "component",
+  },
+  {
+    label: "Free",
+    width: 300,
+    field: "free",
+  },
+  {
+    label: "Paid",
+    width: 300,
+    field: "paid",
+  },
+];
+
+const data = [
+  {
+    component: "Requests",
+    free: "",
+    paid: "$0.30 / million requests",
+  },
+  {
+    component: "CPU Time",
+    free: "",
+    paid: "$0.02 / million CPU ms",
+  },
+  {
+    component: "Scripts Deployed",
+    free: "",
+    paid: "$0.02 / script",
+  },
+];
+---
+
+<Pricing data={data} columns={columns}>
+  <Fragment slot="title"> Workers for Platforms Pricing </Fragment>
+
+  <Fragment slot="description">
+    Deploy Workers on behalf of your customers.</Fragment
+  >
+</Pricing>

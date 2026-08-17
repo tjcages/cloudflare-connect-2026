@@ -1,0 +1,34 @@
+<svg width="10" height="400" viewBox="0 0 10 400"
+  fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path
+    d="M0.5 314C2.70914 314 4.5 315.791 4.5 318L4.5 320L5.5 320L5.5 318C5.5 315.791 7.29086 314 9.5 314L0.5 314Z"
+    fill="currentColor" />
+  <path d="M5 320L5 400"
+    stroke="url(#paint0_linear_3243_11572)" />
+  <path
+    d="M0.5 56C2.70914 56 4.5 54.2091 4.5 52L4.5 50L5.5 50L5.5 52C5.5 54.2091 7.29086 56 9.5 56L0.5 56Z"
+    fill="currentColor" />
+  <path d="M5 50L5 0"
+    stroke="url(#paint1_linear_3243_11572)" />
+  <path d="M5 80L5 78" stroke="currentColor" />
+  <path
+    d="M0.5 72C2.70914 72 4.5 73.7909 4.5 76L4.5 78L5.5 78L5.5 76C5.5 73.7909 7.29086 72 9.5 72L0.5 72Z"
+    fill="currentColor" />
+  <path
+    d="M0.5 86C2.70914 86 4.5 84.2091 4.5 82L4.5 80L5.5 80L5.5 82C5.5 84.2091 7.29086 86 9.5 86L0.5 86Z"
+    fill="currentColor" />
+  <defs>
+    <linearGradient id="paint0_linear_3243_11572"
+      x1="5" y1="400" x2="5" y2="320"
+      gradientUnits="userSpaceOnUse">
+      <stop stop-color="currentColor" stop-opacity="0" />
+      <stop offset="0.7" stop-color="currentColor" />
+    </linearGradient>
+    <linearGradient id="paint1_linear_3243_11572"
+      x1="5" y1="1.78814e-05" x2="5" y2="50"
+      gradientUnits="userSpaceOnUse">
+      <stop stop-color="currentColor" stop-opacity="0" />
+      <stop offset="0.7" stop-color="currentColor" />
+    </linearGradient>
+  </defs>
+</svg>

@@ -1,0 +1,27 @@
+---
+import SideHubSide from "@/components/_animations/side-hub-side/SideHubSide.astro";
+import Stage from "@/components/Stage.astro";
+---
+
+<Stage data-email-fullstack-visual="send">
+  <div class="overlay overflow-clip">
+    <SideHubSide
+      left={{
+        color: "orange",
+        column: false,
+        items: [{ icon: "window-app", label: "Your App" }],
+      }}
+      hub={{ icon: "product-workers", color: "purple" }}
+      right={{
+        color: "orange",
+        badge: 2,
+        items: [
+          { icon: "user" },
+          { icon: "server" },
+          { icon: "organisation" },
+          { icon: "server-2" },
+        ],
+      }}
+    />
+  </div>
+</Stage>

@@ -1,0 +1,298 @@
+{
+  "slug": "moq-relays",
+  "title": "An API for MoQ: provision your own isolated relays",
+  "excerpt": "Last year we made every Cloudflare server a Media over QUIC (MoQ) relay. Now the new provisioning API lets you create your own isolated relay and control who can publish and who can only watch.",
+  "publishedAt": "2026-07-31T13:00:00.000Z",
+  "sourceUrl": "https://blog.cloudflare.com/moq-relays/",
+  "tags": [
+    "api",
+    "developers",
+    "ietf-standards",
+    "live-streaming",
+    "product-news",
+    "quic",
+    "video",
+    "webrtc"
+  ],
+  "authors": ["jacob-curtis", "manish-pandit", "mike-english"],
+  "cover": {
+    "src": "https://blog.cloudflare.com/_emdash/api/media/file/01KYVQED96MX6SJKQ6GBNXZ7BS.png",
+    "alt": ""
+  },
+  "blocks": [
+    {
+      "type": "p",
+      "text": "Last year, [we enabled Media over QUIC](https://blog.cloudflare.com/moq/) (MoQ) on every Cloudflare server and opened the network for anyone to test. It provided a global MoQ endpoint, but not the isolation and access controls needed to run an application."
+    },
+    {
+      "type": "p",
+      "text": "Today, we’re adding those isolation and access controls. The new MoQ provisioning API lets you create an isolated relay for your application and issue separate credentials for publishers and subscribers. The relays you create are available across Cloudflare’s network within seconds, with no servers to deploy, size, or load balance. Cloudflare now supports the [draft-14](https://datatracker.ietf.org/doc/draft-ietf-moq-transport/14/) and [draft-16](https://www.ietf.org/archive/id/draft-ietf-moq-transport-16.html) versions of the MoQ Transport protocol with authentication support."
+    },
+    {
+      "type": "p",
+      "text": "You can create relays through [the API](https://developers.cloudflare.com/api/resources/moq) and the [Cloudflare dashboard](https://dash.cloudflare.com/). They are completely free to use during beta."
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "A QUIC recap on MoQ",
+      "id": "a-quic-recap-on-moq"
+    },
+    {
+      "type": "p",
+      "text": "MoQ (originally short for Media over QUIC) is a new open protocol under development at the Internet Engineering Task Force (IETF), the standards body that also standardized HTTP, TLS, and QUIC. It is being developed in the open and will become a free public standard (an RFC) that anyone can implement. No single company owns it."
+    },
+    {
+      "type": "p",
+      "text": "MoQ is a publish/subscribe system. A publisher sends out streams of data that have names, and subscribers ask for those streams by name. Between them sit relays, which are just CDN servers that copy each stream to everyone who wants it. A relay never has to look inside the data it forwards, so one publisher can reach a large audience without handling the fan-out itself."
+    },
+    {
+      "type": "p",
+      "text": "Because relays don't care what's in the data, the same protocol can carry many things that each used to need a separate system: live video, video calls, low-latency messaging, and more. It runs on QUIC, the transport under HTTP/3, which is what keeps latency low."
+    },
+    {
+      "type": "p",
+      "text": "The practical result is that you don't have to build and run your own fleet of specialized servers. You publish to a CDN through one simple API and get both low latency and large scale for much less cost."
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "How we got here: the MoQ open preview",
+      "id": "how-we-got-here-the-moq-open-preview"
+    },
+    {
+      "type": "p",
+      "text": "Last year, we launched [the first global MoQ relay network](https://blog.cloudflare.com/moq/): every Cloudflare server in over 330 cities became a MoQ relay, free and open to anyone. Because these endpoints required no authentication, they were ideal for protocol testing and client development. More than 1,000 unique clients still connect each day to test against them."
+    },
+    {
+      "type": "p",
+      "text": "But an unauthenticated relay isn't suitable for production, because you can't control who publishes and who subscribes. That rules out any application that needs confidentiality, access control, or a clear split between publisher and subscriber roles. Take a live auction site, where bids have to reach bidders in milliseconds. MoQ is a good fit, but publishers and subscribers need different permissions, so that a viewer's credentials can't be used to hijack the publisher's tracks."
+    },
+    {
+      "type": "heading",
+      "level": 3,
+      "text": "What is a relay on the Cloudflare MoQ Network?",
+      "id": "what-is-a-relay-on-the-cloudflare-moq-network"
+    },
+    {
+      "type": "p",
+      "text": "In most MoQ deployments today, a relay is a dedicated server or a dedicated process on a shared server. Scaling this architecture means running more instances, assigning clients to them, and adding load balancers as demand changes. This is not how any Cloudflare service works, including our [Realtime SFU WebRTC service](https://blog.cloudflare.com/cloudflare-calls-anycast-webrtc/#eliminating-sfu-region-selection)."
+    },
+    {
+      "type": "p",
+      "text": "Provisioning a relay doesn’t start a virtual machine, container, or dedicated process. Instead, it creates an isolated scope across the existing global network."
+    },
+    {
+      "type": "p",
+      "text": "That scope separates your namespaces, tracks, and objects from those belonging to other relays. It also defines who can enter the scope and whether they can publish or subscribe. Clients connect to the [Anycast](https://www.cloudflare.com/learning/cdn/glossary/anycast-network/) endpoint, and Cloudflare handles routing them across the network."
+    },
+    {
+      "type": "p",
+      "text": "If you’re familiar with web hosting, creating a Cloudflare relay is more like adding a virtual host than starting a new web server. Since the infrastructure is already running, the provisioning API adds your application’s configuration and credentials. This makes the relay available immediately without choosing regions, estimating capacity, or setting up a load balancer."
+    },
+    {
+      "type": "image",
+      "src": "https://blog.cloudflare.com/_emdash/api/media/file/01KYVTH2BX3RZZ16V73DNB390Y.png",
+      "alt": "image1.png"
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "The control plane API for MoQ at Cloudflare",
+      "id": "the-control-plane-api-for-moq-at-cloudflare"
+    },
+    {
+      "type": "p",
+      "text": "The provisioning API is a control plane: it manages relays and the tokens used to reach them, and it never touches the media that flows through them."
+    },
+    {
+      "type": "p",
+      "text": "There are two kinds of resources."
+    },
+    {
+      "type": "list",
+      "ordered": false,
+      "items": [
+        "A **relay**is the isolated scope from the previous section, so one application's streams never mix with another's.",
+        "A**token** is a credential that grants a set of operations (publish, subscribe, or both) on a single relay. Handing publishers and subscribers different tokens is what stops a viewer from taking over a broadcaster's tracks."
+      ]
+    },
+    {
+      "type": "p",
+      "text": "Each token is scoped to the operations a client needs, can be given an expiration, and can be revoked on its own. That lets you grant exactly the access a client should have, and take it back later without disrupting anyone else."
+    },
+    {
+      "type": "p",
+      "text": "For now, each token applies to an entire relay and permits publishing, subscribing, or both. We're working in the IETF and the wider MoQ community on a richer scheme that works for everyone. If you have opinions, tell us at [moq@cloudflare.com](mailto:moq@cloudflare.com)."
+    },
+    {
+      "type": "heading",
+      "level": 3,
+      "text": "Provision a relay",
+      "id": "provision-a-relay"
+    },
+    {
+      "type": "p",
+      "text": "You can provision a relay two ways: with the [HTTP API](https://developers.cloudflare.com/api/resources/moq) and in the [Cloudflare dashboard](https://dash.cloudflare.com/)."
+    },
+    {
+      "type": "heading",
+      "level": 3,
+      "text": "With the API",
+      "id": "with-the-api"
+    },
+    {
+      "type": "p",
+      "text": "Creating a relay takes a single API call and only needs a name:"
+    },
+    {
+      "type": "code",
+      "lang": null,
+      "code": "curl -X POST \\\n  \"https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/moq/relays\" \\\n  -H \"Authorization: Bearer $API_TOKEN\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"name\": \"Production Relay\"}'"
+    },
+    {
+      "type": "p",
+      "text": "Cloudflare returns a relay ID and the two default tokens: The first token can publish and subscribe, and the second can only subscribe."
+    },
+    {
+      "type": "code",
+      "lang": null,
+      "code": "{\n  \"result\": {\n    \"uid\": \"a1b2c3d4e5f67890a1b2c3d4e5f67890\",\n    \"name\": \"Production Relay\",\n    \"issuers\": [\n      {\n        \"type\": \"cloudflare_jwt\",\n        \"issuer\": \"cloudflare\",\n        \"cloudflare_tokens\": [\n          {\n            \"operations\": [\"publish\", \"subscribe\"],\n            \"expires\": \"2027-03-27T15:00:00Z\",\n            \"secret\": \"eyJ...\"\n          },\n          {\n            \"operations\": [\"subscribe\"],\n            \"expires\": \"2027-03-27T15:00:00Z\",\n            \"secret\": \"eyJ...\"\n          }\n        ]\n      }\n    ]\n  }\n}"
+    },
+    {
+      "type": "p",
+      "text": "To give a client narrower access, add more tokens. This one is a subscribe-only token for viewers that expires at the start of 2027:"
+    },
+    {
+      "type": "heading",
+      "level": 3,
+      "text": "In the Cloudflare dashboard",
+      "id": "in-the-cloudflare-dashboard"
+    },
+    {
+      "type": "code",
+      "lang": null,
+      "code": "curl -X POST \\\n  https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/moq/relays/$RELAY_ID/tokens \\\n  -H \"Authorization: Bearer $API_TOKEN\" \\\n  -d '{\"operations\": [\"subscribe\"], \"label\": \"viewers\", \"expires_at\": \"2027-01-01T00:00:00Z\"}'"
+    },
+    {
+      "type": "p",
+      "text": "You can also create a relay in the dashboard:"
+    },
+    {
+      "type": "image",
+      "src": "https://blog.cloudflare.com/_emdash/api/media/file/01KYVV2BDM0ZNKXKCBZTZG2FH9.png",
+      "alt": "The MoQ Relays overview page showing created relays."
+    },
+    {
+      "type": "p",
+      "text": "Go to **Media** > **Realtime**> **MoQ Relay.**Select **Create relay**, give it a name, and then confirm."
+    },
+    {
+      "type": "heading",
+      "level": 3,
+      "text": "Connect a publisher and a subscriber",
+      "id": "connect-a-publisher-and-a-subscriber"
+    },
+    {
+      "type": "p",
+      "text": "You can create and manage tokens through the API or dashboard, just as you can the relay itself. Give your broadcaster the publish-and-subscribe token and your viewers the subscribe-only token. Each client sends its token when it opens a MoQ session, and the relay enforces what that token is allowed to do."
+    },
+    {
+      "type": "p",
+      "text": "The token travels in the URL path. For example, with the open-source [moq-rs](https://github.com/cloudflare/moq-rs) tools, a broadcaster can publish a fragmented MP4 stream from ffmpeg:"
+    },
+    {
+      "type": "code",
+      "lang": null,
+      "code": "ffmpeg -stream_loop -1 -re -i input.mp4 -f mp4 -movflags empty_moov+frag_every_frame+separate_moof+omit_tfhd_offset - \\\n  | moq-pub -- --name my-namespace \"https://draft-16.cloudflare.mediaoverquic.com/<publish_subscribe_token>\""
+    },
+    {
+      "type": "p",
+      "text": "A viewer connects with moq-sub:"
+    },
+    {
+      "type": "code",
+      "lang": null,
+      "code": "moq-sub --name my-namespace \"https://draft-16.cloudflare.mediaoverquic.com/<subscribe_token>\" | ffplay -hide_banner -an - "
+    },
+    {
+      "type": "p",
+      "text": "The relay reads the token when the session opens and checks whether the requested operation is allowed."
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "What we changed to support draft-16",
+      "id": "what-we-changed-to-support-draft-16"
+    },
+    {
+      "type": "p",
+      "text": "The provisioning API is only one part of what’s new. The MoQ transport itself is advancing fast, and Cloudflare now supports [draft-16 of the IETF MoQ spec](https://datatracker.ietf.org/doc/html/draft-ietf-moq-transport-16) in its relays. This draft adds two features relevant to publishing and subscribing."
+    },
+    {
+      "type": "p",
+      "text": "`PUBLISH` now lets a publisher send a track to a relay before a viewer requests it. Without `PUBLISH`, the first subscription must travel through the relay chain to the publisher before the publisher starts sending. With `PUBLISH`, the relay can already be receiving the track when the first viewer connects."
+    },
+    {
+      "type": "p",
+      "text": "`SUBSCRIBE_NAMESPACE` lets a subscriber request every track announced under a namespace instead of requesting tracks individually. The subscription also covers tracks added later, such as a new video rendition or audio track introduced during a live stream."
+    },
+    {
+      "type": "p",
+      "text": "You can now connect a draft-16 client to use both features."
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Built in the open",
+      "id": "built-in-the-open"
+    },
+    {
+      "type": "p",
+      "text": "MoQ is an open standard, developed at the IETF by engineers across the industry. This lets clients and relays implement a common protocol. That interoperability is less useful if every relay provider requires a different control plane for creating scopes and issuing credentials."
+    },
+    {
+      "type": "p",
+      "text": "In that vein, we’re documenting the design behind this API in the [MoQ CDN Provisioning Internet-Draft](https://datatracker.ietf.org/doc/draft-englishm-moq-cdn-provisioning/). The draft calls the provisioned resource a scope rather than a relay, but both terms refer to the same logical delivery context: a boundary that applications create and then enter with a credential."
+    },
+    {
+      "type": "p",
+      "text": "The goal is for multiple CDN and relay implementations to support a common provisioning model. The document is still an Internet-Draft, not an RFC, and its API model may change as the working group develops it."
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Available today, still free in beta",
+      "id": "available-today-still-free-in-beta"
+    },
+    {
+      "type": "p",
+      "text": "The MoQ relay provisioning API is available now, as part of the MoQ beta. It's free to use at any scale during this preview period."
+    },
+    {
+      "type": "p",
+      "text": "The API will change as we develop it, so we recommend checking the [developer docs](https://developers.cloudflare.com/moq)for updates and breaking changes."
+    },
+    {
+      "type": "p",
+      "text": "We’d also love to hear what you want next. Finer-grained permissions? Bring-your-own signing keys? Let us know at [moq@cloudflare.com](mailto:moq@cloudflare.com)."
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Get started today",
+      "id": "get-started-today"
+    },
+    {
+      "type": "list",
+      "ordered": false,
+      "items": [
+        "Read the [developer documentation](https://developers.cloudflare.com/moq)",
+        "Read the [API reference docs](https://developers.cloudflare.com/api/resources/moq).",
+        "Read the [provisioning draft](https://datatracker.ietf.org/doc/draft-englishm-moq-cdn-provisioning/).",
+        "Email us: [moq@cloudflare.com](mailto:moq@cloudflare.com)",
+        "Building with MoQ? Join the [Cloudflare Developers Discord](https://discord.cloudflare.com/) to share your projects and tell us what the tech preview needs."
+      ]
+    }
+  ]
+}

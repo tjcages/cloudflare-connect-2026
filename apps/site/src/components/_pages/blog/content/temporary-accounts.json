@@ -1,0 +1,178 @@
+{
+  "slug": "temporary-accounts",
+  "title": "Temporary Cloudflare Accounts for AI agents",
+  "excerpt": "The moment an agent needs to deploy something, it slams face-first into a wall built for humans. Today we're rolling out Temporary Accounts on Cloudflare Workers. Any agent can now run wrangler deploy — temporary and get a live Worker in seconds.",
+  "publishedAt": "2026-06-19T13:00:00.000Z",
+  "sourceUrl": "https://blog.cloudflare.com/temporary-accounts/",
+  "tags": ["agents", "ai", "workers", "wrangler"],
+  "authors": ["sid", "celso", "brendan-irvine-broque"],
+  "cover": {
+    "src": "https://blog.cloudflare.com/_emdash/api/media/file/01KW9WMJ2M6QPE8YMRE25ZGNJ3.png",
+    "alt": "BLOG-3348 Hero Image"
+  },
+  "blocks": [
+    {
+      "type": "p",
+      "text": "Everyone's writing code with AI agents today. But the moment an agent needs to deploy something — and needs to sign up and create an account — it slams face-first into a wall built for humans: a browser-based OAuth flow, a dashboard to click through, an API token to copy-paste, a multi-factor authentication prompt to satisfy. For an interactive copilot sitting next to a developer, that's annoying. For a background agent, it's a hard stop."
+    },
+    {
+      "type": "p",
+      "text": "Today we're rolling out Temporary Cloudflare Accounts for Agents."
+    },
+    {
+      "type": "p",
+      "text": "Agents can now deploy [websites](https://www.cloudflare.com/solutions/frontends/), [APIs](https://www.cloudflare.com/products/workers/), and [agents](https://www.cloudflare.com/products/agents/) right away, without first needing to sign up for an account."
+    },
+    {
+      "type": "image",
+      "src": "https://blog.cloudflare.com/_emdash/api/media/file/01KW9WMPCC9YE6RWREKP67N7P6.png",
+      "alt": "BLOG-3348 Image 1"
+    },
+    {
+      "type": "p",
+      "text": "Any agent can now run `wrangler deploy --temporary`and deploy a Worker to Cloudflare. This temporary deployment stays live for 60 minutes, during which time you can claim the temporary account, making it permanently your own. If you don't, it expires on its own."
+    },
+    {
+      "type": "image",
+      "src": "https://blog.cloudflare.com/_emdash/api/media/file/01KW9WMQA1H14WN0CEFP7JXB0W.png",
+      "alt": "BLOG-3348 Image 2"
+    },
+    {
+      "type": "p",
+      "text": "Our goal? Let your agent code and ship."
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Why frictionless deployments matter for AI agents",
+      "id": "why-frictionless-deployments-matter-for-ai-agents"
+    },
+    {
+      "type": "p",
+      "text": "Frictionless temporary accounts matter more than it might first seem:"
+    },
+    {
+      "type": "list",
+      "ordered": false,
+      "items": [
+        "**Background AI sessions have no human in the loop, and are becoming the norm**. Any auth step that needs a browser, a copy-paste, or \"click here in 60 seconds\" means an agent gets stuck and may choose to deploy elsewhere.",
+        "**Trial-and-error is the agent's superpower**. Agents need a tight write → deploy → verify loop. They need cheap, throwaway deployment targets, so they can curl their own output and decide whether they got it right.",
+        "**Agent platforms are building their own ways for deploying code to \"just work\" without extra steps or credentials**. People are starting to expect that this process just works, without the need to sign up for other services that they've not used before or heard of."
+      ]
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "How it works",
+      "id": "how-it-works"
+    },
+    {
+      "type": "p",
+      "text": "Temporary accounts are built around [Wrangler](https://developers.cloudflare.com/workers/wrangler/), our Developer Platform command-line interface (CLI) tool that lets developers bootstrap new projects, manage their configurations and resources, and deploy and update them."
+    },
+    {
+      "type": "p",
+      "text": "Wrangler usage is widely [documented](https://developers.cloudflare.com/workers/examples/) online and agents know how to use it very well. But if you hadn’t yet signed in and granted Wrangler permission to your Cloudflare account, when the agent tried to deploy, it would get stuck at the sign-up and authentication step. And you might rightly ask: How do agents and LLMs know that this new `--temporary` flag in Wrangler exists, so that they actually use it without a human explicitly telling them to do so?"
+    },
+    {
+      "type": "p",
+      "text": "To solve this, we updated Wrangler to prompt the agent with a message that tells it about the `--temporary` flag:"
+    },
+    {
+      "type": "image",
+      "src": "https://blog.cloudflare.com/_emdash/api/media/file/01KW9WMD6HB4WQ3MV2YRHSPTZ5.png",
+      "alt": "BLOG-3348 Image 3"
+    },
+    {
+      "type": "p",
+      "text": "When the agent discovers this, and then runs **`wrangler deploy`** again with the `--temporary` flag, Cloudflare provisions a temporary account for the agent to use, gives Wrangler an API token to work with, and provides a claim URL that the agent can give back to the human."
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Let’s go over every step of the flow",
+      "id": "let-s-go-over-every-step-of-the-flow"
+    },
+    {
+      "type": "heading",
+      "level": 3,
+      "text": "Deploying and iterating on a new project",
+      "id": "deploying-and-iterating-on-a-new-project"
+    },
+    {
+      "type": "p",
+      "text": "Make sure you’re using the latest [Wrangler release](https://github.com/cloudflare/workers-sdk/releases), fire up your favorite coding agent, and write a prompt to deploy a \"hello world\" app in build mode:"
+    },
+    {
+      "type": "quote",
+      "text": "Make a very simple hello world Cloudflare Worker in TypeScript and deploy it using wrangler, don't ask me questions, do the best you can"
+    },
+    {
+      "type": "p",
+      "text": "The agent will run wrangler, pick up the `--temporary` flag from the output messages, build your script, and deploy it instantly, no human in the loop required:"
+    },
+    {
+      "type": "image",
+      "src": "https://blog.cloudflare.com/_emdash/api/media/file/01KW9WKY1DCK48E42XP5SWCX6E.png",
+      "alt": "BLOG-3348 Image 4"
+    },
+    {
+      "type": "p",
+      "text": "As you can see, the agent wrote the script, deployed it using the `--temporary` flag, curled the preview link it got from the output, and verified that the result matches the code."
+    },
+    {
+      "type": "p",
+      "text": "This is great, but agentic coding is often not about one single deployment. A session can go through a cycle of multiple code changes. This is not a problem: the agent can iterate on the Worker script and redeploy the changes as many times as it wants (within the 60-minute claim window). Type this prompt:"
+    },
+    {
+      "type": "quote",
+      "text": "Now change hello world to \"hello cloudflare\" and redeploy"
+    },
+    {
+      "type": "p",
+      "text": "Look at the agent changing the source code, reusing the previously created temporary account, redeploying a new version and rechecking the result:"
+    },
+    {
+      "type": "image",
+      "src": "https://blog.cloudflare.com/_emdash/api/media/file/01KW9WM7YT7CGCCKEM5PTG3799.png",
+      "alt": "BLOG-3348 Image 5"
+    },
+    {
+      "type": "heading",
+      "level": 3,
+      "text": "Claiming the account",
+      "id": "claiming-the-account"
+    },
+    {
+      "type": "p",
+      "text": "At any point, you can claim the temporary account and make it yours permanently. When you click the claim link you will be taken to a page where you can either sign up for or sign in to Cloudflare, and then claim the temporary account that your Worker was deployed to. This includes claiming not just Workers, but resources like databases and other bindings, too."
+    },
+    {
+      "type": "image",
+      "src": "https://blog.cloudflare.com/_emdash/api/media/file/01KW9WM8M7F2P9VBH339KDN0Q7.png",
+      "alt": "BLOG-3348 Image 6"
+    },
+    {
+      "type": "p",
+      "text": "If you do not claim these temporary accounts within 60 minutes, they will be automatically deleted."
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "The road to frictionless agentic deployments",
+      "id": "the-road-to-frictionless-agentic-deployments"
+    },
+    {
+      "type": "p",
+      "text": "This is just one way we’re eliminating the signup barrier for agents. We recently [announced a partnership with Stripe](https://blog.cloudflare.com/agents-stripe-projects/) and a new protocol we co-designed that lets agents provision Cloudflare on behalf of their users — creating an account, starting a subscription, registering a domain, and getting an API token to deploy code, with no copy-pasting tokens or entering credit card details. Last month, we collaborated with WorkOS on the launch of [auth.md](https://workos.com/auth-md), which anyone can adopt, to let agents provision new accounts using well-established, existing OAuth standards."
+    },
+    {
+      "type": "p",
+      "text": "There’s a ton going on in this space, and we’re excited to keep making it easier for agents to use Cloudflare, and for developers to make their own apps [agent-ready](https://isitagentready.com/). Temporary accounts are one more step toward frictionless agentic deployments — stay tuned for more."
+    },
+    {
+      "type": "p",
+      "text": "Temporary accounts have some limitations, and their capabilities may change over time; check the [developer documentation](https://developers.cloudflare.com/workers/platform/claim-deployments/) for more information and then go build something. Point your agent at Cloudflare, see how far it gets, and tell us what we can improve or what delights you — share what you’ve built on [X](https://x.com/CloudflareDev) or hop into the [Cloudflare Community](https://community.cloudflare.com/)."
+    }
+  ]
+}

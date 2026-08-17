@@ -1,0 +1,131 @@
+---
+import Icon from "@/components/icon/Icon";
+import CardTexture from "./CardTexture";
+import AnadoluEfesLogo from "./_svg/anadolu-efes-white.svg";
+import CanvaLogo from "./_svg/canva-white.svg";
+import DeliveryHeroLogo from "./_svg/delivery-hero-white.svg";
+import DiscordLogo from "./_svg/discord-white.svg";
+import DockerLogo from "./_svg/docker-white.svg";
+import ElementorLogo from "./_svg/elementor-white.svg";
+import EnvatoLogo from "./_svg/envato-white.svg";
+import LiveblocksLogo from "./_svg/liveblocks-white.svg";
+import ShopifyLogo from "./_svg/shopify-white.svg";
+import SkyscannerLogo from "./_svg/skyscanner-white.svg";
+import TeamviewerLogo from "./_svg/teamviewer-white.svg";
+import UniswapLogo from "./_svg/uniswap-white.svg";
+import VscoLogo from "./_svg/vsco-white.svg";
+import anadoluEfesTexture from "./_textures/anadolu-efes.svg?url";
+import canvaTexture from "./_textures/canva.svg?url";
+import deliveryHeroTexture from "./_textures/delivery-hero.svg?url";
+import discordTexture from "./_textures/discord.svg?url";
+import dockerTexture from "./_textures/docker.svg?url";
+import elementorTexture from "./_textures/elementor.svg?url";
+import envatoTexture from "./_textures/envato.svg?url";
+import liveblocksTexture from "./_textures/liveblocks.svg?url";
+import shopifyTexture from "./_textures/shopify.svg?url";
+import skyscannerTexture from "./_textures/skyscanner.svg?url";
+import teamviewerTexture from "./_textures/teamviewer.svg?url";
+import uniswapTexture from "./_textures/uniswap.svg?url";
+import vscoTexture from "./_textures/vsco.svg?url";
+import { CASE_CARDS, type CaseCardData, type CaseCardName } from "./data";
+import { cardStripes } from "./texture-config";
+
+interface Props {
+  name: CaseCardName;
+  width: 320 | 440 | 640;
+}
+
+const { name, width } = Astro.props;
+const card: CaseCardData = CASE_CARDS[name];
+
+const logos = {
+  skyscanner: SkyscannerLogo,
+  shopify: ShopifyLogo,
+  uniswap: UniswapLogo,
+  discord: DiscordLogo,
+  "anadolu-efes": AnadoluEfesLogo,
+  "delivery-hero": DeliveryHeroLogo,
+  envato: EnvatoLogo,
+  canva: CanvaLogo,
+  teamviewer: TeamviewerLogo,
+  vsco: VscoLogo,
+  liveblocks: LiveblocksLogo,
+  elementor: ElementorLogo,
+  docker: DockerLogo,
+};
+
+const textures = {
+  skyscanner: skyscannerTexture,
+  shopify: shopifyTexture,
+  uniswap: uniswapTexture,
+  discord: discordTexture,
+  "anadolu-efes": anadoluEfesTexture,
+  "delivery-hero": deliveryHeroTexture,
+  envato: envatoTexture,
+  canva: canvaTexture,
+  teamviewer: teamviewerTexture,
+  vsco: vscoTexture,
+  liveblocks: liveblocksTexture,
+  elementor: elementorTexture,
+  docker: dockerTexture,
+};
+
+const widthClasses = { 320: "w-320", 440: "w-440", 640: "w-640" };
+
+const Logo = logos[name];
+
+const overrides = {
+  stripes: cardStripes(card.stripeColors),
+  whitePoint: card.whitePoint,
+  sparkleStripe: card.sparkleStripe,
+  stripeGradient: card.stripeGradient,
+};
+---
+
+<a
+  href={`/case-studies/${name}`}
+  class:list={[
+    "group flex shrink-0 flex-col gap-24 outline-none focus-visible:shadow-button-tertiary-focus",
+    widthClasses[width],
+  ]}
+>
+  <div class="relative h-320 w-full overflow-clip">
+    <div
+      class:list={[
+        "pointer-events-none overlay filter-(--water-filter,none)",
+        `case-card-${name}`,
+      ]}
+    >
+    </div>
+
+    <CardTexture
+      client:visible={{ rootMargin: "200% 0px" }}
+      className="pointer-events-none overlay z-10"
+      overrides={overrides}
+      src={textures[name]}
+    />
+
+    <div class="pointer-events-none overlay z-20 flex-center">
+      <Logo role="img" aria-label={card.company} />
+    </div>
+  </div>
+
+  <div class="flex flex-col gap-16 py-6">
+    <p
+      class="line-clamp-2 min-h-48 pr-32 text-heading-h5 wrap-break-word text-text-base"
+    >
+      {card.description}
+    </p>
+
+    <span
+      class="flex items-center gap-6 text-label-x-small whitespace-nowrap text-text-muted transition-colors duration-100 group-hover:text-text-base"
+    >
+      Read story
+      <Icon
+        name="arrow-right"
+        size={20}
+        className="transition-transform duration-100 ease-[cubic-bezier(0.165,0.84,0.44,1)] group-hover:translate-x-2"
+      />
+    </span>
+  </div>
+</a>

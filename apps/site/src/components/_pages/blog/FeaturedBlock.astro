@@ -1,0 +1,22 @@
+---
+import type { Post } from "./data";
+import FeaturedCard from "./FeaturedCard.astro";
+import PostCard from "./PostCard.astro";
+
+interface Props {
+  featured: Post;
+  side: Post[];
+}
+
+const { featured, side } = Astro.props;
+---
+
+<div class="relative flex items-start justify-between px-40 pb-80">
+  <FeaturedCard post={featured} />
+
+  <div class="w-px shrink-0 self-stretch bg-border-muted"></div>
+
+  <div class="flex w-320 shrink-0 flex-col gap-80">
+    {side.map((post) => <PostCard post={post} stackedAvatars />)}
+  </div>
+</div>

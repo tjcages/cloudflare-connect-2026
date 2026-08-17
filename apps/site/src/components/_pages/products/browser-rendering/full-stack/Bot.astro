@@ -1,0 +1,63 @@
+---
+import Browser from "@/components/browser/Browser.astro";
+import Icon from "@/components/icon/Icon";
+import Stage from "@/components/Stage.astro";
+---
+
+<Stage data-fullstack-visual="bot">
+  <div class="overlay overflow-clip">
+    <div class="absolute top-88 left-0 h-px w-full bg-border-default"></div>
+    <div class="absolute top-152 left-0 h-px w-full bg-border-default"></div>
+    <div class="absolute top-0 left-1/2 h-full w-px bg-border-default"></div>
+
+    <div class="overlay" data-bot-field>
+      <div
+        class="absolute centering-h-136 centering-w-208 z-20"
+        data-bot-browser
+      >
+        <Browser class="h-136 w-208" variant="site-1" />
+      </div>
+
+      <div
+        class="absolute top-0 left-0 z-30 h-40 w-16 origin-left"
+        data-bot-barrier
+      >
+        <div
+          class="overlay bg-[radial-gradient(16px_18.68px_at_left_center,var(--color-background-accent-warning),transparent_95%)] opacity-0"
+          data-bot-glow
+        >
+        </div>
+        <div
+          class="absolute top-8 left-0 h-24 w-1 origin-center scale-y-0 bg-(--color-background-accent-warning)"
+          data-bot-bar
+        >
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <template data-bot-template="cf">
+    <div
+      class="absolute top-0 left-0 z-10 flex-center size-56 rounded-full bg-background-base shadow-elevation-default"
+    >
+      <Icon
+        name="cloudflare"
+        variant="duo"
+        color="orange"
+        className="h-24 w-36"
+      />
+    </div>
+  </template>
+
+  <template data-bot-template="bot">
+    <div
+      class="absolute top-0 left-0 z-10 flex-center size-40 rounded-full bg-background-surface before:inside-border before:border-darker/4"
+    >
+      <Icon
+        name="robot-3"
+        size={24}
+        className="text-(--color-icon-accent-warning)"
+      />
+    </div>
+  </template>
+</Stage>

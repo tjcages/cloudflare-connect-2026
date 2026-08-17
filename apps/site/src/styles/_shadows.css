@@ -1,0 +1,233 @@
+@theme static {
+  /* Figma Components/Buttons/Primary/* */
+  --shadow-button-primary-rest:
+    inset 0 -1px 3px 0 color-mix(in oklab, #febd81 12%, transparent),
+    inset 0 -0.5px 0.5px 0 color-mix(in oklab, #febd81 24%, transparent),
+    inset 0 -0.25px 0.25px 0 color-mix(in oklab, #f69032 40%, transparent),
+    inset 0 4px 8px 0 color-mix(in oklab, #febd81 12%, transparent),
+    inset 0 1px 3px 0 color-mix(in oklab, #febd81 24%, transparent),
+    inset 0 0.5px 0.5px 0 color-mix(in oklab, #febd81 32%, transparent),
+    inset 0 0.25px 0.25px 0 #f69032,
+    0 6px 10px -4px color-mix(in oklab, #eb5729 24%, transparent),
+    0 2px 4px -1px color-mix(in oklab, #eb5729 12%, transparent),
+    0 1px 1px -0.5px color-mix(in oklab, #eb5729 12%, transparent),
+    0 0.5px 0.5px 0 color-mix(in oklab, #eb5729 12%, transparent);
+
+  --shadow-button-primary-hover:
+    inset 0 -1px 3px 0 color-mix(in oklab, #febd81 24%, transparent),
+    inset 0 -0.5px 0.5px 0 color-mix(in oklab, #febd81 24%, transparent),
+    inset 0 -0.25px 0.25px 0 color-mix(in oklab, #f69032 40%, transparent),
+    inset 0 4px 8px 0 color-mix(in oklab, #febd81 24%, transparent),
+    inset 0 1px 3px 0 color-mix(in oklab, #febd81 24%, transparent),
+    inset 0 0.5px 0.5px 0 color-mix(in oklab, #febd81 32%, transparent),
+    inset 0 0.25px 0.25px 0 #f69032,
+    0 6px 10px -4px color-mix(in oklab, #eb5729 32%, transparent),
+    0 2px 4px -1px color-mix(in oklab, #eb5729 12%, transparent),
+    0 1px 1px -0.5px color-mix(in oklab, #eb5729 12%, transparent),
+    0 0.5px 0.5px 0 color-mix(in oklab, #eb5729 12%, transparent);
+
+  --shadow-button-primary-pressed:
+    inset 0 -1px 3px 0 color-mix(in oklab, #febd81 12%, transparent),
+    inset 0 -0.5px 0.5px 0 color-mix(in oklab, #febd81 24%, transparent),
+    inset 0 -0.25px 0.25px 0 color-mix(in oklab, #f69032 40%, transparent),
+    inset 0 4px 8px 0 color-mix(in oklab, #febd81 12%, transparent),
+    inset 0 1px 3px 0 color-mix(in oklab, #febd81 24%, transparent),
+    inset 0 0.5px 0.5px 0 color-mix(in oklab, #febd81 32%, transparent),
+    inset 0 0.25px 0.25px 0 #f69032,
+    0 6px 10px -4px color-mix(in oklab, #eb5729 12%, transparent),
+    0 2px 4px -1px color-mix(in oklab, #eb5729 12%, transparent),
+    0 1px 1px -0.5px color-mix(in oklab, #eb5729 12%, transparent),
+    0 0.5px 0.5px 0 color-mix(in oklab, #eb5729 12%, transparent);
+
+  --shadow-button-primary-focus:
+    inset 0 -1px 3px 0 color-mix(in oklab, #febd81 12%, transparent),
+    inset 0 -0.5px 0.5px 0 color-mix(in oklab, #febd81 24%, transparent),
+    inset 0 -0.25px 0.25px 0 color-mix(in oklab, #f69032 40%, transparent),
+    inset 0 4px 8px 0 color-mix(in oklab, #febd81 12%, transparent),
+    inset 0 1px 3px 0 color-mix(in oklab, #febd81 24%, transparent),
+    inset 0 0.5px 0.5px 0 color-mix(in oklab, #febd81 32%, transparent),
+    inset 0 0.25px 0.25px 0 #f69032,
+    0 6px 10px -4px color-mix(in oklab, #eb5729 24%, transparent),
+    0 2px 4px -1px color-mix(in oklab, #eb5729 12%, transparent),
+    0 1px 1px -0.5px color-mix(in oklab, #eb5729 12%, transparent),
+    0 0.5px 0.5px 0 color-mix(in oklab, #eb5729 12%, transparent),
+    0 0 0 1.5px var(--color-background-base),
+    0 0 0 2.5px var(--color-orange-900);
+
+  /* Figma Components/Buttons/Secondary/* — the leading transparent 8/12 layer only exists
+     so the hover transition has a matching layer to animate from. The 1px ring is Figma's
+     DROP_SHADOW spread 1, so it stays an OUTER ring: it grows the 38px frame to the mock's
+     40px footprint and keeps a crisp hairline on the silhouette. As `inset` the outermost
+     row is the white fill, and the edge dissolves into the drop shadow. */
+  --shadow-button-secondary-rest: var(--theme-shadow-button-secondary-rest);
+
+  --shadow-button-secondary-hover: var(--theme-shadow-button-secondary-hover);
+
+  --shadow-button-secondary-active: var(--theme-shadow-button-secondary-active);
+
+  --shadow-button-secondary-focus: var(--theme-shadow-button-secondary-focus);
+
+  /* Figma Components/Buttons/Tertiary/Focus */
+  --shadow-button-tertiary-focus:
+    0 0 0 1.5px var(--color-background-base),
+    0 0 0 2.5px var(--color-orange-900);
+
+  /* Figma Components/Input/* */
+  --shadow-input-rest: var(--theme-shadow-input-rest);
+
+  --shadow-input-hover: var(--theme-shadow-input-hover);
+
+  --shadow-input-active:
+    0 4px 12px -2px color-mix(in oklab, var(--color-orange-1200) 12%, transparent),
+    0 2px 4px -1px color-mix(in oklab, var(--color-orange-1200) 12%, transparent),
+    0 1px 1px -0.5px color-mix(in oklab, var(--color-orange-1200) 12%, transparent),
+    0 0 0 1px var(--color-orange-900),
+    0 0 0 3px var(--color-dynamic-orange-6);
+
+  /* Figma Components/Select/* */
+  --shadow-select-rest: var(--theme-shadow-select-rest);
+
+  --shadow-select-hover: var(--theme-shadow-select-hover);
+
+  --shadow-select-active: var(--theme-shadow-select-active);
+
+  --shadow-select-focus: var(--theme-shadow-select-focus);
+
+  /* The footer theme toggle's selected thumb — a local effect stack in the mock,
+     not a published effect style, so it has no Components/* counterpart. */
+  --shadow-toggle-selected: var(--theme-shadow-toggle-selected);
+
+  /* Figma Elevation/* — the universal card elevation, replaces the deleted General/* tiers */
+  --shadow-elevation-default: var(--theme-shadow-elevation-default);
+
+  --shadow-elevation-faint: var(--theme-shadow-elevation-faint);
+
+  /* Elevation/Default split into companion halves, for a card whose own inset ring
+     would be painted over by its children (an element's inset shadow can never paint
+     above its content): the element takes the drops, an `after:` overlay above the
+     children takes the ring. Together they equal --shadow-elevation-default. */
+  --shadow-elevation-default-drops: var(--theme-shadow-elevation-default-drops);
+
+  --shadow-elevation-default-ring: var(--theme-shadow-elevation-default-ring);
+
+  /* Elevation/Default as a filter (soft layers only) — for shapes that carry their
+     own border via SVG stroke, so the elevation follows the polygon outline.
+     Composed as chained drop-shadow() filters: a single drop-shadow() takes
+     only one layer, so the layers must each be their own filter function. */
+  --drop-shadow-elevation-default: var(--theme-drop-shadow-elevation-default);
+
+  /* Figma Hero/Glow/* */
+  --shadow-glow-orange:
+    inset 0 -1px 3px 0 color-mix(in oklab, #febd81 12%, transparent),
+    inset 0 -0.5px 0.5px 0 color-mix(in oklab, #febd81 24%, transparent),
+    inset 0 -0.25px 0.25px 0 color-mix(in oklab, #f69032 40%, transparent),
+    inset 0 8px 16px 0 color-mix(in oklab, #febd81 24%, transparent),
+    inset 0 1px 3px 0 color-mix(in oklab, #febd81 24%, transparent),
+    inset 0 0.5px 0.5px 0 color-mix(in oklab, #febd81 32%, transparent),
+    inset 0 0.25px 0.25px 0 #f69032,
+    0 12px 24px -4px color-mix(in oklab, #eb5729 10%, transparent),
+    0 6px 10px -4px color-mix(in oklab, #eb5729 24%, transparent),
+    0 2px 4px -1px color-mix(in oklab, #eb5729 12%, transparent),
+    0 1px 1px -0.5px color-mix(in oklab, #eb5729 12%, transparent),
+    0 0.5px 0.5px 0 color-mix(in oklab, #eb5729 12%, transparent);
+
+  --shadow-glow-purple:
+    inset 0 -1px 3px 0 color-mix(in oklab, #ebccff 12%, transparent),
+    inset 0 -0.5px 0.5px 0 color-mix(in oklab, #ebccff 24%, transparent),
+    inset 0 -0.25px 0.25px 0 color-mix(in oklab, #ebccff 40%, transparent),
+    inset 0 4px 8px 0 color-mix(in oklab, #ebccff 12%, transparent),
+    inset 0 1px 3px 0 color-mix(in oklab, #ebccff 24%, transparent),
+    inset 0 0.5px 0.5px 0 color-mix(in oklab, #ebccff 32%, transparent),
+    inset 0 0.25px 0.25px 0 #ebccff,
+    0 6px 10px -4px color-mix(in oklab, #9138fc 24%, transparent),
+    0 2px 4px -1px color-mix(in oklab, #9138fc 12%, transparent),
+    0 1px 1px -0.5px color-mix(in oklab, #9138fc 12%, transparent),
+    0 0.5px 0.5px 0 color-mix(in oklab, #9138fc 12%, transparent);
+
+  --shadow-glow-black:
+    inset 0 -1px 3px 0 color-mix(in oklab, #e0e0e0 12%, transparent),
+    inset 0 -0.5px 0.5px 0 color-mix(in oklab, #e0e0e0 24%, transparent),
+    inset 0 -0.25px 0.25px 0 color-mix(in oklab, #e0e0e0 40%, transparent),
+    inset 0 4px 8px 0 color-mix(in oklab, #e0e0e0 12%, transparent),
+    inset 0 1px 3px 0 color-mix(in oklab, #e0e0e0 24%, transparent),
+    inset 0 0.5px 0.5px 0 color-mix(in oklab, #e0e0e0 32%, transparent),
+    inset 0 0.25px 0.25px 0 #e0e0e0,
+    0 6px 10px -4px color-mix(in oklab, #1f1f1f 24%, transparent),
+    0 2px 4px -1px color-mix(in oklab, #1f1f1f 12%, transparent),
+    0 1px 1px -0.5px color-mix(in oklab, #1f1f1f 12%, transparent),
+    0 0.5px 0.5px 0 color-mix(in oklab, #1f1f1f 12%, transparent);
+
+  /* Figma Hero/Chip/* — tints are Toner/Drop Shadow/Colorful/<hue> */
+  --shadow-chip-orange: var(--theme-shadow-chip-orange);
+
+  --shadow-chip-green: var(--theme-shadow-chip-green);
+
+  --shadow-chip-blue: var(--theme-shadow-chip-blue);
+
+  --shadow-chip-purple: var(--theme-shadow-chip-purple);
+
+  --shadow-chip-red: var(--theme-shadow-chip-red);
+
+  --shadow-chip-current:
+    0 12px 16px 0 color-mix(in oklab, currentColor 5%, transparent),
+    0 6px 12px 0 color-mix(in oklab, currentColor 4%, transparent),
+    0 2px 4px 0 color-mix(in oklab, currentColor 3%, transparent),
+    0 1px 2px 0 color-mix(in oklab, currentColor 4%, transparent),
+    0 0 0 1px color-mix(in oklab, currentColor 3%, transparent);
+
+  --shadow-chip-off: var(--theme-shadow-chip-off);
+}
+
+/* Tailwind INLINES a shadow theme token's value into --tw-shadow when it compiles
+   the utility, so redefining --shadow-* under a theme selector has no effect. The
+   tokens above therefore point at these aliases, which are plain custom properties
+   and so resolve at runtime. Dark values come from the Figma "Dark" mode, where every
+   Toner/Drop Shadow/* step is alpha 0 and Toner/Inner Shadow/* becomes white at N%. */
+:root {
+  --theme-shadow-button-secondary-rest: 0 8px 12px -2px rgba(0, 0, 0, 0), 0 4px 8px -2px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02), 0 1px 1px -0.5px rgba(0, 0, 0, 0.02), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  --theme-shadow-button-secondary-hover: 0 8px 12px -2px rgba(0, 0, 0, 0.02), 0 4px 8px -2px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02), 0 1px 1px -0.5px rgba(0, 0, 0, 0.02), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  --theme-shadow-button-secondary-active: 0 8px 12px -2px rgba(0, 0, 0, 0), 0 3px 6px -2px rgba(0, 0, 0, 0.01), 0 2px 4px -1px rgba(0, 0, 0, 0.02), 0 1px 1px -0.5px rgba(0, 0, 0, 0.02), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  --theme-shadow-button-secondary-focus: 0 4px 8px -2px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02), 0 1px 1px -0.5px rgba(0, 0, 0, 0.02), 0 0 0 1px rgba(0, 0, 0, 0.04), 0 0 0 2.5px var(--color-background-base), 0 0 0 3.5px var(--color-orange-900);
+  --theme-shadow-input-rest: 0 4px 8px -2px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02), 0 1px 1px -0.5px rgba(0, 0, 0, 0.02), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  --theme-shadow-input-hover: 0 8px 12px -2px rgba(0, 0, 0, 0.02), 0 4px 8px -2px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02), 0 1px 1px -0.5px rgba(0, 0, 0, 0.02), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  --theme-shadow-select-rest: 0 4px 8px -2px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02), 0 1px 1px -0.5px rgba(0, 0, 0, 0.02), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  --theme-shadow-select-hover: 0 8px 12px -2px rgba(0, 0, 0, 0.02), 0 4px 8px -2px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02), 0 1px 1px -0.5px rgba(0, 0, 0, 0.02), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  --theme-shadow-select-active: 0 4px 8px -2px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02), 0 1px 1px -0.5px rgba(0, 0, 0, 0.02), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  --theme-shadow-select-focus: 0 4px 8px -2px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02), 0 1px 1px -0.5px rgba(0, 0, 0, 0.02), 0 0 0 1px rgba(0, 0, 0, 0.04), 0 0 0 2.5px var(--color-background-base), 0 0 0 3.5px var(--color-orange-900);
+  --theme-shadow-toggle-selected: 0 4px 8px -2px rgba(0, 0, 0, 0.03), 0 2px 4px -1px rgba(0, 0, 0, 0.03), 0 1px 1px -0.5px rgba(0, 0, 0, 0.02);
+  --theme-shadow-elevation-default: inset 0 0 0 1px transparent, 0 24px 32px -12px color-mix(in oklab, black 3%, transparent), 0 6px 12px 0 color-mix(in oklab, black 1%, transparent), 0 3px 6px 0 color-mix(in oklab, black 1%, transparent), 0 0 0 1px color-mix(in oklab, black 4%, transparent);
+  --theme-shadow-elevation-default-drops: 0 24px 32px -12px color-mix(in oklab, black 3%, transparent), 0 6px 12px 0 color-mix(in oklab, black 1%, transparent), 0 3px 6px 0 color-mix(in oklab, black 1%, transparent), 0 0 0 1px color-mix(in oklab, black 4%, transparent);
+  --theme-shadow-elevation-default-ring: inset 0 0 0 1px transparent;
+  --theme-shadow-elevation-faint: inset 0 0 0 1px transparent, 0 24px 32px -12px transparent, 0 6px 12px 0 transparent, 0 3px 6px 0 transparent, 0 0 0 1px color-mix(in oklab, black 4%, transparent);
+  --theme-drop-shadow-elevation-default: drop-shadow(0 3px 6px color-mix(in oklab, black 1%, transparent)) drop-shadow(0 6px 12px color-mix(in oklab, black 1%, transparent)) drop-shadow(0 24px 32px color-mix(in oklab, black 3%, transparent));
+  --theme-shadow-chip-orange: 0 12px 16px 0 color-mix(in oklab, #f46021 5%, transparent), 0 6px 12px 0 color-mix(in oklab, #f46021 4%, transparent), 0 2px 4px 0 color-mix(in oklab, #f46021 3%, transparent), 0 1px 2px 0 color-mix(in oklab, #f46021 4%, transparent), 0 0 0 1px color-mix(in oklab, #f46021 3%, transparent);
+  --theme-shadow-chip-green: 0 12px 16px 0 color-mix(in oklab, #009f47 5%, transparent), 0 6px 12px 0 color-mix(in oklab, #009f47 4%, transparent), 0 2px 4px 0 color-mix(in oklab, #009f47 3%, transparent), 0 1px 2px 0 color-mix(in oklab, #009f47 4%, transparent), 0 0 0 1px color-mix(in oklab, #009f47 3%, transparent);
+  --theme-shadow-chip-blue: 0 12px 16px 0 color-mix(in oklab, #0065ff 5%, transparent), 0 6px 12px 0 color-mix(in oklab, #0065ff 4%, transparent), 0 2px 4px 0 color-mix(in oklab, #0065ff 3%, transparent), 0 1px 2px 0 color-mix(in oklab, #0065ff 4%, transparent), 0 0 0 1px color-mix(in oklab, #0065ff 3%, transparent);
+  --theme-shadow-chip-purple: 0 12px 16px 0 color-mix(in oklab, #a32bff 5%, transparent), 0 6px 12px 0 color-mix(in oklab, #a32bff 4%, transparent), 0 2px 4px 0 color-mix(in oklab, #a32bff 3%, transparent), 0 1px 2px 0 color-mix(in oklab, #a32bff 4%, transparent), 0 0 0 1px color-mix(in oklab, #a32bff 3%, transparent);
+  --theme-shadow-chip-red: 0 12px 16px 0 color-mix(in oklab, #e92d28 5%, transparent), 0 6px 12px 0 color-mix(in oklab, #e92d28 4%, transparent), 0 2px 4px 0 color-mix(in oklab, #e92d28 3%, transparent), 0 1px 2px 0 color-mix(in oklab, #e92d28 4%, transparent), 0 0 0 1px color-mix(in oklab, #e92d28 3%, transparent);
+  --theme-shadow-chip-off: 0 12px 16px 0 color-mix(in oklab, black 3%, transparent), 0 6px 12px 0 color-mix(in oklab, black 2%, transparent), 0 2px 4px 0 color-mix(in oklab, black 2%, transparent), 0 1px 2px 0 color-mix(in oklab, black 2%, transparent), 0 0 0 1px color-mix(in oklab, black 2%, transparent);
+}
+
+:root[data-theme="dark"] {
+  --theme-shadow-button-secondary-rest: 0 8px 12px -2px transparent, 0 4px 8px -2px transparent, 0 2px 4px -1px transparent, 0 1px 1px -0.5px transparent, 0 0 0 1px rgba(255, 255, 255, 0.05);
+  --theme-shadow-button-secondary-hover: 0 8px 12px -2px transparent, 0 4px 8px -2px transparent, 0 2px 4px -1px transparent, 0 1px 1px -0.5px transparent, 0 0 0 1px rgba(255, 255, 255, 0.07);
+  --theme-shadow-button-secondary-active: 0 8px 12px -2px transparent, 0 3px 6px -2px transparent, 0 2px 4px -1px transparent, 0 1px 1px -0.5px transparent, 0 0 0 1px rgba(255, 255, 255, 0.05);
+  --theme-shadow-button-secondary-focus: 0 4px 8px -2px transparent, 0 2px 4px -1px transparent, 0 1px 1px -0.5px transparent, 0 0 0 1px rgba(255, 255, 255, 0.05), 0 0 0 2.5px var(--color-background-base), 0 0 0 3.5px var(--color-orange-900);
+  --theme-shadow-input-rest: 0 4px 8px -2px transparent, 0 2px 4px -1px transparent, 0 1px 1px -0.5px transparent, 0 0 0 1px rgba(255, 255, 255, 0.05);
+  --theme-shadow-input-hover: 0 8px 12px -2px transparent, 0 4px 8px -2px transparent, 0 2px 4px -1px transparent, 0 1px 1px -0.5px transparent, 0 0 0 1px rgba(255, 255, 255, 0.07);
+  --theme-shadow-select-rest: 0 4px 8px -2px transparent, 0 2px 4px -1px transparent, 0 1px 1px -0.5px transparent, 0 0 0 1px rgba(255, 255, 255, 0.05);
+  --theme-shadow-select-hover: 0 8px 12px -2px transparent, 0 4px 8px -2px transparent, 0 2px 4px -1px transparent, 0 1px 1px -0.5px transparent, 0 0 0 1px rgba(255, 255, 255, 0.07);
+  --theme-shadow-select-active: 0 4px 8px -2px transparent, 0 2px 4px -1px transparent, 0 1px 1px -0.5px transparent, 0 0 0 1px rgba(255, 255, 255, 0.05);
+  --theme-shadow-select-focus: 0 4px 8px -2px transparent, 0 2px 4px -1px transparent, 0 1px 1px -0.5px transparent, 0 0 0 1px rgba(255, 255, 255, 0.05), 0 0 0 2.5px var(--color-background-base), 0 0 0 3.5px var(--color-orange-900);
+  --theme-shadow-elevation-default: inset 0 0 0 1px rgba(255, 255, 255, 0.05), 0 24px 32px -12px transparent, 0 6px 12px 0 transparent, 0 3px 6px 0 transparent, 0 0 0 1px transparent;
+  --theme-shadow-elevation-default-drops: 0 24px 32px -12px transparent, 0 6px 12px 0 transparent, 0 3px 6px 0 transparent, 0 0 0 1px transparent;
+  --theme-shadow-elevation-default-ring: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  --theme-shadow-elevation-faint: inset 0 0 0 1px rgba(255, 255, 255, 0.04), 0 24px 32px -12px transparent, 0 6px 12px 0 transparent, 0 3px 6px 0 transparent, 0 0 0 1px transparent;
+  --theme-drop-shadow-elevation-default: drop-shadow(0 3px 6px transparent) drop-shadow(0 6px 12px transparent) drop-shadow(0 24px 32px transparent);
+  --theme-shadow-chip-orange: 0 12px 16px 0 color-mix(in oklab, #160100 16%, transparent), 0 6px 12px 0 color-mix(in oklab, #160100 12%, transparent), 0 2px 4px 0 color-mix(in oklab, #160100 8%, transparent), 0 1px 2px 0 color-mix(in oklab, #160100 12%, transparent), 0 0 0 1px color-mix(in oklab, #160100 8%, transparent);
+  --theme-shadow-chip-green: 0 12px 16px 0 color-mix(in oklab, #000c00 16%, transparent), 0 6px 12px 0 color-mix(in oklab, #000c00 12%, transparent), 0 2px 4px 0 color-mix(in oklab, #000c00 8%, transparent), 0 1px 2px 0 color-mix(in oklab, #000c00 12%, transparent), 0 0 0 1px color-mix(in oklab, #000c00 8%, transparent);
+  --theme-shadow-chip-blue: 0 12px 16px 0 color-mix(in oklab, #01002a 16%, transparent), 0 6px 12px 0 color-mix(in oklab, #01002a 12%, transparent), 0 2px 4px 0 color-mix(in oklab, #01002a 8%, transparent), 0 1px 2px 0 color-mix(in oklab, #01002a 12%, transparent), 0 0 0 1px color-mix(in oklab, #01002a 8%, transparent);
+  --theme-shadow-chip-purple: 0 12px 16px 0 color-mix(in oklab, #10001a 16%, transparent), 0 6px 12px 0 color-mix(in oklab, #10001a 12%, transparent), 0 2px 4px 0 color-mix(in oklab, #10001a 8%, transparent), 0 1px 2px 0 color-mix(in oklab, #10001a 12%, transparent), 0 0 0 1px color-mix(in oklab, #10001a 8%, transparent);
+  --theme-shadow-chip-red: 0 12px 16px 0 color-mix(in oklab, #180002 16%, transparent), 0 6px 12px 0 color-mix(in oklab, #180002 12%, transparent), 0 2px 4px 0 color-mix(in oklab, #180002 8%, transparent), 0 1px 2px 0 color-mix(in oklab, #180002 12%, transparent), 0 0 0 1px color-mix(in oklab, #180002 8%, transparent);
+  --theme-shadow-chip-off: 0 12px 16px 0 color-mix(in oklab, black 8%, transparent), 0 6px 12px 0 color-mix(in oklab, black 4%, transparent), 0 2px 4px 0 color-mix(in oklab, black 4%, transparent), 0 1px 2px 0 color-mix(in oklab, black 4%, transparent), 0 0 0 1px color-mix(in oklab, black 4%, transparent);
+}

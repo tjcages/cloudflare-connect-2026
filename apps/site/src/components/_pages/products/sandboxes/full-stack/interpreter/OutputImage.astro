@@ -1,0 +1,34 @@
+---
+import Icon from "@/components/icon/Icon";
+import HalfCircle from "./_svg/half-circle.svg";
+import HalfCircleRight from "./_svg/half-circle-right.svg";
+---
+
+<div class="overlay">
+  <div
+    class="absolute top-16 left-16 z-2 h-64 w-160 rounded-6 opacity-0 transition-opacity duration-350 ease-[cubic-bezier(0.6,0.6,0,1)] group-data-output/browser:opacity-100 before:inside-border before:border-border-default before:[transition:none]"
+  >
+  </div>
+
+  <div
+    class="absolute top-48 left-16 h-px w-160 origin-center -translate-y-1/2 scale-x-0 bg-border-default transition-transform duration-450 ease-[cubic-bezier(0.6,0.6,0,1)] group-data-output/browser:scale-x-100 group-data-output/browser:delay-100"
+  >
+  </div>
+  <div
+    class="absolute top-16 left-96 h-64 w-px origin-center -translate-x-1/2 scale-y-0 bg-border-default transition-transform duration-450 ease-[cubic-bezier(0.6,0.6,0,1)] group-data-output/browser:scale-y-100 group-data-output/browser:delay-160"
+  >
+  </div>
+
+  <HalfCircle
+    class="absolute top-29.5 left-15.5 z-1 h-37 w-19 text-border-default [&_path:first-of-type]:fill-transparent group-data-output/browser:[&_path:first-of-type]:fill-background-base [&_path:last-of-type]:transition-[stroke-dashoffset] [&_path:last-of-type]:duration-700 [&_path:last-of-type]:ease-[cubic-bezier(0.6,0.6,0,1)] [&_path:last-of-type]:[stroke-dasharray:1] [&_path:last-of-type]:[stroke-dashoffset:1] group-data-output/browser:[&_path:last-of-type]:delay-320 group-data-output/browser:[&_path:last-of-type]:[stroke-dashoffset:0]"
+  />
+  <HalfCircleRight
+    class="absolute top-29.5 left-157.5 z-1 h-37 w-19 text-border-default [&_path:first-of-type]:fill-transparent group-data-output/browser:[&_path:first-of-type]:fill-background-base [&_path:last-of-type]:transition-[stroke-dashoffset] [&_path:last-of-type]:duration-700 [&_path:last-of-type]:ease-[cubic-bezier(0.6,0.6,0,1)] [&_path:last-of-type]:[stroke-dasharray:1] [&_path:last-of-type]:[stroke-dashoffset:1] group-data-output/browser:[&_path:last-of-type]:delay-320 group-data-output/browser:[&_path:last-of-type]:[stroke-dashoffset:0]"
+  />
+
+  <div
+    class="absolute top-30 left-60 flex-center h-36 w-72 translate-y-4 rounded-full bg-background-base opacity-0 shadow-elevation-default transition-[opacity,translate] duration-350 ease-[cubic-bezier(0.6,0.6,0,1)] group-data-output/browser:translate-y-0 group-data-output/browser:opacity-100 group-data-output/browser:delay-420"
+  >
+    <Icon color="orange" name="images-2" size={24} variant="duo" />
+  </div>
+</div>

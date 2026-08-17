@@ -1,0 +1,52 @@
+---
+import Button from "@/components/Button";
+import CornerDots from "@/components/CornerDots";
+import CtaTexture from "@/components/cta/CtaTexture";
+import DashedLineBleed from "@/components/DashedLineBleed";
+import Eyebrow from "@/components/Eyebrow";
+import GridArea from "@/components/GridArea";
+import Icon from "@/components/icon/Icon";
+import SectionEyebrow from "@/components/SectionEyebrow.astro";
+import { connectHero, REGISTER_URL } from "../data";
+---
+
+{/* Connect copy and actions inside the shared Build without boundaries shader shell. */}
+<div class="relative scroll-mt-80 overflow-x-clip" id="register">
+  <CtaTexture client:visible />
+
+  <div class="relative mx-auto max-w-1200 px-240 py-160 text-center">
+    <DashedLineBleed className="-top-0.5" />
+    <GridArea className="overlay" borderColor="muted" />
+
+    <SectionEyebrow text="cta" />
+    <CornerDots />
+
+    <div
+      class="relative bg-background-base py-80 before:inside-border before:border-border-muted"
+    >
+      <div class="relative z-20">
+        <Eyebrow client:visible direction="center" title="get started" />
+
+        <div class="mt-24 mb-16 text-heading-display text-text-base">
+          Don’t just anticipate<br />the future. Build it.
+        </div>
+
+        <div class="mx-auto max-w-480 text-body-large text-text-base">
+          Join 5,000+ builders at Moscone West for three days of keynotes,
+          University, and nights built for connections.
+        </div>
+
+        <div class="mt-40 flex-center gap-12">
+          <Button data-cta-primary href={REGISTER_URL} size="large">
+            <Icon name="cloudflare" className="h-20 w-30" />
+            <span>Register Now</span>
+          </Button>
+
+          <Button href={connectHero.secondaryCta.href} variant="secondary">
+            <span>See the agenda</span>
+          </Button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

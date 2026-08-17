@@ -1,0 +1,13 @@
+diff --git a/dist/index.js b/dist/index.js
+index 6b9f37eac7baa92be5d3a7d6e6054886f99dcac4..35899f918e73539f6b7bef5c0c2e6512ad8afa3e 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -594,7 +594,7 @@ const embed = ((path, options) => {
+                 }
+                 return doc;
+             });
+-            return group(['{', indent([softline, astroDoc]), softline, lineSuffixBoundary, '}']);
++            return group(['{', astroDoc, lineSuffixBoundary, '}']);
+         }
+         if (node.type === 'attribute' && node.kind === 'expression') {
+             const value = node.value.trim();

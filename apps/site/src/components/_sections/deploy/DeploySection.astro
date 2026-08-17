@@ -1,0 +1,33 @@
+---
+import GridArea from "@/components/GridArea";
+import Icon from "@/components/icon/Icon";
+import type { IconName } from "@/components/icon/icons.gen";
+
+type Props = {
+  title: string;
+  description: string;
+  iconName: IconName;
+};
+
+const { title, description, iconName } = Astro.props;
+---
+
+<div class="mb-76">
+  <div class="mb-28 flex gap-24">
+    <Icon name={iconName} variant="duo" size={24} />
+    <div>
+      <div class="mb-8 text-heading-h5 text-text-base">
+        {title}
+      </div>
+      <div class="text-body-medium whitespace-pre-line text-text-default">
+        {description}
+      </div>
+    </div>
+  </div>
+
+  <div class="relative p-40">
+    <GridArea className="overlay bg-background-surface" />
+
+    <slot />
+  </div>
+</div>

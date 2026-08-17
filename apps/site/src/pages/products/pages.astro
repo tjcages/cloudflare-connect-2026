@@ -1,0 +1,26 @@
+---
+import CodeTabs from "@/components/_pages/products/pages/CodeTabs.astro";
+import Features from "@/components/_pages/products/pages/features/Features.astro";
+import UseCases from "@/components/_pages/products/pages/use-cases/UseCases.astro";
+import Products from "@/components/_sections/products/Products.astro";
+import LogoCloud from "@/components/logo-cloud/LogoCloud.astro";
+import Quote from "@/components/quote/Quote.astro";
+import Layout from "@/layouts/Layout.astro";
+---
+
+<Layout
+  title="Cloudflare Pages - Serverless Full-Stack Platform"
+  description="Build, deploy, and deliver full-stack applications quickly with Cloudflare Pages. A serverless platform for frontend developers."
+>
+  <Features />
+
+  <LogoCloud variant="pages" />
+
+  <UseCases />
+
+  <CodeTabs />
+
+  <Quote brand="leagued" />
+
+  <Products />
+</Layout>

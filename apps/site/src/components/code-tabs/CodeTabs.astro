@@ -1,0 +1,32 @@
+---
+import { highlightCodePiece } from "@/components/code-piece/highlighter";
+import Section from "@/layouts/Section.astro";
+import CodeTabsContent from "./content/Content";
+import { isTerminalLanguage, type DataProps } from "./content/data";
+
+interface Props {
+  data: DataProps[];
+}
+
+const { data } = Astro.props;
+
+const items = data.map((item) => ({
+  ...item,
+  html: highlightCodePiece(item.code, item.language, {
+    terminal: isTerminalLanguage(item.language),
+  }),
+}));
+---
+
+<Section
+  noGridArea
+  headerClass="max-w-840 mx-auto"
+  layout="center"
+  eyebrow="FULL STACK"
+  sectionEyebrow="CODE"
+>
+  <Fragment slot="title"><slot name="title" /></Fragment>
+  <Fragment slot="description"><slot name="description" /></Fragment>
+
+  <CodeTabsContent client:visible items={items} />
+</Section>

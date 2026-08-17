@@ -1,0 +1,81 @@
+---
+import type { HTMLAttributes } from "astro/types";
+import { highlightCodePiece } from "./highlighter";
+import CodePieceCopy from "./CodePieceCopy";
+
+interface Props extends HTMLAttributes<"div"> {
+  align?: "left" | "right";
+  code: string;
+  language?: string;
+  duotone?: boolean;
+}
+
+const {
+  code,
+  language = "ts",
+  align,
+  duotone,
+  class: className,
+  ...attributes
+} = Astro.props;
+
+const html = highlightCodePiece(code, language, { duotone });
+---
+
+<div
+  {...attributes}
+  class:list={[
+    className,
+    "group z-10 flex bg-background-base p-20 before:inside-border before:border-border-muted",
+  ]}
+>
+  <div
+    class="min-w-0 flex-1 text-justify text-decorative-small-high opacity-0 data-decoded:opacity-100"
+    data-code-decode
+    set:html={html}
+  />
+
+  <CodePieceCopy client:visible code={code} />
+
+  <div
+    class:list={[
+      "absolute top-10 size-2 rounded-full bg-orange-900",
+      {
+        "left-8": align === "left",
+        "right-8": align === "right",
+      },
+    ]}
+  >
+  </div>
+
+  <div
+    class:list={[
+      "absolute top-10 size-2 rounded-full bg-icon-faint",
+      {
+        "-left-10": align === "left",
+        "-right-10": align === "right",
+      },
+    ]}
+  >
+  </div>
+</div>
+
+<style>
+  [data-code-decode][data-decoded] :global(span) {
+    transition: color 200ms cubic-bezier(0.6, 0.6, 0, 1);
+  }
+
+  [data-code-decode] :global(span:not([data-lit])) {
+    color: color-mix(
+      in srgb,
+      var(--color-text-faint) 50%,
+      var(--color-background-base)
+    ) !important;
+  }
+</style>
+
+<script>
+  import { decodeCodePieces } from "./decode";
+
+  decodeCodePieces();
+</script>
