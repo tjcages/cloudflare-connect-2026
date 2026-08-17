@@ -2,11 +2,16 @@ import { createStripesEngine, paintFramesOverlay, type StripesEngine } from "@ne
 import { useEffect, useRef } from "react";
 import {
   buildPartialFramePlan,
+  createCursorFrame,
   mapClientPointToRoot,
   measureRelativeRect,
   objectCoverSourceRect,
+  resolveCursorFrame,
   resolveFloatingFrames,
   resolvePortraitBands,
+  type CursorFrameSeed,
+  type CursorFrameVisual,
+  type Point,
   type Rect,
 } from "./speaker-shader-geometry";
 import { SPEAKER_SHADER_CONFIG, SPEAKER_SHADER_MAX_DPR } from "./speaker-shader-config";
@@ -16,16 +21,20 @@ type Aperture = {
   rect: Rect;
 };
 
+const CURSOR_FRAME_MAX_ACTIVE = 4;
+const CURSOR_FRAME_INTERVAL_MS = 120;
+const CURSOR_FRAME_DISTANCE_PX = 56;
+
 const isInside = (clientX: number, clientY: number, rect: DOMRect) =>
   clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom;
 
-const paintPartialFrameOutline = (context: CanvasRenderingContext2D, frame: Rect) => {
+const paintPartialFrameOutline = (context: CanvasRenderingContext2D, frame: Rect, opacity = 1) => {
   const { x, y, width, height } = frame;
   const right = x + width;
   const bottom = y + height;
   const corner = Math.min(12, width / 4, height / 4);
 
-  context.strokeStyle = "rgba(255, 191, 20, 0.42)";
+  context.strokeStyle = `rgba(255, 191, 20, ${0.42 * opacity})`;
   context.lineWidth = 1;
   context.strokeRect(x + 0.5, y + 0.5, width - 1, height - 1);
 
@@ -42,7 +51,7 @@ const paintPartialFrameOutline = (context: CanvasRenderingContext2D, frame: Rect
   context.moveTo(x + corner, bottom);
   context.lineTo(x, bottom);
   context.lineTo(x, bottom - corner);
-  context.strokeStyle = "rgba(255, 191, 20, 0.95)";
+  context.strokeStyle = `rgba(255, 191, 20, ${0.95 * opacity})`;
   context.stroke();
 };
 
@@ -82,6 +91,9 @@ export default function SpeakerShaderOverlay() {
     let pointerInside = false;
     let lastClientX = Number.NaN;
     let lastClientY = Number.NaN;
+    let cursorFrameSeeds: CursorFrameSeed[] = [];
+    let lastCursorFrameMs = Number.NEGATIVE_INFINITY;
+    let lastCursorFramePoint: Point | null = null;
 
     const readGeometry = () => {
       const rootRect = root.getBoundingClientRect();
@@ -125,7 +137,11 @@ export default function SpeakerShaderOverlay() {
     };
 
     const paint = () => {
-      const frames = resolveFloatingFrames(animationTimeSec, portraitBands, reducedMotion.matches);
+      const ambientFrames = resolveFloatingFrames(animationTimeSec, portraitBands, reducedMotion.matches);
+      const cursorFrames = cursorFrameSeeds
+        .map((seed) => resolveCursorFrame(seed, animationTimeSec, reducedMotion.matches))
+        .filter((frame): frame is CursorFrameVisual => frame !== null);
+      const frames = [...ambientFrames, ...cursorFrames.map(({ rect }) => rect)];
       const plan = buildPartialFramePlan(
         frames,
         apertures.map(({ rect }) => rect),
@@ -157,8 +173,11 @@ export default function SpeakerShaderOverlay() {
         outputContext.rect(band.x, band.y, band.width, band.height);
       }
       outputContext.clip();
-      for (const outline of plan.outlines) {
+      for (const outline of ambientFrames) {
         paintPartialFrameOutline(outputContext, outline);
+      }
+      for (const cursorFrame of cursorFrames) {
+        paintPartialFrameOutline(outputContext, cursorFrame.rect, cursorFrame.opacity);
       }
       outputContext.restore();
     };
@@ -210,6 +229,8 @@ export default function SpeakerShaderOverlay() {
       sourceCanvas.width = pixelWidth;
       sourceCanvas.height = pixelHeight;
       engine?.resize(width, height);
+      cursorFrameSeeds = [];
+      lastCursorFramePoint = null;
       drawSource();
       if (visible && reducedMotion.matches) renderOnce();
     };
@@ -219,23 +240,50 @@ export default function SpeakerShaderOverlay() {
       if (!isInside(clientX, clientY, rootRect)) {
         if (pointerInside) engine?.setCursor(null);
         pointerInside = false;
-        return;
+        return null;
       }
 
       const point = mapClientPointToRoot(clientX, clientY, rootRect, root.currentCSSZoom || 1);
       pointerInside = true;
       engine?.setCursor(point.x, point.y);
+      return point;
+    };
+
+    const triggerCursorFrame = (point: Point, eventTimeMs: number, force = false) => {
+      const distance = lastCursorFramePoint
+        ? Math.hypot(point.x - lastCursorFramePoint.x, point.y - lastCursorFramePoint.y)
+        : Number.POSITIVE_INFINITY;
+      if (
+        !force &&
+        (eventTimeMs - lastCursorFrameMs < CURSOR_FRAME_INTERVAL_MS || distance < CURSOR_FRAME_DISTANCE_PX)
+      ) {
+        return;
+      }
+
+      const seed = createCursorFrame(point, portraitBands, animationTimeSec);
+      if (!seed) return;
+
+      cursorFrameSeeds = reducedMotion.matches ? [seed] : [...cursorFrameSeeds, seed].slice(-CURSOR_FRAME_MAX_ACTIVE);
+      lastCursorFrameMs = eventTimeMs;
+      lastCursorFramePoint = point;
+      if (reducedMotion.matches) renderOnce();
     };
 
     const onPointerMove = (event: PointerEvent) => {
       lastClientX = event.clientX;
       lastClientY = event.clientY;
-      updatePointer(lastClientX, lastClientY);
+      const point = updatePointer(lastClientX, lastClientY);
+      if (point) triggerCursorFrame(point, event.timeStamp);
     };
 
     const onPointerLeave = () => {
       pointerInside = false;
       engine?.setCursor(null);
+      if (reducedMotion.matches) {
+        cursorFrameSeeds = [];
+        lastCursorFramePoint = null;
+        renderOnce();
+      }
     };
 
     const onPointerDown = (event: PointerEvent) => {
@@ -243,6 +291,7 @@ export default function SpeakerShaderOverlay() {
       if (!isInside(event.clientX, event.clientY, rootRect)) return;
       const point = mapClientPointToRoot(event.clientX, event.clientY, rootRect, root.currentCSSZoom || 1);
       engine?.click(point.x, point.y);
+      triggerCursorFrame(point, event.timeStamp, true);
     };
 
     const onScroll = () => {

@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
   buildPartialFramePlan,
+  createCursorFrame,
+  CURSOR_FRAME_LIFE_SEC,
+  FLOATING_FRAME_COUNT,
   intersectRects,
   mapClientPointToRoot,
   measureRelativeRect,
   objectCoverSourceRect,
+  resolveCursorFrame,
   resolveFloatingFrames,
   resolvePortraitBands,
 } from "./speaker-shader-geometry";
@@ -105,6 +109,19 @@ describe("speaker shader geometry", () => {
     expect(resolveFloatingFrames(0, bands, false)).not.toEqual(resolveFloatingFrames(1_000, bands, false));
   });
 
+  it("authors six ambient frames with independent vertical motion", () => {
+    const bands = [
+      { x: 0, y: 40, width: 900, height: 320 },
+      { x: 0, y: 440, width: 900, height: 320 },
+    ];
+    const initial = resolveFloatingFrames(0, bands);
+    const later = resolveFloatingFrames(4.25, bands);
+
+    expect(FLOATING_FRAME_COUNT).toBe(6);
+    expect(initial).toHaveLength(6);
+    expect(later.some((frame, index) => frame.y !== initial[index].y)).toBe(true);
+  });
+
   it("keeps all authored frames inside their portrait bands", () => {
     const bands = [
       { x: 0, y: 40, width: 900, height: 320 },
@@ -120,5 +137,37 @@ describe("speaker shader geometry", () => {
       );
       expect(containingBand).toBeDefined();
     }
+  });
+
+  it("creates a cursor frame only inside a portrait band and clamps it at the edges", () => {
+    const bands = [{ x: 40, y: 100, width: 900, height: 320 }];
+
+    expect(createCursorFrame({ x: 200, y: 80 }, bands, 2)).toBeNull();
+    expect(createCursorFrame({ x: 42, y: 102 }, bands, 2)).toEqual({
+      center: { x: 107.5, y: 154.4 },
+      width: 135,
+      height: 108.80000000000001,
+      createdAtSec: 2,
+    });
+  });
+
+  it("expands and fades a cursor frame before removing it", () => {
+    const seed = {
+      center: { x: 300, y: 200 },
+      width: 120,
+      height: 80,
+      createdAtSec: 5,
+    };
+    const start = resolveCursorFrame(seed, 5);
+    const middle = resolveCursorFrame(seed, 5 + CURSOR_FRAME_LIFE_SEC * 0.7);
+
+    expect(start?.rect.width).toBeCloseTo(86.4);
+    expect(middle?.rect.width).toBeGreaterThan(start?.rect.width ?? 0);
+    expect(middle?.opacity).toBeLessThan(1);
+    expect(resolveCursorFrame(seed, 5 + CURSOR_FRAME_LIFE_SEC)).toBeNull();
+    expect(resolveCursorFrame(seed, 500, true)).toEqual({
+      rect: { x: 240, y: 160, width: 120, height: 80 },
+      opacity: 1,
+    });
   });
 });

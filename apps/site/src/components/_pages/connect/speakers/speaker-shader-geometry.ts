@@ -10,6 +10,23 @@ export type Size = {
   height: number;
 };
 
+export type Point = {
+  x: number;
+  y: number;
+};
+
+export type CursorFrameSeed = {
+  center: Point;
+  width: number;
+  height: number;
+  createdAtSec: number;
+};
+
+export type CursorFrameVisual = {
+  rect: Rect;
+  opacity: number;
+};
+
 export type MaskFragment = {
   frameIndex: number;
   apertureIndex: number;
@@ -26,11 +43,14 @@ type FloatingFrameSpec = {
   row: number;
   width: number;
   height: number;
-  y: number;
   fromX: number;
   toX: number;
-  durationSec: number;
-  phase: number;
+  fromY: number;
+  toY: number;
+  durationXSec: number;
+  durationYSec: number;
+  phaseX: number;
+  phaseY: number;
 };
 
 const FLOATING_FRAME_SPECS: readonly FloatingFrameSpec[] = [
@@ -38,33 +58,84 @@ const FLOATING_FRAME_SPECS: readonly FloatingFrameSpec[] = [
     row: 0,
     width: 0.27,
     height: 0.44,
-    y: 0.12,
     fromX: 0.02,
     toX: 0.71,
-    durationSec: 18,
-    phase: 0.04,
+    fromY: 0.08,
+    toY: 0.48,
+    durationXSec: 18,
+    durationYSec: 13,
+    phaseX: 0.04,
+    phaseY: 0.28,
   },
   {
     row: 0,
     width: 0.16,
     height: 0.62,
-    y: 0.3,
     fromX: 0.8,
     toX: 0.14,
-    durationSec: 23,
-    phase: 0.37,
+    fromY: 0.3,
+    toY: 0.02,
+    durationXSec: 23,
+    durationYSec: 17,
+    phaseX: 0.37,
+    phaseY: 0.08,
+  },
+  {
+    row: 0,
+    width: 0.19,
+    height: 0.3,
+    fromX: 0.18,
+    toX: 0.68,
+    fromY: 0.62,
+    toY: 0.12,
+    durationXSec: 15,
+    durationYSec: 11,
+    phaseX: 0.71,
+    phaseY: 0.46,
   },
   {
     row: 1,
     width: 0.23,
     height: 0.5,
-    y: 0.2,
     fromX: 0.08,
     toX: 0.74,
-    durationSec: 21,
-    phase: 0.66,
+    fromY: 0.14,
+    toY: 0.5,
+    durationXSec: 21,
+    durationYSec: 14,
+    phaseX: 0.66,
+    phaseY: 0.16,
+  },
+  {
+    row: 1,
+    width: 0.15,
+    height: 0.58,
+    fromX: 0.8,
+    toX: 0.2,
+    fromY: 0.04,
+    toY: 0.34,
+    durationXSec: 25,
+    durationYSec: 19,
+    phaseX: 0.22,
+    phaseY: 0.64,
+  },
+  {
+    row: 1,
+    width: 0.12,
+    height: 0.3,
+    fromX: 0.34,
+    toX: 0.7,
+    fromY: 0.6,
+    toY: 0.16,
+    durationXSec: 16,
+    durationYSec: 12,
+    phaseX: 0.84,
+    phaseY: 0.38,
   },
 ] as const;
+
+export const FLOATING_FRAME_COUNT = FLOATING_FRAME_SPECS.length;
+export const CURSOR_FRAME_LIFE_SEC = 0.95;
 
 /** A stable authored pose used instead of time-based movement in reduced motion. */
 export const REDUCED_MOTION_POSE_SEC = 7.25;
@@ -147,16 +218,68 @@ export const resolveFloatingFrames = (
     const width = clamp(band.width * spec.width, 48, band.width);
     const height = clamp(band.height * spec.height, 40, band.height);
     const travel = Math.max(0, band.width - width);
-    const progress = smoothPingPong(resolvedTime, spec.durationSec, spec.phase);
-    const normalizedX = spec.fromX + (spec.toX - spec.fromX) * progress;
+    const progressX = smoothPingPong(resolvedTime, spec.durationXSec, spec.phaseX);
+    const progressY = smoothPingPong(resolvedTime, spec.durationYSec, spec.phaseY);
+    const normalizedX = spec.fromX + (spec.toX - spec.fromX) * progressX;
+    const normalizedY = spec.fromY + (spec.toY - spec.fromY) * progressY;
 
     return {
       x: band.x + clamp(normalizedX, 0, 1) * travel,
-      y: band.y + clamp(spec.y, 0, 1) * Math.max(0, band.height - height),
+      y: band.y + clamp(normalizedY, 0, 1) * Math.max(0, band.height - height),
       width,
       height,
     };
   });
+};
+
+export const createCursorFrame = (
+  point: Point,
+  portraitBands: readonly Rect[],
+  createdAtSec: number,
+): CursorFrameSeed | null => {
+  const band = portraitBands.find(
+    (candidate) =>
+      point.x >= candidate.x &&
+      point.x <= candidate.x + candidate.width &&
+      point.y >= candidate.y &&
+      point.y <= candidate.y + candidate.height,
+  );
+  if (!band) return null;
+
+  const width = clamp(band.width * 0.15, 84, 210);
+  const height = clamp(band.height * 0.34, 64, 132);
+  const center = {
+    x: clamp(point.x, band.x + width / 2, band.x + band.width - width / 2),
+    y: clamp(point.y, band.y + height / 2, band.y + band.height - height / 2),
+  };
+
+  return { center, width, height, createdAtSec };
+};
+
+export const resolveCursorFrame = (
+  seed: CursorFrameSeed,
+  timeSec: number,
+  reducedMotion = false,
+): CursorFrameVisual | null => {
+  const ageSec = Math.max(0, timeSec - seed.createdAtSec);
+  if (!reducedMotion && ageSec >= CURSOR_FRAME_LIFE_SEC) return null;
+
+  const progress = reducedMotion ? 1 : clamp(ageSec / CURSOR_FRAME_LIFE_SEC, 0, 1);
+  const eased = 1 - (1 - progress) ** 3;
+  const fade = clamp((progress - 0.62) / 0.38, 0, 1);
+  const scale = reducedMotion ? 1 : (0.72 + eased * 0.34) * (1 - fade);
+  const width = seed.width * scale;
+  const height = seed.height * scale;
+
+  return {
+    rect: {
+      x: seed.center.x - width / 2,
+      y: seed.center.y - height / 2,
+      width,
+      height,
+    },
+    opacity: reducedMotion ? 1 : 1 - fade,
+  };
 };
 
 /** One shader render is reused for every frame/aperture intersection. */
