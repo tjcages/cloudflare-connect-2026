@@ -16,7 +16,7 @@
     "dev": "pnpm --filter lab dev",
     "build": "pnpm --filter lab build",
     "build:client": "pnpm --filter lab build",
-    "typecheck": "pnpm --filter @necatikcl/stripes-engine typecheck && pnpm --filter lab typecheck",
+    "typecheck": "pnpm --filter @necatikcl/stripes-engine typecheck && pnpm --filter @tjcages/connect-twizzler typecheck && pnpm --filter lab typecheck",
     "preview:worker": "pnpm --filter lab preview:worker",
     "preview:upload": "node ./scripts/preview-upload.mjs",
     "deploy": "pnpm run build && pnpm exec wrangler deploy",

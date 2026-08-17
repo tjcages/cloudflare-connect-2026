@@ -4,6 +4,10 @@ import { defineConfig } from "vitest/config";
 // Each entry is a path to a project's vitest/vite config file.
 export default defineConfig({
   test: {
-    projects: ["apps/lab/vite.config.ts", "packages/stripes-engine/vitest.config.ts"],
+    projects: [
+      "apps/lab/vite.config.ts",
+      "packages/stripes-engine/vitest.config.ts",
+      "packages/connect-twizzler/vitest.config.ts",
+    ],
   },
 });
