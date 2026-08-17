@@ -435,12 +435,13 @@ export default function ConnectTwizzlerControls({ onSettingsChange }: Props) {
       .connect-shader-selector {
         position: relative;
         display: inline-flex;
-        min-width: 172px;
+        min-width: 0;
         align-items: center;
       }
 
       .connect-shader-selector select {
-        width: 100%;
+        width: auto;
+        field-sizing: content;
         appearance: none;
         cursor: pointer;
         border: 0;
@@ -449,7 +450,7 @@ export default function ConnectTwizzlerControls({ onSettingsChange }: Props) {
         color: inherit;
         font: inherit;
         font-weight: 600;
-        padding: 5px 30px 5px 8px;
+        padding: 5px 21px 5px 5px;
         text-align: left;
       }
 
@@ -462,7 +463,7 @@ export default function ConnectTwizzlerControls({ onSettingsChange }: Props) {
       .connect-shader-selector svg {
         pointer-events: none;
         position: absolute;
-        right: 9px;
+        right: 5px;
         width: 12px;
         height: 12px;
         fill: none;
