@@ -1,3 +1,5 @@
+import { EDGE_MASK_GLSL } from "./edgeMask.glsl";
+
 /**
  * Everything the stripe pattern resolves once per grid cell.
  *
@@ -11,9 +13,12 @@
  * values from the same source.
  */
 export const STRIPE_CELL_GLSL = `
+${EDGE_MASK_GLSL}
 uniform sampler2D uCell;
 uniform sampler2D uLut;
 uniform sampler2D uOpacityLut;
+uniform sampler2D uBandValueLut;
+uniform float uStripeBandCount;
 uniform sampler2D uCellColor;
 uniform vec2 uGridCount;
 uniform vec2 uCellPx;
@@ -314,6 +319,44 @@ float normalizedCellValue(vec2 uv) {
   return clamp((raw - uCellMin) / max(0.0001, uCellMax - uCellMin), 0.0, 1.0);
 }
 
+float stripeBandAt(float value01) {
+  vec2 lutUv = vec2((value01 * 255.0 + 0.5) / 256.0, 0.5);
+  return floor(texture(uOpacityLut, lutUv).a * 255.0 + 0.5) - 1.0;
+}
+
+float stripeBandValue(float band) {
+  return texture(uBandValueLut, vec2((band + 0.5) / 256.0, 0.5)).r;
+}
+
+/**
+ * The edge mask, as a walk DOWN the authored stripe ladder.
+ *
+ * The ramp does not scale anything. It shifts the cell's BAND index, and the
+ * cell then renders as whatever the config authored for the band it lands on —
+ * that band's width, its opacity, its colour. So the fade is built out of
+ * stripes the design already contains, and it is the same mechanism in both
+ * colour modes: only the source of the stripe colour differs downstream.
+ *
+ * The shift is fractional, and the fraction becomes a per-cell probability
+ * rather than a rounding. Without it the boundary between two bands is a clean
+ * line parallel to the canvas edge, which reads as a cut; spending the fraction
+ * as a coin flip per cell scatters that boundary into a grain. The hash is
+ * \`cellSeed\`, which is static, so the grain does not shimmer between frames.
+ *
+ * Returns a source value that lands in the target band, or -1 when the cell has
+ * dropped off the bottom of the ladder and renders nothing at all.
+ */
+float edgeMaskWalkedValue(float value01, vec2 uv, vec2 cell) {
+  if (uEdgeMaskEnabled < 0.5 || uStripeBandCount < 1.0) return value01;
+  float ramp = edgeMaskAlpha(uv);
+  if (ramp >= 1.0) return value01;
+  float shift = (1.0 - ramp) * uStripeBandCount;
+  float dither = cellSeed(cell.x, cell.y) < fract(shift) ? 1.0 : 0.0;
+  float band = stripeBandAt(value01) - floor(shift) - dither;
+  if (band < 0.0) return -1.0;
+  return stripeBandValue(band);
+}
+
 /**
  * Per-cell stripe state, before the width shuffle. A negative \`widthPx\` means
  * the cell is already hidden (gap pulse, or an image colour cell thinned out by
@@ -331,7 +374,11 @@ struct CellData {
 CellData cellData(vec2 cell) {
   vec2 sourceCell = clamp(cell, vec2(0.0), max(vec2(0.0), uGridCount - 1.0));
   vec2 sourceUv = (sourceCell + 0.5) / uGridCount;
+  bool hidden = false;
   float v = normalizedCellValue(sourceUv);
+  float walked = edgeMaskWalkedValue(v, sourceUv, sourceCell);
+  if (walked < 0.0) hidden = true;
+  else v = walked;
   vec2 lutUv = vec2((v * 255.0 + 0.5) / 256.0, 0.5);
   vec4 lut = texture(uLut, lutUv);
   vec4 opacityMeta = texture(uOpacityLut, lutUv);
@@ -351,7 +398,6 @@ CellData cellData(vec2 cell) {
   }
   d.color = applyStripeSparkle(d.color, sourceCell, d.widthPx, d.opacity);
 
-  bool hidden = false;
   if (uGapEnabled > 0.5 && uGapCoverage > 0.0 && isGapped(cell.x, cell.y)) hidden = true;
   if (uUseCellColors > 0.5 && !imageColorDensityVisible(sourceCell)) hidden = true;
   if (hidden) d.widthPx = -1.0;

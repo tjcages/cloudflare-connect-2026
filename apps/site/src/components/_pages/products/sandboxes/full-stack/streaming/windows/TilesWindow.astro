@@ -1,0 +1,25 @@
+---
+import CodeRows from "./CodeRows.astro";
+
+const tiles = [
+  "left-14 bg-darker/2",
+  "left-57 bg-darker/2",
+  "left-100 bg-(--color-dynamic-orange-7) before:inside-border before:border-(--color-dynamic-orange-5) before:[transition:none]",
+  "left-143 bg-darker/2",
+];
+---
+
+{tiles.map((tile) => (
+  <div
+    class:list={["absolute top-12 h-27 w-35 rounded-4 opacity-0", tile]}
+    data-stream-lane="preview"
+  />
+))}
+
+<CodeRows
+  rows={[
+    { widths: ["w-11", "w-6", "w-10", "w-5", "w-8", "w-9", "w-4"] },
+    { widths: ["w-9", "w-3", "w-10", "w-5", "w-8", "w-11", "w-6"] },
+    { widths: ["w-8", "w-12", "w-3", "w-8", "w-11", "w-6"] },
+  ]}
+/>

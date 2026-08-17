@@ -1,0 +1,60 @@
+---
+import Icon from "@/components/icon/Icon";
+import Stage from "@/components/Stage.astro";
+import playwrightSvg from "./_svg/playwright.svg?raw";
+import puppeteerSvg from "./_svg/puppeteer.svg?raw";
+---
+
+<Stage data-fullstack-visual="libraries">
+  <div class="overlay overflow-clip">
+    <div class="absolute top-120 left-0 h-px w-full bg-border-default"></div>
+    <div class="absolute top-0 left-1/2 h-full w-px bg-border-default"></div>
+    <div
+      class="absolute top-120 left-[calc(50%-152px)] h-80 w-px bg-border-default"
+    >
+    </div>
+    <div
+      class="absolute top-120 left-[calc(50%+152px)] h-80 w-px bg-border-default"
+    >
+    </div>
+
+    <div
+      class="absolute top-84 left-52 z-10 flex-center size-72 rounded-full bg-background-base shadow-elevation-faint transition-shadow duration-450 ease-[cubic-bezier(0.6,0.6,0,1)] data-active:shadow-elevation-default"
+      data-chip-id="L"
+    >
+      <Fragment set:html={playwrightSvg} />
+    </div>
+
+    <div
+      class="absolute centering-size-88 z-10 flex-center rounded-full bg-background-base shadow-elevation-faint transition-shadow duration-450 data-active:shadow-elevation-default"
+      data-active
+      data-chip-id="C"
+    >
+      <Icon
+        name="cloudflare"
+        variant="duo"
+        color="orange"
+        className="h-32 w-48"
+      />
+    </div>
+
+    <div
+      class="absolute top-84 right-52 z-10 flex-center size-72 rounded-full bg-background-base shadow-elevation-faint transition-shadow duration-450 ease-[cubic-bezier(0.6,0.6,0,1)] data-active:shadow-elevation-default"
+      data-chip-id="R"
+    >
+      <Fragment set:html={puppeteerSvg} />
+    </div>
+
+    <div
+      class="absolute top-188 left-[calc(50%-152px)] z-10 -translate-x-1/2 rounded-full bg-background-surface px-10 py-4 text-body-tiny text-text-default shadow-[0_0_0_4px_var(--color-background-surface)] before:inside-border before:border-border-default"
+    >
+      Playwright
+    </div>
+
+    <div
+      class="absolute top-188 left-[calc(50%+152px)] z-10 -translate-x-1/2 rounded-full bg-background-surface px-10 py-4 text-body-tiny text-text-default shadow-[0_0_0_4px_var(--color-background-surface)] before:inside-border before:border-border-default"
+    >
+      Puppeteer
+    </div>
+  </div>
+</Stage>

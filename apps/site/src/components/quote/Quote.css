@@ -1,0 +1,202 @@
+.eyebrow-shopify {
+  --eyebrow-color-badge: #6d9b41;
+  --eyebrow-color-line-big: #95bf47;
+  --eyebrow-color-line-small: #cde1a8;
+}
+
+.eyebrow-lovable {
+  --eyebrow-color-badge: #ff404c;
+  --eyebrow-color-line-big: #ff6482;
+  --eyebrow-color-line-small: #ffafc0;
+}
+
+.eyebrow-intercom {
+  --eyebrow-color-badge: #1319c7;
+  --eyebrow-color-line-big: #4c4fd4;
+  --eyebrow-color-line-small: #c7c9f2;
+}
+
+.eyebrow-zendesk {
+  --eyebrow-color-badge: #2d575d;
+  --eyebrow-color-line-big: #8ca3a6;
+  --eyebrow-color-line-small: #d5dfe0;
+}
+
+.eyebrow-npm {
+  --eyebrow-color-badge: #cb3837;
+  --eyebrow-color-line-big: #da7473;
+  --eyebrow-color-line-small: #f8e5e5;
+}
+
+.eyebrow-liveblocks {
+  --eyebrow-color-badge: #292929;
+  --eyebrow-color-line-big: #9d9d9d;
+  --eyebrow-color-line-small: #dadada;
+}
+
+.eyebrow-leagued {
+  --eyebrow-color-badge: #0d1e2e;
+  --eyebrow-color-line-big: #aaccee;
+  --eyebrow-color-line-small: #e2edf9;
+}
+
+.eyebrow-sitegpt {
+  --eyebrow-color-badge: #2563eb;
+  --eyebrow-color-line-big: #8daef5;
+  --eyebrow-color-line-small: #e8f1fe;
+}
+
+:root[data-theme="dark"] {
+  .eyebrow-shopify {
+    --eyebrow-color-badge: rgb(149 191 71 / 0.7);
+    --eyebrow-color-line-big: rgb(120 152 60 / 0.7);
+    --eyebrow-color-line-small: rgb(58 70 35 / 0.31);
+  }
+
+  .eyebrow-lovable {
+    --eyebrow-color-badge: #ff4b83;
+    --eyebrow-color-line-big: rgb(207 56 110 / 0.7);
+    --eyebrow-color-line-small: rgb(143 41 74 / 0.5);
+  }
+
+  .eyebrow-intercom {
+    --eyebrow-color-badge: #898989;
+    --eyebrow-color-line-big: #434343;
+    --eyebrow-color-line-small: #232323;
+  }
+
+  .eyebrow-zendesk {
+    --eyebrow-color-badge: #d8f382;
+    --eyebrow-color-badge-text: var(--color-neutral-base);
+    --eyebrow-color-line-big: #aec36b;
+    --eyebrow-color-line-small: rgb(82 91 55 / 0.4);
+  }
+
+  .eyebrow-npm {
+    --eyebrow-color-badge: rgb(203 56 55 / 0.7);
+    --eyebrow-color-line-big: rgb(148 46 45 / 0.62);
+    --eyebrow-color-line-small: rgb(124 41 40 / 0.54);
+  }
+
+  .eyebrow-liveblocks {
+    --eyebrow-color-badge: #6e6e6e;
+    --eyebrow-color-line-big: #434343;
+    --eyebrow-color-line-small: #232323;
+  }
+
+  .eyebrow-leagued {
+    --eyebrow-color-badge: rgb(137 146 155 / 0.6);
+    --eyebrow-color-line-big: rgb(69 82 95 / 0.3);
+    --eyebrow-color-line-small: rgb(50 65 79 / 0.2);
+  }
+
+  .eyebrow-sitegpt {
+    --eyebrow-color-badge: #2563eb;
+    --eyebrow-color-line-big: #1d469d;
+    --eyebrow-color-line-small: #1a2f5c;
+  }
+}
+
+@supports (background: color(display-p3 0 0 0)) {
+  .eyebrow-shopify {
+    --eyebrow-color-badge: color(display-p3 0.4275 0.6078 0.2549);
+    --eyebrow-color-line-big: color(display-p3 0.5843 0.749 0.2784);
+    --eyebrow-color-line-small: color(display-p3 0.8039 0.8824 0.6588);
+  }
+
+  .eyebrow-lovable {
+    --eyebrow-color-badge: color(display-p3 1 0.251 0.298);
+    --eyebrow-color-line-big: color(display-p3 1 0.3922 0.5098);
+    --eyebrow-color-line-small: color(display-p3 1 0.6863 0.7529);
+  }
+
+  .eyebrow-intercom {
+    --eyebrow-color-badge: color(display-p3 0.0745 0.098 0.7804);
+    --eyebrow-color-line-big: color(display-p3 0.298 0.3098 0.8314);
+    --eyebrow-color-line-small: color(display-p3 0.7804 0.7882 0.949);
+  }
+
+  .eyebrow-zendesk {
+    --eyebrow-color-badge: color(display-p3 0.1765 0.3412 0.3647);
+    --eyebrow-color-line-big: color(display-p3 0.549 0.6392 0.651);
+    --eyebrow-color-line-small: color(display-p3 0.8353 0.8745 0.8784);
+  }
+
+  .eyebrow-npm {
+    --eyebrow-color-badge: color(display-p3 0.7961 0.2196 0.2157);
+    --eyebrow-color-line-big: color(display-p3 0.8549 0.4549 0.451);
+    --eyebrow-color-line-small: color(display-p3 0.9725 0.898 0.898);
+  }
+
+  .eyebrow-liveblocks {
+    --eyebrow-color-badge: color(display-p3 0.1608 0.1608 0.1608);
+    --eyebrow-color-line-big: color(display-p3 0.6157 0.6157 0.6157);
+    --eyebrow-color-line-small: color(display-p3 0.8549 0.8549 0.8549);
+  }
+
+  .eyebrow-leagued {
+    --eyebrow-color-badge: color(display-p3 0.051 0.1176 0.1804);
+    --eyebrow-color-line-big: color(display-p3 0.6667 0.8 0.9333);
+    --eyebrow-color-line-small: color(display-p3 0.8863 0.9294 0.9765);
+  }
+
+  .eyebrow-sitegpt {
+    --eyebrow-color-badge: color(display-p3 0.1451 0.3882 0.9216);
+    --eyebrow-color-line-big: color(display-p3 0.5529 0.6824 0.9608);
+    --eyebrow-color-line-small: color(display-p3 0.9098 0.9451 0.9961);
+  }
+
+  :root[data-theme="dark"] {
+    .eyebrow-shopify {
+      --eyebrow-color-badge: color(display-p3 0.5843 0.749 0.2784 / 0.7);
+      --eyebrow-color-line-big: color(display-p3 0.4706 0.5961 0.2353 / 0.7);
+      --eyebrow-color-line-small: color(display-p3 0.2275 0.2745 0.1373 / 0.31);
+    }
+
+    .eyebrow-lovable {
+      --eyebrow-color-badge: color(display-p3 1 0.2941 0.5137);
+      --eyebrow-color-line-big: color(display-p3 0.8118 0.2196 0.4314 / 0.7);
+      --eyebrow-color-line-small: color(display-p3 0.5608 0.1608 0.2902 / 0.5);
+    }
+
+    .eyebrow-intercom {
+      --eyebrow-color-badge: color(display-p3 0.5373 0.5373 0.5373);
+      --eyebrow-color-line-big: color(display-p3 0.2627 0.2627 0.2627);
+      --eyebrow-color-line-small: color(display-p3 0.1373 0.1373 0.1373);
+    }
+
+    .eyebrow-zendesk {
+      --eyebrow-color-badge: color(display-p3 0.8471 0.9529 0.5098);
+      --eyebrow-color-line-big: color(display-p3 0.6824 0.7647 0.4196);
+      --eyebrow-color-line-small: color(display-p3 0.3216 0.3569 0.2157 / 0.4);
+    }
+
+    .eyebrow-npm {
+      --eyebrow-color-badge: color(display-p3 0.7961 0.2196 0.2157 / 0.7);
+      --eyebrow-color-line-big: color(display-p3 0.5804 0.1804 0.1765 / 0.62);
+      --eyebrow-color-line-small: color(display-p3 0.4863 0.1608 0.1569 / 0.54);
+    }
+
+    .eyebrow-liveblocks {
+      --eyebrow-color-badge: color(display-p3 0.4314 0.4314 0.4314);
+      --eyebrow-color-line-big: color(display-p3 0.2627 0.2627 0.2627);
+      --eyebrow-color-line-small: color(display-p3 0.1373 0.1373 0.1373);
+    }
+
+    .eyebrow-leagued {
+      --eyebrow-color-badge: color(display-p3 0.5373 0.5725 0.6078 / 0.6);
+      --eyebrow-color-line-big: color(
+        display-p3 0.2706 0.3216 0.3725 / 0.3
+      );
+      --eyebrow-color-line-small: color(
+        display-p3 0.1961 0.2549 0.3098 / 0.2
+      );
+    }
+
+    .eyebrow-sitegpt {
+      --eyebrow-color-badge: color(display-p3 0.1451 0.3882 0.9216);
+      --eyebrow-color-line-big: color(display-p3 0.1137 0.2745 0.6157);
+      --eyebrow-color-line-small: color(display-p3 0.102 0.1843 0.3608);
+    }
+  }
+}

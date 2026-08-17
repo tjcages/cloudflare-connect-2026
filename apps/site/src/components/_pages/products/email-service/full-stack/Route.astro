@@ -1,0 +1,31 @@
+---
+import PillHubPill from "@/components/_animations/pill-hub-pill/PillHubPill.astro";
+import Stage from "@/components/Stage.astro";
+---
+
+<Stage data-email-fullstack-visual="route">
+  <div class="overlay overflow-clip">
+    <PillHubPill
+      hub={{ icon: "product-workers", color: "purple" }}
+      mail={{
+        color: "orange",
+        icon: "product-email-service",
+        label: "New mail!",
+      }}
+      status={{
+        labels: [
+          "Processed",
+          "Classified",
+          "Forwarded",
+          "Queued",
+          "Stored",
+          "Archived",
+          "Replied",
+          "Rejected",
+          "Escalated",
+          "Notified",
+        ],
+      }}
+    />
+  </div>
+</Stage>

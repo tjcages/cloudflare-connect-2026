@@ -1,0 +1,26 @@
+---
+import CodeTabs from "@/components/_pages/products/sandboxes/CodeTabs.astro";
+import Features from "@/components/_pages/products/sandboxes/Features.astro";
+import FullStack from "@/components/_pages/products/sandboxes/full-stack/FullStack.astro";
+import Hero from "@/components/_pages/products/sandboxes/hero/Hero.astro";
+import Products from "@/components/_sections/products/Products.astro";
+import LogoCloud from "@/components/logo-cloud/LogoCloud.astro";
+import Layout from "@/layouts/Layout.astro";
+---
+
+<Layout
+  title="Cloudflare Sandboxes - Secure Code Execution"
+  description="Secure code execution for AI agents, developer tooling, and anything you don't quite trust. Run untrusted code in isolated environments with a simple SDK."
+>
+  <Hero />
+
+  <Features />
+
+  <LogoCloud variant="pages" />
+
+  <FullStack />
+
+  <CodeTabs />
+
+  <Products />
+</Layout>

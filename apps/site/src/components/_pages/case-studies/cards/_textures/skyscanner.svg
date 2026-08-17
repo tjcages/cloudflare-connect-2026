@@ -1,0 +1,121 @@
+<svg width="1600" height="640" viewBox="-41 0 800 320" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_skyscanner)">
+<rect width="800" height="320" transform="translate(-41 0)" fill="black"/>
+<g transform="translate(-41 0)">
+<g opacity="0.3" filter="url(#filter0_f_skyscanner)">
+<circle cx="176" cy="-47" r="207" fill="url(#paint0_radial_skyscanner)"/>
+</g>
+<g opacity="0.3" filter="url(#filter1_f_skyscanner)">
+<circle cy="412" r="347" fill="url(#paint1_radial_skyscanner)"/>
+</g>
+<g opacity="0.2" filter="url(#filter2_f_skyscanner)">
+<circle cx="710" cy="-56" r="287" fill="url(#paint2_radial_skyscanner)"/>
+</g>
+<g opacity="0.3" filter="url(#filter3_f_skyscanner)">
+<circle cx="552" cy="386" r="321" fill="url(#paint3_radial_skyscanner)"/>
+</g>
+</g>
+<g filter="url(#filter0_iiiiiii_skyscanner)">
+<path d="M359 387C366.537 387 373.714 385.205 380.533 381.257L459.129 336.028C474.92 327.054 493.223 323.105 511.526 325.259C606.99 336.387 673.742 354.335 693.481 360.078C697.429 361.155 702.094 359.719 704.606 356.489C707.836 352.54 711.784 346.079 715.014 336.746C717.885 327.772 718.244 320.234 717.885 314.849C717.526 310.542 714.655 306.593 710.349 305.517C679.484 296.543 542.749 259.57 359 259.57C175.251 259.57 38.5155 296.543 7.65142 305.517C3.3448 306.593 0.473727 310.542 0.114842 314.849C-0.244043 319.875 0.114853 327.413 2.98593 336.746C5.85702 346.079 10.1636 352.54 13.3936 356.489C15.9058 359.719 20.5713 361.155 24.519 360.078C44.2577 354.335 111.369 336.387 206.474 325.259C224.777 323.105 243.08 327.054 258.871 336.028L337.467 381.257C344.286 385.205 351.822 387 359 387Z" fill="white"/>
+<path d="M228.024 132.506C232.33 140.045 239.149 145.07 247.045 147.224C254.94 149.377 263.195 148.301 270.731 143.993C278.268 139.686 283.292 132.865 285.445 124.968C287.599 117.071 286.522 108.815 282.215 101.277L211.515 -21.1277C209.362 -25.0762 204.696 -26.512 200.39 -26.1531C194.647 -25.7941 186.752 -22.9225 177.421 -17.5381C168.09 -12.1537 161.63 -6.76936 158.4 -2.10291C155.888 1.48668 155.17 6.15314 157.323 10.1017L228.024 132.506Z" fill="white"/>
+<path d="M163.417 220.091C170.954 224.399 179.567 225.117 187.103 223.322C194.999 221.168 201.818 216.143 206.124 208.605C210.431 201.067 211.149 192.452 209.354 184.914C207.56 177.375 202.177 170.196 194.64 165.889L72.2602 95.1741C68.3125 93.0203 63.647 93.7383 60.0581 96.251C55.3926 99.4816 50.0093 105.943 44.626 115.276C39.2428 124.609 36.3717 132.506 36.0128 138.249C35.6539 142.916 37.4483 147.223 41.0372 149.377L163.417 220.091Z" fill="white"/>
+<path d="M390.238 89.0699C390.238 97.6849 386.649 105.582 381.266 111.325C375.524 117.069 367.987 120.299 359.015 120.299C350.402 120.299 342.506 116.71 336.764 111.325C331.022 105.582 327.792 98.0438 327.792 89.0699V-52.0007C327.792 -56.6671 330.663 -60.2567 334.97 -62.0515C339.994 -64.5642 348.249 -66 359.015 -66C369.782 -66 378.036 -64.5642 383.061 -62.0515C387.008 -59.8977 390.238 -56.6671 390.238 -52.0007V89.0699Z" fill="white"/>
+<path d="M490.004 132.504C485.697 140.042 478.878 145.067 470.983 147.221C463.087 149.375 454.833 148.298 447.297 143.991C439.76 139.683 434.736 132.863 432.582 124.966C430.429 117.069 431.506 108.813 435.812 101.275L506.513 -21.1301C508.666 -25.0786 513.331 -26.5144 517.638 -26.1555C523.38 -25.7965 531.276 -22.9249 540.607 -17.5405C549.938 -12.1561 556.398 -6.77176 559.628 -2.10531C562.14 1.48428 562.858 6.15073 560.704 10.0993L490.004 132.504Z" fill="white"/>
+<path d="M554.591 220.091C547.055 224.399 538.441 225.117 530.905 223.322C523.009 221.168 516.19 216.143 511.884 208.605C507.577 201.067 506.859 192.452 508.654 184.914C510.807 177.017 515.831 170.196 523.368 165.889L645.748 95.1741C649.696 93.0203 654.361 93.7383 657.95 96.251C662.616 99.4816 667.999 105.943 673.382 115.276C678.766 124.609 681.637 132.506 681.995 138.249C682.354 142.916 680.56 147.223 676.971 149.377L554.591 220.091Z" fill="white"/>
+</g>
+</g>
+<defs>
+<filter id="filter0_iiiiiii_skyscanner" x="0" y="-66" width="718" height="501" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feColorMatrix in="SourceGraphic" type="matrix" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 0.001 0" result="shape"/>
+<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+<feOffset dy="1"/>
+<feGaussianBlur stdDeviation="1"/>
+<feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1"/>
+<feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.4 0"/>
+<feComposite in2="SourceAlpha" operator="in"/>
+<feBlend mode="normal" in2="shape" result="effect1_innerShadow_skyscanner"/>
+<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+<feOffset dy="2"/>
+<feGaussianBlur stdDeviation="2"/>
+<feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1"/>
+<feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.16 0"/>
+<feComposite in2="SourceAlpha" operator="in"/>
+<feBlend mode="normal" in2="effect1_innerShadow_skyscanner" result="effect2_innerShadow_skyscanner"/>
+<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+<feOffset dy="4"/>
+<feGaussianBlur stdDeviation="4"/>
+<feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1"/>
+<feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.12 0"/>
+<feComposite in2="SourceAlpha" operator="in"/>
+<feBlend mode="normal" in2="effect2_innerShadow_skyscanner" result="effect3_innerShadow_skyscanner"/>
+<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+<feOffset dy="8.8"/>
+<feGaussianBlur stdDeviation="4.92"/>
+<feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1"/>
+<feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.12 0"/>
+<feComposite in2="SourceAlpha" operator="in"/>
+<feBlend mode="normal" in2="effect3_innerShadow_skyscanner" result="effect4_innerShadow_skyscanner"/>
+<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+<feOffset dy="22"/>
+<feGaussianBlur stdDeviation="13.12"/>
+<feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1"/>
+<feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.24 0"/>
+<feComposite in2="SourceAlpha" operator="in"/>
+<feComposite operator="arithmetic" k1="0" k2="1" k3="1" k4="0" in2="effect4_innerShadow_skyscanner" result="effect5_innerShadow_skyscanner"/>
+<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+<feOffset dy="35.2"/>
+<feGaussianBlur stdDeviation="22.959999999999997"/>
+<feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1"/>
+<feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.24 0"/>
+<feComposite in2="SourceAlpha" operator="in"/>
+<feComposite operator="arithmetic" k1="0" k2="1" k3="1" k4="0" in2="effect5_innerShadow_skyscanner" result="effect6_innerShadow_skyscanner"/>
+<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+<feOffset dy="52.800000000000004"/>
+<feGaussianBlur stdDeviation="36.08"/>
+<feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1"/>
+<feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.12 0"/>
+<feComposite in2="SourceAlpha" operator="in"/>
+<feComposite operator="arithmetic" k1="0" k2="1" k3="1" k4="0" in2="effect6_innerShadow_skyscanner" result="effect7_innerShadow_skyscanner"/>
+</filter>
+<clipPath id="clip0_skyscanner">
+<rect width="800" height="320" fill="white" style="fill:white;fill-opacity:1;" transform="translate(-41)"/>
+</clipPath>
+<filter id="filter0_f_skyscanner" x="-87" y="-310" width="526" height="526" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+<feGaussianBlur stdDeviation="22.959999999999997" result="effect1_foregroundBlur_skyscanner"/>
+</filter>
+<filter id="filter1_f_skyscanner" x="-403" y="9" width="806" height="806" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+<feGaussianBlur stdDeviation="22.959999999999997" result="effect1_foregroundBlur_skyscanner"/>
+</filter>
+<filter id="filter2_f_skyscanner" x="367" y="-399" width="686" height="686" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+<feGaussianBlur stdDeviation="22.959999999999997" result="effect1_foregroundBlur_skyscanner"/>
+</filter>
+<filter id="filter3_f_skyscanner" x="175" y="9" width="754" height="754" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+<feGaussianBlur stdDeviation="22.959999999999997" result="effect1_foregroundBlur_skyscanner"/>
+</filter>
+<radialGradient id="paint0_radial_skyscanner" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(176 -47) rotate(90) scale(207 232.729)">
+<stop stop-color="white" style="stop-color:white;stop-opacity:1;"/>
+<stop offset="1" stop-opacity="0" style="stop-color:none;stop-opacity:0;"/>
+</radialGradient>
+<radialGradient id="paint1_radial_skyscanner" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(-1.70531e-05 412) rotate(90) scale(347 390.13)">
+<stop stop-color="white" style="stop-color:white;stop-opacity:1;"/>
+<stop offset="1" stop-opacity="0" style="stop-color:none;stop-opacity:0;"/>
+</radialGradient>
+<radialGradient id="paint2_radial_skyscanner" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(710 -56) rotate(90) scale(287 322.672)">
+<stop stop-color="white" style="stop-color:white;stop-opacity:1;"/>
+<stop offset="1" stop-opacity="0" style="stop-color:none;stop-opacity:0;"/>
+</radialGradient>
+<radialGradient id="paint3_radial_skyscanner" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(552 386) rotate(90) scale(321 360.898)">
+<stop stop-color="white" style="stop-color:white;stop-opacity:1;"/>
+<stop offset="1" stop-opacity="0" style="stop-color:none;stop-opacity:0;"/>
+</radialGradient>
+</defs>
+</svg>

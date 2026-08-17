@@ -1,0 +1,76 @@
+---
+import Pricing from "@/components/_sections/pricing/Pricing.astro";
+
+const columns = [
+  {
+    label: "Component",
+    width: "auto",
+    field: "component",
+  },
+  {
+    label: "Free",
+    width: 300,
+    field: "free",
+  },
+  {
+    label: "Paid",
+    width: 300,
+    field: "paid",
+  },
+];
+
+const data = [
+  {
+    component: "Requests",
+    free: "100k / day",
+    paid: "$0.30 / million requests",
+  },
+  {
+    component: "Duration",
+    free: "13,000 GB-s / day",
+    paid: "$12.50 / million GB-s",
+  },
+  {
+    component: "SQL Rows Read",
+    free: "",
+    paid: "$0.001 / million rows",
+  },
+  {
+    component: "SQL Rows Written",
+    free: "",
+    paid: "$1.00 / million rows",
+  },
+  {
+    component: "SQL Stored Data",
+    free: "5 GB",
+    paid: "$0.20 / GB-month",
+  },
+  {
+    component: "Read Request Units (KV Storage Backend)",
+    free: "",
+    paid: "$0.20 / million rows",
+  },
+  {
+    component: "Write Request Units (KV Storage Backend)",
+    free: "",
+    paid: "$1.00 / million rows",
+  },
+  {
+    component: "Delete Request Units (KV Storage Backend)",
+    free: "",
+    paid: "$1.00 / million rows",
+  },
+  {
+    component: "Stored Data (KV Storage Backend)",
+    free: "1 GB",
+    paid: "$0.20 / GB-month",
+  },
+];
+---
+
+<Pricing data={data} columns={columns}>
+  <Fragment slot="title">Durable Objects Pricing </Fragment>
+  <Fragment slot="description">
+    Stateful compute for real-time coordination.</Fragment
+  >
+</Pricing>

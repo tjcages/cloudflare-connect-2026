@@ -1,0 +1,28 @@
+---
+import StreamRow from "./StreamRow.astro";
+
+interface Props {
+  rows: { widths: string[] }[];
+}
+
+const { rows } = Astro.props;
+const tops = ["top-60", "top-69", "top-78"];
+---
+
+{/* The rule between preview and code is layout, not output: it lands with the
+frame lane before either half starts writing. */}
+<div
+  class="absolute inset-x-0 top-50 h-px bg-border-default opacity-0"
+  data-stream-lane="frame"
+>
+</div>
+
+{rows.map(({ widths }, index) => (
+  <StreamRow
+    class={["left-15", tops[index]]}
+    dashes={widths.map((width) => ({ width }))}
+    lane="code"
+    pool={10}
+    shuffle
+  />
+))}

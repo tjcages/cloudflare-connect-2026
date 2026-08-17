@@ -1,0 +1,88 @@
+---
+import type { AstroComponentFactory } from "astro/runtime/server/index.js";
+import Button from "@/components/Button";
+import DashedLine from "@/components/dashed-line/DashedLine";
+import Icon from "@/components/icon/Icon";
+import StagePlaceholder from "@/components/Stage.astro";
+import Section from "@/layouts/Section.astro";
+import BuiltOnContainers from "./BuiltOnContainers.astro";
+import Containers from "./containers/Containers.astro";
+import FullStackCanvas from "./FullStackCanvas";
+import Interpreter from "./interpreter/Interpreter.astro";
+import SdkControl from "./sdk-control/SdkControl.astro";
+import Streaming from "./streaming/Streaming.astro";
+
+const blocks: {
+  title: string;
+  body: string | AstroComponentFactory;
+  stage?: AstroComponentFactory;
+}[] = [
+  {
+    title: "SDK-driven control.",
+    body: "Import @cloudflare/sandbox and manage the entire sandbox lifecycle from your Worker. Clone repos, execute commands, read/write files — all via simple async methods.",
+    stage: SdkControl,
+  },
+  {
+    title: "Built on containers.",
+    body: BuiltOnContainers,
+    stage: Containers,
+  },
+  {
+    title: "Real-time streaming.",
+    body: "Stream stdout and stderr live from long-running commands. Get immediate feedback without polling.",
+    stage: Streaming,
+  },
+  {
+    title: "Code interpreter built-in.",
+    body: "Run Python or JavaScript code directly with runCode(). Rich outputs like charts, tables, and images are parsed automatically.",
+    stage: Interpreter,
+  },
+];
+---
+
+<Section
+  layout="sticky"
+  eyebrow="Full Stack"
+  sectionEyebrow="Features"
+  title="How Sandboxes work"
+>
+  <Button
+    className="w-fit"
+    href="https://dash.cloudflare.com/sign-up"
+    size="large"
+    slot="action"
+  >
+    <Icon name="cloudflare" className="h-20 w-30" />
+    <span>Start building for free</span>
+  </Button>
+
+  <div class="relative flex flex-col gap-60 p-40" data-sandboxes-fullstack-grid>
+    {blocks.map(({ title, body, stage: Stage }, index) => {
+      const Body = typeof body === "string" ? undefined : body;
+
+      return (
+        <Fragment>
+          {index > 0 && (
+            <div class="relative h-0">
+              <DashedLine
+                className="absolute inset-x-0 -top-0.5 w-full text-border-dashed"
+                direction="horizontal"
+              />
+            </div>
+          )}
+
+          <div class="flex flex-col gap-24">
+            {Stage ? <Stage /> : <StagePlaceholder />}
+
+            <p class="text-body-medium text-text-default">
+              <span class="text-label-medium text-text-base">{title}</span>{" "}
+              {Body ? <Body /> : body}
+            </p>
+          </div>
+        </Fragment>
+      );
+    })}
+
+    <FullStackCanvas client:only="react" />
+  </div>
+</Section>

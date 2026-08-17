@@ -8,6 +8,8 @@ export type CometLogoSettings = {
   centerClearSquareness: number;
   centerClearLeak: number;
   centerClearFalloff: number;
+  centerClearOffsetX: number;
+  centerClearOffsetY: number;
   fieldAlign: number;
   formationDirectness: number;
   formationMaxTravel: number;
@@ -17,6 +19,8 @@ export type CometLogoSettings = {
   fieldTrailLength: number;
   fieldParticleSize: number;
   logoScale: number;
+  logoOffsetX: number;
+  logoOffsetY: number;
   logoParticleSize: number;
   logoDensity: number;
   logoTrailLength: number;
@@ -63,6 +67,8 @@ export const COMET_LOGO_DEFAULTS: CometLogoSettings = {
   centerClearSquareness: 2,
   centerClearLeak: 0,
   centerClearFalloff: 1,
+  centerClearOffsetX: 0,
+  centerClearOffsetY: 0,
   fieldAlign: 0,
   formationDirectness: 0,
   formationMaxTravel: 0,
@@ -72,6 +78,8 @@ export const COMET_LOGO_DEFAULTS: CometLogoSettings = {
   fieldTrailLength: 1,
   fieldParticleSize: 1,
   logoScale: 0.85,
+  logoOffsetX: 0,
+  logoOffsetY: 0,
   logoParticleSize: 1,
   logoDensity: 1,
   logoTrailLength: 1,
@@ -126,6 +134,8 @@ export function normalizeCometLogoSettings(value: unknown): CometLogoSettings {
     centerClearSquareness: clamp(input.centerClearSquareness, COMET_LOGO_DEFAULTS.centerClearSquareness, 2, 12),
     centerClearLeak: clamp(input.centerClearLeak, COMET_LOGO_DEFAULTS.centerClearLeak, 0, 0.5),
     centerClearFalloff: clamp(input.centerClearFalloff, COMET_LOGO_DEFAULTS.centerClearFalloff, 0.05, 8),
+    centerClearOffsetX: clamp(input.centerClearOffsetX, COMET_LOGO_DEFAULTS.centerClearOffsetX, -400, 400),
+    centerClearOffsetY: clamp(input.centerClearOffsetY, COMET_LOGO_DEFAULTS.centerClearOffsetY, -400, 400),
     fieldAlign: clamp(input.fieldAlign, COMET_LOGO_DEFAULTS.fieldAlign, 0, 1),
     formationDirectness: clamp(input.formationDirectness, COMET_LOGO_DEFAULTS.formationDirectness, 0, 1),
     formationMaxTravel: clamp(input.formationMaxTravel, COMET_LOGO_DEFAULTS.formationMaxTravel, 0, 8),
@@ -135,6 +145,8 @@ export function normalizeCometLogoSettings(value: unknown): CometLogoSettings {
     fieldTrailLength: clamp(input.fieldTrailLength, COMET_LOGO_DEFAULTS.fieldTrailLength, 0, 3),
     fieldParticleSize: clamp(input.fieldParticleSize, COMET_LOGO_DEFAULTS.fieldParticleSize, 0.25, 3),
     logoScale: clamp(input.logoScale, COMET_LOGO_DEFAULTS.logoScale, 0.35, 1.5),
+    logoOffsetX: clamp(input.logoOffsetX, COMET_LOGO_DEFAULTS.logoOffsetX, -400, 400),
+    logoOffsetY: clamp(input.logoOffsetY, COMET_LOGO_DEFAULTS.logoOffsetY, -400, 400),
     logoParticleSize: clamp(input.logoParticleSize, COMET_LOGO_DEFAULTS.logoParticleSize, 0.25, 3),
     logoDensity: clamp(input.logoDensity, COMET_LOGO_DEFAULTS.logoDensity, 1, 5),
     logoTrailLength: clamp(input.logoTrailLength, COMET_LOGO_DEFAULTS.logoTrailLength, 0, 3),

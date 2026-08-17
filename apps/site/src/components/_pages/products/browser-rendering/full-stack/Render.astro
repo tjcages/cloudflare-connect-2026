@@ -1,0 +1,63 @@
+---
+import Icon from "@/components/icon/Icon";
+import type { DuoIconName } from "@/components/icon/icons.gen";
+import MethodBadge from "@/components/MethodBadge";
+import Stage from "@/components/Stage.astro";
+
+const actions: {
+  title: string;
+  iconName: DuoIconName;
+  size: number;
+}[] = [
+  { title: "Markdown", iconName: "markdown-2", size: 24 },
+  { title: "Screenshot", iconName: "focus-exposure-2", size: 24 },
+  { title: "JSON Extract", iconName: "brackets-2", size: 20 },
+];
+
+const boxes = [...actions, ...actions];
+---
+
+<Stage data-fullstack-visual="render">
+  <div class="overlay overflow-clip">
+    <div class="absolute inset-y-0 left-1/2 w-px bg-border-default"></div>
+
+    <div
+      class="absolute top-32 left-1/2 z-10 flex -translate-x-1/2 items-center gap-8 rounded-full bg-background-base py-6 pr-13 pl-6 shadow-elevation-default"
+      data-chip-id="pill"
+    >
+      <MethodBadge method="POST" variant="faint" />
+
+      <span class="text-mono-x-small text-text-base">/browser-render</span>
+    </div>
+
+    <div class="absolute top-104 left-1/2">
+      <div class="-ml-270 flex gap-24" data-render-row>
+        {boxes.map(({ title, iconName, size }, index) => (
+          <div
+            class="group/box relative z-10 flex w-164 shrink-0 flex-col items-center gap-8 bg-background-surface p-16 shadow-elevation-faint transition-[background-color,box-shadow] duration-[337.5ms] ease-[cubic-bezier(0.6,0.6,0,1)] data-active:z-20 data-active:bg-background-base data-active:shadow-elevation-default"
+            data-chip-id={`box-${index}`}
+          >
+            <div class="flex-center h-24 text-icon-faint transition-colors duration-[337.5ms] ease-[cubic-bezier(0.6,0.6,0,1)] [--icon-color-primary:var(--color-icon-subtle)] [--icon-color-secondary:var(--color-icon-faint)] **:transition-[fill,stroke] **:duration-[337.5ms] **:ease-[cubic-bezier(0.6,0.6,0,1)] group-data-active/box:text-orange-900 group-data-active/box:[--icon-color-primary:var(--color-orange-900)] group-data-active/box:[--icon-color-secondary:var(--color-orange-800)]">
+              <Icon
+                name={iconName}
+                size={size}
+                variant="duo"
+                color="colorless"
+              />
+            </div>
+
+            <div class="text-center">
+              <div class="text-label-x-small text-text-faint transition-colors duration-[337.5ms] ease-[cubic-bezier(0.6,0.6,0,1)] group-data-active/box:text-text-base group-data-active/box:delay-60">
+                {title}
+              </div>
+
+              <div class="text-body-x-small text-text-faint transition-colors duration-[337.5ms] ease-[cubic-bezier(0.6,0.6,0,1)] group-data-active/box:text-text-muted group-data-active/box:delay-105">
+                Quick Action
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+</Stage>

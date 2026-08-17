@@ -60,19 +60,19 @@ describe("buildStripeOpacityLut", () => {
     expect(buildStripeOpacityLut(STRIPES).length).toBe(256 * 4);
     expect([...buildStripeOpacityLut([]).slice(0, 8)]).toEqual([0, 0, 0, 0, 0, 0, 0, 0]);
   });
-  it("packs opacity into r, ramp position into g, dot eligibility into b, alpha 255", () => {
+  it("packs opacity into r, ramp position into g, dot eligibility into b, band index into a", () => {
     const lut = buildStripeOpacityLut(STRIPES);
-    // v=0 → band 0: opacity 1 → 255, rampT 0/(2-1)=0 → 0
-    expect([lut[0], lut[1], lut[2], lut[3]]).toEqual([255, 0, 255, 255]);
-    // v=255 → band 1: opacity 0.5 → 128, rampT 1/(2-1)=1 → 255
+    // v=0 → band 0: opacity 1 → 255, rampT 0/(2-1)=0 → 0, band 0 → alpha 1
+    expect([lut[0], lut[1], lut[2], lut[3]]).toEqual([255, 0, 255, 1]);
+    // v=255 → band 1: opacity 0.5 → 128, rampT 1/(2-1)=1 → 255, band 1 → alpha 2
     const i = 255 * 4;
-    expect([lut[i], lut[i + 1], lut[i + 2], lut[i + 3]]).toEqual([128, 255, 255, 255]);
+    expect([lut[i], lut[i + 1], lut[i + 2], lut[i + 3]]).toEqual([128, 255, 255, 2]);
   });
-  it("bands below the lowest threshold pack zero opacity with alpha 255", () => {
+  it("bands below the lowest threshold pack zero opacity with alpha 0", () => {
     const lut = buildStripeOpacityLut(STRIPES_NO_ZERO);
-    expect([lut[0], lut[1], lut[2], lut[3]]).toEqual([0, 0, 0, 255]);
-    const mid = 128 * 4; // t≈0.502 → band 0 (opacity 0.25 → 64, rampT 0 → 0)
-    expect([lut[mid], lut[mid + 1], lut[mid + 2], lut[mid + 3]]).toEqual([64, 0, 255, 255]);
+    expect([lut[0], lut[1], lut[2], lut[3]]).toEqual([0, 0, 0, 0]);
+    const mid = 128 * 4; // t≈0.502 → band 0 (opacity 0.25 → 64, rampT 0 → 0, band 0 → alpha 1)
+    expect([lut[mid], lut[mid + 1], lut[mid + 2], lut[mid + 3]]).toEqual([64, 0, 255, 1]);
   });
 });
 

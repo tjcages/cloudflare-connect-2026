@@ -1,0 +1,74 @@
+---
+import "@/styles/globals.css";
+
+const configs = [
+  { label: "none", href: "?impl=none&count=0" },
+  { label: "pixi idle", href: "?impl=pixi&count=0" },
+  { label: "pixi 4", href: "?impl=pixi&count=4" },
+  { label: "2d 4", href: "?impl=2d&count=4" },
+  { label: "pixi 32", href: "?impl=pixi&count=32" },
+  { label: "2d 32", href: "?impl=2d&count=32" },
+  { label: "pixi 128", href: "?impl=pixi&count=128" },
+  { label: "2d 128", href: "?impl=2d&count=128" },
+];
+---
+
+<!doctype html>
+<html class="antialiased" lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Snake renderer benchmark</title>
+    <script is:inline>
+      const storedTheme = localStorage.getItem("theme") ?? "system";
+      document.documentElement.dataset.theme =
+        storedTheme === "system"
+          ? matchMedia("(prefers-color-scheme: dark)").matches
+            ? "dark"
+            : "light"
+          : storedTheme;
+    </script>
+  </head>
+
+  <body class="bg-background-base font-sans text-text-base">
+    {import.meta.env.DEV ? (
+      <main class="p-40">
+        <h1 class="text-heading-h5 text-text-base">Snake renderer benchmark</h1>
+
+        <p class="mt-8 max-w-760 text-body-small text-text-muted">
+          Both backends are driven by identical connector layouts and an
+          identical pulse-throw driver. No header, CTA or footer: those run
+          their own WebGL shaders and would pollute the measurement. Recording
+          skips the first two seconds.
+        </p>
+
+        <div class="mt-24 flex flex-wrap gap-8">
+          {configs.map(({ label, href }) => (
+            <a
+              class="rounded-full px-12 py-6 text-mono-x-small text-text-base before:inside-border before:border-border-default"
+              href={href}
+            >
+              {label}
+            </a>
+          ))}
+        </div>
+
+        <div
+          class="relative mt-24 bg-background-surface before:inside-border before:border-border-default"
+          style={{ width: "1560px", height: "820px" }}
+          data-snake-lab
+        />
+
+        <script
+          is:inline
+          src="/src/components/_lab/snake-bench/snake-lab-mount.ts"
+          type="module"
+        />
+      </main>
+    ) : (
+      <main class="p-40">
+        <p class="text-body-small text-text-muted">Dev only.</p>
+      </main>
+    )}
+  </body>
+</html>

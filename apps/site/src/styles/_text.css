@@ -1,0 +1,229 @@
+/* Figma font-style → weight mapping: STK Bureau "Book" = 300, "Regular" = 400,
+   Paper Mono "Medium" = 500 (Figma reports the interpolated 491), "Regular" = 400. */
+@theme {
+  --text-heading-hero: 56px;
+  --text-heading-hero--line-height: 60px;
+  --text-heading-hero--letter-spacing: -0.025em;
+  --text-heading-hero--font-weight: 400;
+
+  --text-heading-display: 52px;
+  --text-heading-display--line-height: 56px;
+  --text-heading-display--letter-spacing: -0.025em;
+  --text-heading-display--font-weight: 400;
+
+  --text-heading-h1: 44px;
+  --text-heading-h1--line-height: 48px;
+  --text-heading-h1--letter-spacing: -0.025em;
+  --text-heading-h1--font-weight: 400;
+
+  --text-heading-h2: 36px;
+  --text-heading-h2--line-height: 40px;
+  --text-heading-h2--letter-spacing: -0.025em;
+  --text-heading-h2--font-weight: 400;
+
+  --text-heading-h3: 32px;
+  --text-heading-h3--line-height: 36px;
+  --text-heading-h3--letter-spacing: -0.025em;
+  --text-heading-h3--font-weight: 400;
+
+  --text-heading-h4: 24px;
+  --text-heading-h4--line-height: 32px;
+  --text-heading-h4--letter-spacing: -0.0225em;
+  --text-heading-h4--font-weight: 400;
+
+  --text-heading-h5: 20px;
+  --text-heading-h5--line-height: 24px;
+  --text-heading-h5--letter-spacing: -0.0175em;
+  --text-heading-h5--font-weight: 400;
+
+  --text-quote-large: 28px;
+  --text-quote-large--line-height: 36px;
+  --text-quote-large--letter-spacing: -0.01em;
+  --text-quote-large--font-weight: 300;
+
+  --text-quote-small: 24px;
+  --text-quote-small--line-height: 32px;
+  --text-quote-small--letter-spacing: -0.01em;
+  --text-quote-small--font-weight: 300;
+
+  --text-body-large: 17px;
+  --text-body-large--line-height: 24px;
+  --text-body-large--letter-spacing: 0em;
+  --text-body-large--font-weight: 300;
+
+  --text-body-medium: 16px;
+  --text-body-medium--line-height: 24px;
+  --text-body-medium--letter-spacing: 0em;
+  --text-body-medium--font-weight: 300;
+
+  --text-body-small: 15px;
+  --text-body-small--line-height: 22px;
+  --text-body-small--letter-spacing: 0em;
+  --text-body-small--font-weight: 300;
+
+  --text-body-x-small: 14px;
+  --text-body-x-small--line-height: 20px;
+  --text-body-x-small--letter-spacing: 0.0075em;
+  --text-body-x-small--font-weight: 300;
+
+  --text-body-tiny: 12px;
+  --text-body-tiny--line-height: 16px;
+  --text-body-tiny--letter-spacing: 0.01em;
+  --text-body-tiny--font-weight: 300;
+
+  --text-body-chip: 10px;
+  --text-body-chip--line-height: 16px;
+  --text-body-chip--letter-spacing: 0.01em;
+  --text-body-chip--font-weight: 300;
+
+  --text-label-large: 17px;
+  --text-label-large--line-height: 24px;
+  --text-label-large--letter-spacing: -0.005em;
+  --text-label-large--font-weight: 400;
+
+  --text-label-medium: 16px;
+  --text-label-medium--line-height: 24px;
+  --text-label-medium--letter-spacing: -0.005em;
+  --text-label-medium--font-weight: 400;
+
+  --text-label-small: 15px;
+  --text-label-small--line-height: 22px;
+  --text-label-small--letter-spacing: -0.01em;
+  --text-label-small--font-weight: 400;
+
+  --text-label-x-small: 14px;
+  --text-label-x-small--line-height: 20px;
+  --text-label-x-small--letter-spacing: 0em;
+  --text-label-x-small--font-weight: 400;
+
+  --text-label-tiny: 12px;
+  --text-label-tiny--line-height: 16px;
+  --text-label-tiny--letter-spacing: 0em;
+  --text-label-tiny--font-weight: 400;
+
+  --text-label-chip: 10px;
+  --text-label-chip--line-height: 16px;
+  --text-label-chip--letter-spacing: 0.01em;
+  --text-label-chip--font-weight: 400;
+
+  --text-decorative-small: 12px;
+  --text-decorative-small--line-height: 16px;
+  --text-decorative-small--letter-spacing: 0em;
+  --text-decorative-small--font-weight: 500;
+
+  --text-decorative-small-high: 12px;
+  --text-decorative-small-high--line-height: 20px;
+  --text-decorative-small-high--letter-spacing: 0em;
+  --text-decorative-small-high--font-weight: 500;
+
+  --text-decorative-tiny: 11px;
+  --text-decorative-tiny--line-height: 14px;
+  --text-decorative-tiny--letter-spacing: 0em;
+  --text-decorative-tiny--font-weight: 500;
+
+  --text-decorative-chip: 9px;
+  --text-decorative-chip--line-height: 14px;
+  --text-decorative-chip--letter-spacing: 0em;
+  --text-decorative-chip--font-weight: 500;
+
+  --text-code-default: 13px;
+  --text-code-default--line-height: 24px;
+  --text-code-default--letter-spacing: 0em;
+  --text-code-default--font-weight: 400;
+
+  --text-mono-x-small: 14px;
+  --text-mono-x-small--line-height: 20px;
+  --text-mono-x-small--letter-spacing: 0em;
+  --text-mono-x-small--font-weight: 400;
+
+  --text-mono-tiny: 12px;
+  --text-mono-tiny--line-height: 20px;
+  --text-mono-tiny--letter-spacing: 0em;
+  --text-mono-tiny--font-weight: 400;
+
+  --text-blog-h1: 36px;
+  --text-blog-h1--line-height: 44px;
+  --text-blog-h1--letter-spacing: -0.015em;
+  --text-blog-h1--font-weight: 300;
+
+  --text-blog-h2: 28px;
+  --text-blog-h2--line-height: 36px;
+  --text-blog-h2--letter-spacing: -0.015em;
+  --text-blog-h2--font-weight: 400;
+
+  --text-blog-h3: 24px;
+  --text-blog-h3--line-height: 32px;
+  --text-blog-h3--letter-spacing: -0.015em;
+  --text-blog-h3--font-weight: 400;
+
+  --text-blog-body: 17px;
+  --text-blog-body--line-height: 28px;
+  --text-blog-body--letter-spacing: 0.0025em;
+  --text-blog-body--font-weight: 300;
+
+  --text-blog-highlight: 17px;
+  --text-blog-highlight--line-height: 28px;
+  --text-blog-highlight--letter-spacing: 0.0025em;
+  --text-blog-highlight--font-weight: 400;
+
+  --text-blog-quote: 28px;
+  --text-blog-quote--line-height: 36px;
+  --text-blog-quote--letter-spacing: -0.01em;
+  --text-blog-quote--font-weight: 300;
+}
+
+@layer utilities {
+  .text-heading-hero,
+  .text-heading-display,
+  .text-heading-h1,
+  .text-heading-h2,
+  .text-heading-h3,
+  .text-heading-h4,
+  .text-heading-h5,
+  .text-body-large,
+  .text-body-medium,
+  .text-body-small,
+  .text-body-x-small,
+  .text-body-tiny,
+  .text-body-chip,
+  .text-label-large,
+  .text-label-medium,
+  .text-label-small,
+  .text-label-x-small,
+  .text-label-tiny,
+  .text-label-chip,
+  .text-blog-h2,
+  .text-blog-h3,
+  .text-blog-body,
+  .text-blog-highlight {
+    font-family: var(--font-stk-bureau-sans);
+  }
+
+  .text-code-default {
+    font-family: var(--font-paper-mono);
+  }
+
+  .text-quote-large,
+  .text-quote-small,
+  .text-blog-h1,
+  .text-blog-quote {
+    font-family: var(--font-stk-bureau-serif);
+  }
+
+  .text-decorative-small,
+  .text-decorative-small-high,
+  .text-decorative-tiny,
+  .text-decorative-chip {
+    @apply font-mono;
+    text-transform: uppercase;
+  }
+
+  .text-decorative-small {
+    font-feature-settings: "ss01";
+  }
+
+  .text-mono-x-small,
+  .text-mono-tiny {
+    @apply font-mono;
+  }
+}

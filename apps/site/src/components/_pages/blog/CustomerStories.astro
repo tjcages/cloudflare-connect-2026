@@ -1,0 +1,35 @@
+---
+import Card from "@/components/_pages/case-studies/cards/Card.astro";
+import Button from "@/components/Button";
+import Container from "@/components/Container.astro";
+import Icon from "@/components/icon/Icon";
+---
+
+<Container>
+  <div class="relative flex flex-col gap-40 px-40 py-80">
+    <div class="flex items-center justify-between">
+      <h2 class="text-heading-h3 text-text-base">Customer stories</h2>
+
+      <Button href="/case-studies" variant="link-button">
+        <span class="whitespace-nowrap">View all stories</span>
+
+        <Icon
+          className="transition-transform group-hover:translate-x-2"
+          name="chevron-right-small"
+        />
+      </Button>
+    </div>
+
+    <div class="flex justify-between">
+      <Card name="canva" width={320} />
+
+      <div class="w-px shrink-0 self-stretch bg-border-muted"></div>
+
+      <Card name="teamviewer" width={320} />
+
+      <div class="w-px shrink-0 self-stretch bg-border-muted"></div>
+
+      <Card name="vsco" width={320} />
+    </div>
+  </div>
+</Container>

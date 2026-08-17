@@ -1,0 +1,28 @@
+---
+import type { InferGetStaticPropsType } from "astro";
+import { STORY_DETAILS } from "@/components/_pages/case-studies/story/data";
+import ReadMore from "@/components/_pages/case-studies/story/ReadMore.astro";
+import StoryArticle from "@/components/_pages/case-studies/story/StoryArticle.astro";
+import StoryHero from "@/components/_pages/case-studies/story/StoryHero.astro";
+import Layout from "@/layouts/Layout.astro";
+
+export function getStaticPaths() {
+  return Object.values(STORY_DETAILS).map((story) => ({
+    params: { slug: story.slug },
+    props: { story },
+  }));
+}
+
+type Props = InferGetStaticPropsType<typeof getStaticPaths>;
+
+const { story } = Astro.props;
+---
+
+<Layout
+  description={story.title}
+  title={`${story.company} Case Study | Cloudflare`}
+>
+  <StoryHero story={story} />
+  <StoryArticle story={story} />
+  <ReadMore slug={story.slug} />
+</Layout>

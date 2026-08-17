@@ -1,0 +1,46 @@
+---
+import CornerDots from "@/components/CornerDots";
+import DashedLineBleed from "@/components/DashedLineBleed";
+import Scramble from "@/components/scramble/Scramble";
+import SectionEyebrow from "@/components/SectionEyebrow.astro";
+import FeaturesList from "./FeaturesList.astro";
+---
+
+<div class="relative">
+  <div
+    class="relative mx-auto flex h-80 w-full max-w-1200 items-center justify-between px-40 text-decorative-small-high text-text-faint before:inside-border-x before:inside-border-t before:border-border-default"
+  >
+    <CornerDots count={4} />
+
+    <DashedLineBleed className="-top-0.5" />
+
+    <Scramble
+      client:visible
+      className="select-none"
+      segments={[
+        { text: "npm " },
+        { text: "create", className: "text-text-subtle" },
+      ]}
+    />
+    <Scramble
+      client:visible
+      className="select-none"
+      segments={[
+        { text: "-- my-first-" },
+        { text: "worker", className: "text-text-subtle" },
+      ]}
+    />
+
+    <SectionEyebrow text="Features" />
+  </div>
+
+  <DashedLineBleed className="-top-0.5" />
+
+  <FeaturesList />
+
+  <div
+    class="relative mx-auto flex h-80 w-full max-w-1200 items-center justify-center text-decorative-small-high text-orange-900 before:inside-border-x before:inside-border-b before:border-border-default"
+  >
+    cloudflare<span class="text-text-faint">@latest</span>
+  </div>
+</div>

@@ -1,0 +1,318 @@
+{
+  "slug": "mcp-portal-writeguard-private-beta",
+  "title": "WriteGuard: fine-grained controls for MCP Servers",
+  "excerpt": "At Cloudflare, we knew we could not depend on every employee to configure every agent perfectly or watch every tool call. Before expanding write access across our own internal MCP servers, we built WriteGuard. We are now bringing those controls to Cloudflare MCP server portals through a private beta.\n",
+  "publishedAt": "2026-08-05T13:00:00.000Z",
+  "sourceUrl": "https://blog.cloudflare.com/mcp-portal-writeguard-private-beta/",
+  "tags": [
+    "agents",
+    "agents-week",
+    "cloudflare-one",
+    "developer-platform",
+    "developers",
+    "mcp"
+  ],
+  "authors": ["scott-roe-meschke", "kenny"],
+  "cover": {
+    "src": "https://blog.cloudflare.com/_emdash/api/media/file/01KZ7CJ0PAJ9DD5ZYV1W5948C9.png",
+    "alt": ""
+  },
+  "blocks": [
+    {
+      "type": "p",
+      "text": "Let’s imagine the Case of the Endlessly Closing Tickets."
+    },
+    {
+      "type": "p",
+      "text": "The bug tickets start closing at noon. Nobody thinks much of it. Joe moved a few tickets to Done, and Joe is having a productive afternoon. Then the pace picks up. By 4 p.m., thousands of tickets have been closed, all by Joe."
+    },
+    {
+      "type": "p",
+      "text": "Joe is a good engineer. Joe is not a thousand-tickets-an-hour engineer."
+    },
+    {
+      "type": "p",
+      "text": "We learn that he has several background agents running across three concurrent sessions. It takes half an hour to find the one at fault: a cleanup task with a prompt that was a little too broad."
+    },
+    {
+      "type": "p",
+      "text": "Once we’ve stopped the agent, we need to repair the state of the ticketing system. Joe has also been legitimately closing tickets by hand that afternoon. The system records all those changes under Joe regardless of whether it was him or his agent, and the network logs do not distinguish one agent session from another. From the outside, the actions look identical."
+    },
+    {
+      "type": "p",
+      "text": "The example above is relatively low-stakes, but we can all imagine, or [read about](https://www.theguardian.com/technology/2026/apr/29/claude-ai-deletes-firm-database), much more destructive cases. An agent with access to contract software could amend an agreement. An agent wreaking havoc in a support queue could send hundreds of replies to customers. An agent with database access could drop entire tables."
+    },
+    {
+      "type": "p",
+      "text": "At Cloudflare, we knew we could not depend on every employee to configure every agent perfectly or watch every tool call. So before expanding write access across our own internal MCP servers, we built WriteGuard. We are now bringing those controls to [Cloudflare MCP server portals](https://developers.cloudflare.com/cloudflare-one/access-controls/ai-controls/mcp-portals/) through a private beta."
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "MCP Fundamentals",
+      "id": "mcp-fundamentals"
+    },
+    {
+      "type": "p",
+      "text": "Before explaining WriteGuard, let’s review what an MCP server is and how it works with AI agents."
+    },
+    {
+      "type": "p",
+      "text": "MCP stands for [Model Context Protocol](https://modelcontextprotocol.io/), a popular standard for connecting AI applications to external tools and data sources. MCP servers provide tools that connected clients can use. Each tool has a name, a description, an input schema, and a handler that performs the work."
+    },
+    {
+      "type": "p",
+      "text": "When an agent selects a tool, the MCP client sends the tool call to the server, which then interacts with the downstream application."
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "MCPs at Cloudflare",
+      "id": "mcps-at-cloudflare"
+    },
+    {
+      "type": "p",
+      "text": "MCP is a critical piece of the infrastructure powering Cloudflare's internal agents. Those agents use MCP through local clients such as[OpenCode](https://opencode.ai/) and [Cloudflare OS](http://blog.cloudflare.com/cloudflare-os), as well as through long-running agentic services. We run the servers behind [Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/access-controls/) and connect to them through a single internal[MCP server portal](https://developers.cloudflare.com/cloudflare-one/access-controls/ai-controls/mcp-portals/)."
+    },
+    {
+      "type": "p",
+      "text": "When we described[our internal AI engineering stack](https://blog.cloudflare.com/internal-ai-engineering-stack/) in April, our portal connected 13 MCP servers. Today, it connects 27, with teams shipping more servers every month. They all began as read-only servers, allowing teams to search Jira, GitLab, our wiki, and operational systems without changing them."
+    },
+    {
+      "type": "p",
+      "text": "Read-only was a good starting point. As models improved and teams gained experience with AI, people across engineering, product, design, sales, and customer success began asking for tools that could take action."
+    },
+    {
+      "type": "p",
+      "text": "To avoid our own case of the endlessly closing tickets, we wanted centralized control over the write actions agents could perform, agent labels to appear in downstream applications, and an audit trail that made agent activity easy to investigate. We could not count on client-side controls such as skills or elicitation prompts. Their behavior varies by harness, and users can disable them."
+    },
+    {
+      "type": "p",
+      "text": "So we built WriteGuard."
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Introducing WriteGuard",
+      "id": "introducing-writeguard"
+    },
+    {
+      "type": "p",
+      "text": "WriteGuard is a shared policy, attribution, and auditing layer."
+    },
+    {
+      "type": "p",
+      "text": "It uses each tool’s configuration and the request context to determine what happens. WriteGuard can pass a call through unchanged, enrich supported writes with agent attribution and produce a scrubbed audit event, or block an action before its handler runs."
+    },
+    {
+      "type": "p",
+      "text": "The diagram below shows where WriteGuard sits in our current internal MCP architecture."
+    },
+    {
+      "type": "image",
+      "src": "https://blog.cloudflare.com/_emdash/api/media/file/01KZ9329Z2GK7CVX8PNC84Z1RA.png",
+      "alt": "unnamed.png"
+    },
+    {
+      "type": "p",
+      "text": "WriteGuard combines tool policy with human and agent identity, downstream attribution, and centralized auditing. It gives us one place to control agent actions and preserve the context needed to understand them."
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Beyond callable tools to governable actions",
+      "id": "beyond-callable-tools-to-governable-actions"
+    },
+    {
+      "type": "p",
+      "text": "WriteGuard lets us define policy alongside each tool without changing the underlying MCP server. Every tool gets a risk tier, an enabled or disabled state, and a labeling configuration. Risk tiers determine whether the action is logged and whether the tool call is permitted, and the tiers allow for querying the audit log by risk. We support labeling so that we can insert agent attribution labeling and use the best text format for the downstream application, without any code changes needed in the MCP server itself."
+    },
+    {
+      "type": "table",
+      "head": ["Risk Tier", "Examples"],
+      "rows": [
+        [
+          "Read Only",
+          "Search issues; read a Merge Request (MR); view pipeline status `get_merge_request`"
+        ],
+        [
+          "Minimal Impact",
+          "Add a reaction; mark a notification as read; subscribe to an issue"
+        ],
+        [
+          "Contained Write",
+          "Add a comment; create an MR; update an issue field `create_mr_note`"
+        ],
+        [
+          "Critical",
+          "Merge an MR; trigger a production deployment; bulk-delete records `merge_mr`"
+        ]
+      ]
+    },
+    {
+      "type": "code",
+      "lang": null,
+      "code": "const sendEmailTool = {\n  tool: EmailMCP.sendEmailTool,\n  writeGuard: {\n    riskLevel: RiskLevel.CONTAINED_WRITE,\n    enabled: true,\n    labeling: {\n      field: \"body\",\n      supportedFormats: [\n        LabelFormat.PLAIN_TEXT,\n        LabelFormat.HTML,\n      ],\n    },\n  },\n};"
+    },
+    {
+      "type": "p",
+      "text": "Today, we define this configuration in TypeScript in our internal MCP monorepo. As private beta access rolls out in the coming months, server owners will be able to configure the same policies through Cloudflare MCP server portals. Every MCP server will have a baseline Access policy along with WriteGuard controls for individual tools."
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Keep the person, add the agent",
+      "id": "keep-the-person-add-the-agent"
+    },
+    {
+      "type": "p",
+      "text": "Our internal MCP servers use [Cloudflare Access and OAuth](https://blog.cloudflare.com/managed-oauth-for-access/) to identify the user. Agents using those servers therefore operate with that employee’s permissions. If Joe cannot close a particular issue, Joe’s agent cannot close it either."
+    },
+    {
+      "type": "p",
+      "text": "We kept that model instead of introducing standalone agent accounts. Agent accounts would create a second set of permissions to manage and make the connection to the person responsible for the agent less clear. The tradeoff with that decision, however, is that downstream applications see Joe’s credentials but nothing identifying the agent behind the action."
+    },
+    {
+      "type": "p",
+      "text": "WriteGuard adds MCP client and session context to the human identity, identifying each write as an agent session acting on behalf of a particular person. Notably, that attribution is extremely useful even when nothing goes wrong. It helps humans and other agents interpret changes and decide how to respond."
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Make machine-speed activity queryable",
+      "id": "make-machine-speed-activity-queryable"
+    },
+    {
+      "type": "p",
+      "text": "Visible labels explain individual actions and provide helpful context in the downstream application, but they don’t provide a fleet-wide view. Because an agent can repeat an action much faster than a person, we also needed central auditing across every MCP server."
+    },
+    {
+      "type": "p",
+      "text": "WriteGuard classifies each invocation as successful, failed, or blocked, then asynchronously sends a scrubbed event to an internal audit Worker. The event omits values for keys considered secret or sensitive. It includes the server, tool, risk tier, outcome, user, client, and duration."
+    },
+    {
+      "type": "p",
+      "text": "This makes agentic activity queryable across all of our MCP-enabled systems."
+    },
+    {
+      "type": "image",
+      "src": "https://blog.cloudflare.com/_emdash/api/media/file/01KZ7CJ0NRRE7DXB99C8W5YZ1N.jpg",
+      "alt": "Our internal WriteGuard dashboard, with example data.",
+      "caption": "Our internal WriteGuard dashboard, with example data."
+    },
+    {
+      "type": "p",
+      "text": "The dashboard complements the request logs provided by [MCP server portals](https://developers.cloudflare.com/cloudflare-one/access-controls/ai-controls/mcp-portals/). Portal logs show tool invocations, while WriteGuard adds semantic tool classifications, agent context, and outcomes from the backing servers."
+    },
+    {
+      "type": "p",
+      "text": "We made audit logging asynchronous, so it adds no latency to the response the agent is waiting for."
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "WriteGuard in Action: GitLab",
+      "id": "writeguard-in-action-gitlab"
+    },
+    {
+      "type": "p",
+      "text": "Earlier in this post, we mentioned three tools from our GitLab MCP server: get\\_merge\\_request, create\\_mr\\_note, and merge\\_mr. Let’s follow each one through WriteGuard."
+    },
+    {
+      "type": "heading",
+      "level": 3,
+      "text": "Reading a merge request",
+      "id": "reading-a-merge-request"
+    },
+    {
+      "type": "p",
+      "text": "Suppose an engineer asks an agent to summarize a proposed code change and the agent calls the `get_merge_request` tool. WriteGuard classifies the tool as `READ_ONLY` and WriteGuard allows the call to pass through unchanged."
+    },
+    {
+      "type": "heading",
+      "level": 3,
+      "text": "Adding a note to a merge request",
+      "id": "adding-a-note-to-a-merge-request"
+    },
+    {
+      "type": "p",
+      "text": "Now the engineer asks the agent to leave comments on a merge request (MR), and the agent calls the `create_mr_note` tool."
+    },
+    {
+      "type": "p",
+      "text": "The tool is classified as CONTAINED\\_WRITE. WriteGuard adds agent attribution to the configured note field using a format GitLab supports, then invokes the tool handler. It also asynchronously records a scrubbed audit event containing the user, tool, outcome, and agent identity context."
+    },
+    {
+      "type": "image",
+      "src": "https://blog.cloudflare.com/_emdash/api/media/file/01KZ7CJ0Z8WCP1DWTHRKC9QHYJ.png",
+      "alt": "Screenshot example from the GitLab create_mr_note tool.",
+      "caption": "Screenshot example from the GitLab create\\_mr\\_note tool."
+    },
+    {
+      "type": "image",
+      "src": "https://blog.cloudflare.com/_emdash/api/media/file/01KZ7CJ0VPZ860CSARB07DCVP2.png",
+      "alt": "Audit log example from the GitLab create_mr_note tool.",
+      "caption": "Audit log example from the GitLab create\\_mr\\_note tool."
+    },
+    {
+      "type": "heading",
+      "level": 3,
+      "text": "Merging the code",
+      "id": "merging-the-code"
+    },
+    {
+      "type": "p",
+      "text": "Suppose an engineer asks an agent to help review a merge request. Trying to be helpful, the agent goes beyond the request and calls the merge\\_mr tool without being asked."
+    },
+    {
+      "type": "p",
+      "text": "Because merges at Cloudflare typically trigger deployment pipelines, we require a human in the loop. We therefore classify the merge\\_mr tool as CRITICAL risk tier and configure the tool disabled in WriteGuard."
+    },
+    {
+      "type": "p",
+      "text": "If called, WriteGuard will block the request before its handler runs and record the attempt."
+    },
+    {
+      "type": "image",
+      "src": "https://blog.cloudflare.com/_emdash/api/media/file/01KZ7CJ17VV6MV8G86SYGD0S1D.jpg",
+      "alt": "Blocked merge_mr calls in the WriteGuard audit dashboard.",
+      "caption": "Blocked merge\\_mr calls in the WriteGuard audit dashboard."
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Beyond the single server example",
+      "id": "beyond-the-single-server-example"
+    },
+    {
+      "type": "p",
+      "text": "These tools use the same server, identity flow, and downstream API, but WriteGuard handles each one differently before its code runs."
+    },
+    {
+      "type": "p",
+      "text": "For GitLab alone, we could have built these controls directly into the server. But we needed the same capabilities for Jira, our internal wiki, Google Workspace, and every new MCP server we added. Reimplementing them in each server would take more work and produce inconsistent behavior."
+    },
+    {
+      "type": "p",
+      "text": "Instead, we built WriteGuard as a shared layer that needs only per-tool configuration and works across every MCP server connected through the portal."
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "From internal rollout to private beta",
+      "id": "from-internal-rollout-to-private-beta"
+    },
+    {
+      "type": "p",
+      "text": "We built WriteGuard for Cloudflare's own MCP servers because we needed to move beyond read-only tools without losing control of the writes that followed. The [private beta](https://www.cloudflare.com/resource/writeguard-beta-landing-page/) brings that architecture to MCP server portals, providing a way to classify write tools, block tools before execution, add agent attribution, and inspect write activity across connected servers."
+    },
+    {
+      "type": "p",
+      "text": "The beta will start small and expand over time, leading up to general availability. We want to validate how the risk model maps to customer tools, which downstream applications need attribution formats, and what audit delivery guarantees customers require before making WriteGuard broadly available."
+    },
+    {
+      "type": "p",
+      "text": "If your organization is adding write tools to MCP servers and wants to test these controls with us, [sign up for the WriteGuard private beta](https://www.cloudflare.com/resource/writeguard-beta-landing-page/)."
+    }
+  ]
+}

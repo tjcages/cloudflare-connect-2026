@@ -1,0 +1,24 @@
+---
+import Icon from "@/components/icon/Icon";
+import type { IconName } from "@/components/icon/icons.gen";
+
+interface Props {
+  iconName: IconName;
+  title: string;
+  class?: string | string[];
+}
+
+const { iconName, title, class: className }: Props = Astro.props;
+---
+
+<div class:list={[className, "relative max-w-400 p-40"]}>
+  <Icon
+    className="mb-36 size-24"
+    color="orange"
+    name={iconName}
+    variant="duo"
+  />
+
+  <div class="mb-10 text-label-medium text-text-base">{title}</div>
+  <div class="text-body-small text-text-default"><slot /></div>
+</div>

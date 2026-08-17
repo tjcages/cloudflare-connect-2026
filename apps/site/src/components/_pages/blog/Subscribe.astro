@@ -1,0 +1,56 @@
+---
+import Button from "@/components/Button";
+
+interface Props {
+  bordered?: boolean;
+}
+
+const { bordered = true } = Astro.props;
+---
+
+<section
+  class:list={[
+    "relative flex flex-col items-start p-80",
+    bordered &&
+      "before:inside-border-y before:border-border-default before:[transition:none]",
+  ]}
+>
+  <div class="flex w-full items-end justify-between">
+    <div class="flex w-380 flex-col gap-8">
+      <h2 class="text-heading-h3 text-text-base">
+        Subscribe to receive notifications of new posts
+      </h2>
+
+      <p class="text-body-medium text-text-loud">
+        We’ll never share your email address.
+      </p>
+    </div>
+
+    <form
+      class="flex h-48 w-480 items-center gap-4 rounded-full bg-background-base py-4 pr-4 pl-22 shadow-input-rest transition-shadow focus-within:shadow-input-active not-focus-within:hover:shadow-input-hover"
+      data-blog-subscribe
+    >
+      <label class="sr-only" for="blog-subscribe-email">Email address</label>
+
+      <input
+        autocomplete="email"
+        class="min-w-0 flex-1 text-body-x-small text-text-base outline-none placeholder:text-text-muted"
+        id="blog-subscribe-email"
+        name="email"
+        placeholder="Email address"
+        required
+        type="email"
+      />
+
+      <Button className="px-14" size="large" type="submit">
+        <span>Subscribe</span>
+      </Button>
+    </form>
+  </div>
+</section>
+
+<script>
+  document
+    .querySelector<HTMLFormElement>("[data-blog-subscribe]")
+    ?.addEventListener("submit", (event) => event.preventDefault());
+</script>

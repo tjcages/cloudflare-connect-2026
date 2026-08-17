@@ -1,0 +1,78 @@
+---
+import cn from "classnames";
+
+const GAP = 8;
+
+interface Props {
+  text: string;
+  position?: "top" | "bottom";
+  loud?: boolean;
+  relyOnActive?: boolean;
+  reveal?: boolean;
+  color?: string;
+  disabled?: boolean;
+  class?: string;
+  style?: Record<string, string | number>;
+}
+
+const {
+  text,
+  position = "bottom",
+  loud = false,
+  relyOnActive = false,
+  reveal = false,
+  disabled = false,
+  class: className,
+  color,
+  style,
+} = Astro.props;
+
+const vertical =
+  position === "top"
+    ? { bottom: `calc(100% + ${GAP}px)` }
+    : { top: `calc(100% + ${GAP}px)` };
+
+const stateClasses = (() => {
+  if (relyOnActive) {
+    return [
+      "bg-background-ghost text-(--box-color-900)",
+      loud
+        ? "group-data-active:bg-(--box-color-900) group-data-active:text-text-inverse"
+        : "group-data-active:bg-(--box-color-100)",
+    ];
+  }
+
+  if (disabled) return "bg-background-muted text-text-loud";
+
+  return loud
+    ? "bg-(--box-color-900) text-text-inverse"
+    : "bg-(--box-color-100) text-(--box-color-900)";
+})();
+---
+
+<div
+  class={cn(
+    "absolute left-1/2 -translate-x-1/2",
+    "flex items-center whitespace-nowrap select-none",
+    "px-6 py-px",
+    "font-mono text-decorative-tiny uppercase transition-colors",
+    reveal && "[clip-path:inset(0_50%)] data-revealed:[clip-path:none]",
+    stateClasses,
+    className
+  )}
+  data-box-name={reveal ? "" : undefined}
+  style={{
+    ...vertical,
+    ...(color
+      ? {
+          "--box-color-900": `var(--color-${color}-900)`,
+          "--box-color-100": `var(--color-chips-background-${color})`,
+        }
+      : {}),
+    ...style,
+  }}
+>
+  <span class="inline-block" data-box-name-text={reveal ? "" : undefined}>
+    {text}
+  </span>
+</div>

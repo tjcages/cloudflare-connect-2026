@@ -1,0 +1,50 @@
+---
+import Button from "../Button";
+import CornerDots from "../CornerDots";
+import DashedLineBleed from "../DashedLineBleed";
+import CtaTexture from "./CtaTexture";
+import Eyebrow from "../Eyebrow";
+import GridArea from "../GridArea";
+import Icon from "../icon/Icon";
+import SectionEyebrow from "../SectionEyebrow.astro";
+---
+
+<div class="relative overflow-x-clip">
+  <CtaTexture client:visible />
+
+  <div class="relative mx-auto max-w-1200 px-240 py-160 text-center">
+    <DashedLineBleed className="-top-0.5" />
+    <GridArea className="overlay" borderColor="muted" />
+
+    <SectionEyebrow text="cta" />
+    <CornerDots />
+
+    <div
+      class="relative bg-background-base py-80 before:inside-border before:border-border-muted"
+    >
+      <div class="relative z-20">
+        <Eyebrow client:visible direction="center" title="get started" />
+
+        <div class="mt-24 mb-16 text-heading-display text-text-base">
+          Build without boundaries
+        </div>
+
+        <div class="mx-auto max-w-480 text-body-large text-text-base">
+          Join thousands of developers who've eliminated infrastructure
+          complexity and deployed globally with Cloudflare.
+        </div>
+
+        <div class="mt-40 flex-center gap-12">
+          <Button data-cta-primary size="large">
+            <Icon name="cloudflare" className="h-20 w-30" />
+            <span>Start building for free</span>
+          </Button>
+
+          <Button variant="secondary">
+            <span>View docs</span>
+          </Button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

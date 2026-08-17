@@ -1,0 +1,73 @@
+---
+import CopyLink from "@/components/article/CopyLink";
+import Button from "@/components/Button";
+import Icon from "@/components/icon/Icon";
+import { tagsOf, type Post } from "../data";
+import PostAuthors from "./PostAuthors.astro";
+import { FOLLOW_LINKS } from "./social-links";
+
+interface Props {
+  post: Post;
+}
+
+const { post } = Astro.props;
+
+const tags = tagsOf(post);
+---
+
+<footer class="flex flex-col gap-24">
+  <div class="flex items-center justify-between gap-40">
+    <PostAuthors post={post} />
+
+    <CopyLink client:visible label="Copy link" />
+  </div>
+
+  {tags.length > 0 && (
+    <>
+      <div class="h-px w-full bg-border-muted" />
+
+      <div class="flex items-start gap-16">
+        <span class="w-180 shrink-0 py-6 text-body-x-small text-text-default">
+          Related tags
+        </span>
+
+        <div class="flex flex-wrap gap-8">
+          {tags.map((tag) => (
+            <Button
+              className="text-text-base"
+              href={`/blog/tag/${tag.slug}`}
+              size="default"
+              variant="ghost"
+            >
+              <span>{tag.label}</span>
+            </Button>
+          ))}
+        </div>
+      </div>
+    </>
+  )}
+
+  <div class="h-px w-full bg-border-muted"></div>
+
+  <div class="flex items-start">
+    <span class="w-180 shrink-0 py-6 text-body-x-small text-text-default">
+      Follow on social media
+    </span>
+
+    <div class="flex flex-1 flex-wrap justify-end gap-8">
+      {FOLLOW_LINKS.map(({ icon, label, href }) => (
+        <Button
+          aria-label={label}
+          className="not-hover:[&&_svg]:text-icon-base"
+          href={href}
+          rel="noreferrer"
+          size="default"
+          target="_blank"
+          variant="ghost"
+        >
+          <Icon name={icon} size={20} />
+        </Button>
+      ))}
+    </div>
+  </div>
+</footer>

@@ -1,0 +1,63 @@
+---
+import Breadcrumb from "@/components/Breadcrumb.astro";
+import Container from "@/components/Container.astro";
+import CardTexture from "@/components/_pages/case-studies/cards/CardTexture";
+import type { StoryDetail } from "./data";
+
+interface Props {
+  story: StoryDetail;
+}
+
+const { story } = Astro.props;
+const { banner } = story;
+const Logo = banner.Logo;
+
+const overrides = {
+  stripes: banner.stripes,
+  whitePoint: banner.whitePoint,
+  sparkleStripe: banner.sparkleStripe,
+  stripeGradient: banner.stripeGradient,
+};
+---
+
+<Container>
+  <div class="px-120 pt-80 pb-80">
+    <div class="mx-auto flex w-800 flex-col gap-40">
+      <div class="flex flex-col items-center gap-20">
+        <Breadcrumb
+          items={[
+            { label: "Customers", href: "/case-studies" },
+            { label: story.company },
+          ]}
+        />
+
+        <h1 class="w-full text-center text-blog-h1 text-text-base">
+          {story.title}
+        </h1>
+
+        <div class="flex justify-center gap-16 text-body-small">
+          <span class="text-text-default">{story.date}</span>
+          <span class="text-text-subtle">·</span>
+          <span class="text-text-default">{story.readTime} min read</span>
+        </div>
+      </div>
+
+      <div
+        class:list={["relative h-320 w-full overflow-clip", banner.cardClass]}
+      >
+        <CardTexture
+          client:visible={{ rootMargin: "200% 0px" }}
+          className="pointer-events-none overlay"
+          overrides={overrides}
+          src={banner.texture}
+        />
+
+        <div class="pointer-events-none overlay flex-center text-text-inverse">
+          <div class={banner.logoClass}>
+            <Logo aria-label={story.company} role="img" />
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</Container>

@@ -1,0 +1,48 @@
+---
+import Button from "@/components/Button";
+import DashedLine from "@/components/dashed-line/DashedLine";
+import Section from "@/layouts/Section.astro";
+import { connectAgenda, connectHero } from "../data";
+---
+
+<Section
+  class="scroll-mt-80"
+  id="agenda"
+  layout="sticky"
+  eyebrow="Agenda"
+  sectionEyebrow="Schedule"
+  title="Agenda at-a-glance"
+  description="Three days of keynotes, hands-on training, breakouts, and after-hours at Moscone West."
+>
+  <Button href={connectHero.primaryCta.href} size="large" slot="action">
+    <span>Register Now</span>
+  </Button>
+
+  <div class="relative flex flex-col gap-48 p-40">
+    {connectAgenda.map((item, index) => (
+      <Fragment>
+        {index > 0 && (
+          <div class="relative h-0">
+            <DashedLine
+              className="absolute inset-x-0 -top-0.5 w-full text-border-dashed"
+              direction="horizontal"
+            />
+          </div>
+        )}
+
+        <div class="flex flex-col gap-16">
+          <div class="relative h-200 overflow-clip bg-background-surface after:inside-border after:border-border-muted">
+            <div class="flex size-full flex-col justify-end gap-8 p-32">
+              <div class="text-decorative-small text-text-faint uppercase">
+                {item.day}
+              </div>
+              <div class="text-heading-h3 text-text-base">{item.date}</div>
+            </div>
+          </div>
+
+          <p class="text-body-medium text-text-default">{item.body}</p>
+        </div>
+      </Fragment>
+    ))}
+  </div>
+</Section>

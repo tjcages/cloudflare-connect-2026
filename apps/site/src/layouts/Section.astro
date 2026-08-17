@@ -1,0 +1,192 @@
+---
+import type { HTMLAttributes } from "astro/types";
+import Container from "@/components/Container.astro";
+import Eyebrow from "@/components/Eyebrow";
+import GridArea from "@/components/GridArea";
+import Icon from "@/components/icon/Icon";
+import SectionEyebrow from "@/components/SectionEyebrow.astro";
+
+type Layout = "split" | "split-custom" | "center" | "headerless" | "sticky";
+
+interface Props extends HTMLAttributes<"div"> {
+  eyebrow?: string;
+  layout: Layout;
+  sectionEyebrow?: string;
+  noGridArea?: boolean;
+  title?: string;
+  description?: string;
+  headerClass?: string;
+  stickyColumnClass?: string;
+  cardClass?: string | string[];
+}
+
+const {
+  eyebrow,
+  layout,
+  sectionEyebrow,
+  noGridArea,
+  title,
+  description,
+  headerClass,
+  stickyColumnClass,
+  cardClass,
+  class: className,
+  ...attributes
+} = Astro.props;
+---
+
+<Container {...attributes} class={className}>
+  {sectionEyebrow && (
+    <SectionEyebrow slot="beforeBleed" text={sectionEyebrow} />
+  )}
+
+  {layout === "headerless" && <div class="h-80" />}
+
+  {layout === "sticky" && (
+    <Fragment>
+      <div class="relative h-80 before:inside-border-b before:border-border-default" />
+
+      <div class="relative flex items-start">
+        <div
+          class:list={[
+            "sticky top-80 shrink-0 self-start pt-80 pl-80",
+            stickyColumnClass ?? "w-400",
+          ]}
+        >
+          <Eyebrow
+            client:visible
+            direction="left"
+            className="mb-24"
+            title={eyebrow}
+          />
+
+          <h2 class="text-heading-h1 text-text-base">
+            <slot name="title">{title}</slot>
+          </h2>
+
+          <p class="mt-16 text-body-large text-text-base">
+            <slot name="description">{description}</slot>
+          </p>
+
+          {Astro.slots.action && (
+            <div class="mt-40">
+              <slot name="action" />
+            </div>
+          )}
+        </div>
+
+        <div class="relative ml-auto w-640 p-40">
+          <GridArea className="overlay bg-background-surface" />
+
+          <div
+            class:list={[
+              "relative bg-background-base shadow-elevation-default",
+              cardClass,
+            ]}
+          >
+            <slot />
+          </div>
+        </div>
+      </div>
+    </Fragment>
+  )}
+
+  {layout !== "headerless" && layout !== "sticky" && (
+    <div
+      class:list={[
+        "relative px-80 pb-80",
+        layout === "split-custom" ? "pt-80" : "pt-120",
+        {
+          "flex items-end": layout === "split",
+          "text-center": layout === "center",
+        },
+        headerClass,
+      ]}
+    >
+      {layout === "split" && (
+        <Fragment>
+          <div class="min-w-0 flex-1">
+            <Eyebrow
+              client:visible
+              direction="left"
+              className="mb-24"
+              title={eyebrow}
+            />
+
+            <h2 class="text-heading-h2 text-text-base">
+              <slot name="title">{title}</slot>
+            </h2>
+
+            {Astro.slots.action && (
+              <div class="mt-40">
+                <slot name="action" />
+              </div>
+            )}
+          </div>
+
+          <div class="min-w-0 flex-1 text-body-large">
+            <slot name="description">{description}</slot>
+          </div>
+        </Fragment>
+      )}
+
+      {layout === "split-custom" && <slot name="custom" />}
+
+      {layout === "center" && (
+        <Fragment>
+          <Eyebrow
+            client:visible
+            direction="center"
+            className="mb-24"
+            title={eyebrow}
+          />
+
+          <h2 class="mb-16 text-heading-h1 text-text-base">
+            <slot name="title">{title}</slot>
+          </h2>
+
+          <div class="min-w-0 flex-1 text-body-large">
+            <slot name="description">{description}</slot>
+          </div>
+        </Fragment>
+      )}
+    </div>
+  )}
+
+  {layout !== "sticky" && (
+    <div
+      class:list={[
+        "relative",
+        noGridArea ? "" : "p-40",
+        Astro.slots.info && "pb-0",
+      ]}
+    >
+      {!noGridArea && <GridArea className="overlay bg-background-surface" />}
+
+      {noGridArea ? (
+        <slot />
+      ) : (
+        <div
+          class:list={[
+            "relative bg-background-base shadow-elevation-default",
+            cardClass,
+          ]}
+        >
+          <slot />
+        </div>
+      )}
+
+      {Astro.slots.info && (
+        <div class="relative mx-auto mt-40 flex h-80 max-w-560 items-center gap-20 bg-background-surface px-32 text-body-x-small text-text-default before:inside-border before:border-border-default">
+          <div class="relative flex-center size-40 rounded-full bg-background-surface before:inside-border before:border-border-default">
+            <Icon name="info-simple" size={20} className="text-icon-default" />
+          </div>
+
+          <slot name="info" />
+        </div>
+      )}
+    </div>
+  )}
+
+  <div class="h-80"></div>
+</Container>

@@ -1,4 +1,5 @@
 import type { EngineConfig } from "../config/types";
+import type { FramesOverlay } from "../frames/framesPaint";
 
 export type InstanceId = string;
 
@@ -127,6 +128,13 @@ export type FrameSlot = {
   sy: number;
   width: number;
   height: number;
+  /**
+   * The `frames` overlay to paint over this slot once it is blitted. Absent
+   * unless the instance has frames enabled and its reveal has settled. Text is
+   * measured where it is drawn, so this carries geometry and labels only — the
+   * worker cannot see the document's fonts.
+   */
+  frames?: FramesOverlay;
 };
 
 /**

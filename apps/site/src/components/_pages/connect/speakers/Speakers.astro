@@ -1,0 +1,46 @@
+---
+import Container from "@/components/Container.astro";
+import SectionEyebrow from "@/components/SectionEyebrow.astro";
+import { connectSpeakers } from "../data";
+---
+
+<Container class="scroll-mt-80" id="speakers">
+  <SectionEyebrow slot="beforeBleed" text="Speakers" />
+
+  <div class="h-80"></div>
+
+  <div class="px-80 pb-40">
+    <h2 class="mb-16 text-heading-h2 text-text-base">Meet our speakers</h2>
+    <p class="max-w-640 text-body-large text-text-base">
+      Learn from and network with industry leaders shaping the modern Internet.
+    </p>
+  </div>
+
+  <div
+    class="relative grid grid-cols-3 gap-y-40 p-40 before:inside-border before:border-border-muted"
+  >
+    {connectSpeakers.map((speaker) => (
+      <div class="flex flex-col gap-24 px-24">
+        <div class="relative h-320 w-full overflow-clip bg-background-surface after:inside-border after:border-border-muted">
+          <img
+            src={speaker.image}
+            alt={speaker.name}
+            class="size-full object-cover object-top"
+            loading="lazy"
+            decoding="async"
+            width={320}
+            height={320}
+          />
+        </div>
+        <div>
+          <div class="mb-8 text-label-medium text-text-base">
+            {speaker.name}
+          </div>
+          <div class="text-body-small text-text-default">{speaker.role}</div>
+        </div>
+      </div>
+    ))}
+  </div>
+
+  <div class="h-80"></div>
+</Container>

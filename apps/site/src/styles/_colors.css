@@ -1,0 +1,450 @@
+@theme static {
+  /* neutral — primitive palette (Figma "Neutral/*") */
+  --color-neutral-base: #ffffff;
+  --color-neutral-0: #fdfdfd;
+  --color-neutral-1: #fafafa;
+  --color-neutral-2: #f7f7f7;
+  --color-neutral-3: #f5f5f5;
+  --color-neutral-4: #f4f4f4;
+  --color-neutral-5: #f0f0f0;
+  --color-neutral-6: #ebebeb;
+  --color-neutral-7: #d1d1d1;
+  --color-neutral-8: #adadad;
+  --color-neutral-9: #8f8f8f;
+  --color-neutral-10: #707070;
+  --color-neutral-11: #5c5c5c;
+  --color-neutral-12: #292929;
+  --color-neutral-13: #1f1f1f;
+
+  /* text — alias of neutral (Figma UI/Text/*) */
+  --color-text-base: var(--color-neutral-12);
+  --color-text-loud: var(--color-neutral-11);
+  --color-text-default: var(--color-neutral-10);
+  --color-text-muted: var(--color-neutral-9);
+  --color-text-subtle: var(--color-neutral-8);
+  --color-text-faint: var(--color-neutral-7);
+  --color-text-inverse: var(--color-neutral-base);
+
+  /* icon — alias of neutral (Figma UI/Icon/*) */
+  --color-icon-base: var(--color-neutral-12);
+  --color-icon-loud: var(--color-neutral-11);
+  --color-icon-default: var(--color-neutral-10);
+  --color-icon-muted: var(--color-neutral-9);
+  --color-icon-subtle: var(--color-neutral-8);
+  --color-icon-faint: var(--color-neutral-7);
+  --color-icon-inverse: var(--color-neutral-base);
+
+  /* background — alias of neutral (Figma UI/Background/*) */
+  --color-background-base: var(--color-neutral-base);
+  --color-background-surface: var(--color-neutral-0);
+  --color-background-ghost: var(--color-neutral-1);
+  --color-background-faint: var(--color-neutral-2);
+  --color-background-muted: var(--color-neutral-3);
+  --color-background-default: var(--color-neutral-4);
+  --color-background-inverse: var(--color-neutral-13);
+  --color-background-terminal: var(--color-neutral-13);
+
+  /* border — alias of neutral (Figma UI/Border/*) */
+  --color-border-default: var(--color-neutral-4);
+  --color-border-muted: var(--color-neutral-3);
+  --color-border-faint: var(--color-neutral-1);
+  --color-border-dashed: var(--color-neutral-6);
+
+  /* Nav alert ('Under attack?') hover/active tints — no Figma state spec exists;
+     they invert in dark the way the Dynamic Accent ramp does. */
+  --color-background-alert-hover: var(--color-red-0);
+  --color-background-alert-active: var(--color-red-100);
+
+  /* Eyebrow decorative ticks — Figma inverts these with the theme while the badge
+     itself stays Accent/Orange/900 in both modes. */
+  --color-isolate-ring-active: color-mix(in oklab, black 4%, transparent);
+  --color-framework-logo: #17181c;
+  --color-eyebrow-line-big: var(--color-orange-500);
+  --color-eyebrow-line-small: var(--color-orange-300);
+
+  /* accent semantic aliases (Figma UI/{Text,Icon,Background}/Accent/*) */
+  --color-text-accent-info: var(--color-blue-1000);
+  --color-text-accent-orange: var(--color-orange-1000);
+  --color-text-accent-success: var(--color-green-1000);
+  --color-text-accent-warning: var(--color-red-1000);
+  --color-icon-accent-info: var(--color-blue-900);
+  --color-icon-accent-orange: var(--color-orange-900);
+  --color-icon-accent-success: var(--color-green-900);
+  --color-icon-accent-warning: var(--color-red-900);
+  --color-background-accent-info: var(--color-blue-900);
+  --color-background-accent-orange: var(--color-orange-900);
+  --color-background-accent-success: var(--color-green-900);
+  --color-background-accent-warning: var(--color-red-900);
+
+  /* darker / lighter — single-color alpha overlays (Figma "Toner/Neutral Opaque/*").
+     Use Tailwind's opacity modifier for the step, e.g. bg-darker/56, bg-lighter/4. */
+  --color-darker: #000000;
+  --color-lighter: #ffffff;
+
+  /* overlay scrims (Figma Toner/Overlay/*) — note the base is #141414, not pure black */
+  --color-overlay-darker-faint: rgb(20 20 20 / 0);
+  --color-overlay-darker-muted: rgb(20 20 20 / 0.32);
+  --color-overlay-darker-default: rgb(20 20 20 / 0.56);
+  --color-overlay-darker-loud: rgb(20 20 20 / 0.78);
+  --color-overlay-lighter-faint: rgb(255 255 255 / 0);
+  --color-overlay-lighter-muted: rgb(255 255 255 / 0.32);
+  --color-overlay-lighter-default: rgb(255 255 255 / 0.56);
+  --color-overlay-lighter-loud: rgb(255 255 255 / 0.78);
+
+  /* chips (Figma Chips/*) */
+  --color-chips-background-red: var(--color-red-100);
+  --color-chips-background-orange: var(--color-orange-100);
+  --color-chips-background-green: var(--color-green-100);
+  --color-chips-background-blue: var(--color-blue-100);
+  --color-chips-background-purple: var(--color-purple-100);
+  --color-chips-gray: rgb(245 245 245 / 0);
+
+  /* red */
+  --color-red-0: #fff6f7;
+  --color-red-100: #ffebed;
+  --color-red-200: #ffdedf;
+  --color-red-300: #ffcdcf;
+  --color-red-400: #ffb5b6;
+  --color-red-500: #ff9a96;
+  --color-red-600: #ff6967;
+  --color-red-700: #fa4541;
+  --color-red-800: #ff89a5; /* Pair */
+  --color-red-900: #e92e28; /* Accent */
+  --color-red-1000: #b0241f;
+  --color-red-1100: #882426;
+  --color-red-1200: #611c25;
+  --color-red-1300: #471a1e;
+  --color-red-1400: #371115;
+  --color-red-1500: #2a0b0f;
+
+  /* orange */
+  --color-orange-0: #fff8ea;
+  --color-orange-100: #ffefd4;
+  --color-orange-200: #ffe3bb;
+  --color-orange-300: #ffd39e;
+  --color-orange-400: #ffbb7d;
+  --color-orange-500: #ffa05b;
+  --color-orange-600: #ff8839;
+  --color-orange-700: #f86a00;
+  --color-orange-800: #fea700; /* Pair */
+  --color-orange-900: #f46021; /* Accent */
+  --color-orange-1000: #b33806;
+  --color-orange-1100: #8a2b01;
+  --color-orange-1200: #5b260e;
+  --color-orange-1300: #44200d;
+  --color-orange-1400: #331607;
+  --color-orange-1500: #261106;
+
+  /* green */
+  --color-green-0: #f3fede;
+  --color-green-100: #e4fac7;
+  --color-green-200: #cff6b4;
+  --color-green-300: #b7ef96;
+  --color-green-400: #95e47a;
+  --color-green-500: #6bd65f;
+  --color-green-600: #23c04f;
+  --color-green-700: #00ae58;
+  --color-green-800: #80d328; /* Pair */
+  --color-green-900: #009b53; /* Accent */
+  --color-green-1000: #00753d;
+  --color-green-1100: #005c31;
+  --color-green-1200: #174220;
+  --color-green-1300: #14331a;
+  --color-green-1400: #0e2513;
+  --color-green-1500: #091c0c;
+
+  /* blue */
+  --color-blue-0: #ecfcff;
+  --color-blue-100: #d8f7ff;
+  --color-blue-200: #c3f0ff;
+  --color-blue-300: #a4e7ff;
+  --color-blue-400: #82d8ff;
+  --color-blue-500: #5dc6ff;
+  --color-blue-600: #23a9ff;
+  --color-blue-700: #008ffd;
+  --color-blue-800: #38c5f6; /* Pair */
+  --color-blue-900: #1f72ff; /* Accent */
+  --color-blue-1000: #1c50d9;
+  --color-blue-1100: #1e3fae;
+  --color-blue-1200: #1c3370;
+  --color-blue-1300: #182951;
+  --color-blue-1400: #121e3a;
+  --color-blue-1500: #0d162c;
+
+  /* purple */
+  --color-purple-0: #fef5ff;
+  --color-purple-100: #fbeaff;
+  --color-purple-200: #f6ddff;
+  --color-purple-300: #efcdff;
+  --color-purple-400: #e3b7ff;
+  --color-purple-500: #d39eff;
+  --color-purple-600: #bd7aff;
+  --color-purple-700: #b162ff;
+  --color-purple-800: #ec80f7; /* Pair */
+  --color-purple-900: #a22fff; /* Accent */
+  --color-purple-1000: #811fc4;
+  --color-purple-1100: #672091;
+  --color-purple-1200: #4b2063;
+  --color-purple-1300: #371c46;
+  --color-purple-1400: #281732;
+  --color-purple-1500: #1d1125;
+
+  /* dynamic accents (Figma Accent/Dynamic Accent/*) — mode-flipping ramps */
+  --color-dynamic-red-1: var(--color-red-900);
+  --color-dynamic-red-2: var(--color-red-600);
+  --color-dynamic-red-3: var(--color-red-500);
+  --color-dynamic-red-4: var(--color-red-400);
+  --color-dynamic-red-5: var(--color-red-300);
+  --color-dynamic-red-6: var(--color-red-200);
+  --color-dynamic-red-7: var(--color-red-100);
+  --color-dynamic-orange-1: var(--color-orange-900);
+  --color-dynamic-orange-2: var(--color-orange-600);
+  --color-dynamic-orange-3: var(--color-orange-500);
+  --color-dynamic-orange-4: var(--color-orange-400);
+  --color-dynamic-orange-5: var(--color-orange-300);
+  --color-dynamic-orange-6: var(--color-orange-200);
+  --color-dynamic-orange-7: var(--color-orange-100);
+  --color-dynamic-green-1: var(--color-green-900);
+  --color-dynamic-green-2: var(--color-green-600);
+  --color-dynamic-green-3: var(--color-green-500);
+  --color-dynamic-green-4: var(--color-green-400);
+  --color-dynamic-green-5: var(--color-green-300);
+  --color-dynamic-green-6: var(--color-green-200);
+  --color-dynamic-green-7: var(--color-green-100);
+  --color-dynamic-blue-1: var(--color-blue-900);
+  --color-dynamic-blue-2: var(--color-blue-600);
+  --color-dynamic-blue-3: var(--color-blue-500);
+  --color-dynamic-blue-4: var(--color-blue-400);
+  --color-dynamic-blue-5: var(--color-blue-300);
+  --color-dynamic-blue-6: var(--color-blue-200);
+  --color-dynamic-blue-7: var(--color-blue-100);
+  --color-dynamic-purple-1: var(--color-purple-900);
+  --color-dynamic-purple-2: var(--color-purple-600);
+  --color-dynamic-purple-3: var(--color-purple-500);
+  --color-dynamic-purple-4: var(--color-purple-400);
+  --color-dynamic-purple-5: var(--color-purple-300);
+  --color-dynamic-purple-6: var(--color-purple-200);
+  --color-dynamic-purple-7: var(--color-purple-100);
+}
+
+@layer theme {
+  @supports (background: color(display-p3 0 0 0)) {
+    :root {
+      /* neutral — primitive palette in P3; every alias inherits through its var() chain */
+      --color-neutral-base: color(display-p3 1 1 1);
+      --color-neutral-0: color(display-p3 0.9922 0.9922 0.9922);
+      --color-neutral-1: color(display-p3 0.98 0.98 0.98);
+      --color-neutral-2: color(display-p3 0.97 0.97 0.97);
+      --color-neutral-3: color(display-p3 0.9608 0.9608 0.9608);
+      --color-neutral-4: color(display-p3 0.9569 0.9569 0.9569);
+      --color-neutral-5: color(display-p3 0.9412 0.9412 0.9412);
+      --color-neutral-6: color(display-p3 0.92 0.92 0.92);
+      --color-neutral-7: color(display-p3 0.82 0.82 0.82);
+      --color-neutral-8: color(display-p3 0.68 0.68 0.68);
+      --color-neutral-9: color(display-p3 0.56 0.56 0.56);
+      --color-neutral-10: color(display-p3 0.4392 0.4392 0.4392);
+      --color-neutral-11: color(display-p3 0.36 0.36 0.36);
+      --color-neutral-12: color(display-p3 0.16 0.16 0.16);
+      --color-neutral-13: color(display-p3 0.12 0.12 0.12);
+
+      /* red */
+      --color-red-0: color(display-p3 1 0.9647 0.9686);
+      --color-red-100: color(display-p3 1 0.9216 0.9294);
+      --color-red-200: color(display-p3 1 0.8706 0.8745);
+      --color-red-300: color(display-p3 1 0.8039 0.8118);
+      --color-red-400: color(display-p3 1 0.7098 0.7137);
+      --color-red-500: color(display-p3 1 0.6039 0.5882);
+      --color-red-600: color(display-p3 1 0.4118 0.4039);
+      --color-red-700: color(display-p3 0.9804 0.2706 0.2549);
+      --color-red-800: color(display-p3 1 0.5373 0.6471);
+      --color-red-900: color(display-p3 0.9137 0.1804 0.1569);
+      --color-red-1000: color(display-p3 0.6902 0.1412 0.1216);
+      --color-red-1100: color(display-p3 0.5333 0.1412 0.149);
+      --color-red-1200: color(display-p3 0.3804 0.1098 0.1451);
+      --color-red-1300: color(display-p3 0.2784 0.102 0.1176);
+      --color-red-1400: color(display-p3 0.2157 0.0667 0.0824);
+      --color-red-1500: color(display-p3 0.1647 0.0431 0.0588);
+
+      /* orange */
+      --color-orange-0: color(display-p3 1 0.9725 0.9176);
+      --color-orange-100: color(display-p3 1 0.9373 0.8314);
+      --color-orange-200: color(display-p3 1 0.8902 0.7333);
+      --color-orange-300: color(display-p3 1 0.8275 0.6196);
+      --color-orange-400: color(display-p3 1 0.7333 0.4902);
+      --color-orange-500: color(display-p3 1 0.6275 0.3569);
+      --color-orange-600: color(display-p3 1 0.5333 0.2235);
+      --color-orange-700: color(display-p3 0.9725 0.4157 0);
+      --color-orange-800: color(display-p3 0.9961 0.6549 0);
+      --color-orange-900: color(display-p3 0.9569 0.3765 0.1294);
+      --color-orange-1000: color(display-p3 0.702 0.2196 0.0235);
+      --color-orange-1100: color(display-p3 0.5412 0.1686 0.0039);
+      --color-orange-1200: color(display-p3 0.3569 0.149 0.0549);
+      --color-orange-1300: color(display-p3 0.2667 0.1255 0.051);
+      --color-orange-1400: color(display-p3 0.2 0.0863 0.0275);
+      --color-orange-1500: color(display-p3 0.149 0.0667 0.0235);
+
+      /* green */
+      --color-green-0: color(display-p3 0.9529 0.9961 0.8706);
+      --color-green-100: color(display-p3 0.8941 0.9804 0.7804);
+      --color-green-200: color(display-p3 0.8118 0.9647 0.7059);
+      --color-green-300: color(display-p3 0.7176 0.9373 0.5882);
+      --color-green-400: color(display-p3 0.5843 0.8941 0.4784);
+      --color-green-500: color(display-p3 0.4196 0.8392 0.3725);
+      --color-green-600: color(display-p3 0.1373 0.7529 0.3098);
+      --color-green-700: color(display-p3 0 0.6824 0.3451);
+      --color-green-800: color(display-p3 0.502 0.8275 0.1569);
+      --color-green-900: color(display-p3 0 0.6078 0.3255);
+      --color-green-1000: color(display-p3 0 0.4588 0.2392);
+      --color-green-1100: color(display-p3 0 0.3608 0.1922);
+      --color-green-1200: color(display-p3 0.0902 0.2588 0.1255);
+      --color-green-1300: color(display-p3 0.0784 0.2 0.102);
+      --color-green-1400: color(display-p3 0.0549 0.1451 0.0745);
+      --color-green-1500: color(display-p3 0.0353 0.1098 0.0471);
+
+      /* blue */
+      --color-blue-0: color(display-p3 0.9255 0.9882 1);
+      --color-blue-100: color(display-p3 0.8471 0.9686 1);
+      --color-blue-200: color(display-p3 0.7647 0.9412 1);
+      --color-blue-300: color(display-p3 0.6431 0.9059 1);
+      --color-blue-400: color(display-p3 0.5098 0.8471 1);
+      --color-blue-500: color(display-p3 0.3647 0.7765 1);
+      --color-blue-600: color(display-p3 0.1373 0.6627 1);
+      --color-blue-700: color(display-p3 0 0.5608 0.9922);
+      --color-blue-800: color(display-p3 0.2196 0.7725 0.9647);
+      --color-blue-900: color(display-p3 0.1216 0.4471 1);
+      --color-blue-1000: color(display-p3 0.1098 0.3137 0.851);
+      --color-blue-1100: color(display-p3 0.1176 0.2471 0.6824);
+      --color-blue-1200: color(display-p3 0.1098 0.2 0.4392);
+      --color-blue-1300: color(display-p3 0.0941 0.1608 0.3176);
+      --color-blue-1400: color(display-p3 0.0706 0.1176 0.2275);
+      --color-blue-1500: color(display-p3 0.051 0.0863 0.1725);
+
+      /* purple */
+      --color-purple-0: color(display-p3 0.9961 0.9608 1);
+      --color-purple-100: color(display-p3 0.9843 0.9176 1);
+      --color-purple-200: color(display-p3 0.9647 0.8667 1);
+      --color-purple-300: color(display-p3 0.9373 0.8039 1);
+      --color-purple-400: color(display-p3 0.8902 0.7176 1);
+      --color-purple-500: color(display-p3 0.8275 0.6196 1);
+      --color-purple-600: color(display-p3 0.7412 0.4784 1);
+      --color-purple-700: color(display-p3 0.6941 0.3843 1);
+      --color-purple-800: color(display-p3 0.9255 0.502 0.9686);
+      --color-purple-900: color(display-p3 0.6353 0.1843 1);
+      --color-purple-1000: color(display-p3 0.5059 0.1216 0.7686);
+      --color-purple-1100: color(display-p3 0.4039 0.1255 0.5686);
+      --color-purple-1200: color(display-p3 0.2941 0.1255 0.3882);
+      --color-purple-1300: color(display-p3 0.2157 0.1098 0.2745);
+      --color-purple-1400: color(display-p3 0.1569 0.0902 0.1961);
+      --color-purple-1500: color(display-p3 0.1137 0.0667 0.1451);
+    }
+  }
+}
+
+/* Dark mode — catalogued from the Figma "Dark" mode. NOT active: nothing sets
+   data-theme, and no media query activates it. Kept in sync so the palette is
+   complete when dark mode ships. Shadows are NOT covered here — _shadows.css
+   bakes literal tints and dark mode swaps drop shadows for inner glows. */
+:root[data-theme="dark"] {
+  /* primitives — the 26 same-target aliases inherit these automatically */
+  --color-neutral-base: #141414;
+  --color-neutral-0: #151515;
+  --color-neutral-1: #171717;
+  --color-neutral-2: #191919;
+  --color-neutral-3: #1c1c1c;
+  --color-neutral-4: #1f1f1f;
+  --color-neutral-5: #212121;
+  --color-neutral-6: #262626;
+  --color-neutral-7: #383838;
+  --color-neutral-8: #525252;
+  --color-neutral-9: #616161;
+  --color-neutral-10: #7a7a7a;
+  --color-neutral-11: #a3a3a3;
+  --color-neutral-12: #e0e0e0;
+  --color-neutral-13: #fcfcfc;
+
+  /* aliases that RETARGET in dark (everything else inherits) */
+  --color-dynamic-blue-2: var(--color-blue-1000);
+  --color-dynamic-blue-3: var(--color-blue-1100);
+  --color-dynamic-blue-4: var(--color-blue-1200);
+  --color-dynamic-blue-5: var(--color-blue-1300);
+  --color-dynamic-blue-6: var(--color-blue-1400);
+  --color-dynamic-blue-7: var(--color-blue-1500);
+  --color-dynamic-green-2: var(--color-green-1000);
+  --color-dynamic-green-3: var(--color-green-1100);
+  --color-dynamic-green-4: var(--color-green-1200);
+  --color-dynamic-green-5: var(--color-green-1300);
+  --color-dynamic-green-6: var(--color-green-1400);
+  --color-dynamic-green-7: var(--color-green-1500);
+  --color-dynamic-orange-2: var(--color-orange-1000);
+  --color-dynamic-orange-3: var(--color-orange-1100);
+  --color-dynamic-orange-4: var(--color-orange-1200);
+  --color-dynamic-orange-5: var(--color-orange-1300);
+  --color-dynamic-orange-6: var(--color-orange-1400);
+  --color-dynamic-orange-7: var(--color-orange-1500);
+  --color-dynamic-purple-2: var(--color-purple-1000);
+  --color-dynamic-purple-3: var(--color-purple-1100);
+  --color-dynamic-purple-4: var(--color-purple-1200);
+  --color-dynamic-purple-5: var(--color-purple-1300);
+  --color-dynamic-purple-6: var(--color-purple-1400);
+  --color-dynamic-purple-7: var(--color-purple-1500);
+  --color-dynamic-red-2: var(--color-red-1000);
+  --color-dynamic-red-3: var(--color-red-1100);
+  --color-dynamic-red-4: var(--color-red-1200);
+  --color-dynamic-red-5: var(--color-red-1300);
+  --color-dynamic-red-6: var(--color-red-1400);
+  --color-dynamic-red-7: var(--color-red-1500);
+  --color-chips-background-blue: var(--color-blue-1400);
+  --color-chips-background-green: var(--color-green-1400);
+  --color-chips-background-orange: var(--color-orange-1400);
+  --color-chips-background-purple: var(--color-purple-1400);
+  --color-chips-background-red: var(--color-red-1400);
+  --color-background-terminal: var(--color-neutral-base);
+  --color-border-dashed: var(--color-neutral-5);
+  --color-background-alert-hover: var(--color-red-1500);
+  --color-background-alert-active: var(--color-red-1400);
+  --color-isolate-ring-active: rgba(255, 255, 255, 0.05);
+  --color-framework-logo: #ffffff;
+  --color-eyebrow-line-big: var(--color-orange-1000);
+  --color-eyebrow-line-small: var(--color-orange-1200);
+  --color-icon-accent-info: var(--color-blue-700);
+  --color-icon-accent-orange: var(--color-orange-700);
+  --color-icon-accent-success: var(--color-green-700);
+  --color-icon-accent-warning: var(--color-red-700);
+  --color-icon-inverse: var(--color-neutral-13);
+  --color-text-accent-info: var(--color-blue-700);
+  --color-text-accent-orange: var(--color-orange-700);
+  --color-text-accent-success: var(--color-green-700);
+  --color-text-accent-warning: var(--color-red-700);
+  --color-text-inverse: var(--color-neutral-13);
+
+  /* Toner/Neutral Opaque inverts in dark: Darker becomes white, Lighter becomes black */
+  --color-darker: #ffffff;
+  --color-lighter: #000000;
+
+  /* Toner/Overlay: the Lighter scrims become dark-tinted in dark mode */
+  --color-overlay-lighter-faint: rgb(20 20 20 / 0);
+  --color-overlay-lighter-muted: rgb(20 20 20 / 0.32);
+  --color-overlay-lighter-default: rgb(20 20 20 / 0.56);
+  --color-overlay-lighter-loud: rgb(20 20 20 / 0.78);
+  --color-chips-gray: rgb(28 28 28 / 0);
+}
+
+@supports (background: color(display-p3 0 0 0)) {
+  :root[data-theme="dark"] {
+    --color-neutral-base: color(display-p3 0.08 0.08 0.08);
+    --color-neutral-0: color(display-p3 0.0824 0.0824 0.0824);
+    --color-neutral-1: color(display-p3 0.0902 0.0902 0.0902);
+    --color-neutral-2: color(display-p3 0.098 0.098 0.098);
+    --color-neutral-3: color(display-p3 0.11 0.11 0.11);
+    --color-neutral-4: color(display-p3 0.12 0.12 0.12);
+    --color-neutral-5: color(display-p3 0.13 0.13 0.13);
+    --color-neutral-6: color(display-p3 0.15 0.15 0.15);
+    --color-neutral-7: color(display-p3 0.22 0.22 0.22);
+    --color-neutral-8: color(display-p3 0.32 0.32 0.32);
+    --color-neutral-9: color(display-p3 0.38 0.38 0.38);
+    --color-neutral-10: color(display-p3 0.48 0.48 0.48);
+    --color-neutral-11: color(display-p3 0.64 0.64 0.64);
+    --color-neutral-12: color(display-p3 0.88 0.88 0.88);
+    --color-neutral-13: color(display-p3 0.9901 0.9901 0.9901);
+  }
+}

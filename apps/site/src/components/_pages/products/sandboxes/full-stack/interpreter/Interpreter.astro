@@ -1,0 +1,83 @@
+---
+import type { AstroComponentFactory } from "astro/runtime/server/index.js";
+import IllustrationChip from "@/components/_animations/ui/IllustrationChip.astro";
+import OrbitRing from "@/components/_animations/ui/OrbitRing.astro";
+import Browser from "@/components/browser/Browser.astro";
+import Icon from "@/components/icon/Icon";
+import Stage from "@/components/Stage.astro";
+import OutputChart from "./OutputChart.astro";
+import OutputImage from "./OutputImage.astro";
+import OutputTable from "./OutputTable.astro";
+import { WINDOW_PITCH } from "./reel";
+
+const outputs: { component: AstroComponentFactory }[] = [
+  { component: OutputChart },
+  { component: OutputTable },
+  { component: OutputImage },
+];
+const frozen = true;
+---
+
+<Stage
+  class="pointer-events-none"
+  data-sandboxes-fullstack-visual={frozen ? undefined : "interpreter"}
+>
+  <div class="overlay overflow-clip">
+    <div class="absolute inset-0" data-illustration-root>
+      <div
+        class="absolute top-120 left-0 h-px w-full -translate-y-1/2 bg-border-default"
+      >
+      </div>
+      <div
+        class="absolute top-0 left-120 h-full w-px -translate-x-1/2 bg-border-default"
+      >
+      </div>
+
+      <div class="absolute inset-y-0 left-236 w-208" data-interpreter-track>
+        {outputs.map(({ component: Output }, index) => (
+          <div
+            class="absolute top-52 left-0 h-136 w-208"
+            data-interpreter-slot=""
+            style={{
+              translate: `0 ${(((index + 1) % outputs.length) - 1) * WINDOW_PITCH}px`,
+            }}
+          >
+            <div data-interpreter-nudge="">
+              <Browser
+                class="h-136 w-208"
+                data-active={frozen && index === 0 ? true : undefined}
+                data-interpreter-browser=""
+                data-output={frozen && index === 0 ? "" : undefined}
+                loading={frozen && index === 0 ? false : undefined}
+                reveal={false}
+                variant="stream"
+              >
+                <div class="overlay" slot="viewport">
+                  <Output />
+                </div>
+              </Browser>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <OrbitRing
+        bottomArcClass="stroke-purple-900"
+        class="top-120 left-120"
+        radius={60}
+        topArcClass="stroke-purple-800"
+      />
+
+      <IllustrationChip
+        active
+        chipId="C"
+        class="top-120 left-120 z-1"
+        shape="circle"
+        size="xlarge"
+        sizePx={88}
+      >
+        <Icon color="purple" name="product-workers" size={32} variant="duo" />
+      </IllustrationChip>
+    </div>
+  </div>
+</Stage>

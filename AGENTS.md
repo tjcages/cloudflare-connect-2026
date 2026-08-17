@@ -5,23 +5,29 @@
 The GPU-first rewrite is complete and is now the **only** engine. The legacy Pixi/CPU
 product (`apps/studio` + `packages/stripes-shader`) has been retired/deleted.
 
-| Package                   | Role                                                                   |
-| ------------------------- | ---------------------------------------------------------------------- |
-| `apps/lab`                | Authoring app + the live Cloudflare worker `connect-shader` (at `/`)   |
-| `packages/stripes-engine` | WebGL2 render core + `<StripesShader>` React canvas (`/react` subpath) |
+| Package                     | Role                                                                   |
+| --------------------------- | ---------------------------------------------------------------------- |
+| `apps/lab`                  | Authoring app + Cloudflare Worker `connect-shader`                     |
+| `apps/site`                 | Connect 2026 refresh site + Cloudflare Worker `connect-2026-site`      |
+| `packages/connect-twizzler` | Connect hero shader package used by the refresh site                   |
+| `packages/panels`           | Shared shader panel package used by the refresh site                   |
+| `packages/stripes-engine`   | WebGL2 render core + `<StripesShader>` React canvas (`/react` subpath) |
 
 Follow `docs/engine-architecture.md` and `docs/superpowers/specs/2026-06-22-gpu-engine-rewrite-design.md`.
 Do **not** follow `docs/legacy/` — those describe the retired Pixi/CPU engine.
 
 ## Deploy
 
-**Always** deploy to Worker [`connect-shader`](https://dash.cloudflare.com/944ca70087298faa2e84783db46162c5/workers/services/view/connect-shader/production)
-(`account_id` `944ca70087298faa2e84783db46162c5`). Details: `docs/deploy.md`.
-Live: https://connect-shader.off-brand.workers.dev/
+This repository owns two Workers in account `944ca70087298faa2e84783db46162c5`:
 
-**PR handoff:** use the Cloudflare Workers **branch preview URL** posted on the PR
-(`https://<branch-slug>-connect-shader.off-brand.workers.dev/`). Never trycloudflare tunnels.
-If missing, enable Build → Branch control → **Builds for non-production branches** (see `docs/deploy.md`).
+- Shader tool: `connect-shader` from `apps/lab`
+- Refresh site: `connect-2026-site` from `apps/site`
+
+Use the matching app-level Wrangler config and root `deploy:shader` / `deploy:site`
+script. Details: `docs/deploy.md`.
+
+**PR handoff:** changes spanning both apps require both Cloudflare Workers branch
+preview URLs. Never use trycloudflare tunnels or production URLs as substitutes.
 
 ## Package Manager
 
@@ -32,7 +38,8 @@ Use `pi` (install) and `pir` (run scripts). Never `npm`, `pnpm`, `yarn`, or `npx
 - Typecheck new engine: `pir --filter @necatikcl/stripes-engine typecheck`
 - Unit tests: `pir test`
 - E2E / visual goldens: `pir test:e2e`
-- Full check (tests + typecheck + lab build): `pir verify`.
+- Refresh site tests: `pir test:site`
+- Full check (tests + typecheck + both builds): `pir verify`.
 - Docs/rules-only changes: verify frontmatter, links, paths, and stale references.
 - Do not claim completion without fresh verification evidence.
 
@@ -43,7 +50,7 @@ Use `pi` (install) and `pir` (run scripts). Never `npm`, `pnpm`, `yarn`, or `npx
 - **Milestones:** `Editable preview` (active) → `Visual match` → `Production promote`
 - **Lifecycle:** `Backlog` → `In Progress` when work starts → `Done` only when shipped. Close the loop before session end.
 - **Search before create.** Prefer Linear-generated branch names (`ty/cf-N-…`).
-- **Boundary:** Shader work stays in `apps/lab` + `packages/stripes-engine`. Connect marketing site is a separate Linear project.
+- **Boundary:** Shader work stays in `apps/lab` + `packages/stripes-engine`. Connect site work stays in `apps/site` and its separate Linear project.
 
 ## Safety
 

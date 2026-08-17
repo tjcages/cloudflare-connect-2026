@@ -1,0 +1,86 @@
+---
+import type { AstroComponentFactory } from "astro/runtime/server/index.js";
+import Button from "@/components/Button";
+import DashedLine from "@/components/dashed-line/DashedLine";
+import Section from "@/layouts/Section.astro";
+import Compute from "./Compute.astro";
+import FullStackCanvas from "./FullStackCanvas";
+import Latency from "./latency/Latency.astro";
+import Sandbox from "./Sandbox.astro";
+import Secure from "./Secure.astro";
+
+const blocks: {
+  title: string;
+  body: string;
+  stage: AstroComponentFactory;
+}[] = [
+  {
+    stage: Secure,
+    title: "Run AI generated code securely.",
+    body: "Execute untrusted code in a fully isolated environment per session or per user. Give your AI agents the ability to generate and run code.",
+  },
+  {
+    title: "Run latency sensitive services close to end users.",
+    body: "Deploy <br />compute-intensive workloads that need to run near users for optimal performance. Cloudflare automatically places each instance in the optimal location across our network.",
+    stage: Latency,
+  },
+  {
+    title: "Run compute intensive workflows and background jobs.",
+    body: "Process data, images, videos or any content that demands multiple CPU cores, extra memory, or a specialized runtime.",
+    stage: Compute,
+  },
+  {
+    title: "Provide sandboxed dev environments.",
+    body: "Spin up complete development environments on-demand for testing, CI/CD, or collaborative coding.",
+    stage: Sandbox,
+  },
+];
+---
+
+<Section
+  layout="sticky"
+  eyebrow="Full Stack"
+  sectionEyebrow="Features"
+  stickyColumnClass="w-480"
+  title="You can use Containers to:"
+  description="See real-world examples of Cloudflare Containers"
+>
+  <Button
+    className="w-fit px-20"
+    href="https://developers.cloudflare.com/containers/"
+    size="large"
+    slot="action"
+    variant="secondary"
+  >
+    <span>See more</span>
+  </Button>
+
+  <div
+    class="relative flex flex-col gap-48 p-40 pb-64"
+    data-containers-fullstack-grid
+  >
+    {blocks.map(({ title, body, stage: Stage }, index) => (
+      <Fragment>
+        {index > 0 && (
+          <div class="relative h-0">
+            <DashedLine
+              className="absolute inset-x-0 -top-0.5 w-full text-border-dashed"
+              direction="horizontal"
+            />
+          </div>
+        )}
+
+        <div class="flex flex-col gap-24">
+          <Stage />
+
+          <p class="text-body-medium text-text-default">
+            <span class="pr-3 text-label-medium text-text-base">{title}</span>{" "}
+            <Fragment set:html={body} />
+          </p>
+        </div>
+      </Fragment>
+    ))}
+
+    <FullStackCanvas client:only="react" />
+  </div>
+</Section>

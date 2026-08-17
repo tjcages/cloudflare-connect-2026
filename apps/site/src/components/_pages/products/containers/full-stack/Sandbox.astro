@@ -1,0 +1,14 @@
+---
+import ContainerStream from "@/components/_animations/container-stream/ContainerStream.astro";
+import Stage from "@/components/Stage.astro";
+---
+
+<Stage class="pointer-events-none" data-containers-fullstack-visual="sandbox">
+  <ContainerStream
+    source={{ icon: "user", color: "orange" }}
+    window={{ width: 208, height: 136 }}
+    chipX={96}
+    columnX={324}
+    rules="horizontal"
+  />
+</Stage>

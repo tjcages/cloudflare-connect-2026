@@ -1,0 +1,115 @@
+{
+  "slug": "onetrust",
+  "company": "OneTrust",
+  "sourceUrl": "https://www.cloudflare.com/case-studies/onetrust/",
+  "found": true,
+  "synthesized": false,
+  "title": "OneTrust integrates Cloudflare solutions into its own infrastructure and customer applications.",
+  "quote": {
+    "text": [
+      "“We’ve implemented Cloudflare’s products across our business – from our core customer cloud product to our internal company apps and websites. Cloudflare is an integral part of OneTrust’s privacy, security, and governance technology solution and helps us differentiate in the market.”"
+    ],
+    "author": "Blake Brannon",
+    "role": "CTO"
+  },
+  "summaryHeadline": "Cloudflare Workers acts as OneTrust’s serverless architecture, while Cloudflare’s security and access management solutions power its context-aware Zero Trust security.",
+  "summaryBody": [
+    "OneTrust helps companies be more trusted and use technology to make trust a competitive advantage. It is the fastest-growing privately held company in the U.S., with a stunning 48,000% three-year growth rate. Over 7,500 businesses worldwide use OneTrust’s SaaS solutions to manage privacy, security, and governance and comply with regulations such as the CCPA, GDPR, LGPD, PDPA, and ISO27001.",
+    "OneTrust runs Cloudflare across roughly 33 top-level domains and about 16,000 subdomains, and now serves more than 2 petabytes of traffic a month through the Cloudflare CDN."
+  ],
+  "sections": [
+    {
+      "heading": "The challenge: scaling performance and security for explosive growth",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "When Blake Brannon joined OneTrust as CTO, the company was relying on its cloud provider’s native security tools to protect its SaaS platform, and on that same provider’s compute functions to run the custom code behind its most visible product: website cookie banners. Access to OneTrust’s internal apps was still gated by a traditional VPN. Brannon wanted more efficient, scalable, and cost-effective performance and security solutions to support the company’s tremendous growth."
+        },
+        {
+          "type": "p",
+          "text": "“OneTrust is growing very quickly, and international privacy regulations are continuously changing,” Brannon explains. “We need agility and the ability to scale quickly and efficiently. The solutions we were using weren’t robust enough to handle our growth.”"
+        },
+        {
+          "type": "p",
+          "text": "OneTrust started with Cloudflare’s core performance and security suite, including the [Cloudflare WAF](https://www.cloudflare.com/application-security/waf/). As the company grew, it layered on Rate Limiting, Argo Smart Routing, SSL for SaaS, [Workers](https://www.cloudflare.com/developer-platform/workers/), and [Access](https://www.cloudflare.com/zero-trust/products/access/)."
+        }
+      ]
+    },
+    {
+      "heading": "Cloudflare Workers halves latency and slashes egress costs",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Cloudflare Workers now acts as OneTrust’s serverless architecture, helping the company ship critical product features while minimizing latency, cost, and development time. The clearest example is Cookie Consent, OneTrust’s privacy pop-up banners that personalize themselves based on each site visitor’s location. The banners — often required for compliance with the GDPR, the California Consumer Privacy Act (CCPA), and other regional privacy regulations — appear whenever a visitor from a covered jurisdiction lands on a website, informing them that their data may be collected and asking for their consent to use it."
+        },
+        {
+          "type": "p",
+          "text": "“Until a user sets their consent preferences, certain functions on the website, such as tracking functions, stay off until the user gives consent,” Brannon explains. “The banners depend on custom code that runs a geo-locator to look up the visitor’s jurisdiction, then dynamically load the appropriate policy banner. Depending on where a visitor is located, they may not need to see a banner at all, or they may need to see one that disables certain functions but not others.”"
+        },
+        {
+          "type": "p",
+          "text": "Before adopting Workers, OneTrust ran that code on its cloud provider’s own compute functions, which added complexity to the code and the development process. With the service handling roughly 64 billion hits a week, OneTrust was also running into latency problems and steep egress costs. Moving the workload to Workers changed both. “It was massive,” Brannon says. “Latency was halved, and our costs went down by 90%.”"
+        },
+        {
+          "type": "p",
+          "text": "OneTrust also used Workers to ship a newer feature that syncs a visitor’s consent preferences across devices. “If a user visits a website on a desktop and provides their consent preferences, Workers pulls that consent down to their other devices, which is very convenient for the user. Additionally, user content preferences are delivered through a Worker node closest to their geographic location, which dramatically speeds things up.” Beyond cost and latency, Workers has changed how OneTrust’s engineering team operates day to day. “Because Workers is a highly distributed architecture, I don’t have to spend time with my team figuring out how to build features to be highly available,” Brannon says. “Our time to market has dramatically sped up, and we know that anything we code through Workers will meet our service-level agreements (SLA) for high availability.”"
+        }
+      ]
+    },
+    {
+      "heading": "Performance and security woven into OneTrust’s SaaS platform",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "OneTrust runs Cloudflare across roughly 33 top-level domains and about 16,000 subdomains, and now serves more than 2 petabytes of traffic a month through the Cloudflare CDN. With SSL for SaaS, every OneTrust customer has the option to deploy a vanity domain of its own."
+        },
+        {
+          "type": "p",
+          "text": "“We’ve implemented Cloudflare’s products across our business – from our core customer cloud product to our internal company apps and websites,” Brannon says. “Cloudflare is an integral part of OneTrust’s privacy, security, and governance technology solution and helps us differentiate in the market.”"
+        },
+        {
+          "type": "p",
+          "text": "The [Cloudflare WAF](https://www.cloudflare.com/application-security/waf/) blocks more than 30 million threats a month for OneTrust, while giving Brannon’s team visibility into security events and granular control over policy. “The WAF is simple but very powerful,” he says. “Some of our API calls are very open, and others are very restrictive. The WAF enables us to easily create very specific policies for individual pages within our app.”"
+        },
+        {
+          "type": "p",
+          "text": "The savings extend to infrastructure spend as well. “We have many large enterprise customers, so there’s a huge amount of compute and performance on the server side, and demand is growing,” Brannon says. “Thanks to Cloudflare’s CDN, Rate Limiting, and traffic shielding, everything isn’t coming back to our Azure account. In addition to saving money, we’re able to scale globally while maintaining high performance and reliability.”"
+        }
+      ]
+    },
+    {
+      "heading": "Cloudflare Access replaces a VPN that no longer made sense",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Before adopting [Access](https://www.cloudflare.com/zero-trust/products/access/), OneTrust secured some internal apps with Azure AD and multi-factor authentication (MFA), and others with IP restrictions, a VPN, or both. Brannon didn’t want to keep depending on a VPN: it required users to be on-site, and all VPN traffic had to route back through the company’s corporate offices. “We have 12 global offices, and all of that traffic coming back to our firewall/VPN system made zero sense,” he says. “Then the COVID-19 pandemic happened, and it made even less sense.”"
+        },
+        {
+          "type": "p",
+          "text": "After a successful pilot of Access in OneTrust’s development environment, Brannon moved the rest of the company’s internal environment behind it. Today, all of OneTrust’s roughly 550 developers and testers use Access, and feedback has been overwhelmingly positive. “In addition to integrating Access with our Azure AD infrastructure and MFA, all of our highly sensitive services, which require a hardware-generated certificate, are mapped back to our Access controls,” Brannon says. “Access greatly increased our security posture over VPN, which didn’t even support MFA.”"
+        },
+        {
+          "type": "p",
+          "text": "Access has also made employees more productive. “Some of our users wanted to use mobile for virtual meetings, but our VPN didn’t support it; Access does,” Brannon says. “Meetings go more smoothly because users don’t experience latency issues that require them to disconnect and reconnect. That was a big problem with the VPN.”"
+        }
+      ]
+    },
+    {
+      "heading": "Looking ahead: staying focused on OneTrust’s core business",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "With Cloudflare woven into both its IT infrastructure and its customer-facing application, OneTrust’s developers spend less time on administrative overhead and more time on the work that moves the business forward."
+        },
+        {
+          "type": "p",
+          "text": "“OneTrust relies on Cloudflare to maintain our network perimeter, so we can focus on delivering technology that helps our customers be more trusted,” Brannon adds. “With Cloudflare, we can easily build context-aware Zero Trust policies for secure access to our developer tools. Employees can connect to the tools they need so simply teams don’t even know Cloudflare is powering the backend. It just works.”"
+        }
+      ]
+    }
+  ],
+  "productsUsed": ["Access", "Workers", "WAF"],
+  "industry": "High Technology",
+  "region": "North America",
+  "date": "Dec 23, 2025"
+}

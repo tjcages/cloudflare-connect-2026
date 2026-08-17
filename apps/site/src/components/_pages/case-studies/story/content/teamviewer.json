@@ -1,0 +1,74 @@
+{
+  "slug": "teamviewer",
+  "company": "TeamViewer",
+  "sourceUrl": "https://www.cloudflare.com/case-studies/teamviewer/",
+  "found": true,
+  "synthesized": false,
+  "title": "TeamViewer deploys Cloudflare WAF, Workers, and CDN to decrease latency for its website and downloads and protect against DDoS attacks",
+  "quote": {
+    "text": [
+      "“With Cloudflare Workers and CDN, we were able to achieve a cache hit rate of 99% for downloads. For visitors to our website, over 95% of requests hit the cache.”"
+    ],
+    "author": "Franc Lambrecht",
+    "role": "Enterprise Architect"
+  },
+  "summaryHeadline": "TeamViewer enhances website and download performance with help from Cloudflare",
+  "summaryBody": [
+    "TeamViewer provides a Digital Workplace platform that connects people with technology—enabling, improving and automating digital processes to make work work better. In 2005, TeamViewer started with software to connect to computers from anywhere to eliminate travel and enhance productivity. It rapidly became the de facto standard for remote access and support and the preferred solution for hundreds of millions of users across the world to help others with IT issues.",
+    "Today, more than 660,000 customers across industries rely on TeamViewer to optimize their digital workplaces—from small to medium sized businesses to the world’s largest enterprises—empowering both desk-based employees and frontline workers."
+  ],
+  "sections": [
+    {
+      "heading": "Challenge: Ensuring website and download performance for a global audience",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "TeamViewer has customers around the globe, but its IT infrastructure was centralized. The company was concerned that latency and potential downtime would cause prospects visiting its website and downloading its software to switch to other providers. According to Eduardo Bernal, TeamViewer’s VP of Digital Delivery, “As we have millions and millions of customers and free users downloading our software, providing it at speed was a challenge. Our download servers were not sufficiently performant, which is why we started to look into Cloudflare.”"
+        }
+      ]
+    },
+    {
+      "heading": "Cloudflare Workers and WAF reduce latency and DDoS exposure",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Previously, TeamViewer was serving its website and downloads directly from its origin servers. However, this created issues with latency and accessibility in certain markets, like China. Bernal commented, “The latency to deliver software in China meant that our downloads were terribly slow. Cloudflare’s global network and China network enable us to better serve our customers.”"
+        },
+        {
+          "type": "p",
+          "text": "Transitioning applications from the company’s servers to [Cloudflare Workers](https://www.cloudflare.com/developer-platform/products/workers/), Cloudflare’s serverless platform, has dramatically reduced load on the company’s infrastructure while enhancing performance. “Currently, we deliver between six to eight petabytes per month, but the infrastructure in the background is always the same,” explained Franc Lambrecht, Enterprise Architect at TeamViewer. “We don’t need to scale on our side because Cloudflare scales for us.”"
+        },
+        {
+          "type": "p",
+          "text": "Distributed denial-of-service (DDoS) attacks were also a major concern for TeamViewer. Bernal said, “We face many DDoS attacks. The [Cloudflare web application firewall](https://www.cloudflare.com/application-security/waf/) helps us sleep at night knowing that our website is protected.”"
+        }
+      ]
+    },
+    {
+      "heading": "Improved website performance and reduced origin server load",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "The Cloudflare Connectivity Cloud has reduced network latency for TeamViewer’s website and downloads alike. According to Lambrecht, “With Cloudflare Workers and CDN, we were able to achieve a cache hit rate of 99% for downloads. For visitors to our website, over 95% of requests hit the cache.”"
+        },
+        {
+          "type": "p",
+          "text": "Cloudflare’s [China Network](https://www.cloudflare.com/network/china-network/) also fixed TeamViewer’s challenges with reaching its Chinese customers. Bernal says, “The China network enables us to improve our download speeds by five times in mainland China.”"
+        }
+      ]
+    },
+    {
+      "heading": "Mitigating emerging and evolving cyber threats",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "While web performance and DDoS attacks were the initial impetus to partner with Cloudflare, TeamViewer has also adopted additional Cloudflare solutions to meet its needs. “As the cybersecurity industry and threat landscape evolve, we’ve adopted more Cloudflare solutions, such as Cloudflare’s WAF, Workers, and [Bot Management](https://www.cloudflare.com/application-security/bot-management/),” Bernal said. “There are many things that Cloudflare has that no other company can provide to us, and we’re always excited to test new offerings.”"
+        }
+      ]
+    }
+  ],
+  "productsUsed": ["CDN", "Workers", "WAF", "Bot Management", "China Network"],
+  "industry": "High Technology",
+  "region": "Europe, Middle East & Africa",
+  "date": "Mar 28, 2026"
+}

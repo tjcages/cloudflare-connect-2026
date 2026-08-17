@@ -1,0 +1,25 @@
+---
+import CodeRows from "./CodeRows.astro";
+
+const blocks = [
+  "left-14 bg-(--color-dynamic-blue-7) before:inside-border before:border-(--color-dynamic-blue-5) before:[transition:none]",
+  "left-60 bg-darker/2",
+  "left-106 bg-darker/2",
+  "left-152 bg-darker/5",
+];
+---
+
+{blocks.map((block) => (
+  <div
+    class:list={["absolute top-10 h-31 w-26 rounded-4 opacity-0", block]}
+    data-stream-lane="preview"
+  />
+))}
+
+<CodeRows
+  rows={[
+    { widths: ["w-15", "w-14", "w-6", "w-9"] },
+    { widths: ["w-4", "w-8", "w-12", "w-5", "w-11"] },
+    { widths: ["w-13", "w-7", "w-9", "w-4"] },
+  ]}
+/>

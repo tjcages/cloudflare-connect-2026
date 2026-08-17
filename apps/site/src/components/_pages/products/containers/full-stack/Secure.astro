@@ -1,0 +1,15 @@
+---
+import ContainerStream from "@/components/_animations/container-stream/ContainerStream.astro";
+import Stage from "@/components/Stage.astro";
+---
+
+<Stage class="pointer-events-none" data-containers-fullstack-visual="secure">
+  <ContainerStream
+    source={{ icon: "sparkle-hightlight", color: "purple" }}
+    report={{ color: "purple" }}
+    window={{ width: 192, height: 128 }}
+    chipX={64}
+    columnX={240}
+    rules="cross"
+  />
+</Stage>

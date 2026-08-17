@@ -1,0 +1,81 @@
+---
+import type { AstroComponentFactory } from "astro/runtime/server/index.js";
+import IllustrationChip from "@/components/_animations/ui/IllustrationChip.astro";
+import OrbitRing from "@/components/_animations/ui/OrbitRing.astro";
+import Browser from "@/components/browser/Browser.astro";
+import Icon from "@/components/icon/Icon";
+import Stage from "@/components/Stage.astro";
+import BlocksWindow from "./windows/BlocksWindow.astro";
+import ChartWindow from "./windows/ChartWindow.astro";
+import TableWindow from "./windows/TableWindow.astro";
+import TilesWindow from "./windows/TilesWindow.astro";
+
+// Figma stacks the windows 172 apart — the 136 window plus the 36 gap every
+// filmstrip in this repo leaves. Four slots, so the one that wraps below the
+// card has somewhere to go before it climbs back into view.
+const WINDOW_HEIGHT = 136;
+const PITCH = WINDOW_HEIGHT + 36;
+
+// Every window is the same sandbox: output on top, code underneath. Only the
+// output pattern changes. Slot 1 holds the centre at rest, so the mock's own
+// tile window goes there and the run reads tiles → table → chart → blocks.
+const windows: { content: AstroComponentFactory }[] = [
+  { content: BlocksWindow },
+  { content: TilesWindow },
+  { content: TableWindow },
+  { content: ChartWindow },
+];
+---
+
+<Stage class="pointer-events-none" data-sandboxes-fullstack-visual="streaming">
+  <div class="overlay overflow-clip">
+    <div class="absolute inset-y-0 left-120 w-px bg-border-default"></div>
+    <div class="absolute inset-x-0 top-1/2 h-px bg-border-default"></div>
+
+    <OrbitRing
+      bottomArcClass="stroke-purple-900"
+      class="top-1/2 left-120"
+      radius={60}
+      topArcClass="stroke-purple-800"
+    />
+
+    <IllustrationChip
+      active
+      chipId="C"
+      class="top-1/2 left-120 z-10"
+      shape="circle"
+      size="xlarge"
+      sizePx={88}
+    >
+      <Icon color="purple" name="product-workers" size={32} variant="duo" />
+    </IllustrationChip>
+
+    <div class="absolute top-52 left-236 h-136 w-208" data-reel-stage>
+      <div class="absolute inset-0" data-reel-track>
+        {windows.map(({ content: Content }, index) => (
+          <div
+            class="absolute inset-0"
+            data-reel-slot
+            style={{ translate: `0 ${(index - 1) * PITCH}px` }}
+          >
+            <div data-reel-nudge>
+              <Browser
+                class="h-136 w-208"
+                data-reel-browser
+                reveal={false}
+                variant="stream"
+              >
+                <div
+                  class="overlay overflow-clip opacity-0 transition-opacity duration-450 ease-[cubic-bezier(0.6,0.6,0,1)] group-data-active/browser:opacity-100"
+                  slot="viewport"
+                >
+                  <Content />
+                </div>
+              </Browser>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+</Stage>

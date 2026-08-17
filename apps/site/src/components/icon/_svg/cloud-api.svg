@@ -1,0 +1,7 @@
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M9.5 18.75H2.75" stroke="#38c5f6" style="stroke:#38c5f6;stroke:color(display-p3 0.2196 0.7725 0.9647);stroke-opacity:1;" stroke-width="1.25" stroke-linecap="square"/>
+<path d="M21.25 18.75H14.5" stroke="#38c5f6" style="stroke:#38c5f6;stroke:color(display-p3 0.2196 0.7725 0.9647);stroke-opacity:1;" stroke-width="1.25" stroke-linecap="square"/>
+<path d="M8.25 13.25C6.17893 13.25 4.5 11.5711 4.5 9.5C4.5 7.60044 5.91237 6.03077 7.74426 5.78381C8.35237 4.01838 10.0281 2.75 12 2.75C14.4853 2.75 16.5 4.76472 16.5 7.25C18.1569 7.25 19.5 8.59315 19.5 10.25C19.5 11.9069 18.1569 13.25 16.5 13.25H8.25Z" stroke="#1f72ff" style="stroke:#1f72ff;stroke:color(display-p3 0.1216 0.4471 1.0000);stroke-opacity:1;" stroke-width="1.25" stroke-linecap="round"/>
+<path d="M12 21.25C13.3807 21.25 14.5 20.1307 14.5 18.75C14.5 17.3693 13.3807 16.25 12 16.25C10.6193 16.25 9.5 17.3693 9.5 18.75C9.5 20.1307 10.6193 21.25 12 21.25Z" stroke="#1f72ff" style="stroke:#1f72ff;stroke:color(display-p3 0.1216 0.4471 1.0000);stroke-opacity:1;" stroke-width="1.25"/>
+<path d="M12 16V13" stroke="#1f72ff" style="stroke:#1f72ff;stroke:color(display-p3 0.1216 0.4471 1.0000);stroke-opacity:1;" stroke-width="1.25"/>
+</svg>

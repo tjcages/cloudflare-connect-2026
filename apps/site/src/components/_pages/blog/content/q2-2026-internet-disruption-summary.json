@@ -1,0 +1,114 @@
+{
+  "slug": "q2-2026-internet-disruption-summary",
+  "title": "Natural disasters and government interference: examining Q2 2026’s major Internet disruption events",
+  "excerpt": "Cloudflare Radar tracked Internet disruptions driven by natural disasters, government-mandated shutdowns, and DNSSEC key rollovers over the last quarter. This post analyzes traffic telemetry to explain how these events impacted global connectivity.",
+  "publishedAt": "2026-07-28T13:00:00.000Z",
+  "sourceUrl": "https://blog.cloudflare.com/q2-2026-internet-disruption-summary/",
+  "tags": [
+    "aws",
+    "internet-shutdown",
+    "internet-traffic",
+    "internet-trends",
+    "outage",
+    "cloudflare-radar"
+  ],
+  "authors": ["lai-yi-ohlsen"],
+  "cover": {
+    "src": "https://blog.cloudflare.com/_emdash/api/media/file/01KYMEWF4EKVC0NGY7QBV1J1ZF.png",
+    "alt": ""
+  },
+  "blocks": [
+    {
+      "type": "p",
+      "text": "Like most infrastructure, the Internet's fragility is easy to overlook — as long as it's working. When it fails, its complexity comes into full view. Cloudflare is in a unique position to detect and document the moments when one of the interrelated systems the Internet depends on breaks down and connectivity suffers as a result. Each quarter, we summarize the disruptions we detect and annotate on [Cloudflare Radar](https://radar.cloudflare.com/)."
+    },
+    {
+      "type": "p",
+      "text": "In Q2 2026, Super Typhoon Sinlaku just north of Guam caused the longest outage, while government-mandated shutdowns during exam periods in Sudan were the most frequent. Iran restored national Internet access, reconnecting its citizens to the global network after an 88-day blackout, even as damage from drone strikes continued to disrupt AWS infrastructure elsewhere in the region. Finally, a cable cut in Saint Lucia and the distribution of faulty DNSSEC signatures in Germany underscored the fragility of Internet infrastructure, but also the remarkable stability these regional and global systems maintain when operating normally."
+    },
+    {
+      "type": "p",
+      "text": "Here we will walk through the most significant Internet disruptions we observed in the second quarter of 2026, drawing on traffic data from Cloudflare Radar to show how each unfolded and what it meant for users on the ground. As always, this is a summary of notable, confirmed disruptions rather than an exhaustive list; a fuller view of detected traffic anomalies is available in the [Cloudflare Radar Outage Center](https://radar.cloudflare.com/outage-center?dateStart=2026-04-01&dateEnd=2026-06-30)."
+    },
+    {
+      "type": "heading",
+      "level": 3,
+      "text": "Natural disasters and electricity cause disruptions in Guam, Venezuela, and Tanzania",
+      "id": "natural-disasters-and-electricity-cause-disruptions-in-guam-venezuela-and-tanzania"
+    },
+    {
+      "type": "p",
+      "text": "Super Typhoon Sinlaku, the strongest storm of the 2026 Pacific typhoon season so far, tracked through the Mariana Islands in mid-April, passing just north of Guam. Though the island was spared a direct hit, the storm brought tropical-storm-force winds, knocking out power across Guam and disrupting water systems, which had a direct impact on Internet connectivity. Traffic from the territory fell as much as 80% below expected levels from April 13 to 14."
+    },
+    {
+      "type": "p",
+      "text": "Two months later, on June 24, two major earthquakes struck northern Venezuela within about a minute of each other, in Yumare and San Felipe, followed by an aftershock near the coast outside of Caracas. The first 7.5 magnitude earthquake took place at roughly 22:04 UTC (18:04 local time). The immediate impact of these events can be seen in Radar, which shows a sharp decrease in both HTTP bytes transferred at the same time as the earthquakes. This decrease can be seen particularly well in Fibex Telecom, which, according to [APNIC data](https://stats.labs.apnic.net/aspop/), has 1.6 million estimated users. The drop is also visible for [CANTV](https://radar.cloudflare.com/traffic/as8048?dateStart=2026-06-24&dateEnd=2026-06-25#traffic-trends), the state-owned incumbent, and [VNET](https://radar.cloudflare.com/traffic/as263703?dateStart=2026-06-24&dateEnd=2026-06-25), a slightly smaller regional ISP."
+    },
+    {
+      "type": "p",
+      "text": "Across the Atlantic just a few days later, a power outage in Tanzania on June 27 caused a sharp drop in HTTP traffic there that lasted for at least five hours. While distinct in cause from the country's election-related blackout in October 2025 (a deliberate government action rather than an infrastructure failure) the resulting telemetry and user impact were nearly identical: a drastic loss of connectivity that left residents unable to communicate with loved ones or access critical news."
+    },
+    {
+      "type": "p",
+      "text": "It is striking how such fundamentally different events leave such similar footprints in the data and user experience. Taken together, these weather-related and power-driven disruptions demonstrate the immense impact the physical world can have on the digital, and the importance of Internet resilience and of building networks with enough redundancy in power, routing, and physical paths to withstand inevitable shocks."
+    },
+    {
+      "type": "heading",
+      "level": 3,
+      "text": "Governments and geopolitics impact connectivity in Iran, UAE, Iraq and Sudan",
+      "id": "governments-and-geopolitics-impact-connectivity-in-iran-uae-iraq-and-sudan"
+    },
+    {
+      "type": "p",
+      "text": "Starting on May 26, Radar began seeing signs of Iran's previously [announced](https://x.com/ir_aref/status/2059261258566877640?s=20) Internet restoration, the tentative end of an 88-day shutdown that had left the country almost entirely offline since it began on February 28. On May 27, Radar [reported](https://blog.cloudflare.com/iran-internet-partially-restored-may-2026/) that traffic had been restored to 40% of its pre-outage levels, a partial reopening consistent with reports that access was being reintroduced selectively rather than all at once. Since then, we have seen HTTP bytes climb to as high as 90% before settling back to roughly 59% of pre-shutdown levels. This volume is consistent with the traffic we observed in February, a window between this recent shutdown and a previous one in January, suggesting that connectivity has returned to something like its most recent pre-shutdown baseline rather than fully normalizing. In our [2026 World Cup analysis](https://blog.cloudflare.com/2026-world-cup-internet-traffic/#streaming-makes-some-countries-appear-more-online), Iran stood out as a solo outlier: While traffic in most participating countries rose and fell with match schedules, Iran's readings were dominated instead by the contrast between its post-restoration levels and the near-complete loss of connectivity that had preceded them."
+    },
+    {
+      "type": "p",
+      "text": "Meanwhile, HTTP traffic to me-central-1, an AWS cloud region located in the United Arab Emirates, has [remained low](https://radar.cloudflare.com/cloud-observatory/amazon/me-central-1?dateRange=24w#http-traffic), aligning with [AWS service reports](https://health.aws.amazon.com/health/status#multipleservices-me-central-1_1777533954) on April 30 that the region \"has suffered damage as a result of the conflict in the Middle East and is currently unable to reliably support customer applications.\" This update follows the reports on March 3 that facilities in both UAE and Bahrain “have experienced physical impacts to infrastructure as a result of drone strikes.” In the UAE, two facilities were “directly struck” and in Bahrain a drone strike near the facility caused “physical impact” to their infrastructure. The decreased traffic is the downstream signature of physical damage to the underlying data center infrastructure rather than a network fault, and it continues to affect the websites and applications hosted in that region, regardless of their own availability."
+    },
+    {
+      "type": "p",
+      "text": "The second quarter of 2026 also included three government-mandated shutdowns in Iraq (on [June 2](https://radar.cloudflare.com/traffic/iq?dateStart=2026-06-01&dateEnd=2026-06-02), [June 11](https://radar.cloudflare.com/traffic/iq?dateStart=2026-06-10&dateEnd=2026-06-11), and [June 28](https://radar.cloudflare.com/traffic/iq?dateStart=2026-06-27&dateEnd=2026-06-28)) as well as [10 in Sudan](https://radar.cloudflare.com/traffic/sd?dateStart=2026-04-13&dateEnd=2026-04-23#traffic-trends) between April 13 and 23, all of which were imposed to prevent cheating on national exams — a seasonal pattern we have documented across multiple prior quarters in both countries. The outages in Sudan followed a consistent rhythm, each lasting approximately 3.5 hours from 11:45 to 15:15 UTC (13:45 to 17:15 local time), timed to the exam window. In Iraq the outages were shorter, lasting about 90 minutes each, and likewise scheduled around the hours in which exams were administered."
+    },
+    {
+      "type": "p",
+      "text": "Each of these examples, whether a restoration or a disruption, illustrates the significant control governments exert over their national connectivity, and the ease with which access can be switched off, throttled, or selectively reintroduced as a matter of policy rather than infrastructure."
+    },
+    {
+      "type": "heading",
+      "level": 3,
+      "text": "Infrastructure vulnerabilities affect users in Germany and Saint Lucia",
+      "id": "infrastructure-vulnerabilities-affect-users-in-germany-and-saint-lucia"
+    },
+    {
+      "type": "p",
+      "text": "On May 5, a DNSSEC key rollover at DENIC, the registry for Germany's .de domain, [started producing invalid signatures](https://blog.denic.de/technische-storung-bei-de-domains-behoben/). These key rollovers are the periodic replacement of the cryptographic keys used to sign a zone's DNS records; they are a routine but crucial piece of maintenance, as resolvers that validate DNSSEC will only trust answers whose signatures match the current published keys. In other words, if the digital signatures don't match expected values, the resolver assumes the site has been tampered with and cuts off access. When invalid signatures started being produced, validating resolvers worldwide rejected every request for a .de website and returned SERVFAIL errors until normal operation was restored at 23:15 UTC (01:15 local time on May 6)."
+    },
+    {
+      "type": "p",
+      "text": "Cloudflare Radar observed worldwide .de query volume rise during the outage. While perhaps initially counterintuitive, this is because failed answers are effectively uncacheable, so lookups normally served silently from cache instead had to be re-resolved and retried repeatedly, causing a sharp increase in queries."
+    },
+    {
+      "type": "p",
+      "text": "From a user's perspective, the incident was experienced not as a DNS or cryptographic failure but simply as a wave of .de websites and services suddenly becoming unreachable. Though users were still able to access sites that did not use the .de TLD, the experience included pages failing to load, email bouncing, and apps timing out, all of which can mirror the experience of an outage. You can read more about DNSSEC and the impact of the events [on our blog](https://blog.cloudflare.com/de-tld-outage-dnssec/)."
+    },
+    {
+      "type": "p",
+      "text": "In the Caribbean, an infrastructure failure caused a similar drop in availability. On June 21, HTTP request traffic from Karib Cable’s network fell to essentially zero by around 21:00 UTC (17:00 local time), and remained flat for the better part of a day before recovering to expected levels around 17:00 UTC on June 22 (13:00 local time). The outage was [reportedly](https://stluciatimes.com/181838/2026/07/flow-reveals-details-of-customer-rebates-after-major-outage/) caused by a fiber cut near the island, a familiar hazard for Caribbean networks that depend on a few terrestrial and submarine paths to reach the wider Internet, meaning a single break can sever a disproportionate amount of capacity. Because Karib Cable is one of the largest providers, the loss was also visible at the country level, with Saint Lucia's overall traffic [dropping approximately 60% against the prior week](https://radar.cloudflare.com/explorer?dataSet=netflows&loc=LC&dt=2026-06-21_2026-06-27&timeCompare=1#result) for the duration of the cut."
+    },
+    {
+      "type": "heading",
+      "level": 3,
+      "text": "Radar continues to monitor disruptions",
+      "id": "radar-continues-to-monitor-disruptions"
+    },
+    {
+      "type": "p",
+      "text": "The second quarter of 2026 saw Internet disruptions arise from a wide range of causes, including severe weather, an earthquake, power outages, government-directed shutdowns, damage to cloud infrastructure, cable cuts, and a DNSSEC misconfiguration. As these events demonstrate, the Internet depends on a complex set of interrelated systems, and a failure in any one of them can result in a loss of connectivity."
+    },
+    {
+      "type": "p",
+      "text": "The Cloudflare Radar team is constantly monitoring for Internet disruptions, sharing our observations on the [Cloudflare Radar Outage Center](https://radar.cloudflare.com/outage-center), via social media, and in posts on [blog.cloudflare.com](http://blog.cloudflare.com). Follow us on social media at [@CloudflareRadar](https://twitter.com/CloudflareRadar) (X), [noc.social/@cloudflareradar](https://noc.social/@cloudflareradar) (Mastodon), and [radar.cloudflare.com](http://radar.cloudflare.com) (Bluesky)."
+    }
+  ]
+}

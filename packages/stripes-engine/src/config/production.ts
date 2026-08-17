@@ -3,7 +3,7 @@ import { diffEngineConfig, resolveThemedConfig } from "./theme";
 import type { DeepPartial, ThemedEngineConfig } from "./theme";
 import type { EngineConfig } from "./types";
 
-export type ProductionEngineConfig = DeepPartial<Omit<EngineConfig, "frames">>;
+export type ProductionEngineConfig = DeepPartial<EngineConfig>;
 export type ProductionThemedEngineConfig = ProductionEngineConfig & {
   dark?: ProductionEngineConfig;
 };
@@ -84,6 +84,9 @@ function productionShape(config: EngineConfig, includeDisabledSelectors: boolean
     else if (includeDisabledSelectors) output.stripeBorder = { enabled: false };
     if (config.gridLines.enabled) output.gridLines = { ...config.gridLines };
     else if (includeDisabledSelectors) output.gridLines = { enabled: false };
+    // Frames ring clusters of stripe cells, so they ship with the stripes.
+    if (config.frames.enabled) output.frames = { ...config.frames };
+    else if (includeDisabledSelectors) output.frames = { enabled: false };
     if (config.letters.enabled) output.letters = { ...config.letters };
     else if (includeDisabledSelectors) output.letters = { enabled: false };
 

@@ -1,0 +1,81 @@
+---
+import cn from "classnames";
+import Icon from "@/components/icon/Icon";
+import type { IconName } from "@/components/icon/icons.gen";
+import { hasLottieSvgIcon } from "@/components/_animations/products/lottie-svg/lottie-svg.gen";
+import AnimatedProductIcon from "@/components/_animations/products/lottie-svg/AnimatedProductIcon";
+
+interface Props {
+  icon: IconName;
+  index?: number;
+}
+
+const { icon, index = 0 } = Astro.props;
+const showAnimation = hasLottieSvgIcon(icon);
+
+const ICON_AREA = 56;
+const INSET = 8;
+
+const shapesPerIcon = [
+  ...[
+    [INSET, INSET],
+    [ICON_AREA - INSET - 2, INSET],
+    [INSET, ICON_AREA - INSET - 2],
+    [ICON_AREA - INSET - 2, ICON_AREA - INSET - 2],
+  ].map(([x, y]) => ({ x, y, width: 2, height: 2, borderRadius: "50%" })),
+
+  { x: ICON_AREA / 2 - 0.5, y: INSET, width: 1, height: 2, borderRadius: 0 },
+  {
+    x: ICON_AREA / 2 - 0.5,
+    y: ICON_AREA - INSET - 2,
+    width: 1,
+    height: 2,
+    borderRadius: 0,
+  },
+  { x: INSET, y: ICON_AREA / 2 - 0.5, width: 2, height: 1, borderRadius: 0 },
+  {
+    x: ICON_AREA - INSET - 2,
+    y: ICON_AREA / 2 - 0.5,
+    width: 2,
+    height: 1,
+    borderRadius: 0,
+  },
+];
+---
+
+<div
+  class="relative flex-center"
+  style={{ width: ICON_AREA + "px", height: ICON_AREA + "px" }}
+>
+  {shapesPerIcon.map((shape) => (
+    <div
+      class="absolute bg-(--box-color-100) transition-colors"
+      style={{
+        left: shape.x + "px",
+        top: shape.y + "px",
+        width: shape.width + "px",
+        height: shape.height + "px",
+        borderRadius: shape.borderRadius,
+      }}
+    />
+  ))}
+
+  <Icon
+    className={cn(
+      "**:transition-[fill,stroke]",
+      showAnimation && "transition-opacity group-data-active:opacity-0"
+    )}
+    color="colorless"
+    name={icon}
+    size={24}
+    variant="duo"
+  />
+
+  {showAnimation && (
+    <AnimatedProductIcon
+      client:visible={{ rootMargin: "600px" }}
+      icon={icon}
+      index={index}
+    />
+  )}
+</div>

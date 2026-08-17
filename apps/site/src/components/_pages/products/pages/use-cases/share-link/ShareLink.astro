@@ -1,0 +1,94 @@
+---
+import IllustrationChip from "@/components/_animations/ui/IllustrationChip.astro";
+import Icon from "@/components/icon/Icon";
+import Stage from "@/components/Stage.astro";
+import ShareUrl from "./ShareUrl";
+import { POOL_SIZE, POOLS, SLOT_SETS, slotOffset } from "./slots";
+
+const edgeChips = [
+  "top-1/2 left-full",
+  "top-0 left-1/2",
+  "top-full left-1/2",
+  "top-1/2 left-0",
+];
+
+// The visual owns every chip transform once it hydrates; these seed the same
+// resting state so the pool does not flash piled at the pill centre first.
+const initialSet = SLOT_SETS[0];
+const pools = POOLS.map((pool, poolIndex) =>
+  Array.from({ length: POOL_SIZE }, (_, index) => {
+    const slot = poolIndex === 0 ? initialSet[index] : undefined;
+    const offset = slot ? slotOffset(slot) : { x: 0, y: 0 };
+    return {
+      pool,
+      index,
+      style: {
+        transform: `translate(${offset.x}px, ${offset.y}px)`,
+        opacity: slot ? 1 : 0,
+      },
+    };
+  })
+);
+---
+
+<Stage class="pointer-events-none" data-pages-visual="share">
+  <div class="overlay overflow-clip">
+    <div class="absolute inset-y-0 left-1/2 w-px bg-border-default"></div>
+    <div class="absolute inset-x-0 top-1/2 h-px bg-border-default"></div>
+
+    {edgeChips.map((position) => (
+      <IllustrationChip
+        size="small"
+        sizePx={60}
+        shape="circle"
+        class={position}
+      />
+    ))}
+
+    {pools.flat().map(({ pool, index, style }) => (
+      <div class="absolute top-1/2 left-1/2 size-0" data-float>
+        <div
+          class="relative size-0"
+          data-share-chip
+          data-share-pool={pool}
+          data-share-index={index}
+          style={style}
+        >
+          <IllustrationChip size="small" shape="circle" class="top-0 left-0">
+            <Icon name="user" variant="duo" color="colorless" size={20} />
+          </IllustrationChip>
+        </div>
+      </div>
+    ))}
+
+    <div
+      class="absolute top-1/2 left-1/2 z-10 -translate-x-1/2 -translate-y-1/2 rounded-full bg-background-surface p-12 before:inside-border before:border-border-default"
+    >
+      <div
+        class="relative flex h-36 items-stretch overflow-clip rounded-full bg-background-base text-text-base shadow-elevation-default"
+        data-share-pill
+      >
+        <div
+          class="relative flex items-center gap-4 py-8 pr-10 pl-10 after:inside-border-r after:border-border-default"
+        >
+          <Icon name="globe-2" size={20} className="text-icon-muted" />
+          <ShareUrl client:visible={{ rootMargin: "200px" }} />
+        </div>
+
+        <div class="relative flex items-center gap-6 py-8 pr-14 pl-8">
+          <div class="overlay bg-darker/3 opacity-0" data-share-flash></div>
+          <Icon
+            name="chain-link-3"
+            variant="duo"
+            color="orange"
+            size={20}
+            className="relative"
+          />
+          <span class="relative text-label-x-small whitespace-nowrap">
+            Share
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+</Stage>

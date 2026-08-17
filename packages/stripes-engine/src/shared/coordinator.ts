@@ -8,6 +8,7 @@ import {
   REVEAL_GATE_RATIO,
   REVEAL_VIEWPORT_ROOT_MARGIN,
 } from "../core/visibility";
+import { paintFramesOverlay } from "../frames/framesPaint";
 import { createVideoFramePump, inferMediaKind, loadImageFrame, type VideoFramePump } from "./media";
 import type { FrameSlot, InstanceId, InstanceStatsSample, MainToWorkerMessage, WorkerToMainMessage } from "./protocol";
 import SharedShaderWorker from "./sharedWorker?worker&inline";
@@ -225,6 +226,9 @@ function presentFrame(frame: ImageBitmap, slots: readonly FrameSlot[]): void {
     }
     ctx.clearRect(0, 0, slot.width, slot.height);
     ctx.drawImage(frame, slot.sx, slot.sy, slot.width, slot.height, 0, 0, slot.width, slot.height);
+    // Straight onto the blit: the frames overlay draws text, and only the host
+    // can measure a document font.
+    if (slot.frames) paintFramesOverlay(ctx, slot.frames);
     if (statsEnabled()) instance.blits++;
   }
   frame.close();

@@ -1,0 +1,47 @@
+---
+import type { Post } from "./data";
+import PostMeta from "./PostMeta.astro";
+
+interface Props {
+  post: Post;
+  stackedAvatars?: boolean;
+}
+
+const { post, stackedAvatars } = Astro.props;
+---
+
+<a
+  class="group flex w-320 shrink-0 flex-col gap-24 outline-none focus-visible:shadow-button-tertiary-focus"
+  href={`/blog/${post.slug}`}
+>
+  <div
+    class="relative h-160 w-full bg-background-surface before:inside-border before:border-border-default before:[transition:none]"
+  >
+    {post.cover && (
+      <div class="size-full overflow-clip">
+        <img
+          alt={post.cover.alt}
+          class="size-full object-cover"
+          loading="lazy"
+          src={post.cover.src}
+        />
+      </div>
+    )}
+  </div>
+
+  <div class="flex h-168 flex-col justify-between">
+    <div class="flex flex-col gap-8 pr-32">
+      <h3
+        class="line-clamp-2 text-heading-h5 wrap-break-word text-text-base transition-colors duration-150 group-hover:text-orange-900"
+      >
+        {post.title}
+      </h3>
+
+      <p class="line-clamp-2 text-body-medium wrap-break-word text-text-loud">
+        {post.excerpt}
+      </p>
+    </div>
+
+    <PostMeta post={post} stackedAvatars={stackedAvatars} />
+  </div>
+</a>

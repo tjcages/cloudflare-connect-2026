@@ -1,0 +1,106 @@
+import {
+  COMET_LOGO_DEFAULT_SHAPE,
+  type CometLogoSettings,
+} from "@necatikcl/stripes-engine";
+import type { StripesTextureConfig } from "@/components/stripes-texture/config";
+
+export const CTA_COMET_LOGO_SHAPE = COMET_LOGO_DEFAULT_SHAPE;
+
+export const CTA_COMET_LOGO_MASK: Partial<CometLogoSettings> = {
+  centerClearRadius: 175,
+  centerClearAspect: 2.4,
+  centerClearSquareness: 2,
+  centerClearLeak: 0.012,
+  centerClearFalloff: 5,
+  centerClearOffsetX: 0,
+  centerClearOffsetY: 0,
+};
+
+export const CTA_COMET_LOGO_SETTINGS: Partial<CometLogoSettings> = {
+  ...CTA_COMET_LOGO_MASK,
+  fieldSpeed: 0.9,
+  fieldDepth: 1.6,
+  fieldAlign: 1,
+  formationDirectness: 0.8,
+  formationMaxTravel: 0,
+  fieldParticleSize: 0.55,
+  fieldTrailLength: 0.12,
+  logoScale: 1.2,
+  logoParticleSize: 0.85,
+  logoTrailLength: 0.24,
+  logoDensity: 2.25,
+  formationEase: 0,
+  formationWiggle: 1,
+  formationDuration: 1.55,
+  rejoinDuration: 1.08,
+  formationRejoinScale: 0.85,
+  formationRejoinMargin: 0,
+  formationInterrupt: 2,
+  formationStagger: 0.3,
+  burstProbability: 0.32,
+  eruptionFrequency: 0.065,
+  sparkBrightness: 0.46,
+  eruptionIntensity: 0.4,
+  fireIntensity: 0.4,
+  hotRim: 0.38,
+  surfaceEffects: 0.36,
+  coronaMist: 0.46,
+};
+
+export const CTA_TEXTURE_CONFIG: StripesTextureConfig = {
+  stripes: [
+    { color: 0xf5f5f5, startFrom: 0, width: 0.5, opacity: 0 },
+    { color: 0xfff8ea, startFrom: 0.0195, width: 0.5, opacity: 1 },
+    { color: 0xffefd4, startFrom: 0.047, width: 1, opacity: 1 },
+    { color: 0xffe3bb, startFrom: 0.086, width: 1.5, opacity: 1 },
+    { color: 0xffd39e, startFrom: 0.1408, width: 1.5, opacity: 1 },
+    { color: 0xffbb7d, startFrom: 0.2167, width: 2, opacity: 1 },
+    { color: 0xffa05b, startFrom: 0.3191, width: 2.5, opacity: 1 },
+    { color: 0xff8839, startFrom: 0.4512, width: 3, opacity: 1 },
+    { color: 0xf86a00, startFrom: 0.6129, width: 3.5, opacity: 1 },
+    { color: 0xf46021, startFrom: 0.8, width: 4, opacity: 1 },
+  ],
+  dark: {
+    stripes: [
+      { color: 0x261106, startFrom: 0, width: 0.5, opacity: 0 },
+      { color: 0x331607, startFrom: 0.0195, width: 0.5, opacity: 1 },
+      { color: 0x44200d, startFrom: 0.047, width: 1, opacity: 1 },
+      { color: 0x5b260e, startFrom: 0.086, width: 1.5, opacity: 1 },
+      { color: 0x8a2b01, startFrom: 0.1408, width: 1.5, opacity: 1 },
+      { color: 0xb33806, startFrom: 0.2167, width: 2, opacity: 1 },
+      { color: 0xf46021, startFrom: 0.3191, width: 2.5, opacity: 1 },
+      { color: 0xf86a00, startFrom: 0.4512, width: 3, opacity: 1 },
+      { color: 0xff8839, startFrom: 0.6129, width: 3.5, opacity: 1 },
+      { color: 0xffa05b, startFrom: 0.8, width: 4, opacity: 1 },
+    ],
+  },
+  maxFps: 60,
+  reveal: {
+    enabled: true,
+    type: "wave",
+    wave: { durationMs: 500, softness: 0.68, waviness: 1 },
+  },
+  sparkle: {
+    width: {
+      enabled: true,
+      coverage: 0.5,
+      swingPx: 2,
+      swingPeriodMin: 0.5,
+      swingPeriodMax: 1,
+    },
+    stripe: {
+      enabled: true,
+      coverage: 0.2,
+      maxBrightness: 0.1,
+      speed: 0.2,
+      thickestCount: 4,
+      hueDriftDeg: 20,
+      saturationBoost: 0.4,
+    },
+  },
+  stripeDots: { enabled: true, density: 0.8, brightness: 0.13 },
+  stripeBorder: { enabled: true, minWidthPx: 4, density: 0.02 },
+  edgeMask: { enabled: true, end: 0.1, power: 0.6 },
+  cursorTrail: { enabled: false },
+  clickWave: { enabled: true },
+};

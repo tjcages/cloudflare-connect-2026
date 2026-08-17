@@ -1,0 +1,105 @@
+---
+import cn from "classnames";
+import { PLATE_INSET } from "../constants";
+import { scoopPath } from "./utils/plate-path";
+
+const DOT_INSET = 5;
+const DOT_SIZE = 2;
+
+interface Props {
+  width: number;
+  height?: number;
+  color?: string;
+  colorName?: string;
+  relyOnActive?: boolean;
+  innerProps?: Record<string, string>;
+  class?: string;
+  style?: Record<string, string | number>;
+}
+
+const {
+  width,
+  height = width,
+  color,
+  colorName,
+  relyOnActive = false,
+  innerProps,
+  class: className,
+  style,
+} = Astro.props;
+
+const resolvedColor = colorName ? "var(--box-color-100)" : color;
+const colorStyle = colorName
+  ? {
+      "--box-color-100": `var(--color-chips-background-${colorName})`,
+      "--box-color-900": `var(--color-${colorName}-900)`,
+      "--box-chip-shadow": `var(--shadow-chip-${colorName})`,
+    }
+  : {};
+
+const innerWidth = width - PLATE_INSET * 2;
+const innerHeight = height - PLATE_INSET * 2;
+
+const dots = ["top", "bottom"].flatMap((y) =>
+  ["left", "right"].map((x) => ({ y, x }))
+);
+
+const { className: innerClassName, ...innerRest } = innerProps ?? {};
+---
+
+<div
+  class={cn("relative", className)}
+  style={{
+    width: width + "px",
+    height: height + "px",
+    ...colorStyle,
+    ...style,
+  }}
+>
+  {dots.map(({ y, x }) => (
+    <div
+      class="absolute rounded-full transition-colors"
+      style={{
+        [y]: DOT_INSET + "px",
+        [x]: DOT_INSET + "px",
+        width: DOT_SIZE + "px",
+        height: DOT_SIZE + "px",
+        background: resolvedColor ?? "var(--color-border-default)",
+      }}
+    />
+  ))}
+
+  <svg
+    aria-hidden="true"
+    class="absolute transition-colors"
+    fill={resolvedColor ?? "var(--color-background-muted)"}
+    height={innerHeight}
+    style={{ top: PLATE_INSET + "px", left: PLATE_INSET + "px" }}
+    viewBox={`0 0 ${innerWidth} ${innerHeight}`}
+    width={innerWidth}
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path d={scoopPath(innerWidth, innerHeight)}></path>
+  </svg>
+
+  {relyOnActive && (
+    <>
+      <div class="absolute inset-12 rounded-10 opacity-100 shadow-chip-off transition-opacity group-data-active:opacity-0" />
+      <div class="absolute inset-12 rounded-10 text-(--box-color-900) opacity-0 shadow-(--box-chip-shadow) transition-opacity group-data-active:opacity-100" />
+    </>
+  )}
+
+  <div
+    {...innerRest}
+    class={cn(
+      "absolute inset-12 z-5 rounded-10 bg-background-base",
+      !relyOnActive && {
+        "text-(--box-color-900) shadow-(--box-chip-shadow)": resolvedColor,
+        "shadow-chip-off": !resolvedColor,
+      },
+      innerClassName
+    )}
+  >
+    <slot />
+  </div>
+</div>

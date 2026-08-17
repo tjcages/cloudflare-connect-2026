@@ -1,0 +1,62 @@
+---
+import CornerDots from "../CornerDots";
+import DashedLineBleed from "../DashedLineBleed";
+import GridArea from "../GridArea";
+import SectionEyebrow from "../SectionEyebrow.astro";
+import FooterBottom from "./FooterBottom.astro";
+import FooterNav from "./FooterNav.astro";
+import FooterTexture from "./FooterTexture";
+import FooterTop from "./FooterTop.astro";
+import ThemeToggle from "./ThemeToggle";
+---
+
+<footer
+  class="relative mx-auto w-full max-w-1200 before:inside-border-t before:border-border-default"
+>
+  <DashedLineBleed className="-top-0.5" />
+
+  <SectionEyebrow text="Footer" />
+
+  <CornerDots count={4} />
+
+  <FooterTop />
+
+  <FooterNav />
+
+  <div
+    class="relative h-80 before:inside-border-y before:border-border-default"
+  >
+  </div>
+
+  <div class="relative h-480">
+    <GridArea className="overlay" />
+
+    <FooterTexture client:visible />
+  </div>
+
+  <div
+    class="relative h-80 before:inside-border-y before:border-border-default"
+  >
+  </div>
+
+  <div
+    class="relative flex h-80 items-center justify-between px-40 before:inside-border-y before:border-border-default"
+  >
+    <div class="text-body-x-small text-text-default">
+      © 2026 Cloudflare, Inc.
+    </div>
+
+    <ThemeToggle client:visible />
+  </div>
+
+  <FooterBottom />
+
+  <div
+    class="relative h-80 before:inside-border-t before:border-border-default"
+  >
+    <div class="absolute bottom-9 -left-11 size-2 rounded-full bg-icon-faint">
+    </div>
+    <div class="absolute -right-11 bottom-9 size-2 rounded-full bg-icon-faint">
+    </div>
+  </div>
+</footer>

@@ -1,0 +1,28 @@
+---
+import type { Post } from "./data";
+import PostCard from "./PostCard.astro";
+
+interface Props {
+  posts: Post[];
+}
+
+const { posts } = Astro.props;
+---
+
+<div class="relative grid grid-cols-[repeat(3,320px)] gap-80">
+  <div
+    class="pointer-events-none absolute inset-y-0 left-360 w-px -translate-x-1/2 bg-border-muted"
+  >
+  </div>
+
+  <div
+    class="pointer-events-none absolute inset-y-0 left-760 w-px -translate-x-1/2 bg-border-muted"
+  >
+  </div>
+
+  {posts.map((post) => (
+    <div data-post-slug={post.slug}>
+      <PostCard post={post} />
+    </div>
+  ))}
+</div>

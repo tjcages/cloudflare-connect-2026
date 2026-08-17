@@ -1,0 +1,74 @@
+---
+import Section from "@/layouts/Section.astro";
+import UseCasesCard from "./UseCasesCard.astro";
+import DashedLineGrid from "@/components/dashed-line/DashedLineGrid";
+import type { UseCasesCardProps } from "./UseCasesCard.astro";
+import UseCasesApi from "./api/UseCasesApi.astro";
+import UseCasesCanvas from "./UseCasesCanvas";
+import UseCasesDeploy from "./deploy/UseCasesDeploy.astro";
+import UseCasesServerless from "./serverless/UseCasesServerless.astro";
+import UseCasesRun from "./run/UseCasesRun.astro";
+import type { AstroComponentFactory } from "astro/runtime/server/index.js";
+
+const items: (Omit<UseCasesCardProps, "index"> & {
+  component?: AstroComponentFactory;
+})[] = [
+  {
+    eyebrow: "API",
+    title: "Build scalable APIs",
+    description:
+      "Handle billions of requests with automatic scaling <br />and global deployment. No load balancers, no capacity <br />planning, no regional configuration.",
+    iconName: "organisation",
+    component: UseCasesApi,
+  },
+  {
+    eyebrow: "DEPLOY",
+    title: "Deploy complete web applications",
+    description:
+      "Ship React, Vue, or Next.js apps integrated backend <br />logic, databases, and storage. Full-stack development <br />without infrastructure management.",
+    iconName: "rocket",
+    component: UseCasesDeploy,
+  },
+  {
+    eyebrow: "SERVERLESS",
+    title: "Run serverless functions at the edge",
+    description:
+      "Handle authentication, rate limiting, routing, caching <br />logic near your users. Reduce latency and reduce load <br />on your server by offloading processing to Workers.",
+    iconName: "agent-network",
+    component: UseCasesServerless,
+  },
+  {
+    eyebrow: "RUN",
+    title: "Run business logic and background jobs",
+    description:
+      "Handle webhooks, process data, and run scheduled <br />tasks with built-in Queues, Workflows, and Cron Triggers. <br />Reliable automation without server babysitting.",
+    iconName: "agents",
+    component: UseCasesRun,
+  },
+];
+---
+
+<Section
+  layout="center"
+  eyebrow="Full Stack"
+  sectionEyebrow="Features"
+  title="You can use Workers to:"
+  description="See real-world examples of Cloudflare Workers"
+  headerClass="pb-72!"
+>
+  <div class="relative grid grid-cols-2" data-usecases-grid>
+    <DashedLineGrid
+      client:visible={{ rootMargin: "200px" }}
+      rows={2}
+      columns={2}
+    />
+
+    {items.map(({ component: Component, ...item }, index: number) => (
+      <UseCasesCard index={index} {...item}>
+        {Component ? <Component /> : null}
+      </UseCasesCard>
+    ))}
+
+    <UseCasesCanvas client:only="react" />
+  </div>
+</Section>

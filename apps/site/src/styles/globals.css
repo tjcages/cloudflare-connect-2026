@@ -1,0 +1,249 @@
+@import "./_base.css" layer(base);
+
+@import "tailwindcss";
+
+@theme {
+  --spacing: 1px;
+
+  --radius-*: initial;
+  --text-*: initial;
+  --color-*: initial;
+
+  --font-*: initial;
+  --blur-*: initial;
+
+  --breakpoint-xs: 400px;
+  --breakpoint-sm: 568px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 992px;
+  --breakpoint-xl: 1120px;
+
+  --container-*: initial;
+
+  --default-transition-timing-function: cubic-bezier(0.6, 0.6, 0, 1);
+  --default-transition-duration: 150ms;
+}
+
+@import "./_text.css" layer(utilities);
+@import "./_shadows.css";
+@import "./_colors.css";
+@import "./_custom.css";
+
+/* Tokens in _colors.css already flip with the theme, so `dark:` is only for the
+   rare case where a value differs per theme by intent. Overrides Tailwind's
+   default prefers-color-scheme variant: this project switches on data-theme. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/* An island that runs a looping surface marks its root `data-run-surface` and
+   sets `data-visible` while it is on screen. Everything inside stops when it is
+   not — the contract belongs to the surface, so no component reaches out of
+   itself to pause a sibling's animation. */
+[data-run-surface]:not([data-visible]) * {
+  animation-play-state: paused;
+}
+
+@utility rounded-* {
+  border-radius: calc(--value(number) * 1px);
+
+  @supports (corner-shape: squircle) {
+    border-radius: calc(--value(number) * 1.1px);
+    corner-shape: superellipse(1.2);
+  }
+}
+
+@utility rounded-t-* {
+  border-top-left-radius: calc(--value(number) * 1px);
+  border-top-right-radius: calc(--value(number) * 1px);
+
+  @supports (corner-shape: squircle) {
+    border-top-left-radius: calc(--value(number) * 1.1px);
+    border-top-right-radius: calc(--value(number) * 1.1px);
+    corner-shape: superellipse(1.2);
+  }
+}
+
+@utility rounded-b-* {
+  border-bottom-left-radius: calc(--value(number) * 1px);
+  border-bottom-right-radius: calc(--value(number) * 1px);
+
+  @supports (corner-shape: squircle) {
+    border-bottom-left-radius: calc(--value(number) * 1.1px);
+    border-bottom-right-radius: calc(--value(number) * 1.1px);
+    corner-shape: superellipse(1.2);
+  }
+}
+
+@utility rounded-l-* {
+  border-top-left-radius: calc(--value(number) * 1px);
+  border-bottom-left-radius: calc(--value(number) * 1px);
+
+  @supports (corner-shape: squircle) {
+    border-top-left-radius: calc(--value(number) * 1.1px);
+    border-bottom-left-radius: calc(--value(number) * 1.1px);
+    corner-shape: superellipse(1.2);
+  }
+}
+
+@utility rounded-r-* {
+  border-top-right-radius: calc(--value(number) * 1px);
+  border-bottom-right-radius: calc(--value(number) * 1px);
+
+  @supports (corner-shape: squircle) {
+    border-top-right-radius: calc(--value(number) * 1.1px);
+    border-bottom-right-radius: calc(--value(number) * 1.1px);
+    corner-shape: superellipse(1.2);
+  }
+}
+
+@utility rounded-full {
+  border-radius: 9999px;
+  corner-shape: unset;
+}
+
+@utility centering-w-* {
+  --width: --value([position]);
+  --width: calc(--value(number) * 1px);
+
+  width: var(--width);
+  left: calc(50% - var(--width) / 2);
+}
+
+@utility centering-h-* {
+  --height: --value([position]);
+  --height: calc(--value(number) * 1px);
+
+  height: var(--height);
+  top: calc(50% - var(--height) / 2);
+}
+
+@utility centering-size-* {
+  --width: --value([position]);
+  --width: calc(--value(number) * 1px);
+  --height: --value([position]);
+  --height: calc(--value(number) * 1px);
+
+  width: var(--width);
+  height: var(--height);
+  left: calc(50% - var(--width) / 2);
+  top: calc(50% - var(--height) / 2);
+}
+
+/* Border placement, mapping 1:1 onto Figma's strokeAlign. Pick by the mock:
+     inside-border  → CENTER  · straddles the edge  [-0.5, +0.5]
+     outside-border → OUTSIDE · fully outside it    [-1, 0]
+     inner-border   → INSIDE  · fully inside it     [0, +1]
+   `inside-border` is centre-drawn despite the name; it is used in ~56 files, so
+   the name stays. */
+@utility inside-border {
+  corner-shape: inherit;
+  @apply pointer-events-none absolute -inset-0.5 rounded-[inherit] border transition-all;
+}
+
+@utility outside-border {
+  corner-shape: inherit;
+  @apply pointer-events-none absolute -inset-px rounded-[inherit] border transition-all;
+}
+
+@utility inner-border {
+  corner-shape: inherit;
+  @apply pointer-events-none absolute inset-0 rounded-[inherit] border transition-all;
+}
+
+@utility inner-border-r {
+  corner-shape: inherit;
+  @apply pointer-events-none absolute inset-0 rounded-[inherit] border-r transition-all;
+}
+
+@utility inner-border-l {
+  corner-shape: inherit;
+  @apply pointer-events-none absolute inset-0 rounded-[inherit] border-l transition-all;
+}
+
+@utility inner-border-b {
+  corner-shape: inherit;
+  @apply pointer-events-none absolute inset-0 rounded-[inherit] border-b transition-all;
+}
+
+@utility inside-border-x {
+  corner-shape: inherit;
+  @apply pointer-events-none absolute -inset-0.5 rounded-[inherit] border-x transition-all;
+}
+
+@utility inside-border-y {
+  corner-shape: inherit;
+  @apply pointer-events-none absolute -inset-0.5 rounded-[inherit] border-y transition-all;
+}
+
+@utility inside-border-b {
+  corner-shape: inherit;
+  @apply pointer-events-none absolute -inset-0.5 rounded-[inherit] border-b transition-all;
+}
+
+@utility inside-border-r {
+  corner-shape: inherit;
+  @apply pointer-events-none absolute -inset-0.5 rounded-[inherit] border-r transition-all;
+}
+
+@utility inside-border-l {
+  corner-shape: inherit;
+  @apply pointer-events-none absolute -inset-0.5 rounded-[inherit] border-l transition-all;
+}
+
+@utility inside-border-t {
+  corner-shape: inherit;
+  @apply pointer-events-none absolute -inset-0.5 rounded-[inherit] border-t transition-all;
+}
+
+@utility flex-center {
+  @apply flex items-center justify-center;
+}
+
+@utility overlay {
+  @apply absolute top-0 left-0 w-full h-full rounded-[inherit];
+}
+
+@utility centering-max-w-* {
+  --max-width: --value([number]);
+  --max-width: calc(--value(number) * 1px);
+
+  --width: calc(var(--full-width, 100%) - (var(--padding-x, 0px) * 2));
+  --self-width: min(var(--max-width), var(--width));
+
+  max-width: var(--max-width);
+  width: var(--width);
+  left: calc(var(--default-x, 50%) - calc(var(--self-width) / 2));
+}
+
+@utility font-mono {
+  font-family: var(--font-paper-mono) !important;
+}
+
+@utility font-sans {
+  font-family: var(--font-stk-bureau-sans) !important;
+}
+
+@utility font-serif {
+  font-family: var(--font-stk-bureau-serif) !important;
+}
+
+@utility responsive-background-image {
+  background-image: var(--background);
+
+  @variant max-xl {
+    background-image: var(--background-mobile);
+  }
+}
+
+/* The grid SVG is a data URI, so it cannot inherit currentColor — it is used as a
+   mask instead and the line colour comes from --grid-line-color, which follows the
+   theme. Kept off the element itself so consumers can still set a surface fill. */
+@utility responsive-grid-mask {
+  content: "";
+  mask-image: var(--background-mobile);
+  mask-size: 32px 32px;
+
+  @variant xl {
+    mask-image: var(--background);
+    mask-size: 80px 80px;
+  }
+}

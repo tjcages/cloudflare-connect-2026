@@ -1,0 +1,25 @@
+---
+import type { HTMLAttributes } from "astro/types";
+import Browser, { type BrowserProps } from "./Browser";
+import type { BrowserVariant } from "./types";
+
+interface Props extends HTMLAttributes<"div"> {
+  variant?: BrowserVariant;
+  reveal?: boolean;
+  link?: boolean;
+  loading?: boolean;
+}
+
+const { class: className, ...rest } = Astro.props;
+const props = rest as BrowserProps;
+const hasViewport = Astro.slots.has("viewport");
+---
+
+<Browser {...props} className={className}>
+  {hasViewport && (
+    <Fragment slot="viewport">
+      <slot name="viewport" />
+    </Fragment>
+  )}
+  <slot />
+</Browser>

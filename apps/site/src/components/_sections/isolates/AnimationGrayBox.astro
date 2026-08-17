@@ -1,0 +1,31 @@
+---
+import Box from "@/components/_animations/ui/Box.astro";
+import BoxName from "@/components/_animations/ui/BoxName.astro";
+import DashedCircle from "@/components/dashed-line/DashedCircle";
+import type { HTMLAttributes } from "astro/types";
+
+interface Props extends HTMLAttributes<"div"> {
+  name: {
+    text: string;
+    position: "top" | "bottom";
+  };
+  centerAnchor?: boolean;
+}
+
+const { name, class: className, centerAnchor = false, ...props } = Astro.props;
+---
+
+<div {...props} class:list={[className, "relative w-full"]}>
+  <Box height={120} width={160} innerProps={{ className: "flex-center" }}>
+    <div
+      class="relative flex-center size-56"
+      data-orbit-center={centerAnchor ? "" : undefined}
+    >
+      <DashedCircle className="overlay text-border-dashed" />
+
+      <slot />
+    </div>
+  </Box>
+
+  <BoxName text={name.text} position={name.position} disabled />
+</div>

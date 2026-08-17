@@ -1,0 +1,56 @@
+---
+import Button from "@/components/Button";
+import CornerDots from "@/components/CornerDots";
+import Eyebrow from "@/components/Eyebrow";
+
+interface Cta {
+  text: string;
+  href: string;
+}
+
+interface Props {
+  eyebrow: string;
+  title: string;
+  body: string;
+  primaryCta: Cta;
+  secondaryCta?: Cta;
+}
+
+const { eyebrow, title, body, primaryCta, secondaryCta } = Astro.props;
+---
+
+<div
+  class="relative mx-auto max-w-1200 before:inside-border-b before:border-border-default"
+>
+  <CornerDots count={4} faintClassName="z-30" />
+
+  <div class="flex justify-between px-80 pt-80 pb-160">
+    <div class="flex w-440 flex-col items-start">
+      <Eyebrow
+        client:visible
+        direction="left"
+        title={eyebrow}
+        variant="faint"
+      />
+
+      <h1 class="mt-24 text-heading-hero text-text-base">{title}</h1>
+
+      <div class="mt-40 flex flex-wrap items-center gap-12">
+        <Button className="px-14" href={primaryCta.href} size="large">
+          <span>{primaryCta.text}</span>
+        </Button>
+        {secondaryCta && (
+          <Button href={secondaryCta.href} size="large" variant="secondary">
+            <span>{secondaryCta.text}</span>
+          </Button>
+        )}
+      </div>
+    </div>
+
+    <div class="mt-80 w-480 self-start py-4">
+      <p class="text-body-large text-text-base">{body}</p>
+    </div>
+  </div>
+
+  <div class="h-80"></div>
+</div>

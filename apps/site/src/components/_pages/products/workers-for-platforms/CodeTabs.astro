@@ -1,0 +1,80 @@
+---
+import CodeTabs from "@/components/code-tabs/CodeTabs.astro";
+import type { DataProps } from "@/components/code-tabs/content/data";
+
+const data: DataProps[] = [
+  {
+    tabTitle: "Use dispatch worker",
+    title: "Use dispatch Worker to Route Requests",
+    description:
+      "Receive incoming requests and route them to the correct user Worker.",
+    language: "typescript",
+    fileName: "dispatch.ts",
+    code: `export default {
+  async fetch(request, env) {
+    // Get the user Worker name from the URL path
+    const url = new URL(request.url);
+    const workerName = url.pathname.split("/")[1];
+
+    // Fetch the user Worker from the dispatch namespace
+    const userWorker = env.DISPATCHER.get(workerName);
+
+    // Forward the request to the user Worker
+    return userWorker.fetch(request);
+  },
+};`,
+  },
+  {
+    tabTitle: "Deploy user worker",
+    title: "Deploy User Worker",
+    description: "Upload user Workers with an API call",
+    language: "bash",
+    terminalLabel: "CURL",
+    code: `cat > worker.mjs << 'EOF'
+export default {
+  async fetch(request, env, ctx) {
+    return new Response("Hello from user Worker!");
+  },
+};
+EOF
+curl -X PUT "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/workers/dispatch/namespaces/$NAMESPACE_NAME/scripts/$SCRIPT_NAME" \\
+  -H "Authorization: Bearer $API_TOKEN" \\
+  -F 'metadata={"main_module": "worker.mjs"};type=application/json' \\
+  -F 'worker.mjs=@worker.mjs;type=application/javascript+module'`,
+  },
+  {
+    tabTitle: "Deploy static assets",
+    title: "Deploy Static Assets",
+    description:
+      "Deploy a user Worker with Static Assets to serve multi-tenant frontend applications",
+    language: "bash",
+    terminalLabel: "CURL",
+    code: `curl -X POST "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/workers/dispatch/namespaces/$NAMESPACE_NAME/scripts/$SCRIPT_NAME/assets-upload-session" \\
+  -H "Authorization: Bearer $API_TOKEN" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "manifest": {
+      "/index.html": {
+        "hash": "<sha256-hash-first-16-bytes-hex>",
+        "size": 1234
+      },
+      "/styles.css": {
+        "hash": "<sha256-hash-first-16-bytes-hex>",
+        "size": 567
+      }
+    }
+  }'`,
+  },
+];
+---
+
+<CodeTabs data={data}>
+  <Fragment slot="title">
+    Workers for Platforms <br />code examples
+  </Fragment>
+
+  <Fragment slot="description">
+    Discover how to customize, empower customers, <br />and build applications
+    with Workers for Platforms.
+  </Fragment>
+</CodeTabs>

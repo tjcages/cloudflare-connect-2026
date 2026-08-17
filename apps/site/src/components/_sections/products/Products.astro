@@ -1,0 +1,54 @@
+---
+import Button from "@/components/Button";
+import DashedLineGrid from "@/components/dashed-line/DashedLineGrid";
+import NavigationItem from "@/components/NavigationItem";
+import { sectionProductGroups } from "@/constants/products";
+import Section from "@/layouts/Section.astro";
+---
+
+<Section
+  layout="split"
+  eyebrow="products"
+  sectionEyebrow="products"
+  cardClass="grid grid-cols-3"
+>
+  <Fragment slot="title">
+    Powerful primitives, <br />seamlessly integrated
+  </Fragment>
+
+  <Button slot="action" className="w-fit" variant="secondary" href="/products"
+    ><span>See all products</span></Button
+  >
+
+  <div slot="description" class="max-w-370 pb-16">
+    Built on systems powering 20% of the Internet, Durable Objects run on the
+    same infrastructure Cloudflare uses to build Cloudflare. <br />
+    <br />Enterprise-grade reliability, security, <br />and performance are
+    standard.
+  </div>
+
+  <DashedLineGrid
+    client:visible={{ rootMargin: "200px" }}
+    columns={3}
+    rows={2}
+  />
+  {sectionProductGroups.map((product) => (
+    <div class="min-h-600 p-40">
+      <div class="mb-28 px-4 text-body-x-small text-text-muted">
+        {product.label}
+      </div>
+
+      <div class="flex flex-col gap-20">
+        {product.items.map((item) => (
+          <NavigationItem
+            description={item.description}
+            href={item.href}
+            icon={item.iconName}
+            isNew={item.isNew}
+            label={item.label}
+          />
+        ))}
+      </div>
+    </div>
+  ))}
+</Section>

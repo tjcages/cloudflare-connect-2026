@@ -1,0 +1,26 @@
+---
+import Container from "@/components/Container.astro";
+import BlogArchive from "./BlogArchive";
+import { POSTS, taggedArchiveEntries } from "./data";
+import { archiveFor } from "./view";
+
+interface Props {
+  tag: string | null;
+}
+
+const { tag } = Astro.props;
+
+const entries = taggedArchiveEntries(POSTS);
+---
+
+<div data-blog-archive hidden={archiveFor(entries, tag).length === 0}>
+  <Container>
+    <div class="relative pt-120 pb-80">
+      <h2 class="px-80 text-heading-h2 text-text-base">Archive</h2>
+
+      <div class="pt-40">
+        <BlogArchive client:idle entries={entries} tag={tag} />
+      </div>
+    </div>
+  </Container>
+</div>

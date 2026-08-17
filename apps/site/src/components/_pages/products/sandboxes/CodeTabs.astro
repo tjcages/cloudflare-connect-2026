@@ -1,0 +1,96 @@
+---
+import CodeTabs from "@/components/code-tabs/CodeTabs.astro";
+import type { DataProps } from "@/components/code-tabs/content/data";
+
+const data: DataProps[] = [
+  {
+    tabTitle: "Clone and run tests",
+    title: "Clone and run tests",
+    description:
+      "Clone a repository and execute shell commands with a simple SDK. Get exit codes, stdout, and stderr.",
+    language: "typescript",
+    fileName: "index.ts",
+    code: `import { getSandbox } from '@cloudflare/sandbox';
+export { Sandbox } from '@cloudflare/sandbox';
+
+export default {
+  async fetch(request: Request, env: Env) {
+    const sandbox = getSandbox(env.Sandbox, 'test-runner');
+
+    await sandbox.gitCheckout('https://github.com/cloudflare/agents');
+    const result = await sandbox.exec('npm test');
+
+    return Response.json({
+      passed: result.exitCode === 0,
+      output: result.stdout,
+    });
+  },
+};`,
+  },
+  {
+    tabTitle: "Create and manage files",
+    title: "Create and manage files",
+    description:
+      "Read, write, and organize files in the sandbox filesystem. Perfect for scaffolding projects or processing uploads.",
+    language: "typescript",
+    fileName: "files.ts",
+    code: `import { getSandbox } from '@cloudflare/sandbox';
+export { Sandbox } from '@cloudflare/sandbox';
+
+export default {
+  async fetch(request: Request, env: Env) {
+    const sandbox = getSandbox(env.Sandbox, 'file-ops');
+
+    await sandbox.mkdir('/workspace/src', { recursive: true });
+    await sandbox.writeFile(
+      '/workspace/package.json',
+      JSON.stringify({
+        name: 'my-app',
+        type: 'module',
+      }),
+    );
+
+    const result = await sandbox.readFile('/workspace/package.json');
+    return Response.json({ content: result.content });
+  },
+};`,
+  },
+  {
+    tabTitle: "Run Python or JavaScript",
+    title: "Run Python or JavaScript",
+    description:
+      "Execute code with automatic output parsing. Charts, tables, and images are extracted for you.",
+    language: "typescript",
+    fileName: "interpreter.ts",
+    code: `import { getSandbox } from '@cloudflare/sandbox';
+export { Sandbox } from '@cloudflare/sandbox';
+
+export default {
+  async fetch(request: Request, env: Env) {
+    const sandbox = getSandbox(env.Sandbox, 'interpreter');
+    const ctx = await sandbox.createCodeContext({ language: 'python' });
+
+    const result = await sandbox.runCode(
+      \`
+import math
+for i in range(5):
+    print(f"Step {i}: {math.pi * i:.2f}")
+\`,
+      { context: ctx },
+    );
+
+    return Response.json({ output: result.logs?.stdout?.join('\\n') });
+  },
+};`,
+  },
+];
+---
+
+<CodeTabs data={data}>
+  <Fragment slot="title">Simple APIs for complex workloads</Fragment>
+
+  <Fragment slot="description">
+    Clone repos, execute commands, manage files, and run code — <br />all with a
+    few lines of TypeScript.
+  </Fragment>
+</CodeTabs>

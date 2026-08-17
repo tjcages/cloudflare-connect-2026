@@ -1,0 +1,87 @@
+---
+import Button from "@/components/Button";
+import DashedLine from "@/components/dashed-line/DashedLine";
+import Icon from "@/components/icon/Icon";
+import Section from "@/layouts/Section.astro";
+import type { AstroComponentFactory } from "astro/runtime/server/index.js";
+import AutoScale from "./auto-scale/AutoScale.astro";
+import FrameworkCarousel from "./FrameworkCarousel.astro";
+import GithubIntegration from "./GithubIntegration.astro";
+import ShareLink from "./share-link/ShareLink.astro";
+import UseCasesCanvas from "./UseCasesCanvas";
+
+const blocks: {
+  title: string;
+  body: string;
+  component?: AstroComponentFactory;
+}[] = [
+  {
+    title: "Instant full-stack deployment.",
+    body: "Deploy full-stack applications instantly with Cloudflare Pages. Use popular web frameworks to build full-stack applications or migrate existing projects.",
+    component: FrameworkCarousel,
+  },
+  {
+    title: "Streamlined GitHub integration.",
+    body: "Simplify development with seamless GitHub integration and built-in builds. Deploy single applications and monorepos quickly.",
+    component: GithubIntegration,
+  },
+  {
+    title: "Collaborative project sharing.",
+    body: "Share projects using unique, protected links with designers and developers to iterate quickly.",
+    component: ShareLink,
+  },
+  {
+    title: "Automatic scaling.",
+    body: "Deploy apps instantly and scale automatically with Cloudflare Pages. The Cloudflare network handles huge traffic spikes.",
+    component: AutoScale,
+  },
+];
+---
+
+<Section
+  layout="sticky"
+  eyebrow="Cloudflare Pages"
+  sectionEyebrow="Use cases"
+  stickyColumnClass="w-480"
+  description="Discover how Cloudflare Pages simplifies development and deployment"
+>
+  <Fragment slot="title">
+    Popular use cases <br />for Cloudflare Pages
+  </Fragment>
+
+  <Button
+    className="w-fit"
+    href="https://dash.cloudflare.com/sign-up"
+    size="large"
+    slot="action"
+  >
+    <Icon name="cloudflare" className="h-20 w-30" />
+    <span>Start building for free</span>
+  </Button>
+
+  <div class="relative flex flex-col gap-60 p-40" data-pages-usecases-grid>
+    {blocks.map(({ component: Component, title, body }, index) => (
+      <Fragment>
+        {index > 0 && (
+          <div class="relative h-0">
+            <DashedLine
+              className="absolute inset-x-0 -top-0.5 w-full text-border-dashed"
+              direction="horizontal"
+            />
+          </div>
+        )}
+
+        <div class="flex flex-col gap-24">
+          {Component ? <Component /> : null}
+
+          <p class="text-body-medium text-text-default">
+            <span class="pr-3 text-label-medium text-text-base">{title}</span>{" "}
+            {body}
+          </p>
+        </div>
+      </Fragment>
+    ))}
+
+    <UseCasesCanvas client:only="react" />
+  </div>
+</Section>

@@ -1,0 +1,90 @@
+---
+import Icon from "@/components/icon/Icon";
+import type { IconName } from "@/components/icon/icons.gen";
+import Button from "@/components/Button";
+import type { Author, AuthorSocial } from "./data";
+
+interface Props {
+  author: Author;
+}
+
+const { author } = Astro.props;
+
+function hostOf(href: string): string {
+  return new URL(href).hostname.replace(/^www\./, "");
+}
+
+function handleOf({ kind, href }: AuthorSocial): string {
+  if (kind === "website") return hostOf(href);
+
+  const segments = new URL(href).pathname.split("/").filter(Boolean);
+  const handle = segments.at(-1);
+
+  return handle ? `@${handle}` : hostOf(href);
+}
+
+const platforms: Record<string, string> = {
+  x: "X",
+  linkedin: "LinkedIn",
+  github: "GitHub",
+};
+
+const icons: Record<string, IconName> = {
+  x: "x",
+  linkedin: "linkedin",
+  github: "github",
+};
+
+function describe({ kind }: AuthorSocial): string {
+  const platform = platforms[kind];
+
+  return platform
+    ? `${author.name} on ${platform}`
+    : `${author.name}’s website`;
+}
+---
+
+<div class="flex items-center gap-40">
+  <div
+    class="relative size-132 shrink-0 overflow-clip rounded-full bg-background-surface before:inner-border before:border-darker/7 before:[transition:none]"
+  >
+    <img
+      alt=""
+      class="size-full object-cover"
+      height={132}
+      src={author.avatar}
+      width={132}
+    />
+  </div>
+
+  <div class="flex w-440 flex-col items-start gap-24">
+    <div class="flex flex-col gap-4">
+      <h1 class="text-heading-h1 wrap-break-word text-text-base">
+        {author.name}
+      </h1>
+
+      {author.location && (
+        <p class="text-body-large text-text-loud">{author.location}</p>
+      )}
+    </div>
+
+    {author.socials.length > 0 && (
+      <div class="flex flex-wrap gap-8">
+        {author.socials.map((social) => (
+          <Button
+            aria-label={describe(social)}
+            href={social.href}
+            rel="noreferrer"
+            size="default"
+            target="_blank"
+            variant="secondary"
+          >
+            <Icon name={icons[social.kind] ?? "globe"} size={20} />
+
+            <span>{handleOf(social)}</span>
+          </Button>
+        ))}
+      </div>
+    )}
+  </div>
+</div>

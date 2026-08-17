@@ -1,0 +1,118 @@
+{
+  "slug": "bitso",
+  "company": "Bitso",
+  "sourceUrl": "https://www.cloudflare.com/case-studies/bitso/",
+  "found": true,
+  "synthesized": false,
+  "title": "Cloudflare supports Bitso’s rapid expansion with Zero Trust security and performance optimization.",
+  "quote": {
+    "text": [
+      "“Cloudflare Access was a game-changer for Bitso. It made Zero Trust much easier.",
+      "We now manage access to internal resources more efficiently, ensuring the right people have the right level of access to the right resources, regardless of their location, device or network.”"
+    ],
+    "author": "Mario A. Pérez Alejo",
+    "role": "Cybersecurity Lead"
+  },
+  "summaryHeadline": "Bitso replaces its VPN with Cloudflare Zero Trust for a fully remote global team and boosts site speed by up to 42% with Argo Smart Routing during a period of exponential growth",
+  "summaryBody": [
+    "Mexico-based Bitso is the largest cryptocurrency platform in Latin America and the region’s first “crypto unicorn,” having secured $250 million in a Series C investment round that valued the company at $2.2 billion. Over two million customers use Bitso to buy, sell, send, and receive bitcoin and eight other cryptocurrencies, giving the company a 95% market share in Mexico and more than 60% in Argentina. In 2020 alone, Bitso processed more than USD $1.2 billion of cross-border payments.",
+    "Security has been fundamental to Bitso’s business since it started operations in 2014, and the company has worked with Cloudflare since 2016. It took Bitso six years to reach one million users — and only 10 more months to reach the next million. That exponential growth, combined with a shift to a fully remote workforce during the COVID-19 pandemic, pushed the company to rethink both its security posture and its performance strategy."
+  ],
+  "sections": [
+    {
+      "heading": "The challenge: securing exponential growth without slowing down",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Cyber security must be paramount for crypto exchanges in order to create a transparent and reliable industry, and it has been a fundamental part of Bitso’s business since the company started operations in 2014. “We understood that, as a nascent company, we wouldn’t be able to ensure security at a global scale on our own,” recalls Mario A. Pérez Alejo, Cybersecurity Lead. “Cloudflare has been a key partner for Bitso since Day 1.”"
+        },
+        {
+          "type": "p",
+          "text": "Bitso initially used Cloudflare’s Web Application Firewall (WAF), Distributed Denial of Service (DDoS) protection, and Content Delivery Network (CDN). As its product offerings and customer base expanded, the company upgraded to the Cloudflare Business Plan to access more advanced security features and prioritized customer support."
+        },
+        {
+          "type": "p",
+          "text": "The Business Plan served Bitso well until 2020, when the company began experiencing exponential growth: it took six years to reach one million users, but only 10 more months to reach the next million. That expansion strained network resources and made Bitso a very attractive target for threat actors. At the same time, the pandemic pushed Bitso to become a fully remote company, exposing a new problem — remote access to internal services and applications through VPN, which was difficult to configure and manage, performed poorly, and allowed lateral movement across data and applications that put the company at risk of data loss."
+        }
+      ]
+    },
+    {
+      "heading": "Upgrading to Cloudflare Enterprise and Zero Trust",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "To address these concerns, Bitso upgraded to the Cloudflare Enterprise Plan for the most advanced security, performance, and reliability solutions on the market. The company also added [Cloudflare Access](https://www.cloudflare.com/sase/products/access/), which uses a Zero Trust model to help teams [secure corporate applications](https://www.cloudflare.com/application-services/solutions/) with better performance and security than a VPN; [Argo Smart Routing](https://www.cloudflare.com/application-services/products/argo-smart-routing/), which detects real-time network congestion and routes web traffic across the fastest, most reliable network paths; and Cloudflare Rate Limiting, which helps protect against DDoS and other automated cyber attacks."
+        },
+        {
+          "type": "p",
+          "text": "“Cloudflare has given us the ability to route, keep and place in sync all our sites. Also, one of the biggest advantages of Cloudflare is that it allowed us to handle our Infrastructure as a Code (IaC) with Terraform, which led us to scale, maintain and ramp up our systems quickly,” says Zahid Fernandez Rodriguez, DevOps Engineer at Bitso."
+        }
+      ]
+    },
+    {
+      "heading": "Cloudflare Access replaces the VPN with Zero Trust for a globally distributed team",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Before deploying Cloudflare Access, Bitso’s employees connected to internal apps over a VPN that was difficult to maintain and suffered frequent outages, limiting employee work. Creating new user accounts took hours — often more than a day — which further affected efficiency."
+        },
+        {
+          "type": "p",
+          "text": "It took Bitso only 10 minutes to deploy and integrate Cloudflare Access with its identity provider. The company can now provide access to internal resources within minutes. “Cloudflare Access was a game-changer for Bitso. It made Zero Trust much easier,” Pérez Alejo said. “We now manage access to internal resources more efficiently, ensuring the right people have the right level of access to the right resources, regardless of their location, device or network.”"
+        },
+        {
+          "type": "p",
+          "text": "Bitso operates internationally, with collaborators in more than 30 countries. Beyond eliminating VPN-related outages, Access has significantly improved user provisioning for new employees regardless of their geographic location or network."
+        }
+      ]
+    },
+    {
+      "heading": "WAF, DDoS protection, and rate limiting block millions of threats each month",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Bitso is regularly the target of DDoS attacks of varying magnitude and frequently receives malicious requests, but Cloudflare has effectively stopped these threats, letting Bitso keep serving its customers without interruption. “Cloudflare has been there when cyber attacks happen. Not only to help us block attacks, but also to provide the team with useful analytics that we can use to strengthen our security controls,” says Emilio Revelo, Security Engineering Manager at Bitso."
+        },
+        {
+          "type": "p",
+          "text": "Next, Bitso plans to deploy Cloudflare Bot Management, which uses threat intelligence at scale to help organizations [prevent attacks](https://www.cloudflare.com/cybersecurity/) from malicious bots. “Bad bots are getting more sophisticated, and we need a sophisticated solution to mitigate them,” adds Pérez Alejo."
+        }
+      ]
+    },
+    {
+      "heading": "Argo Smart Routing cuts latency across Latin America",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "With 70TB of traffic monthly, Bitso’s bandwidth resources are constantly being taxed, and the cryptocurrency trading market is highly competitive with extremely demanding customers. “We’re dealing with people’s money. If our platform is slow, our customers will get very concerned,” Pérez Alejo explained. “In this industry, a good customer experience is key to building trust, and low latency is key for a good experience.”"
+        },
+        {
+          "type": "list",
+          "ordered": false,
+          "items": [
+            "Up to 42% faster site speed for users in Argentina, a country notorious for slow internet, after deploying Argo Smart Routing with the Cloudflare CDN",
+            "Up to 38% faster site speed for users in Mexico",
+            "Fast, consistent response times sustained even as Bitso’s traffic doubled in a five-month span"
+          ]
+        },
+        {
+          "type": "p",
+          "text": "“In the past five months alone, Bitso’s traffic has doubled, but Argo Smart Routing ensures fast response times for all of our customers, regardless of their geographic location, even in countries with slow internet speeds,” Pérez Alejo said."
+        }
+      ]
+    },
+    {
+      "heading": "Looking ahead: a partnership built for ambitious goals",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Pérez Alejo points to the teamwork between Cloudflare and Bitso as a key element of a successful partnership. “Our local customer success team in Mexico is phenomenal. They’ve helped us strengthen our security and optimize performance,” he said. “I’m enormously grateful. Bitso has ambitious goals, and our partnership with Cloudflare is essential in achieving them.”"
+        }
+      ]
+    }
+  ],
+  "productsUsed": ["Argo Smart Routing", "Access", "Gateway", "WAF"],
+  "industry": "Financial Services",
+  "region": "Latin America & the Caribbean",
+  "date": "Apr 2, 2025"
+}

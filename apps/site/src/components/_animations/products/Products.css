@@ -1,0 +1,20 @@
+[data-product-box],
+[data-box] {
+  --box-color-100: var(--color-border-default);
+  --box-color-900: var(--color-text-muted);
+  --box-color-800: var(--color-icon-subtle);
+  --box-chip-shadow: var(--shadow-chip-off);
+}
+
+[data-product-box][data-active],
+[data-box][data-active] {
+  --box-color-100: var(--box-active-100);
+  --box-color-900: var(--box-active-900);
+  --box-color-800: var(--box-active-800);
+  --box-chip-shadow: var(--box-active-chip-shadow);
+}
+
+[data-product-box] {
+  --icon-color-primary: var(--box-color-900);
+  --icon-color-secondary: var(--box-color-800);
+}

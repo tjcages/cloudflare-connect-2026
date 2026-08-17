@@ -1,0 +1,31 @@
+---
+import type { Post } from "../data";
+import { coverSource } from "./cover-source";
+import CoverTexture from "./CoverTexture";
+
+interface Props {
+  post: Post;
+}
+
+const { post } = Astro.props;
+
+const source = post.cover ? await coverSource(post.cover.src) : null;
+---
+
+{post.cover && (
+  <div class="post-cover-surface relative h-400 w-full overflow-clip">
+    {source ? (
+      <CoverTexture
+        client:visible={{ rootMargin: "200px" }}
+        className="overlay"
+        src={source}
+      />
+    ) : (
+      <img
+        alt={post.cover.alt}
+        class="size-full object-cover"
+        src={post.cover.src}
+      />
+    )}
+  </div>
+)}

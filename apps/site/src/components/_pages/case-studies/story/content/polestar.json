@@ -1,0 +1,135 @@
+{
+  "slug": "polestar",
+  "company": "Polestar",
+  "sourceUrl": "https://www.cloudflare.com/case-studies/polestar/",
+  "found": true,
+  "synthesized": false,
+  "title": "Polestar drives Chinese consumer confidence and scores a Super Bowl win with Cloudflare",
+  "quote": {
+    "text": [
+      "“Cloudflare is Polestar’s twin in the sense they are innovating and disrupting classic software development. I think our continued relationship will be one of the keys to Polestar’s success.”"
+    ],
+    "author": "Mikael Vesavuori",
+    "role": "Cloud Software Architect and Technical Standards Lead"
+  },
+  "summaryHeadline": "Polestar rebuilds Chinese customer confidence, migrates its micro-frontend architecture to Workers, and survives a Super Bowl-driven traffic spike without a hiccup on Cloudflare’s connectivity cloud.",
+  "summaryBody": [
+    "Polestar has always focused on performance and innovation. From its roots as an automotive racing team, the organization evolved to become Volvo’s performance tuning arm, and the Polestar badge became synonymous with the Swedish manufacturer’s sportier offerings.",
+    "Today, as an independent electric car manufacturer, Polestar applies its talent to the development and manufacture of design-forward, performance-oriented luxury electric vehicles. The company’s ethos — Pure Progressive Performance — sits at the heart of its approach to every part of the business, from the cars it designs to the end-to-end customer experience it delivers."
+  ],
+  "sections": [
+    {
+      "heading": "The challenge: earning Chinese customer confidence and finding a strategic partner",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "For automobile manufacturers, an effective digital infrastructure is central to both product performance and how customers perceive and interact with the manufacturer. Within the performance EV sector, Polestar has the mechanical pedigree, but wanted to take its digital experience to the next level."
+        },
+        {
+          "type": "p",
+          "text": "“Polestar has a unique take on how to buy a car and it’s very important to us to deliver on those expectations,” explains Mikael Vesavuori, Cloud Software Architect and Technical Standards Lead at Polestar. “Whether you purchase our cars online or visit one of the Polestar spaces, we tie together the physical and digital dimensions to provide a much richer retail and automotive encounter.”"
+        },
+        {
+          "type": "p",
+          "text": "One way Polestar achieves this is the Polestar Configurator, a central feature of the company’s distinctive physical spaces — a media-rich digital and physical touchpoint that familiarizes buyers with vehicle configurations, options, and interior and exterior materials and trim. Unfortunately, the Configurator experienced performance and availability issues in China, a lucrative market where one in every five cars sold is an EV."
+        },
+        {
+          "type": "p",
+          "text": "At the heart of the problem was Polestar’s CDN provider, which struggled with the restrictive Chinese Internet infrastructure and had connectivity problems with its global AWS network. The only fix was a partner that could overcome the latency, congestion and peering, and [DNS issues](https://www.cloudflare.com/learning/dns/common-dns-issues/) that were dragging down customer perceptions of Polestar’s technology — and its cars."
+        },
+        {
+          "type": "p",
+          "text": "Beyond solving that immediate problem, Polestar wanted a strategic partnership to support its software development roadmap. The company was building a micro-frontend architecture for its web presence that relied on multiple applications working together seamlessly to deliver a user experience aligned with Polestar’s brand objectives."
+        },
+        {
+          "type": "p",
+          "text": "“We were looking for a proactive partner with developer experience, but we were sitting in meetings with vendors simply handing us documentation and saying, ‘Here’s how you can deal with the challenges you are facing,’” says Johan Larsson, Technical Lead for the Polestar Platform Team. As Polestar scaled its online and physical spaces internationally and marketed its products more aggressively, it also needed enterprise-class security and content delivery that would hold up in any scenario."
+        }
+      ]
+    },
+    {
+      "heading": "The Cloudflare China Network delivers world-class performance and reliability",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "“It was a matter of perfect timing in a very poor situation,” says Vesavuori, describing Polestar’s move to Cloudflare. With its existing CDN contract up for renewal and Chinese connectivity lagging, Polestar began researching for the ideal solution partner."
+        },
+        {
+          "type": "p",
+          "text": "“The list went from many names to very few,” he explains. “Only Cloudflare ticked all the boxes and met all of our absolute requirements for a dedicated China network — brand stability, proven reliability, and a very DevOps-oriented approach.”"
+        },
+        {
+          "type": "p",
+          "text": "After the switch, Polestar saw an immediate improvement in the performance of its on-site Configurator and web properties, thanks to the [China Network](https://www.cloudflare.com/application-services/products/china-network/)’s partnership with China’s largest Internet and cloud services provider, JD Cloud. The partnership gives Cloudflare customers a geographically dispersed network presence in major Chinese cities to serve static and dynamic content, plus unrestricted access to Cloudflare’s serverless computing."
+        },
+        {
+          "type": "p",
+          "text": "“With our previous vendor, everything was difficult to configure and troubleshoot,” says Larsson. “With Cloudflare, it just worked like magic. We instantly saw performance — our Chinese pages were as accessible as any other page, anywhere in the world.”"
+        },
+        {
+          "type": "p",
+          "text": "“Our most important gain in the move to Cloudflare China was the improvement across the board in predictability and stability. It always works,” Vesavuori adds. “On the customer side, that ability to deliver reliable technology ensures trust.”"
+        }
+      ]
+    },
+    {
+      "heading": "A Super Bowl-proof win with Workers and the Cloudflare global network",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Beyond the China Network, Polestar moved away from its underperforming cloud services and CDN provider, switched to the [Cloudflare global network](https://www.cloudflare.com/application-services/products/cdn/) for worldwide content delivery, and began building on [Workers](https://workers.cloudflare.com/), Cloudflare’s serverless edge computing platform."
+        },
+        {
+          "type": "p",
+          "text": "Polestar rapidly migrated its entire micro-frontend architecture and applications to Workers. Cloudflare documentation, a strong online community, and hands-on consultations, demos, and walkthroughs from Cloudflare’s support teams accelerated the transition."
+        },
+        {
+          "type": "p",
+          "text": "Another win was the ability to easily test releases using Workers — a process Polestar previously found tedious and time-consuming. The time saved freed up its technical teams to focus on core business goals."
+        },
+        {
+          "type": "p",
+          "text": "“Workers was the most compatible with the tech we use to develop our applications — other vendors’ solutions were abstracted in a way that made it difficult to get a sense of what would happen when we made changes,” Larsson explains. “Using Workers, we have granular control of everything and we can easily test to ensure our setup is correct before we release anything.”"
+        }
+      ]
+    },
+    {
+      "heading": "Results: record traffic, zero downtime, and a 99.7% cache ratio",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Polestar put the Cloudflare global network to the test when it aired its ‘No Compromises’ commercial during Super Bowl 2022. The advertisement drove over 150,000 website visits — a traffic increase of almost 500 percent — in the two minutes after it aired. The site also saw long-tail traffic rise around 15% for weeks afterward."
+        },
+        {
+          "type": "p",
+          "text": "“Immediately after airing the Super Bowl commercial, viewers completed over 2,000 configurations. We also saw a sales record for cars sold post-event without fatal errors or us even flinching,” says Vesavuori. “Without Cloudflare as part of our core infrastructure, that could not have happened.”"
+        },
+        {
+          "type": "p",
+          "text": "With 99.7% of its traffic now served from the Cloudflare cache — up from a maximum of 80% with its previous providers — the Polestar network is faster and more [resilient](https://www.cloudflare.com/network-services/solutions/enterprise-network-security/) than ever. Cloudflare’s image resizing and optimization further lighten Polestar’s bandwidth requirements, boost performance, and keep its graphically intensive website responsive on any device."
+        }
+      ]
+    },
+    {
+      "heading": "Looking ahead",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Looking forward, Polestar intends to deepen its partnership with Cloudflare and explore new services. The company is evaluating [Cloudflare Stream](https://www.cloudflare.com/developer-platform/products/cloudflare-stream/) for video storage, encoding, and adaptive bitrate playback, alongside a closer look at Workers KV, Cloudflare’s edge key-value data storage solution."
+        },
+        {
+          "type": "p",
+          "text": "“Cloudflare is taking steps that disrupt the traditional marketplace. It’s very interesting to follow their emerging services and figure out how they will improve our next generation of applications on the edge,” says Larsson."
+        },
+        {
+          "type": "p",
+          "text": "“Cloudflare is Polestar’s twin in the sense they are innovating and disrupting classic software development. I think our continued relationship will be one of the keys to Polestar’s success,” adds Vesavuori."
+        }
+      ]
+    }
+  ],
+  "productsUsed": ["China Network", "Workers", "CDN", "Argo Smart Routing"],
+  "industry": "Travel & Leisure",
+  "region": "Europe, Middle East & Africa",
+  "date": "Jan 11, 2026"
+}

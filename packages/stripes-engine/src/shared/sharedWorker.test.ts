@@ -21,6 +21,7 @@ const engineStub = {
   settle: vi.fn(),
   rebuild: vi.fn(),
   getPerf: vi.fn(),
+  readFramesOverlay: vi.fn(() => null),
   getWaterActivity: vi.fn(() => 0),
   dispose: vi.fn(),
   isP3: true,

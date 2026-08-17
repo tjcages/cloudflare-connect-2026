@@ -1,0 +1,197 @@
+---
+import IllustrationChip from "@/components/_animations/ui/IllustrationChip.astro";
+import OrbitRing from "@/components/_animations/ui/OrbitRing.astro";
+import Badge from "@/components/_animations/ui/Badge";
+import Icon from "@/components/icon/Icon";
+import type { IconColor } from "@/components/icon/Icon";
+import type { IconName } from "@/components/icon/icons.gen";
+import SideBadge from "./SideBadge";
+import SideLabel from "./SideLabel";
+import { reelCells } from "./reel-rows";
+
+export interface SideItem {
+  icon: IconName;
+  label?: string;
+}
+
+export interface Side {
+  color: IconColor;
+  items: [SideItem, ...SideItem[]];
+  column?: boolean;
+}
+
+export interface Hub {
+  icon: IconName;
+  color: IconColor;
+  label?: string;
+}
+
+interface Props {
+  left: Side;
+  right: Side & { badge?: number };
+  hub: Hub;
+}
+
+const { left, right, hub } = Astro.props;
+
+const sides = [
+  {
+    id: "L",
+    side: left,
+    columnClass: "left-84",
+    badge: undefined,
+    reelDir: "down",
+  },
+  {
+    id: "R",
+    side: right,
+    columnClass: "left-[calc(100%-84px)]",
+    badge: right.badge,
+    reelDir: "up",
+  },
+] as const;
+---
+
+<div
+  class="absolute inset-0"
+  data-illustration-root
+  data-left-color={left.color}
+  data-hub-color={hub.color}
+  data-right-color={right.color}
+  data-left-count={String(left.items.length)}
+  data-right-count={String(right.items.length)}
+  data-right-badge={String(right.badge ?? 0)}
+  style={{
+    "--hub-color-900": `var(--color-${hub.color}-900)`,
+    "--hub-color-800": `var(--color-${hub.color}-800)`,
+  }}
+>
+  <div
+    class="absolute top-120 left-0 h-px w-full -translate-y-1/2 bg-border-default"
+  >
+  </div>
+  <div
+    class="absolute top-0 left-1/2 h-full w-px -translate-x-1/2 bg-border-default"
+  >
+  </div>
+
+  {sides.map(({ side, columnClass }) => (
+    <div
+      class:list={[
+        "absolute w-px -translate-x-1/2 bg-border-default",
+        columnClass,
+        side.column === false ? "top-120 h-80" : "top-0 h-full",
+      ]}
+    />
+  ))}
+
+  {sides.map(({ id, side, columnClass, badge, reelDir }) =>
+    side.items.length > 1 ? (
+      <div
+        class:list={["absolute inset-y-0 z-1 w-0", columnClass]}
+        data-reel={id}
+        data-reel-dir={reelDir}
+      >
+        {reelCells(side.items.length, reelDir).map(
+          ({ row, itemIndex, center }) => (
+            <IllustrationChip
+              active={center}
+              chipId={center ? id : undefined}
+              class="left-0"
+              data-reel-cell=""
+              hideContentPassive
+              shape="circle"
+              size="large"
+              sizePx={72}
+              style={{ top: `${row * 50}%` }}
+            >
+              <Icon
+                color={side.color}
+                name={side.items[itemIndex].icon}
+                size={24}
+                variant="duo"
+              />
+            </IllustrationChip>
+          )
+        )}
+
+        {badge ? (
+          <div
+            class="absolute top-1/2 left-18 z-2 -mt-38 size-20"
+            data-reel-badge=""
+          >
+            <SideBadge client:visible count={badge} side={id} />
+          </div>
+        ) : null}
+      </div>
+    ) : (
+      <Fragment>
+        {side.column === false
+          ? null
+          : ["top-0", "top-full"].map((row) => (
+              <IllustrationChip
+                class:list={[row, columnClass]}
+                shape="circle"
+                size="large"
+                sizePx={72}
+              />
+            ))}
+        <IllustrationChip
+          active
+          chipId={id}
+          class:list={["top-1/2 z-1", columnClass]}
+          shape="circle"
+          size="large"
+          sizePx={72}
+        >
+          <Icon
+            color={side.color}
+            name={side.items[0].icon}
+            size={24}
+            variant="duo"
+          />
+        </IllustrationChip>
+      </Fragment>
+    )
+  )}
+
+  <OrbitRing
+    bottomArcClass="stroke-(--hub-color-900)"
+    radius={60}
+    topArcClass="stroke-(--hub-color-800)"
+  />
+
+  <IllustrationChip
+    active
+    chipId="C"
+    class="centering-size-0 z-1"
+    shape="circle"
+    size="xlarge"
+    sizePx={88}
+  >
+    <Icon color={hub.color} name={hub.icon} size={32} variant="duo" />
+  </IllustrationChip>
+
+  {sides.map(({ id, side, columnClass }) =>
+    side.items.some((item) => item.label) ? (
+      <div
+        class:list={[
+          "pointer-events-none absolute bottom-28 z-10 -translate-x-1/2",
+          columnClass,
+        ]}
+      >
+        {side.items.length > 1 ? (
+          <SideLabel client:visible items={side.items} side={id} />
+        ) : (
+          <Badge className="text-text-default">{side.items[0].label}</Badge>
+        )}
+      </div>
+    ) : null
+  )}
+
+  {hub.label && (
+    <Badge className="absolute top-32 left-1/2 z-10 -translate-x-1/2 text-(--hub-color-900)">
+      {hub.label}
+    </Badge>
+  )}
+</div>

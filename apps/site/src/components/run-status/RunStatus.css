@@ -1,0 +1,34 @@
+.run-status-wave {
+  --wave-mid: var(--color-blue-900);
+  --wave-bright: var(--color-blue-700);
+  animation: run-status-wave 0.9s step-end infinite;
+}
+
+.run-status-wave[data-tone="orange"] {
+  --wave-mid: var(--color-orange-900);
+  --wave-bright: var(--color-orange-700);
+}
+
+:root[data-theme="dark"] .run-status-wave {
+  --wave-mid: var(--color-blue-600);
+  --wave-bright: var(--color-blue-500);
+}
+
+:root[data-theme="dark"] .run-status-wave[data-tone="orange"] {
+  --wave-mid: var(--color-orange-600);
+  --wave-bright: var(--color-orange-500);
+}
+
+@keyframes run-status-wave {
+  0% {
+    color: var(--wave-bright);
+  }
+
+  7.778% {
+    color: var(--wave-mid);
+  }
+
+  15.556% {
+    color: inherit;
+  }
+}

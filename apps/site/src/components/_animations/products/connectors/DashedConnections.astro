@@ -1,0 +1,127 @@
+---
+import type { IProductsBox } from "../box/types";
+import {
+  capFade,
+  capTransform,
+  scoopCaretPath,
+} from "../../ui/utils/caret-path";
+import { CANVAS_WIDTH, resolveOuterSpan } from "./utils/outer";
+
+interface Props {
+  boxes: IProductsBox[];
+  canvasWidth?: number;
+  /** "solid" draws one line in the box colour that fades out toward the canvas
+   * edge, instead of the travelling dashes. */
+  variant?: "dashed" | "solid";
+}
+
+const { boxes, canvasWidth = CANVAS_WIDTH, variant = "dashed" } = Astro.props;
+
+const DASH = "3 5";
+const CAP_PATH = scoopCaretPath();
+
+const connectors = boxes
+  .filter((box) => box.connectToEdge)
+  .map((box) => ({
+    ...resolveOuterSpan(box, canvasWidth),
+    color: box.color,
+    boxId: box.id,
+  }))
+  .map((connector) => {
+    const boxX = connector.side === "right" ? connector.xMin : connector.xMax;
+    const edgeX = connector.side === "right" ? connector.xMax : connector.xMin;
+    return {
+      ...connector,
+      boxX,
+      edgeX,
+      fade: capFade(boxX, connector.side),
+    };
+  });
+---
+
+{connectors.length > 0 && (
+  <svg
+    aria-hidden="true"
+    class="pointer-events-none absolute inset-0 size-full overflow-visible"
+    fill="none"
+  >
+    <defs>
+      {connectors.map((c) => (
+        <linearGradient
+          data-box={c.boxId}
+          gradientUnits="userSpaceOnUse"
+          id={`edge-fade-${c.boxId}`}
+          style={{
+            "--box-active-100": `var(--color-chips-background-${c.color})`,
+          }}
+          x1={variant === "solid" ? c.boxX : c.fade.x1}
+          x2={variant === "solid" ? c.edgeX : c.fade.x2}
+          y1={c.cy}
+          y2={c.cy}
+        >
+          <stop offset="0" stop-color="var(--box-color-100)" />
+          {variant === "solid" && (
+            <stop offset="0.35" stop-color="var(--box-color-100)" />
+          )}
+          <stop offset="1" stop-color="var(--box-color-100)" stop-opacity="0" />
+        </linearGradient>
+      ))}
+    </defs>
+
+    {connectors.map((c) => (
+      <g>
+        {variant === "dashed" && (
+          <line
+            stroke="var(--color-background-base)"
+            stroke-width="16"
+            x1={c.xMin}
+            x2={c.xMax}
+            y1={c.cy}
+            y2={c.cy}
+          />
+        )}
+        {variant === "dashed" && (
+          <line
+            class="outer-connector__main"
+            stroke="var(--color-border-dashed)"
+            stroke-dasharray={DASH}
+            stroke-width="1"
+            x1={c.xMin}
+            x2={c.xMax}
+            y1={c.cy}
+            y2={c.cy}
+          />
+        )}
+        <line
+          stroke={`url(#edge-fade-${c.boxId})`}
+          stroke-width="1"
+          x1={variant === "solid" ? c.boxX : c.fade.x1}
+          x2={variant === "solid" ? c.edgeX : c.fade.x2}
+          y1={c.cy}
+          y2={c.cy}
+        />
+        <path
+          class="fill-(--box-color-100) transition-colors"
+          d={CAP_PATH}
+          data-box={c.boxId}
+          style={{
+            "--box-active-100": `var(--color-chips-background-${c.color})`,
+          }}
+          transform={capTransform(c.boxX, c.cy, c.side)}
+        />
+      </g>
+    ))}
+  </svg>
+)}
+
+<style>
+  /* dash(3) + gap(5) = 8; negative offset → rightward flow */
+  .outer-connector__main {
+    animation: oc-flow 0.3s linear infinite;
+  }
+  @keyframes oc-flow {
+    to {
+      stroke-dashoffset: -8;
+    }
+  }
+</style>

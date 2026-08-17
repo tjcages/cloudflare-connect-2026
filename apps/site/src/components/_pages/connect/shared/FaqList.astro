@@ -1,0 +1,30 @@
+---
+interface Item {
+  question: string;
+  answer: string;
+}
+
+interface Props {
+  items: Item[];
+  id?: string;
+}
+
+const { items, id } = Astro.props;
+---
+
+<div class="flex w-full flex-col" id={id}>
+  {items.map((item, index) => (
+    <div
+      class:list={[
+        "relative flex flex-col gap-12 py-32",
+        index < items.length - 1 &&
+          "before:pointer-events-none before:absolute before:inset-x-0 before:bottom-0 before:h-px before:bg-border-muted",
+      ]}
+    >
+      <h3 class="text-heading-h5 text-text-base">{item.question}</h3>
+      <p class="text-body-medium whitespace-pre-line text-text-default">
+        {item.answer}
+      </p>
+    </div>
+  ))}
+</div>
