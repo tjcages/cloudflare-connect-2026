@@ -1,5 +1,4 @@
 import {
-  normalizeTwizzlerSettings,
   type TwizzlerGradientStop,
   type TwizzlerSettings,
 } from "@tjcages/connect-twizzler";
@@ -13,6 +12,15 @@ import {
 } from "@tjcages/panels/dev";
 import { useCallback, useEffect, useState } from "react";
 import {
+  AGENDA_TWIZZLER_CONTROL_DEFAULTS,
+  AGENDA_TWIZZLER_TARGETS,
+  agendaTwizzlerDefinition,
+  isAgendaTwizzlerTarget,
+  loadAgendaTwizzlerControlSettings,
+  publishAgendaTwizzlerSettings,
+  type AgendaTwizzlerTarget,
+} from "../agenda/agenda-twizzler-settings";
+import {
   loadSpeakerFrameSettings,
   publishSpeakerFrameSettings,
   SPEAKER_FRAME_DEFAULTS,
@@ -21,67 +29,23 @@ import {
   type SpeakerStripeControl,
 } from "../speakers/speaker-frame-controls";
 import { CONNECT_HERO_TWIZZLER_DEFAULTS } from "./twizzler-defaults";
+import {
+  CONNECT_TWIZZLER_CONTROL_DEFAULTS,
+  resolveConnectTwizzlerSettings,
+  type TwizzlerControlSettings,
+} from "./twizzler-control-settings";
 
 interface Props {
   onSettingsChange: (settings: TwizzlerSettings) => void;
 }
 
-// The package also carries legacy and alternate-renderer settings that the
-// Connect orange-wave renderer never reads. Keep this panel model intentional.
-type TwizzlerHeroSettings = Pick<
-  TwizzlerSettings,
-  | "gradientStops"
-  | "opacity"
-  | "scale"
-  | "centerY"
-  | "amplitude"
-  | "lineCount"
-  | "lineWidth"
-  | "minLineWidth"
-  | "maxLineWidth"
-  | "pointSpacing"
-  | "rotateXDeg"
-  | "rotateYDeg"
-  | "rotateZDeg"
-  | "fov"
-  | "camDist"
-  | "perspectiveWidth"
-  | "panX"
-  | "panY"
-  | "panZ"
-  | "speed"
->;
-
-const TWIZZLER_HERO_DEFAULTS: TwizzlerHeroSettings = {
-  gradientStops: CONNECT_HERO_TWIZZLER_DEFAULTS.gradientStops,
-  opacity: CONNECT_HERO_TWIZZLER_DEFAULTS.opacity,
-  scale: CONNECT_HERO_TWIZZLER_DEFAULTS.scale,
-  centerY: CONNECT_HERO_TWIZZLER_DEFAULTS.centerY,
-  amplitude: CONNECT_HERO_TWIZZLER_DEFAULTS.amplitude,
-  lineCount: CONNECT_HERO_TWIZZLER_DEFAULTS.lineCount,
-  lineWidth: CONNECT_HERO_TWIZZLER_DEFAULTS.lineWidth,
-  minLineWidth: CONNECT_HERO_TWIZZLER_DEFAULTS.minLineWidth,
-  maxLineWidth: CONNECT_HERO_TWIZZLER_DEFAULTS.maxLineWidth,
-  pointSpacing: CONNECT_HERO_TWIZZLER_DEFAULTS.pointSpacing,
-  rotateXDeg: CONNECT_HERO_TWIZZLER_DEFAULTS.rotateXDeg,
-  rotateYDeg: CONNECT_HERO_TWIZZLER_DEFAULTS.rotateYDeg,
-  rotateZDeg: CONNECT_HERO_TWIZZLER_DEFAULTS.rotateZDeg,
-  fov: CONNECT_HERO_TWIZZLER_DEFAULTS.fov,
-  camDist: CONNECT_HERO_TWIZZLER_DEFAULTS.camDist,
-  perspectiveWidth: CONNECT_HERO_TWIZZLER_DEFAULTS.perspectiveWidth,
-  panX: CONNECT_HERO_TWIZZLER_DEFAULTS.panX,
-  panY: CONNECT_HERO_TWIZZLER_DEFAULTS.panY,
-  panZ: CONNECT_HERO_TWIZZLER_DEFAULTS.panZ,
-  speed: CONNECT_HERO_TWIZZLER_DEFAULTS.speed,
-};
-
 function slider(
-  key: keyof TwizzlerHeroSettings & string,
+  key: keyof TwizzlerControlSettings & string,
   label: string,
   min: number,
   max: number,
   step: number
-): PanelSliderField<TwizzlerHeroSettings> {
+): PanelSliderField<TwizzlerControlSettings> {
   return { type: "slider", key, label, min, max, step };
 }
 
@@ -117,7 +81,7 @@ const frameSelect = (
 });
 
 const GRADIENT_STOPS_FIELD: PanelCollectionField<
-  TwizzlerHeroSettings,
+  TwizzlerControlSettings,
   TwizzlerGradientStop
 > = {
   type: "collection",
@@ -153,9 +117,9 @@ const GRADIENT_STOPS_FIELD: PanelCollectionField<
   ],
 };
 
-const TWIZZLER_FIELDS: PanelField<TwizzlerHeroSettings>[] = [
+const TWIZZLER_FIELDS: PanelField<TwizzlerControlSettings>[] = [
   { type: "section", title: "Appearance" },
-  GRADIENT_STOPS_FIELD as PanelField<TwizzlerHeroSettings>,
+  GRADIENT_STOPS_FIELD as PanelField<TwizzlerControlSettings>,
   slider("opacity", "Opacity", 0, 1, 0.01),
 
   { type: "section", title: "Composition" },
@@ -375,36 +339,52 @@ const FRAME_FIELDS: PanelField<SpeakerFrameSettings>[] = [
   frameSlider("imageColorBoostThick", "Boost thick stripes", 0, 2, 0.01),
 ];
 
-type ShaderTarget = "twizzler" | "frames";
+type ShaderTarget = "twizzler" | "frames" | AgendaTwizzlerTarget;
 
 const TWIZZLER_PANEL_ID = "connect-twizzler-hero-v3";
 const TARGET_STORAGE_KEY = "connect:shader-controls-target";
 
 export default function ConnectTwizzlerControls({ onSettingsChange }: Props) {
-  const [twizzlerValues, setTwizzlerValues] = useState<TwizzlerHeroSettings>(
-    () => loadPersistedPanelValues(TWIZZLER_PANEL_ID, TWIZZLER_HERO_DEFAULTS)
+  const [twizzlerValues, setTwizzlerValues] = useState<TwizzlerControlSettings>(
+    () =>
+      loadPersistedPanelValues(
+        TWIZZLER_PANEL_ID,
+        CONNECT_TWIZZLER_CONTROL_DEFAULTS
+      )
+  );
+  const [agendaValues, setAgendaValues] = useState<
+    Record<AgendaTwizzlerTarget, TwizzlerControlSettings>
+  >(
+    () =>
+      Object.fromEntries(
+        AGENDA_TWIZZLER_TARGETS.map(({ id }) => [
+          id,
+          loadAgendaTwizzlerControlSettings(id),
+        ])
+      ) as Record<AgendaTwizzlerTarget, TwizzlerControlSettings>
   );
   const [frameValues, setFrameValues] = useState<SpeakerFrameSettings>(() =>
     loadSpeakerFrameSettings()
   );
-  const [target, setTarget] = useState<ShaderTarget>(() =>
-    localStorage.getItem(TARGET_STORAGE_KEY) === "frames"
-      ? "frames"
-      : "twizzler"
-  );
+  const [target, setTarget] = useState<ShaderTarget>(() => {
+    const stored = localStorage.getItem(TARGET_STORAGE_KEY);
+    if (stored === "frames" || isAgendaTwizzlerTarget(stored)) return stored;
+    return "twizzler";
+  });
   const [open, setOpen] = useState(true);
   const togglePanel = useCallback(() => setOpen((current) => !current), []);
 
   usePanelShortcut(togglePanel);
 
   useEffect(() => {
-    onSettingsChange(
-      normalizeTwizzlerSettings({
-        ...CONNECT_HERO_TWIZZLER_DEFAULTS,
-        ...twizzlerValues,
-      })
-    );
+    onSettingsChange(resolveConnectTwizzlerSettings(twizzlerValues));
   }, [onSettingsChange, twizzlerValues]);
+
+  useEffect(() => {
+    for (const { id } of AGENDA_TWIZZLER_TARGETS) {
+      publishAgendaTwizzlerSettings(id, agendaValues[id]);
+    }
+  }, [agendaValues]);
 
   useEffect(() => {
     publishSpeakerFrameSettings(frameValues);
@@ -423,6 +403,11 @@ export default function ConnectTwizzlerControls({ onSettingsChange }: Props) {
       >
         <option value="twizzler">Connect Twizzler</option>
         <option value="frames">Speaker Frames</option>
+        {AGENDA_TWIZZLER_TARGETS.map(({ id, label }) => (
+          <option key={id} value={id}>
+            {label}
+          </option>
+        ))}
       </select>
       <svg aria-hidden viewBox="0 0 12 12">
         <path d="m2.25 4.25 3.75 3.5 3.75-3.5" />
@@ -511,6 +496,38 @@ export default function ConnectTwizzlerControls({ onSettingsChange }: Props) {
     );
   }
 
+  if (isAgendaTwizzlerTarget(target)) {
+    const definition = agendaTwizzlerDefinition(target);
+    return (
+      <>
+        {panelPolish}
+        <Panel
+          key={definition.panelId}
+          id={definition.panelId}
+          title=""
+          titleSlot={titleSelector}
+          open={open}
+          onClose={() => setOpen(false)}
+          onOpen={() => setOpen(true)}
+          values={agendaValues[target]}
+          defaults={AGENDA_TWIZZLER_CONTROL_DEFAULTS[target]}
+          fields={TWIZZLER_FIELDS}
+          onChange={(values) =>
+            setAgendaValues((current) => ({
+              ...current,
+              [target]: values,
+            }))
+          }
+          prompts={[]}
+          defaultTheme="dark"
+          showThemeToggle={false}
+          showAnimation={false}
+          showExport={false}
+        />
+      </>
+    );
+  }
+
   return (
     <>
       {panelPolish}
@@ -522,7 +539,7 @@ export default function ConnectTwizzlerControls({ onSettingsChange }: Props) {
         onClose={() => setOpen(false)}
         onOpen={() => setOpen(true)}
         values={twizzlerValues}
-        defaults={TWIZZLER_HERO_DEFAULTS}
+        defaults={CONNECT_TWIZZLER_CONTROL_DEFAULTS}
         fields={TWIZZLER_FIELDS}
         onChange={setTwizzlerValues}
         prompts={[]}
