@@ -1,14 +1,49 @@
 import { ConnectTwizzler } from "@tjcages/connect-twizzler/react";
 import { useEffect, useState } from "react";
-import { CONNECT_HERO_TWIZZLER_DEFAULTS } from "../hero/twizzler-defaults";
+import {
+  AGENDA_TWIZZLER_SETTINGS_EVENT,
+  AGENDA_TWIZZLER_TARGETS,
+  loadAgendaTwizzlerSettings,
+  type AgendaTwizzlerSettingsEvent,
+  type AgendaTwizzlerTarget,
+} from "./agenda-twizzler-settings";
 
 const MAX_DPR = 1.5;
 
 export default function AgendaTwizzlerOverlay() {
-  const [ready, setReady] = useState(false);
+  const [settings, setSettings] = useState(() =>
+    Object.fromEntries(
+      AGENDA_TWIZZLER_TARGETS.map(({ id }) => [
+        id,
+        loadAgendaTwizzlerSettings(id),
+      ])
+    )
+  );
+  const [ready, setReady] = useState<Record<AgendaTwizzlerTarget, boolean>>(
+    () =>
+      Object.fromEntries(
+        AGENDA_TWIZZLER_TARGETS.map(({ id }) => [id, false])
+      ) as Record<AgendaTwizzlerTarget, boolean>
+  );
+  const allReady = AGENDA_TWIZZLER_TARGETS.every(({ id }) => ready[id]);
 
   useEffect(() => {
-    if (!ready) return;
+    const onSettings = (event: Event) => {
+      const { target, settings: nextSettings } = (
+        event as CustomEvent<AgendaTwizzlerSettingsEvent>
+      ).detail;
+      setSettings((current) => ({
+        ...current,
+        [target]: nextSettings,
+      }));
+    };
+    window.addEventListener(AGENDA_TWIZZLER_SETTINGS_EVENT, onSettings);
+    return () =>
+      window.removeEventListener(AGENDA_TWIZZLER_SETTINGS_EVENT, onSettings);
+  }, []);
+
+  useEffect(() => {
+    if (!allReady) return;
 
     const outputCanvas = document.querySelector<HTMLCanvasElement>(
       "[data-agenda-twizzler-output]"
@@ -18,8 +53,10 @@ export default function AgendaTwizzlerOverlay() {
     const root = outputCanvas.closest<HTMLElement>(
       "[data-agenda-twizzler-root]"
     );
-    const sourceCanvas = root?.querySelector<HTMLCanvasElement>(
-      "[data-agenda-twizzler-source] canvas"
+    const sourceCanvases = AGENDA_TWIZZLER_TARGETS.map(({ id }) =>
+      root?.querySelector<HTMLCanvasElement>(
+        `[data-agenda-twizzler-source="${id}"] canvas`
+      )
     );
     const apertureElements = root
       ? Array.from(
@@ -27,7 +64,12 @@ export default function AgendaTwizzlerOverlay() {
         )
       : [];
     const context = outputCanvas.getContext("2d");
-    if (!root || !sourceCanvas || apertureElements.length === 0 || !context)
+    if (
+      !root ||
+      sourceCanvases.some((canvas) => !canvas) ||
+      apertureElements.length !== sourceCanvases.length ||
+      !context
+    )
       return;
 
     const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
@@ -38,14 +80,20 @@ export default function AgendaTwizzlerOverlay() {
     let animationFrame = 0;
 
     const paint = () => {
-      if (width < 1 || height < 1 || sourceCanvas.width < 1) return;
+      if (
+        width < 1 ||
+        height < 1 ||
+        sourceCanvases.some((canvas) => !canvas || canvas.width < 1)
+      )
+        return;
 
       const rootRect = root.getBoundingClientRect();
       const zoom = root.currentCSSZoom || 1;
       context.setTransform(dpr, 0, 0, dpr, 0, 0);
       context.clearRect(0, 0, width, height);
-      for (const aperture of apertureElements) {
+      for (const [index, aperture] of apertureElements.entries()) {
         const rect = aperture.getBoundingClientRect();
+        const sourceCanvas = sourceCanvases[index] as HTMLCanvasElement;
         context.drawImage(
           sourceCanvas,
           0,
@@ -117,24 +165,27 @@ export default function AgendaTwizzlerOverlay() {
       resizeObserver.disconnect();
       reducedMotion.removeEventListener("change", onMotionChange);
     };
-  }, [ready]);
+  }, [allReady]);
 
   return (
     <>
-      <div
-        className="absolute inset-x-40 top-40 h-200 opacity-0"
-        data-agenda-twizzler-source
-      >
-        <ConnectTwizzler
-          canvasClassName="size-full"
-          className="size-full"
-          maxDpr={MAX_DPR}
-          maxFps={30}
-          onReady={() => setReady(true)}
-          rootMargin="240px"
-          settings={CONNECT_HERO_TWIZZLER_DEFAULTS}
-        />
-      </div>
+      {AGENDA_TWIZZLER_TARGETS.map(({ id }) => (
+        <div
+          key={id}
+          className="absolute inset-x-40 top-40 h-200 opacity-0"
+          data-agenda-twizzler-source={id}
+        >
+          <ConnectTwizzler
+            canvasClassName="size-full"
+            className="size-full"
+            maxDpr={MAX_DPR}
+            maxFps={30}
+            onReady={() => setReady((current) => ({ ...current, [id]: true }))}
+            rootMargin="240px"
+            settings={settings[id]}
+          />
+        </div>
+      ))}
       <canvas
         aria-hidden="true"
         className="absolute inset-0 size-full opacity-0 transition-opacity duration-300"
