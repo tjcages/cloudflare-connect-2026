@@ -1,6 +1,5 @@
 import {
   normalizeTwizzlerSettings,
-  TWIZZLER_DEFAULTS,
   type TwizzlerGradientStop,
   type TwizzlerSettings,
 } from "@tjcages/connect-twizzler";
@@ -13,6 +12,7 @@ import {
   type PanelSliderField,
 } from "@tjcages/panels/dev";
 import { useCallback, useEffect, useState } from "react";
+import { CONNECT_HERO_TWIZZLER_DEFAULTS } from "./twizzler-defaults";
 
 interface Props {
   onSettingsChange: (settings: TwizzlerSettings) => void;
@@ -45,26 +45,26 @@ type TwizzlerHeroSettings = Pick<
 >;
 
 const TWIZZLER_HERO_DEFAULTS: TwizzlerHeroSettings = {
-  gradientStops: TWIZZLER_DEFAULTS.gradientStops,
-  opacity: TWIZZLER_DEFAULTS.opacity,
-  scale: TWIZZLER_DEFAULTS.scale,
-  centerY: TWIZZLER_DEFAULTS.centerY,
-  amplitude: TWIZZLER_DEFAULTS.amplitude,
-  lineCount: TWIZZLER_DEFAULTS.lineCount,
-  lineWidth: TWIZZLER_DEFAULTS.lineWidth,
-  minLineWidth: TWIZZLER_DEFAULTS.minLineWidth,
-  maxLineWidth: TWIZZLER_DEFAULTS.maxLineWidth,
-  pointSpacing: TWIZZLER_DEFAULTS.pointSpacing,
-  rotateXDeg: TWIZZLER_DEFAULTS.rotateXDeg,
-  rotateYDeg: TWIZZLER_DEFAULTS.rotateYDeg,
-  rotateZDeg: TWIZZLER_DEFAULTS.rotateZDeg,
-  fov: TWIZZLER_DEFAULTS.fov,
-  camDist: TWIZZLER_DEFAULTS.camDist,
-  perspectiveWidth: TWIZZLER_DEFAULTS.perspectiveWidth,
-  panX: TWIZZLER_DEFAULTS.panX,
-  panY: TWIZZLER_DEFAULTS.panY,
-  panZ: TWIZZLER_DEFAULTS.panZ,
-  speed: TWIZZLER_DEFAULTS.speed,
+  gradientStops: CONNECT_HERO_TWIZZLER_DEFAULTS.gradientStops,
+  opacity: CONNECT_HERO_TWIZZLER_DEFAULTS.opacity,
+  scale: CONNECT_HERO_TWIZZLER_DEFAULTS.scale,
+  centerY: CONNECT_HERO_TWIZZLER_DEFAULTS.centerY,
+  amplitude: CONNECT_HERO_TWIZZLER_DEFAULTS.amplitude,
+  lineCount: CONNECT_HERO_TWIZZLER_DEFAULTS.lineCount,
+  lineWidth: CONNECT_HERO_TWIZZLER_DEFAULTS.lineWidth,
+  minLineWidth: CONNECT_HERO_TWIZZLER_DEFAULTS.minLineWidth,
+  maxLineWidth: CONNECT_HERO_TWIZZLER_DEFAULTS.maxLineWidth,
+  pointSpacing: CONNECT_HERO_TWIZZLER_DEFAULTS.pointSpacing,
+  rotateXDeg: CONNECT_HERO_TWIZZLER_DEFAULTS.rotateXDeg,
+  rotateYDeg: CONNECT_HERO_TWIZZLER_DEFAULTS.rotateYDeg,
+  rotateZDeg: CONNECT_HERO_TWIZZLER_DEFAULTS.rotateZDeg,
+  fov: CONNECT_HERO_TWIZZLER_DEFAULTS.fov,
+  camDist: CONNECT_HERO_TWIZZLER_DEFAULTS.camDist,
+  perspectiveWidth: CONNECT_HERO_TWIZZLER_DEFAULTS.perspectiveWidth,
+  panX: CONNECT_HERO_TWIZZLER_DEFAULTS.panX,
+  panY: CONNECT_HERO_TWIZZLER_DEFAULTS.panY,
+  panZ: CONNECT_HERO_TWIZZLER_DEFAULTS.panZ,
+  speed: CONNECT_HERO_TWIZZLER_DEFAULTS.speed,
 };
 
 function slider(
@@ -91,7 +91,7 @@ const GRADIENT_STOPS_FIELD: PanelCollectionField<
     x: 0.5,
     y: 0.5,
     offset: 0.5,
-    color: TWIZZLER_DEFAULTS.colorEdge,
+    color: CONNECT_HERO_TWIZZLER_DEFAULTS.colorEdge,
   }),
   itemFields: [
     { type: "color", key: "color", label: "Color" },
@@ -144,7 +144,7 @@ const TWIZZLER_FIELDS: PanelField<TwizzlerHeroSettings>[] = [
   slider("speed", "Speed", 0, 40, 0.01),
 ];
 
-const PANEL_ID = "connect-twizzler-hero";
+const PANEL_ID = "connect-twizzler-hero-v3";
 
 export default function ConnectTwizzlerControls({ onSettingsChange }: Props) {
   const [values, setValues] = useState<TwizzlerHeroSettings>(() =>
@@ -157,7 +157,10 @@ export default function ConnectTwizzlerControls({ onSettingsChange }: Props) {
 
   useEffect(() => {
     onSettingsChange(
-      normalizeTwizzlerSettings({ ...TWIZZLER_DEFAULTS, ...values })
+      normalizeTwizzlerSettings({
+        ...CONNECT_HERO_TWIZZLER_DEFAULTS,
+        ...values,
+      })
     );
   }, [onSettingsChange, values]);
 

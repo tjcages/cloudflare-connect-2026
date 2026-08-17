@@ -1,10 +1,8 @@
-import {
-  TWIZZLER_DEFAULTS,
-  type TwizzlerSettings,
-} from "@tjcages/connect-twizzler";
+import type { TwizzlerSettings } from "@tjcages/connect-twizzler";
 import { ConnectTwizzler } from "@tjcages/connect-twizzler/react";
 import { lazy, Suspense, useEffect, useState } from "react";
 import type { IslandProps } from "@/types/island-props";
+import { CONNECT_HERO_TWIZZLER_DEFAULTS } from "./twizzler-defaults";
 
 interface Props {
   posterSrc?: string;
@@ -14,7 +12,9 @@ const PANEL_STORAGE_KEY = "connect:twizzler-controls-visible";
 const ConnectTwizzlerControls = lazy(() => import("./ConnectTwizzlerControls"));
 
 export default function ConnectHeroTwizzler({ posterSrc }: IslandProps<Props>) {
-  const [settings, setSettings] = useState<TwizzlerSettings>(TWIZZLER_DEFAULTS);
+  const [settings, setSettings] = useState<TwizzlerSettings>(
+    CONNECT_HERO_TWIZZLER_DEFAULTS
+  );
   const [panelLoaded, setPanelLoaded] = useState(false);
 
   useEffect(() => {
