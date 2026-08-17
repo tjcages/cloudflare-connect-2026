@@ -172,6 +172,14 @@ describe("config file import/export", () => {
       stripePalette: "Default",
       backgroundRampEasing: "easeOut",
       thresholdDistributionEasing: "custom:0.346,0.578,0,1",
+      twizzler: {
+        lineCount: 56,
+        lineWidth: 2.3,
+        pointSpacing: 10,
+        perspectiveWidth: 6.2,
+        minLineWidth: 3.5,
+        maxLineWidth: 24.1,
+      },
     });
   });
 

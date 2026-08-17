@@ -146,6 +146,14 @@ describe("preset library transforms", () => {
     expect(banner?.lab?.canvasHeight).toBe(320);
     expect(banner?.lab?.shaderPresetId).toBe("twizzler-sine");
     expect(banner?.lab?.twizzlerEnabled).toBe(true);
+    expect(banner?.lab?.twizzler).toMatchObject({
+      lineCount: 56,
+      lineWidth: 2.3,
+      pointSpacing: 10,
+      perspectiveWidth: 6.2,
+      minLineWidth: 3.5,
+      maxLineWidth: 24.1,
+    });
     expect(banner?.lab?.twizzler?.ribbonColorMode).toBe("sharedGradient");
     expect(banner?.lab?.twizzler?.gradientStops).toEqual([
       { id: "far", x: 0.08, y: 0.78, offset: 0.08, color: "#fea700" },

@@ -192,6 +192,10 @@ describe("client preview presets", () => {
     expect(bundle.engineConfig.stripesEnabled).toBe(true);
     expect(bundle.twizzler.lineCount).toBe(56);
     expect(bundle.twizzler.lineWidth).toBeCloseTo(2.3);
+    expect(bundle.twizzler.pointSpacing).toBe(10);
+    expect(bundle.twizzler.perspectiveWidth).toBeCloseTo(6.2);
+    expect(bundle.twizzler.minLineWidth).toBeCloseTo(3.5);
+    expect(bundle.twizzler.maxLineWidth).toBeCloseTo(24.1);
     expect(bundle.twizzler.color).toBe("#f46021");
     expect(bundle.twizzler.colorFar).toBe("#fea700");
     expect(bundle.twizzler.gradientStops).toEqual([
