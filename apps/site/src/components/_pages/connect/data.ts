@@ -71,32 +71,32 @@ export const connectSpeakers = [
   {
     name: "Matthew Prince",
     role: "Co-Founder & CEO, Cloudflare",
-    image: "/connect/speakers/matthew-prince.png",
+    image: "/connect/speakers/matthew-prince.webp",
   },
   {
     name: "Michelle Zatlyn",
     role: "Co-Founder & President, Cloudflare",
-    image: "/connect/speakers/michelle-zatlyn.png",
+    image: "/connect/speakers/michelle-zatlyn.webp",
   },
   {
     name: "Rene Haas",
     role: "CEO, Arm",
-    image: "/connect/speakers/rene-haas.png",
+    image: "/connect/speakers/rene-haas.webp",
   },
   {
     name: "Sarah Guo",
     role: "Founder, Conviction",
-    image: "/connect/speakers/sarah-guo.png",
+    image: "/connect/speakers/sarah-guo.webp",
   },
   {
     name: "Evan You",
     role: "Founder, VoidZero",
-    image: "/connect/speakers/evan-you.png",
+    image: "/connect/speakers/evan-you.webp",
   },
   {
     name: "Peter Steinberger",
     role: "Founder, OpenClaw · OpenAI",
-    image: "/connect/speakers/peter-steinberger.png",
+    image: "/connect/speakers/peter-steinberger.webp",
   },
 ];
 
