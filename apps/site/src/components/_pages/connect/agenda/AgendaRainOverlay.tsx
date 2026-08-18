@@ -14,9 +14,9 @@ import {
   loadAgendaRainSettings,
   type AgendaRainSettings,
 } from "./agenda-rain-controls";
-import { DEFAULT_RAIN_SHADER_ID } from "./rain-shader-library";
 import {
   createRainTextureRenderer,
+  DEFAULT_RAIN_SHADER_ID,
   DEFAULT_RAIN_SHADER_SOURCE,
   type RainTextureRenderer,
 } from "./rain-texture-source";

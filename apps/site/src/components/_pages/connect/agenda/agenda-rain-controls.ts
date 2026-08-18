@@ -1,5 +1,5 @@
 import { AGENDA_RAIN_CONFIG } from "./agenda-rain-config";
-import { DEFAULT_RAIN_SHADER_ID } from "./rain-shader-library";
+import { DEFAULT_RAIN_SHADER_ID } from "./rain-texture-source";
 
 export type AgendaRainStripeControl = {
   id: string;
@@ -120,13 +120,13 @@ const defaultStripes = (): AgendaRainStripeControl[] =>
 
 export const AGENDA_RAIN_DEFAULTS: AgendaRainSettings = {
   shaderPreset: DEFAULT_RAIN_SHADER_ID,
-  sourceSpeed: 1,
+  sourceSpeed: 0.4,
   sourceScale: 1,
-  sourceZoom: 1,
+  sourceZoom: 0.2,
   sourcePanX: 0,
-  sourcePanY: 0,
+  sourcePanY: 0.14,
   sourceRotateX: 0,
-  sourceRotateY: 0,
+  sourceRotateY: 27,
   sourceRotateZ: 0,
   rainEnabled: AGENDA_RAIN_CONFIG.sparkle.gaps.enabled,
   gapsCoverage: AGENDA_RAIN_CONFIG.sparkle.gaps.coverage,

@@ -12,32 +12,133 @@
 export const RAIN_SOURCE_WIDTH = 1280;
 export const RAIN_SOURCE_HEIGHT = 960;
 
-// "Corridor" by @XorDev — https://x.com/XorDev/status/1923882930834751520
-// Saved in the lab's shader library as "Wave to Full Screen", the Graphic
-// Rain default preset. Inlined so the default path never loads the library.
+/**
+ * The production preset for the agenda rain, designer-picked from the shared
+ * shader library ("Page Grid"). The id and inlined source live together here
+ * so the default path never loads the full library module — the overlay only
+ * imports the library when a different preset is stored.
+ */
+export const DEFAULT_RAIN_SHADER_ID = "8b26333f-189b-4e1c-becc-a345acbd30b0";
+
+// "Page Grid" — Radiant Furnace, adapted from the Fractals "sceneGridHymn"
+// family. Verbatim copy of the library entry with this module's default id.
 export const DEFAULT_RAIN_SHADER_SOURCE = /* glsl */ `
-void mainImage(out vec4 O, vec2 I)
-{
-    float t = iTime, i, d, z;
-    for(O *= i; i++<3e1;)
-    {
-        vec3 r = normalize(vec3(I+I,0)-iResolution.xyy),
-        p = z*r,
-        w = abs(r);
-        w /= max(w.x,w.y);
-        w.z += t;
-        p.z -= t;
+#define PI  3.141592653589793
+#define TAU 6.283185307179586
 
-        r = ++p;
-        z += d = length(
-            (p.xy=abs(mod(p.xy-2.,4.)-2.))-1.
-            +cos(p.z/vec2(3.1,2))) +
-            .1 * length(p-r) *
-            exp(dot(cos(ceil(w/=.3)),sin(w/.6).yzx));
+mat2 rot(float a) {
+    float s = sin(a);
+    float c = cos(a);
+    return mat2(c, -s, s, c);
+}
 
-        O.rgb += (cos(p)+1.4) / d / z;
+float hash21(vec2 p) {
+    p = fract(p * vec2(123.34, 456.21));
+    p += dot(p, p + 45.32);
+    return fract(p.x * p.y);
+}
+
+float noise(vec2 p) {
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+
+    float a = hash21(i);
+    float b = hash21(i + vec2(1.0, 0.0));
+    float c = hash21(i + vec2(0.0, 1.0));
+    float d = hash21(i + vec2(1.0, 1.0));
+
+    vec2 u = f * f * (3.0 - 2.0 * f);
+    return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+}
+
+float fbm(vec2 p) {
+    float v = 0.0;
+    float a = 0.5;
+    for (int i = 0; i < 5; i++) {
+        v += a * noise(p);
+        p = p * 2.03 + vec2(7.13, 3.71);
+        a *= 0.5;
     }
-    O = tanh(O/4e1);
+    return v;
+}
+
+vec2 aspectUv(vec2 fragCoord, float zoom) {
+    vec2 uv = fragCoord / iResolution.xy;
+    vec2 p = (uv - 0.5) * vec2(iResolution.x / iResolution.y, 1.0);
+    return p * zoom;
+}
+
+vec3 furnacePalette(float t) {
+    t = clamp(t, 0.0, 1.0);
+
+    vec3 deep   = vec3(0.03, 0.01, 0.005);
+    vec3 ember  = vec3(0.32, 0.06, 0.01);
+    vec3 fire   = vec3(0.90, 0.32, 0.03);
+    vec3 gold   = vec3(1.00, 0.78, 0.24);
+    vec3 whiteH = vec3(1.00, 0.96, 0.82);
+
+    vec3 col = mix(deep, ember, smoothstep(0.00, 0.22, t));
+    col = mix(col, fire, smoothstep(0.18, 0.55, t));
+    col = mix(col, gold, smoothstep(0.48, 0.82, t));
+    col = mix(col, whiteH, smoothstep(0.82, 1.00, t));
+    return col;
+}
+
+vec3 sceneRadiantFurnace(vec2 fragCoord, float time) {
+    float local   = 1.0;
+    float variant = 6.0;
+
+    vec2 p = aspectUv(fragCoord, 1.22 + local * 0.10 + variant * 0.04);
+    p *= rot(time * (0.02 + local * 0.008));
+
+    float gridScale = 2.6 + local * 0.45 + variant * 0.12;
+    vec2 gp = abs(fract(p * gridScale) - 0.5);
+
+    float lineCore = min(gp.x, gp.y);
+    float lines = exp(-16.0 * lineCore * (1.0 + local * 0.12));
+
+    float waves  = sin((p.x + p.y) * (6.0 + local * 1.6) + time * (1.0 + variant * 0.10));
+    float pulses = sin(length(p) * (10.0 + local * 2.4) - time * (1.7 + local * 0.10));
+    float mist   = fbm(p * (2.0 + local * 0.35));
+
+    float radialHeat = exp(-1.8 * length(p));
+    float emberNoise = fbm(p * 3.2 + vec2(time * 0.06, -time * 0.03));
+    float sparks = pow(max(noise(p * 20.0 + time * 0.35) - 0.87, 0.0) * 6.0, 2.0);
+
+    float v = 0.0;
+    v += lines * 0.42;
+    v += waves * 0.14;
+    v += pulses * 0.18;
+    v += mist * 0.20;
+    v += radialHeat * 0.18;
+    v += emberNoise * 0.14;
+    v += sparks * 0.08;
+
+    v = clamp(v, 0.0, 1.0);
+
+    float r = length(p);
+    float furnaceGlow = smoothstep(1.6, 0.0, r);
+    float chamber = 0.65 + 0.35 * furnaceGlow;
+
+    vec3 col = furnacePalette(pow(v, 0.88));
+    col *= chamber;
+
+    col += vec3(1.00, 0.55, 0.12) * pow(lines, 3.0) * 0.12;
+    col += vec3(1.00, 0.35, 0.05) * radialHeat * 0.10;
+    col += vec3(1.00, 0.85, 0.45) * sparks * 0.10;
+    col *= 0.85 + 0.25 * furnaceGlow;
+
+    return col;
+}
+
+void mainImage(out vec4 fragColor, in vec2 fragCoord) {
+    float time = iTime;
+
+    vec3 col = sceneRadiantFurnace(fragCoord, time);
+
+    col = pow(max(col, 0.0), vec3(0.94));
+
+    fragColor = vec4(col, 1.0);
 }
 `;
 

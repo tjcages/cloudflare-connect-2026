@@ -4,17 +4,17 @@ import {
 } from "@necatikcl/stripes-engine";
 
 /**
- * The lab's factory "Section-grid Rain" engine recipe (light theme), lifted
- * for the agenda panels. Same source of truth as the lab's Factory reset /
- * Graphic → Rain seeding: `apps/lab/src/factoryDefaults.json` with
- * `sparkle.gaps.enabled` armed. Sections that ship disabled (cursor trail,
- * click wave, letters, detected frames…) lean on `normalizeEngineConfig`
- * defaults instead of restating every field.
+ * The designer-authored agenda rain recipe: the lab's factory "Section-grid
+ * Rain" engine config (`apps/lab/src/factoryDefaults.json` with
+ * `sparkle.gaps.enabled` armed) plus the values authored through the Agenda
+ * Rain panel and copied out via its Config → Copy config section. Sections
+ * that ship disabled (cursor trail, click wave, letters, detected frames…)
+ * lean on `normalizeEngineConfig` defaults instead of restating every field.
  */
 const AGENDA_RAIN_BASE = {
   transform: { fit: "width", zoom: 1, panX: 0, panY: 0 },
   adjustments: {
-    brightness: -0.5,
+    brightness: -0.11,
     exposure: 1.5,
     contrast: 0.54,
     blackPoint: 0.02,
@@ -29,7 +29,7 @@ const AGENDA_RAIN_BASE = {
   },
   background: {
     color: 16777215,
-    transparent: false,
+    transparent: true,
     gradient: { enabled: false },
     grid: { enabled: false },
     stars: {
@@ -67,8 +67,8 @@ const AGENDA_RAIN_BASE = {
     },
   },
   grid: {
-    cellWidth: 17,
-    cellHeight: 1,
+    cellWidth: 13,
+    cellHeight: 15,
     gapX: 12,
     gapY: 0,
     cornerRadius: 0,
@@ -85,8 +85,8 @@ const AGENDA_RAIN_BASE = {
     },
   },
   stripes: [
-    { color: 16448250, startFrom: 0, width: 0.5, opacity: 1 },
-    { color: 16775400, startFrom: 0.1644, width: 1, opacity: 1 },
+    { color: 16448250, startFrom: 0, width: 0.5, opacity: 0.41 },
+    { color: 16775400, startFrom: 0.1644, width: 1, opacity: 0 },
     { color: 16707538, startFrom: 0.4418, width: 1.5, opacity: 1 },
     { color: 16769973, startFrom: 0.6357, width: 2, opacity: 1 },
     { color: 9451772, startFrom: 0.7104, width: 2.5, opacity: 1 },
@@ -128,9 +128,17 @@ const AGENDA_RAIN_BASE = {
       direction: "leftToRight",
     },
   },
-  stripeDots: { enabled: false },
-  stripeBorder: { enabled: false },
-  gridLines: { enabled: false },
+  stripeDots: {
+    enabled: false,
+    density: 0.5,
+    randomVisibility: 1,
+    sizePx: 1.5,
+    brightness: 0.35,
+    hueDriftDeg: 0,
+    saturationBoost: 0,
+  },
+  stripeBorder: { enabled: false, minWidthPx: 2, density: 1 },
+  gridLines: { enabled: false, brightness: 0.35, density: 1 },
   frames: { enabled: false },
   flames: {
     enabled: true,
@@ -164,7 +172,7 @@ const AGENDA_RAIN_BASE = {
   },
   renderMode: "sharp",
   renderIntensity: 1,
-  renderParams: [0.5, 0.5, 0.5, 0.5],
+  renderParams: [0.5, 0.5, 0.5, 0.52],
   renderColorA: 2236962,
   renderColorB: 16777215,
 } as Partial<EngineConfig>;

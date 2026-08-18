@@ -2,10 +2,13 @@ import { describe, expect, it } from "vitest";
 import { AGENDA_RAIN_CONFIG } from "./agenda-rain-config";
 import { AGENDA_RAIN_DEFAULTS } from "./agenda-rain-controls";
 import {
-  DEFAULT_RAIN_SHADER_ID,
   findRainShaderSource,
   RAIN_SHADER_LIBRARY,
 } from "./rain-shader-library";
+import {
+  DEFAULT_RAIN_SHADER_ID,
+  DEFAULT_RAIN_SHADER_SOURCE,
+} from "./rain-texture-source";
 
 describe("agenda rain controls", () => {
   it("arms the rain streams in the production config", () => {
@@ -13,9 +16,9 @@ describe("agenda rain controls", () => {
     expect(AGENDA_RAIN_DEFAULTS.rainEnabled).toBe(true);
   });
 
-  it("keeps the factory section-grid rain grid", () => {
-    expect(AGENDA_RAIN_CONFIG.grid.cellWidth).toBe(17);
-    expect(AGENDA_RAIN_CONFIG.grid.cellHeight).toBe(1);
+  it("keeps the authored section-grid rain grid", () => {
+    expect(AGENDA_RAIN_CONFIG.grid.cellWidth).toBe(13);
+    expect(AGENDA_RAIN_CONFIG.grid.cellHeight).toBe(15);
     expect(AGENDA_RAIN_CONFIG.grid.gapX).toBe(12);
     expect(AGENDA_RAIN_CONFIG.grid.angleDeg).toBe(45);
     expect(AGENDA_RAIN_CONFIG.grid.orientation).toBe("vertical");
@@ -34,12 +37,15 @@ describe("agenda rain controls", () => {
     );
   });
 
-  it("defaults the texture source to the lab's Graphic Rain preset", () => {
+  it("defaults the texture source to the authored library preset", () => {
     expect(AGENDA_RAIN_DEFAULTS.shaderPreset).toBe(DEFAULT_RAIN_SHADER_ID);
     const defaultEntry = RAIN_SHADER_LIBRARY.find(
       ({ id }) => id === DEFAULT_RAIN_SHADER_ID
     );
-    expect(defaultEntry?.label).toBe("Wave to Full Screen");
+    expect(defaultEntry?.label).toBe("Page Grid");
+    // The inlined copy must stay in step with the library entry it mirrors.
+    expect(DEFAULT_RAIN_SHADER_SOURCE).toContain("sceneRadiantFurnace");
+    expect(defaultEntry?.source).toContain("sceneRadiantFurnace");
   });
 
   it("ships a picker-ready shader library with unique ids and sources", () => {
