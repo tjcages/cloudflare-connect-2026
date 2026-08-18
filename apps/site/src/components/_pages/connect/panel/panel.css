@@ -13,23 +13,6 @@
  *   apps/site/src/components/_pages/connect/panel/panel.css
  */
 
-.playground-leva-panel {
-  --leva-panel-bg: #1c1c1c;
-  --leva-surface: #2a2a2a;
-  --leva-surface-hover: #313131;
-  --leva-border: #262626;
-  --leva-border-subtle: #262626;
-  --leva-text: #d4d4d4;
-  --leva-text-muted: #a3a3a3;
-  --leva-text-faint: #6f6f6f;
-  --leva-accent: #a3a3a3;
-  --leva-checkbox-border: #4a4a4a;
-  --leva-accent-soft: #5a5a5a;
-  --leva-accent-strong: #7f7f7f;
-  --leva-highlight-soft: #3f3f3f;
-  --leva-highlight-mid: #8a8a8a;
-}
-
 /* ── Playground Leva sidebar (white panel with soft gray controls) ── */
 .playground-leva-panel {
   --leva-panel-bg: #ffffff;
@@ -1210,18 +1193,6 @@
   transition-property: none !important;
 }
 
-.playground-leva-panel {
-  --leva-panel-bg: #1c1c1c;
-  --leva-surface: #2a2a2a;
-  --leva-surface-hover: #313131;
-  --leva-border: #262626;
-  --leva-border-subtle: #262626;
-  --leva-text: #d4d4d4;
-  --leva-text-muted: #a3a3a3;
-  --leva-text-faint: #6f6f6f;
-  --leva-accent: #a3a3a3;
-}
-
 .timeline-editor.playground-leva-panel button.timeline-resize-handle.timeline-height-resize-handle:not(:disabled),
 .timeline-editor.playground-leva-panel button.timeline-resize-handle.timeline-inspector-resize-handle:not(:disabled),
 .timeline-editor.playground-leva-panel button.timeline-resize-handle.timeline-height-resize-handle:not(:disabled):hover,
@@ -1412,4 +1383,21 @@
 .surface-layer-actions button:hover:not(:disabled) {
   background-color: var(--color-builder-chip-surface) !important;
   color: var(--color-builder-text);
+}
+
+.playground-leva-panel {
+  --leva-panel-bg: #1c1c1c;
+  --leva-surface: #2a2a2a;
+  --leva-surface-hover: #313131;
+  --leva-border: #262626;
+  --leva-border-subtle: #262626;
+  --leva-text: #d4d4d4;
+  --leva-text-muted: #a3a3a3;
+  --leva-text-faint: #6f6f6f;
+  --leva-accent: #a3a3a3;
+  --leva-checkbox-border: #4a4a4a;
+  --leva-accent-soft: #5a5a5a;
+  --leva-accent-strong: #7f7f7f;
+  --leva-highlight-soft: #3f3f3f;
+  --leva-highlight-mid: #8a8a8a;
 }

@@ -68,7 +68,14 @@ export function ConnectLevaPanel({
           </svg>
         </button>
       </div>
-      <div className="connect-leva-panel__body">
+      {/*
+        The lab's rules assume leva's root is the panel's direct last child
+        (`.playground-leva-panel > div:last-child` un-fixes and un-caps it), so
+        the scroller carries the class too. Without it leva's root stays
+        stretched to the scroller's height and its content spills instead of
+        scrolling.
+      */}
+      <div className="connect-leva-panel__body playground-leva-panel">
         <LevaPanel
           store={store}
           theme={LAB_LEVA_THEME}

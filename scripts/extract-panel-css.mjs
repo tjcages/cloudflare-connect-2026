@@ -66,6 +66,7 @@ const DROP =
   /\.lab-shell|\.lab-client|playground-workflow|playground-canvas-size/;
 
 const kept = [];
+const darkVars = [];
 for (const { text, maskedText } of rules) {
   const selEnd = maskedText.indexOf("{");
   // Drop any `;`-terminated at-statements (@import, @charset) that precede the
@@ -88,7 +89,10 @@ for (const { text, maskedText } of rules) {
       .map((d) => d.trim())
       .filter((d) => d.startsWith("--leva-"));
     if (vars.length) {
-      kept.push(`.playground-leva-panel {\n  ${vars.join(";\n  ")};\n}`);
+      // Appended after every other rule: the source's bare
+      // `.playground-leva-panel` rule carries the *light* set at the same
+      // specificity, so the dark set has to come last to win.
+      darkVars.push(...vars);
     }
     continue;
   }
@@ -112,6 +116,17 @@ const header = `/*
  *   apps/site/src/components/_pages/connect/panel/panel.css
  */
 `;
+
+if (darkVars.length) {
+  // Several source blocks define the dark set; last declaration of each wins.
+  const deduped = new Map();
+  for (const decl of darkVars) {
+    deduped.set(decl.slice(0, decl.indexOf(":")).trim(), decl);
+  }
+  kept.push(
+    `.playground-leva-panel {\n  ${[...deduped.values()].join(";\n  ")};\n}`,
+  );
+}
 
 writeFileSync(process.argv[3], `${header}\n${kept.join("\n\n")}\n`);
 console.log(`kept ${kept.length} of ${rules.length} top-level rules`);
