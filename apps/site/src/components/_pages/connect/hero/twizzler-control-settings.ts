@@ -75,3 +75,22 @@ export const resolveConnectTwizzlerSettings = (
     ...CONNECT_HERO_TWIZZLER_DEFAULTS,
     ...values,
   });
+
+export const CONNECT_TWIZZLER_PANEL_ID = "connect-twizzler-hero-v3";
+
+/**
+ * Panel settings persisted by the dev panel, merged over the authored
+ * defaults — or null when this browser has none. Client-only (localStorage).
+ */
+export const loadConnectTwizzlerControlSettings =
+  (): TwizzlerControlSettings | null => {
+    try {
+      const raw = localStorage.getItem(`panels:${CONNECT_TWIZZLER_PANEL_ID}`);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as Partial<TwizzlerControlSettings>;
+      if (!parsed || typeof parsed !== "object") return null;
+      return { ...CONNECT_TWIZZLER_CONTROL_DEFAULTS, ...parsed };
+    } catch {
+      return null;
+    }
+  };

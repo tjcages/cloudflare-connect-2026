@@ -1,15 +1,21 @@
 import { StripesShader } from "@necatikcl/stripes-engine/react";
 import type { TwizzlerSettings } from "@tjcages/connect-twizzler";
 import { ConnectTwizzler } from "@tjcages/connect-twizzler/react";
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { asThemedEngineConfig } from "@/components/stripes-texture/config";
 import type { IslandProps } from "@/types/island-props";
 import {
   CONNECT_HERO_RAIN_DEFAULT,
+  loadRainControlSettings,
   RAIN_SHADER_ERROR_EVENT,
+  resolveConnectHeroRain,
   type ConnectHeroRain,
 } from "./rain-control-settings";
 import { CONNECT_HERO_TWIZZLER_DEFAULTS } from "./twizzler-defaults";
+import {
+  loadConnectTwizzlerControlSettings,
+  resolveConnectTwizzlerSettings,
+} from "./twizzler-control-settings";
 
 interface Props {
   posterSrc?: string;
@@ -23,14 +29,31 @@ export default function ConnectHeroTwizzler({ posterSrc }: IslandProps<Props>) {
     CONNECT_HERO_TWIZZLER_DEFAULTS
   );
   const [rain, setRain] = useState<ConnectHeroRain>(CONNECT_HERO_RAIN_DEFAULT);
-  const [panelLoaded, setPanelLoaded] = useState(false);
+  // Single source of truth for the dev panel's visibility; persisted both
+  // ways so a refresh restores the last open/closed choice (closed on a
+  // fresh browser). Client islands SSR, so localStorage reads live in
+  // effects.
+  const [panelOpen, setPanelOpen] = useState(false);
+
+  const setPanelVisible = useCallback((next: boolean) => {
+    setPanelOpen(next);
+    try {
+      localStorage.setItem(PANEL_STORAGE_KEY, String(next));
+    } catch {
+      // Private-mode / quota failures must not break the toggle.
+    }
+  }, []);
 
   useEffect(() => {
-    if (localStorage.getItem(PANEL_STORAGE_KEY) === "true") {
-      setPanelLoaded(true);
-      return;
-    }
+    // Seed the shaders from this browser's persisted panel tuning so the
+    // authored look (or saved tweaks) render without the panel mounting.
+    const stored = loadConnectTwizzlerControlSettings();
+    if (stored) setSettings(resolveConnectTwizzlerSettings(stored));
+    setRain(resolveConnectHeroRain(loadRainControlSettings()));
+    setPanelOpen(localStorage.getItem(PANEL_STORAGE_KEY) === "true");
+  }, []);
 
+  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (
         event.key.toLowerCase() !== "d" ||
@@ -41,18 +64,18 @@ export default function ConnectHeroTwizzler({ posterSrc }: IslandProps<Props>) {
         return;
       event.preventDefault();
       event.stopPropagation();
-      setPanelLoaded(true);
-      localStorage.setItem(PANEL_STORAGE_KEY, "true");
+      setPanelVisible(!panelOpen);
     };
     window.addEventListener("keydown", onKeyDown, true);
     return () => window.removeEventListener("keydown", onKeyDown, true);
-  }, []);
+  }, [panelOpen, setPanelVisible]);
 
   return (
     <>
-      {panelLoaded ? (
+      {panelOpen ? (
         <Suspense fallback={null}>
           <ConnectTwizzlerControls
+            onClose={() => setPanelVisible(false)}
             onRainChange={setRain}
             onSettingsChange={setSettings}
           />

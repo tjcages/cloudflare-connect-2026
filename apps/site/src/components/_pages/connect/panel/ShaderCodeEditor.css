@@ -1,0 +1,92 @@
+/* GLSL editor chrome, ported from the leva panel's connect-panel.css with the
+   leva theme vars swapped for the @tjcages/panels --panel-* tokens. */
+
+.connect-shader-code {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
+  padding: 4px 0;
+}
+
+.connect-shader-code textarea {
+  width: 100%;
+  min-height: 180px;
+  resize: vertical;
+  border: 1px solid var(--panel-border, #292929);
+  border-radius: 4px;
+  background: var(--panel-surface, #373737);
+  color: var(--panel-label-active, #fefefe);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  line-height: 1.45;
+  padding: 6px;
+  white-space: pre;
+  overflow-x: auto;
+}
+
+.connect-shader-code__actions {
+  display: flex;
+  gap: 6px;
+}
+
+.connect-shader-code__actions button {
+  border: 0;
+  border-radius: 4px;
+  background: var(--panel-action-bg, #292929);
+  color: var(--panel-action-text, #fefefe);
+  cursor: pointer;
+  font-size: 10px;
+  padding: 4px 8px;
+}
+
+.connect-shader-code__actions button:hover:not(:disabled) {
+  background: var(--panel-action-bg-hover, #313131);
+  color: var(--panel-action-text-hover, #fefefe);
+}
+
+.connect-shader-code__actions button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.connect-shader-code__error {
+  margin: 0;
+  max-height: 96px;
+  overflow: auto;
+  border-radius: 4px;
+  background: rgb(127 29 29 / 0.35);
+  color: var(--panel-danger-hover, #fca5a5);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 9px;
+  line-height: 1.4;
+  padding: 6px;
+  white-space: pre-wrap;
+}
+
+.connect-shader-code__hint {
+  margin: 0;
+  color: var(--panel-text-muted, #535760);
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.connect-shader-code__preset {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--panel-text-muted, #8c92a4);
+  font-size: 10px;
+}
+
+.connect-shader-code__preset select {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--panel-border, #292929);
+  border-radius: 4px;
+  background: var(--panel-surface, #373737);
+  color: var(--panel-label-active, #fefefe);
+  font-size: 10px;
+  padding: 3px 6px;
+}
