@@ -5,14 +5,16 @@ import Section from "@/layouts/Section.astro";
 
 <Section noGridArea layout="headerless" sectionEyebrow="Features">
   <div
-    class="relative grid grid-cols-3 before:inside-border before:border-border-default"
+    class="relative grid grid-cols-3 max-lg:grid-cols-1 before:inside-border before:border-border-default"
   >
     <slot />
 
-    <DashedLineGrid
-      client:visible={{ rootMargin: "200px" }}
-      columns={3}
-      rows={1}
-    />
+    <div class="pointer-events-none absolute inset-0 max-lg:hidden">
+      <DashedLineGrid
+        client:visible={{ rootMargin: "200px" }}
+        columns={3}
+        rows={1}
+      />
+    </div>
   </div>
 </Section>
