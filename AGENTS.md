@@ -52,6 +52,13 @@ Use `pi` (install) and `pir` (run scripts). Never `npm`, `pnpm`, `yarn`, or `npx
 - **Search before create.** Prefer Linear-generated branch names (`ty/cf-N-…`).
 - **Boundary:** Shader work stays in `apps/lab` + `packages/stripes-engine`. Connect site work stays in `apps/site` and its separate Linear project.
 
+## Dev panels
+
+Always render the shader dev panel through a React portal to `document.body`
+(`createPortal`). Host sections use `isolate` / `overflow-hidden`, which trap a
+fixed-position child in their stacking context and clip it — an inline panel
+ends up underneath the page. This applies to any overlay the panel opens.
+
 ## Safety
 
 - Preserve user changes and avoid destructive git commands.

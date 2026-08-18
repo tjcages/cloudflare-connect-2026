@@ -1,0 +1,1403 @@
+/*
+ * Connect shader dev-panel styling.
+ *
+ * GENERATED — do not edit by hand. Extracted from the lab's
+ * `apps/lab/src/playground.css` (the section-grid-generator panel) so the
+ * site's cmd+shift+d panel renders identically. The panel wrapper keeps the
+ * `.playground-leva-panel` class these selectors are scoped to, and the dark
+ * `--leva-*` set is flattened onto that wrapper because this panel is always
+ * dark.
+ *
+ * Regenerate: node scripts/extract-panel-css.mjs \
+ *   apps/lab/src/playground.css \
+ *   apps/site/src/components/_pages/connect/panel/panel.css
+ */
+
+/* ── Playground Leva sidebar (white panel with soft gray controls) ── */
+.playground-leva-panel {
+  --leva-panel-bg: #ffffff;
+  --leva-surface: #eeeeee;
+  --leva-surface-hover: #e6e6e6;
+  --leva-border: #f3f3f3;
+  --leva-border-subtle: #f3f3f3;
+  --leva-text: #525252;
+  --leva-text-muted: #737373;
+  --leva-text-faint: #a3a3a3;
+  --leva-accent: #8a8a8a;
+  --leva-checkbox-border: #d4d4d4;
+  --leva-accent-soft: #bdbdbd;
+  --leva-accent-strong: #8f8f8f;
+  --leva-highlight-soft: #d6d6d6;
+  --leva-highlight-mid: #a8a8a8;
+  --leva-radius: 4px;
+  padding-top: 0;
+  color: var(--leva-text-muted);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.playground-leva-panel,
+.playground-leva-panel > div:last-child {
+  background-color: var(--leva-panel-bg);
+}
+
+.playground-leva-panel > div:last-child {
+  position: relative !important;
+  top: auto !important;
+  right: auto !important;
+  width: 100% !important;
+  max-height: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  box-sizing: border-box;
+}
+
+/* Folder section titles */
+.playground-leva-panel [class*="StyledTitle"],
+.playground-leva-panel div:has(> svg + span),
+.playground-leva-panel [class*="dosbYs"] {
+  color: var(--leva-text);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+/* Row labels */
+.playground-leva-panel label[for] {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  color: var(--leva-text-muted);
+}
+
+.playground-leva-panel div:has(> div > label[for]) {
+  grid-template-columns: minmax(0, 1fr) 155px !important;
+  column-gap: 8px !important;
+}
+
+/* Buttons — filled gray chips, no extra outline.
+   Exclude segmented control + color swatches (CF-45 / CF-48): those need their own chrome. */
+.playground-leva-panel button:not(.lab-panel-mode-btn):not(.library-color-input-swatch):not(.stripe-colors-leva-swatch),
+.playground-leva-panel
+  button:not(.lab-panel-mode-btn):not(.library-color-input-swatch):not(.stripe-colors-leva-swatch):not(:disabled),
+.playground-leva-panel
+  button:not(.lab-panel-mode-btn):not(.library-color-input-swatch):not(.stripe-colors-leva-swatch):disabled {
+  color: var(--leva-text) !important;
+  background-color: var(--leva-surface) !important;
+  border: 1px solid transparent !important;
+  border-radius: var(--leva-radius);
+  box-shadow: none !important;
+}
+
+.playground-leva-panel
+  button:not(.lab-panel-mode-btn):not(.library-color-input-swatch):not(.stripe-colors-leva-swatch):not(:disabled) {
+  cursor: pointer;
+}
+
+.playground-leva-panel
+  button:not(.lab-panel-mode-btn):not(.library-color-input-swatch):not(.stripe-colors-leva-swatch):not(
+    :disabled
+  ):hover {
+  color: var(--leva-text) !important;
+  background-color: var(--leva-surface-hover) !important;
+  border-color: transparent !important;
+}
+
+.playground-leva-panel
+  button:not(.lab-panel-mode-btn):not(.library-color-input-swatch):not(.stripe-colors-leva-swatch):disabled {
+  cursor: not-allowed;
+  color: var(--leva-text-faint) !important;
+  background-color: var(--color-builder-disabled-surface) !important;
+  border-color: transparent !important;
+  opacity: 1;
+}
+
+.playground-leva-panel .time-transport {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+}
+
+.playground-leva-panel .time-transport-readout {
+  box-sizing: border-box;
+  width: 100%;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: var(--leva-radius);
+  background: var(--leva-surface);
+  color: var(--leva-text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  line-height: 24px;
+  text-align: right;
+}
+
+.playground-leva-panel .time-transport-buttons {
+  display: grid;
+  grid-template-columns: 1fr 0.72fr 1fr 1fr;
+  gap: 4px;
+  width: 100%;
+}
+
+.playground-leva-panel .time-transport-buttons > button {
+  box-sizing: border-box;
+  width: 100% !important;
+  min-width: 0;
+  height: 24px !important;
+  padding: 0 4px !important;
+  border: 0 !important;
+  border-radius: var(--leva-radius) !important;
+  background: var(--leva-elevation2) !important;
+  color: var(--leva-text-muted) !important;
+  font-size: 10px !important;
+  line-height: 24px !important;
+  user-select: none;
+  touch-action: none;
+}
+
+.playground-leva-panel .time-transport-buttons > button:hover,
+.playground-leva-panel .time-transport-buttons > button:focus-visible {
+  background: var(--leva-elevation3) !important;
+  color: var(--leva-text) !important;
+  outline: none;
+}
+
+.playground-leva-panel .time-transport-buttons > .time-transport-play {
+  color: var(--leva-accent2) !important;
+}
+
+/* Import JSON: full-width textarea without a side label (label is a single space). */
+.playground-leva-panel [class*="grzFYX"]:has(> div:first-child > label[title=" "]) {
+  grid-template-columns: minmax(0, 1fr) !important;
+  column-gap: 0 !important;
+  width: 100% !important;
+}
+
+.playground-leva-panel [class*="grzFYX"]:has(> div:first-child > label[title=" "]) > div:first-child {
+  display: none !important;
+}
+
+.playground-leva-panel [class*="grzFYX"]:has(> div:first-child > label[title=" "]) > [class*="textArea-true"] {
+  width: 100% !important;
+  max-width: none !important;
+}
+
+.playground-leva-panel [class*="grzFYX"]:has(> div:first-child > label[title=" "]) textarea {
+  width: 100% !important;
+  box-sizing: border-box;
+}
+
+/* Stripe colors table inside the Stripes Leva folder — single full-width column. */
+.playground-leva-panel div:has(> .playground-stripe-colors-leva-row) {
+  grid-template-columns: minmax(0, 1fr) !important;
+  column-gap: 0 !important;
+}
+
+.playground-leva-panel div:has(> .playground-stripe-colors-leva-row) > *:not(.playground-stripe-colors-leva-row) {
+  display: none !important;
+}
+
+.playground-leva-panel div:has(> .twizzler-gradient-leva-row) {
+  grid-template-columns: minmax(0, 1fr) !important;
+  column-gap: 0 !important;
+}
+
+.playground-leva-panel div:has(> .twizzler-gradient-leva-row) > *:not(.twizzler-gradient-leva-row) {
+  display: none !important;
+}
+
+/* Stripe colors table — column-split grid: draggable color column + static threshold/width ladder. */
+.playground-leva-panel .stripe-colors-table {
+  --sc-row-h: 32px;
+  --sc-grip-w: 18px;
+  display: grid;
+  width: 100%;
+  row-gap: 0;
+  font-size: 11px;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-header,
+.playground-leva-panel .stripe-colors-table .stripe-colors-color-row,
+.playground-leva-panel .stripe-colors-table .stripe-colors-ladder-row {
+  display: grid;
+  align-items: center;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-palette-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-palette-title {
+  color: var(--leva-text-muted);
+  font-weight: 400;
+  line-height: 1.2;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-palette-toolbar {
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  justify-content: end;
+  gap: 6px;
+  min-width: 0;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-leva-select {
+  width: 100%;
+  min-width: 0;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-leva-select > div,
+.playground-leva-panel .stripe-colors-table .stripe-colors-leva-number > div {
+  width: 100%;
+  min-width: 0;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-ramp-easing {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-easing-row {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  align-items: start;
+  gap: 6px;
+  min-width: 0;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-easing-control {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.playground-leva-panel .stripe-colors-easing-graph {
+  width: 100%;
+  height: 88px;
+  display: block;
+  overflow: visible;
+  border-radius: var(--leva-radius);
+  background: color-mix(in srgb, var(--leva-surface) 68%, transparent);
+  touch-action: none;
+  user-select: none;
+}
+
+.playground-leva-panel .stripe-colors-easing-graph.is-editable {
+  cursor: crosshair;
+}
+
+.playground-leva-panel .stripe-colors-easing-graph line {
+  stroke: color-mix(in srgb, var(--leva-text-muted) 28%, transparent);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.playground-leva-panel .stripe-colors-easing-graph polyline {
+  fill: none;
+  stroke: var(--leva-text-muted);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.playground-leva-panel .stripe-colors-easing-handle-line {
+  stroke: color-mix(in srgb, var(--leva-text-muted) 34%, transparent);
+  stroke-width: 1;
+  stroke-dasharray: 2 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.playground-leva-panel .stripe-colors-easing-handle {
+  fill: var(--leva-text-muted);
+  stroke: var(--leva-surface);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.twizzler-gradient-editor {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  padding: 2px 0 6px;
+  font-size: 11px;
+}
+
+.twizzler-gradient-editor.is-disabled {
+  pointer-events: none;
+  opacity: 0.45;
+}
+
+.twizzler-gradient-editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.twizzler-gradient-editor-title {
+  color: var(--leva-text-muted);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.twizzler-gradient-editor-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.playground-leva-panel button.twizzler-gradient-editor-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 7px;
+  font-size: 10px;
+}
+
+.twizzler-gradient-graph {
+  position: relative;
+  width: 100%;
+  height: 120px;
+  box-sizing: border-box;
+  border-radius: var(--leva-radius);
+  background: color-mix(in srgb, var(--leva-surface) 68%, transparent);
+  touch-action: none;
+  user-select: none;
+  overflow: visible;
+}
+
+.twizzler-gradient-graph.is-ramp {
+  height: 56px;
+  padding: 8px 8px 0;
+}
+
+.twizzler-gradient-graph.is-editable {
+  cursor: crosshair;
+}
+
+.twizzler-gradient-track {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+.twizzler-gradient-fill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 30px;
+  border-radius: 4px;
+  pointer-events: none;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--leva-text-muted) 22%, transparent);
+}
+
+.twizzler-gradient-baseline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 10px;
+  height: 1px;
+  background: color-mix(in srgb, var(--leva-text-muted) 34%, transparent);
+  pointer-events: none;
+}
+
+.twizzler-gradient-field {
+  position: absolute;
+  left: calc(12 / 168 * 100%);
+  top: calc(12 / 120 * 100%);
+  width: calc(144 / 168 * 100%);
+  height: calc(96 / 120 * 100%);
+  border-radius: 2px;
+  pointer-events: none;
+  image-rendering: auto;
+}
+
+.twizzler-gradient-plane {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.twizzler-gradient-graph line {
+  stroke: color-mix(in srgb, var(--leva-text-muted) 28%, transparent);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.twizzler-gradient-handles {
+  position: absolute;
+  left: calc(12 / 168 * 100%);
+  top: calc(12 / 120 * 100%);
+  width: calc(144 / 168 * 100%);
+  height: calc(96 / 120 * 100%);
+  pointer-events: none;
+}
+
+.twizzler-gradient-handle {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  border-radius: 999px;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 45%);
+  transform: translate(-50%, -50%);
+  cursor: grab;
+}
+
+.twizzler-gradient-handle.is-selected {
+  width: 20px;
+  height: 20px;
+  border-width: 4px;
+  border-color: #fff;
+}
+
+.twizzler-gradient-handle.is-ramp {
+  top: auto;
+  bottom: 4px;
+  width: 12px;
+  height: 12px;
+  transform: translate(-50%, 0);
+}
+
+.twizzler-gradient-handle.is-ramp.is-selected {
+  width: 14px;
+  height: 14px;
+  border-width: 3px;
+}
+
+.twizzler-gradient-selected {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.twizzler-gradient-selected-meta {
+  display: grid;
+  min-width: 0;
+}
+
+.twizzler-gradient-selected-name,
+.twizzler-gradient-selected-code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.twizzler-gradient-selected-name {
+  color: var(--leva-text);
+}
+
+.twizzler-gradient-selected-code,
+.twizzler-gradient-selected-offset {
+  color: var(--leva-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-drawer-toggle {
+  display: grid !important;
+  grid-template-columns: 14px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  height: 28px;
+  margin-top: 8px;
+  padding: 0 8px !important;
+  border: 1px solid transparent !important;
+  border-radius: var(--leva-radius) !important;
+  background-color: var(--leva-surface) !important;
+  color: var(--leva-text-muted) !important;
+  font-size: 11px;
+  text-align: left;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-drawer-toggle:not(:disabled):hover,
+.playground-leva-panel .stripe-colors-table .stripe-colors-drawer-toggle:not(:disabled):focus-visible {
+  background-color: var(--leva-surface-hover) !important;
+  color: var(--leva-text) !important;
+  outline: none;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-drawer-toggle span:nth-child(2) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-drawer-count {
+  color: var(--leva-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-drawer-panel {
+  display: grid;
+  row-gap: 8px;
+  min-width: 0;
+  padding-top: 8px;
+}
+
+.playground-leva-panel .stripe-colors-table button.stripe-colors-palette-action {
+  min-width: 44px;
+  height: 24px;
+  padding: 0 8px !important;
+  border: 1px solid transparent !important;
+  border-radius: var(--leva-radius) !important;
+  background-color: var(--leva-surface) !important;
+  color: var(--leva-text-muted) !important;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.playground-leva-panel .stripe-colors-table button.stripe-colors-palette-action:not(:disabled):hover,
+.playground-leva-panel .stripe-colors-table button.stripe-colors-palette-action:not(:disabled):focus-visible {
+  background-color: var(--leva-surface-hover) !important;
+  color: var(--leva-text) !important;
+}
+
+.playground-leva-panel .stripe-colors-table button.stripe-colors-palette-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-header {
+  grid-template-columns: minmax(0, 0.78fr) minmax(0, 2.22fr);
+  column-gap: 8px;
+  padding-bottom: 6px;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-header-color {
+  min-width: 0;
+  padding-left: calc(var(--sc-grip-w) + 8px);
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-header-ladder {
+  display: grid;
+  grid-template-columns: minmax(92px, 1fr) 56px 16px;
+  column-gap: 8px;
+  justify-items: end;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-header-ladder .stripe-colors-table-label {
+  overflow: visible;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-body {
+  display: grid;
+  grid-template-columns: minmax(0, 0.78fr) minmax(0, 2.22fr);
+  column-gap: 8px;
+  align-items: start;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-color-column {
+  display: grid;
+  grid-auto-rows: var(--sc-row-h);
+  row-gap: 0;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-color-row {
+  grid-template-columns: var(--sc-grip-w) minmax(24px, 1fr);
+  column-gap: 8px;
+  height: var(--sc-row-h);
+  position: relative;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-opacity-control {
+  display: grid;
+  grid-template-columns: minmax(44px, 1fr) 22px;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  width: 100%;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-opacity-control input[type="range"] {
+  width: 100%;
+  min-width: 0;
+  accent-color: var(--leva-accent);
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-opacity-control output {
+  color: var(--leva-text-muted);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-detail-list {
+  display: grid;
+  row-gap: 8px;
+  min-width: 0;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-detail-row {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--leva-surface);
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-detail-row:last-child {
+  border-bottom: none;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-color-header {
+  display: grid;
+  grid-template-columns: var(--sc-grip-w) 24px minmax(0, 1fr) 16px;
+  align-items: center;
+  column-gap: 8px;
+  min-width: 0;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-color-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-color-name,
+.playground-leva-panel .stripe-colors-table .stripe-colors-color-code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-color-name {
+  color: var(--leva-text);
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-color-code {
+  flex: 0 1 auto;
+  color: var(--leva-text-muted);
+  font-size: 10px;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-control-stack {
+  display: grid;
+  row-gap: 6px;
+  min-width: 0;
+  padding-left: calc(var(--sc-grip-w) + 32px);
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-control-row {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  align-items: center;
+  column-gap: 8px;
+  min-width: 0;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-leva-number {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-number-input {
+  width: 100%;
+  height: var(--leva-sizes-rowHeight);
+  min-width: 0;
+  border: 0;
+  border-radius: var(--leva-radii-sm);
+  background: var(--leva-colors-elevation1);
+  color: var(--leva-colors-highlight1);
+  font: inherit;
+  outline: none;
+  padding: 0 8px;
+  text-align: right;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-number-input:focus {
+  box-shadow: 0 0 0 1px var(--leva-colors-accent2);
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-number-input:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-leva-range-grid {
+  width: 100%;
+  min-width: 0;
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 56px;
+  column-gap: 8px;
+  align-items: center;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-control-row > .stripe-colors-table-label:first-child {
+  text-align: left;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-detail-color-row {
+  display: grid;
+  grid-template-columns: var(--sc-grip-w) 36px 46px 48px minmax(0, 1fr);
+  align-items: center;
+  column-gap: 8px;
+  min-width: 0;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-detail-threshold-row {
+  display: grid;
+  grid-template-columns: calc(var(--sc-grip-w) + 36px + 46px + 48px + 32px) minmax(0, 1fr);
+  align-items: center;
+  column-gap: 8px;
+  min-width: 0;
+}
+
+.playground-leva-panel
+  .stripe-colors-table
+  .stripe-colors-detail-threshold-row
+  > .stripe-colors-table-label:first-child {
+  text-align: right;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-detail-width-row {
+  display: grid;
+  grid-template-columns: calc(var(--sc-grip-w) + 36px + 46px + 48px + 32px) 56px 16px;
+  align-items: center;
+  column-gap: 8px;
+  min-width: 0;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-detail-width-row > .stripe-colors-table-label:first-child {
+  text-align: right;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-ladder-column {
+  display: grid;
+  grid-auto-rows: var(--sc-row-h);
+  row-gap: 0;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-ladder-row {
+  grid-template-columns: minmax(92px, 1fr) 56px 16px;
+  column-gap: 8px;
+  align-items: center;
+  height: var(--sc-row-h);
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-threshold-slider {
+  display: grid;
+  grid-template-columns: minmax(56px, 1fr) 28px;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-threshold-slider input[type="range"] {
+  width: 100%;
+  min-width: 0;
+  accent-color: var(--leva-accent);
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-threshold-slider output {
+  color: var(--leva-text-muted);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-grip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  appearance: none;
+  color: var(--leva-text-muted);
+  touch-action: none;
+  cursor: grab;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-grip:disabled {
+  cursor: default;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-grip:active {
+  cursor: grabbing;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-color-row:hover .stripe-colors-grip,
+.playground-leva-panel .stripe-colors-table .stripe-colors-grip:focus-visible {
+  color: var(--leva-text);
+  outline: none;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-color-row[data-dragging="true"],
+.playground-leva-panel .stripe-colors-table .stripe-colors-color-row:active {
+  z-index: 2;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-table-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  font-weight: 400;
+  color: var(--leva-text-muted);
+}
+
+.playground-leva-panel
+  .stripe-colors-table
+  button:not(.stripe-colors-leva-swatch):not(.stripe-colors-palette-action):not(.stripe-colors-drawer-toggle):not(
+    .stripe-colors-save
+  ) {
+  background-color: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.playground-leva-panel
+  .stripe-colors-table
+  button:not(.stripe-colors-leva-swatch):not(.stripe-colors-palette-action):not(.stripe-colors-drawer-toggle):not(
+    .stripe-colors-save
+  ):not(:disabled):hover,
+.playground-leva-panel
+  .stripe-colors-table
+  button:not(.stripe-colors-leva-swatch):not(.stripe-colors-palette-action):not(.stripe-colors-drawer-toggle):not(
+    .stripe-colors-save
+  ):not(:disabled):focus-visible {
+  background-color: transparent !important;
+}
+
+/* Stripe color swatches — match native Leva 24×24 picker chips. */
+.playground-leva-panel .stripe-colors-table button.stripe-colors-leva-swatch {
+  box-sizing: border-box;
+  width: 24px !important;
+  height: 24px !important;
+  min-width: 24px;
+  min-height: 24px;
+  padding: 0 !important;
+  border: 1px solid var(--color-builder-input-border) !important;
+  border-radius: 4px !important;
+  box-shadow: none !important;
+  background-color: var(--stripe-swatch-color) !important;
+}
+
+.playground-leva-panel .stripe-colors-table button.stripe-colors-leva-swatch:not(:disabled):hover,
+.playground-leva-panel .stripe-colors-table button.stripe-colors-leva-swatch:not(:disabled):focus-visible {
+  background-color: var(--stripe-swatch-color) !important;
+  border-color: var(--color-builder-input-border) !important;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-leva-swatch-placeholder {
+  width: 24px;
+  height: 24px;
+}
+
+.playground-leva-panel .stripe-colors-table button.stripe-colors-remove {
+  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  color: var(--leva-text-faint) !important;
+}
+
+.playground-leva-panel .stripe-colors-table button.stripe-colors-remove:not(:disabled):hover {
+  color: var(--color-builder-remove-hover) !important;
+}
+
+.playground-leva-panel .stripe-colors-table button.stripe-colors-add {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+  height: 24px;
+  border: 1px dashed var(--color-builder-input-border) !important;
+  border-radius: var(--leva-radius) !important;
+  background-color: transparent !important;
+  color: var(--leva-text-muted) !important;
+}
+
+.playground-leva-panel .stripe-colors-table button.stripe-colors-add:not(:disabled):hover {
+  border-color: var(--leva-text-faint) !important;
+  color: var(--leva-text) !important;
+  background-color: transparent !important;
+}
+
+.playground-leva-panel .stripe-colors-table button.stripe-colors-save {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 28px;
+  border: 1px solid var(--color-builder-input-border) !important;
+  border-radius: var(--leva-radius) !important;
+  background-color: var(--leva-surface) !important;
+  color: var(--leva-text) !important;
+  font-size: 11px;
+}
+
+.playground-leva-panel .stripe-colors-table button.stripe-colors-save:not(:disabled):hover,
+.playground-leva-panel .stripe-colors-table button.stripe-colors-save:not(:disabled):focus-visible {
+  border-color: var(--leva-text-faint) !important;
+  background-color: var(--leva-surface-hover) !important;
+  outline: none;
+}
+
+.playground-leva-panel .library-color-input {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  height: 24px;
+}
+
+.playground-leva-panel .library-color-input.has-clear {
+  grid-template-columns: 24px minmax(0, 1fr) 22px;
+}
+
+.playground-leva-panel button.library-color-input-swatch {
+  box-sizing: border-box;
+  width: 24px !important;
+  height: 24px !important;
+  min-width: 24px;
+  min-height: 24px;
+  padding: 0 !important;
+  border: 1px solid var(--color-builder-input-border) !important;
+  border-radius: var(--leva-radius) !important;
+  box-shadow: none !important;
+  /* Inline --library-color-input-color from the trigger (hex or display-p3). */
+  background-color: var(--library-color-input-color, #000000) !important;
+  background-image: var(--library-color-input-image, none) !important;
+  background-position:
+    0 0,
+    0 6px,
+    6px -6px,
+    -6px 0 !important;
+  background-size: 12px 12px !important;
+}
+
+.playground-leva-panel button.library-color-input-swatch:not(:disabled):hover,
+.playground-leva-panel button.library-color-input-swatch:not(:disabled):focus-visible {
+  background-color: var(--library-color-input-color, #000000) !important;
+  background-image: var(--library-color-input-image, none) !important;
+  border-color: var(--color-builder-input-border) !important;
+}
+
+.playground-leva-panel .library-color-input-value {
+  display: block;
+  min-width: 0;
+  width: 100%;
+  height: 24px;
+  border: 0;
+  border-radius: var(--leva-radius);
+  background-color: var(--leva-surface);
+  color: var(--leva-text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 10px;
+  line-height: 24px;
+  padding: 0 8px;
+  outline: none;
+  box-sizing: border-box;
+  text-transform: uppercase;
+}
+
+.playground-leva-panel .library-color-input-value.is-token {
+  text-transform: none;
+  font-family: inherit;
+  letter-spacing: 0.01em;
+}
+
+.playground-leva-panel .library-color-input-value::placeholder {
+  color: var(--leva-text-faint);
+  text-transform: none;
+}
+
+.playground-leva-panel .library-color-input-value:focus {
+  box-shadow: inset 0 0 0 1px var(--leva-accent);
+}
+
+.playground-leva-panel .library-color-input-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0 !important;
+  border: 1px solid transparent !important;
+  border-radius: var(--leva-radius) !important;
+  background-color: transparent !important;
+  color: var(--leva-text-muted) !important;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.playground-leva-panel .library-color-input-clear:hover:not(:disabled) {
+  background-color: var(--leva-surface-hover) !important;
+  color: var(--leva-text) !important;
+}
+
+/* Status feedback rows: value only, no side label. */
+.playground-leva-panel div:has(> div:nth-child(2):not(:has(*)):not(:has(input)):not(:has(textarea)):not(:has(select))) {
+  grid-template-columns: minmax(0, 1fr) !important;
+  column-gap: 0 !important;
+}
+
+.playground-leva-panel
+  div:has(> div:nth-child(2):not(:has(*)):not(:has(input)):not(:has(textarea)):not(:has(select)))
+  > div:first-child {
+  display: none;
+}
+
+.playground-leva-panel select + div {
+  border: 1px solid transparent !important;
+  background-color: var(--leva-surface) !important;
+  box-shadow: none !important;
+  border-radius: var(--leva-radius);
+  color: var(--leva-text) !important;
+}
+
+.playground-leva-panel div:has(> select) svg {
+  color: var(--leva-text-muted) !important;
+}
+
+.playground-leva-panel input:not([type="range"]):not([type="checkbox"]):not([type="file"]),
+.playground-leva-panel textarea,
+.playground-leva-panel select {
+  border: none;
+  background-color: transparent;
+  color: var(--leva-text);
+}
+
+.playground-leva-panel input:not([type="range"]):not([type="checkbox"]):not([type="file"]) {
+  padding-left: 4px !important;
+  padding-right: 4px !important;
+}
+
+.playground-leva-panel textarea {
+  padding: 8px !important;
+}
+
+/* Color swatches need their own stroke so white values remain visible. */
+.playground-leva-panel div[style^="color: rgb("] {
+  box-sizing: border-box;
+  border: 1px solid var(--color-builder-input-border) !important;
+}
+
+/* Checkboxes */
+.playground-leva-panel div:has(> input[type="checkbox"]) {
+  width: fit-content;
+  border: none !important;
+  box-shadow: none !important;
+  background-color: transparent !important;
+}
+
+.playground-leva-panel input[type="checkbox"] + label {
+  box-shadow: none !important;
+  border: 1px solid var(--leva-checkbox-border) !important;
+  background-color: transparent !important;
+  border-radius: var(--leva-radius);
+}
+
+.playground-leva-panel input[type="checkbox"]:checked + label {
+  background-color: var(--leva-accent) !important;
+  border-color: transparent !important;
+}
+
+.playground-leva-panel input[type="checkbox"] + label > svg {
+  stroke: var(--color-builder-surface);
+}
+
+/* Section dividers between root folders */
+.playground-leva-panel > div:last-child > div > div > div > div:not(:first-of-type) {
+  border-top-color: var(--leva-border-subtle) !important;
+}
+
+/* Sliders — transparent outer area, visible inner rail. */
+.playground-leva-panel [class*="hasRange"] [class*="hwSNBG"] {
+  background-color: transparent !important;
+  border-radius: 2px;
+}
+
+.playground-leva-panel [class*="hasRange"] [class*="bbMqub"] {
+  background-color: var(--leva-surface) !important;
+  border-radius: 2px;
+}
+
+.playground-leva-panel [class*="hasRange"] [class*="knrmXZ"] {
+  background-color: var(--color-builder-input-border) !important;
+}
+
+.playground-leva-panel [class*="hasRange"] [class*="gUBGce"] {
+  background-color: var(--leva-accent) !important;
+  border-radius: 1px;
+  opacity: 0.9;
+}
+
+/* Leva folders — instant synchronized collapse/expand (no opacity-then-height two-step). */
+.playground-leva-panel :has(> [class*="toggled-false"]) {
+  height: 0 !important;
+  overflow: hidden !important;
+  transition: none !important;
+}
+
+.playground-leva-panel :has(> [class*="toggled-false"])::after {
+  opacity: 0 !important;
+}
+
+.playground-leva-panel :has(> [class*="toggled-true"]) {
+  height: auto !important;
+  overflow: visible !important;
+  transition: none !important;
+}
+
+/* Keep fields visible until the wrapper clips them; Leva fades to opacity 0 first by default. */
+.playground-leva-panel [class*="toggled-false"],
+.playground-leva-panel [class*="toggled-true"] {
+  opacity: 1 !important;
+  transition: none !important;
+  transition-delay: 0s !important;
+}
+
+/* Folder group chevrons — instant rotation (Leva Chevron uses 9×5 svg with transform transition). */
+.playground-leva-panel [class*="dosbYs"] > svg,
+.playground-leva-panel div:has(> svg + div) > svg,
+.playground-leva-panel svg[width="9"][height="5"] {
+  transition: none !important;
+  transition-property: none !important;
+}
+
+.timeline-editor.playground-leva-panel button.timeline-resize-handle.timeline-height-resize-handle:not(:disabled),
+.timeline-editor.playground-leva-panel button.timeline-resize-handle.timeline-inspector-resize-handle:not(:disabled),
+.timeline-editor.playground-leva-panel button.timeline-resize-handle.timeline-height-resize-handle:not(:disabled):hover,
+.timeline-editor.playground-leva-panel
+  button.timeline-resize-handle.timeline-inspector-resize-handle:not(:disabled):hover,
+.timeline-editor.playground-leva-panel
+  button.timeline-resize-handle.timeline-height-resize-handle:not(:disabled):focus-visible,
+.timeline-editor.playground-leva-panel
+  button.timeline-resize-handle.timeline-inspector-resize-handle:not(:disabled):focus-visible {
+  border: 0 !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.timeline-editor.playground-leva-panel > .timeline-header > button.timeline-tab:not(:disabled) {
+  border-color: transparent !important;
+  border-right-color: var(--leva-border) !important;
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+.timeline-editor.playground-leva-panel > .timeline-header > button.timeline-tab:not(:disabled):hover {
+  background: var(--leva-surface-hover) !important;
+  background-color: var(--leva-surface-hover) !important;
+}
+
+.timeline-editor.playground-leva-panel > .timeline-panel:last-child {
+  /* Override the generic Leva-panel last-child rule: this custom panel must
+     fill the editor below its header instead of sizing to its contents. */
+  position: absolute !important;
+  inset: 33px 0 0 !important;
+  display: flex;
+  width: auto !important;
+  height: auto !important;
+  min-height: 0;
+  flex-direction: column;
+  border-top: 1px solid var(--leva-border);
+  background: var(--leva-panel-bg);
+}
+
+.timeline-editor.playground-leva-panel
+  .timeline-property-results
+  section
+  button:not(:disabled):not(.timeline-property-result-disabled) {
+  display: grid;
+  width: 100%;
+  height: 25px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 0 7px;
+  border-radius: 3px;
+  background: transparent !important;
+  background-color: transparent !important;
+  border-color: transparent !important;
+  text-align: left;
+}
+
+.timeline-editor.playground-leva-panel
+  .timeline-property-results
+  section
+  button:not(:disabled):not(.timeline-property-result-disabled):hover,
+.timeline-editor.playground-leva-panel
+  .timeline-property-results
+  section
+  button:not(:disabled):not(.timeline-property-result-disabled):focus-visible {
+  background: var(--leva-surface-hover) !important;
+  background-color: var(--leva-surface-hover) !important;
+}
+
+.timeline-editor.playground-leva-panel
+  .timeline-track-list
+  .timeline-track-label
+  button.timeline-track-name:not(:disabled),
+.timeline-editor.playground-leva-panel
+  .timeline-track-list
+  .timeline-track-label
+  button.timeline-track-name:not(:disabled):hover,
+.timeline-editor.playground-leva-panel
+  .timeline-track-list
+  .timeline-track-label
+  button.timeline-track-name:not(:disabled):focus-visible {
+  border-color: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.timeline-editor.playground-leva-panel button.timeline-ruler:not(:disabled),
+.timeline-editor.playground-leva-panel button.timeline-ruler:not(:disabled):hover,
+.timeline-editor.playground-leva-panel button.timeline-ruler:not(:disabled):focus-visible {
+  border: 0 !important;
+  border-bottom: 1px solid var(--leva-border) !important;
+  border-radius: 0;
+  background: transparent !important;
+}
+
+.timeline-editor.playground-leva-panel .timeline-inspector > .timeline-inspector-title > button:not(:disabled) {
+  border-color: transparent !important;
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+.timeline-editor.playground-leva-panel .timeline-inspector > .timeline-inspector-title > button:not(:disabled):hover {
+  background: var(--leva-surface-hover) !important;
+  background-color: var(--leva-surface-hover) !important;
+}
+
+.timeline-easing-editor .stripe-colors-easing-graph {
+  height: 88px;
+}
+
+.playground-leva-panel button.surface-new-area,
+.surface-new-area {
+  display: inline-flex;
+  width: auto;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--color-builder-chip-text);
+  font: inherit;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.playground-leva-panel button.surface-new-area:hover:not(:disabled),
+.surface-new-area:hover:not(:disabled) {
+  background: var(--color-builder-chip-surface) !important;
+  color: var(--color-builder-text);
+}
+
+.playground-leva-panel button.surface-new-area.is-active,
+.surface-new-area.is-active {
+  background: var(--color-builder-selected-row) !important;
+  color: var(--color-builder-text);
+  opacity: 1;
+}
+
+.playground-leva-panel button.surface-layer-select,
+.surface-layer-select {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 8px;
+  border: 0;
+  background: none !important;
+  box-shadow: none !important;
+  color: var(--color-builder-text);
+  font: inherit;
+  font-size: 11px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.playground-leva-panel button.surface-layer-select:hover,
+.surface-layer-select:hover {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+.playground-leva-panel .surface-layer-actions button,
+.surface-layer-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 21px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: none !important;
+  box-shadow: none !important;
+  color: var(--color-builder-muted);
+  cursor: pointer;
+}
+
+.playground-leva-panel .surface-layer-actions button:hover:not(:disabled),
+.surface-layer-actions button:hover:not(:disabled) {
+  background-color: var(--color-builder-chip-surface) !important;
+  color: var(--color-builder-text);
+}
+
+.playground-leva-panel {
+  --leva-panel-bg: #1c1c1c;
+  --leva-surface: #2a2a2a;
+  --leva-surface-hover: #313131;
+  --leva-border: #262626;
+  --leva-border-subtle: #262626;
+  --leva-text: #d4d4d4;
+  --leva-text-muted: #a3a3a3;
+  --leva-text-faint: #6f6f6f;
+  --leva-accent: #a3a3a3;
+  --leva-checkbox-border: #4a4a4a;
+  --leva-accent-soft: #5a5a5a;
+  --leva-accent-strong: #7f7f7f;
+  --leva-highlight-soft: #3f3f3f;
+  --leva-highlight-mid: #8a8a8a;
+}
