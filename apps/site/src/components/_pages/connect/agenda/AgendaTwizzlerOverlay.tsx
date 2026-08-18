@@ -9,6 +9,7 @@ import {
 } from "./agenda-twizzler-settings";
 
 const MAX_DPR = 1.5;
+const SOURCE_FPS = 30;
 
 export default function AgendaTwizzlerOverlay() {
   const [settings, setSettings] = useState(() =>
@@ -109,10 +110,16 @@ export default function AgendaTwizzlerOverlay() {
       outputCanvas.style.opacity = "1";
     };
 
-    const tick = () => {
+    // The twizzler sources render at 30fps, so compositing faster than that
+    // only re-blits identical frames (plus four layout reads per pass).
+    const minFrameIntervalMs = 1000 / SOURCE_FPS - 1;
+    let lastPaintMs = 0;
+    const tick = (nowMs: number) => {
       if (!visible) return;
-      paint();
       animationFrame = requestAnimationFrame(tick);
+      if (nowMs - lastPaintMs < minFrameIntervalMs) return;
+      lastPaintMs = nowMs;
+      paint();
     };
 
     const start = () => {

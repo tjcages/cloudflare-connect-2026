@@ -250,8 +250,13 @@ export default function SpeakerShaderOverlay() {
       outputCanvas.style.opacity = "1";
     };
 
+    // Cap the loop at 60fps: a 120Hz display otherwise doubles the full
+    // engine render + canvas2d composite for motion nobody can distinguish.
+    const minFrameIntervalMs = 1_000 / 60 - 1;
     const tick = (nowMs: number) => {
       if (!visible || disposed || !engine) return;
+      animationFrame = requestAnimationFrame(tick);
+      if (nowMs - lastFrameMs < minFrameIntervalMs) return;
       const deltaSec = Math.min(
         0.05,
         Math.max(0, (nowMs - lastFrameMs) / 1_000)
@@ -259,7 +264,6 @@ export default function SpeakerShaderOverlay() {
       lastFrameMs = nowMs;
       animationTimeSec += deltaSec;
       renderOnce();
-      animationFrame = requestAnimationFrame(tick);
     };
 
     const start = () => {

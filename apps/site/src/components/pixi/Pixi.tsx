@@ -23,6 +23,10 @@ export interface PixiProps {
   tickers: Ticker[];
 }
 
+// Antialiased WebGL at raw devicePixelRatio is 2.25× this cap's pixel work on
+// a 3× phone; past 2× the extra resolution is invisible on these canvases.
+const MAX_RESOLUTION = 2;
+
 export default function Pixi({ tickers, canvasAttrs, initOptions }: PixiProps) {
   "use no memo";
 
@@ -38,7 +42,9 @@ export default function Pixi({ tickers, canvasAttrs, initOptions }: PixiProps) {
 
     canvas.style.opacity = "0";
 
-    const resolution = (window.devicePixelRatio || 1) * resolveZoom(canvas);
+    const resolution =
+      Math.min(window.devicePixelRatio || 1, MAX_RESOLUTION) *
+      resolveZoom(canvas);
 
     const app = new Application();
 
