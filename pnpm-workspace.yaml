@@ -14,6 +14,7 @@ allowBuilds:
 minimumReleaseAgeExclude:
   - esbuild
   - "@esbuild/*"
+  - "@tjcages/panels"
 
 overrides:
   esbuild: 0.28.1

@@ -6,6 +6,9 @@
   "packageManager": "pnpm@10.33.3",
   "pnpm": {
     "minimumReleaseAge": 10080,
+    "minimumReleaseAgeExclude": [
+      "@tjcages/panels"
+    ],
     "onlyBuiltDependencies": [
       "esbuild",
       "sharp",

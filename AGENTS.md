@@ -10,7 +10,7 @@ product (`apps/studio` + `packages/stripes-shader`) has been retired/deleted.
 | `apps/lab`                  | Authoring app + Cloudflare Worker `connect-shader`                     |
 | `apps/site`                 | Connect 2026 refresh site + Cloudflare Worker `connect-2026-site`      |
 | `packages/connect-twizzler` | Connect hero shader package used by the refresh site                   |
-| `packages/panels`           | Shared shader panel package used by the refresh site                   |
+| `@tjcages/panels` (npm)     | Shared shader panel used by the refresh site (`/dev` entry)            |
 | `packages/stripes-engine`   | WebGL2 render core + `<StripesShader>` React canvas (`/react` subpath) |
 
 Follow `docs/engine-architecture.md` and `docs/superpowers/specs/2026-06-22-gpu-engine-rewrite-design.md`.

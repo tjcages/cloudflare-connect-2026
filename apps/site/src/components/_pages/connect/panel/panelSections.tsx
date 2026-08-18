@@ -26,7 +26,8 @@ export type PanelFieldDef = PanelField<PanelValues> | PanelCustomField;
 /**
  * One collapsible drawer of the shader panel. `id` keys the persisted
  * open/closed state (the same ids — and the same localStorage blob — the
- * previous leva panel used, so saved drawer states carry over).
+ * previous leva panel used, so saved drawer states carry over). Nested
+ * `children` reuse those ids (Twizzler Shape / Gradients / Stroke / Motion).
  */
 export type PanelSectionDef = {
   id: string;
@@ -35,6 +36,7 @@ export type PanelSectionDef = {
   /** Persist open/closed across reloads. Default true; Config stays ephemeral. */
   persistOpen?: boolean;
   fields: PanelFieldDef[];
+  children?: PanelSectionDef[];
 };
 
 function DrawerSection({
@@ -86,24 +88,40 @@ export function PanelSections({
     <div className="panel-fields">
       {sections.map((section) => (
         <DrawerSection key={section.id} section={section}>
-          {section.fields.map((field) => {
-            if (field.type === "site-custom") {
-              return (
-                <div className="panel-field" key={field.key}>
-                  {field.render(ctx)}
-                </div>
-              );
-            }
-            const rendered = renderPanelField(field as AnyRenderableField, ctx);
-            if (!rendered) return null;
-            return (
-              <div className="panel-field" key={rendered.reactKey}>
-                {rendered.node}
-              </div>
-            );
-          })}
+          {renderSectionBody(section, ctx)}
         </DrawerSection>
       ))}
     </div>
+  );
+}
+
+function renderSectionBody(
+  section: PanelSectionDef,
+  ctx: RenderFieldContext
+): React.ReactNode {
+  return (
+    <>
+      {section.fields.map((field) => {
+        if (field.type === "site-custom") {
+          return (
+            <div className="panel-field" key={field.key}>
+              {field.render(ctx)}
+            </div>
+          );
+        }
+        const rendered = renderPanelField(field as AnyRenderableField, ctx);
+        if (!rendered) return null;
+        return (
+          <div className="panel-field" key={rendered.reactKey}>
+            {rendered.node}
+          </div>
+        );
+      })}
+      {section.children?.map((child) => (
+        <DrawerSection key={child.id} section={child}>
+          {renderSectionBody(child, ctx)}
+        </DrawerSection>
+      ))}
+    </>
   );
 }
