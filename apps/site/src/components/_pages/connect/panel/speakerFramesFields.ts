@@ -1,5 +1,11 @@
-import type { SpeakerFrameSettings } from "../speakers/speaker-frame-controls";
+import {
+  LEGACY_SPEAKER_FRAME_PANEL_ID,
+  SPEAKER_FRAME_DEFAULTS,
+  SPEAKER_FRAME_PANEL_ID,
+  type SpeakerFrameSettings,
+} from "../speakers/speaker-frame-controls";
 import { COLOR_LIBRARY } from "./colorLibrary";
+import { configToolsField } from "./configTools";
 import { color, num, optionsFrom, select, toggle } from "./fieldHelpers";
 import type { PanelSectionDef, PanelValues } from "./panelSections";
 import {
@@ -220,7 +226,14 @@ export function buildSpeakerFramesSections(): PanelSectionDef[] {
       defaultOpen: true,
       persistOpen: false,
       fields: [
-        { type: "action", actionId: "copyConfig", label: "Copy config" },
+        configToolsField({
+          label: "speaker frames",
+          defaults: SPEAKER_FRAME_DEFAULTS,
+          // Clear the legacy blob too — load falls back to it.
+          storageIds: [SPEAKER_FRAME_PANEL_ID, LEGACY_SPEAKER_FRAME_PANEL_ID],
+          toConfig: speakerFramesFromPanelValues,
+          seed: seedSpeakerFramesPanelValues,
+        }),
       ],
     },
   ];

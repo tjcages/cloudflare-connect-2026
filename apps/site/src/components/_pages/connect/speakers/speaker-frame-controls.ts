@@ -182,7 +182,7 @@ export const SPEAKER_FRAME_DEFAULTS: SpeakerFrameSettings = {
 };
 
 export const SPEAKER_FRAME_PANEL_ID = "connect-speaker-frames-v2";
-const LEGACY_SPEAKER_FRAME_PANEL_ID = "connect-speaker-frames-v1";
+export const LEGACY_SPEAKER_FRAME_PANEL_ID = "connect-speaker-frames-v1";
 export const SPEAKER_FRAME_SETTINGS_EVENT = "connect:speaker-frame-settings";
 
 const cloneDefaults = (): SpeakerFrameSettings => ({

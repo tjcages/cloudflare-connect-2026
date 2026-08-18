@@ -1,0 +1,73 @@
+/* Config-section tools (Copy / Paste / Reset + JSON view), themed with the
+   @tjcages/panels --panel-* tokens like ShaderCodeEditor. */
+
+.connect-config-tools {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.connect-config-tools__row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.connect-config-tools__json {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
+  padding: 4px 0;
+}
+
+.connect-config-tools__json textarea {
+  width: 100%;
+  min-height: 160px;
+  resize: vertical;
+  border: 1px solid var(--panel-border, #292929);
+  border-radius: 4px;
+  background: var(--panel-surface, #373737);
+  color: var(--panel-label-active, #fefefe);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  line-height: 1.45;
+  padding: 6px;
+  white-space: pre;
+  overflow-x: auto;
+}
+
+/* Centered 24px action button, matching the row above. */
+.connect-config-tools__apply {
+  display: grid;
+  grid-template-columns: minmax(0, 120px);
+  justify-content: center;
+}
+
+.connect-config-tools__status {
+  margin: 0;
+  color: var(--panel-text-muted, #8c92a4);
+  font-size: 10px;
+  line-height: 1.4;
+  text-align: center;
+  animation: connect-config-status-fade 2.5s cubic-bezier(0.22, 1, 0.36, 1)
+    forwards;
+}
+
+@keyframes connect-config-status-fade {
+  0%,
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .connect-config-tools__status {
+    animation: none;
+  }
+}

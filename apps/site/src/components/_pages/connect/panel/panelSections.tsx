@@ -71,19 +71,16 @@ export function PanelSections({
   sections,
   values,
   onChange,
-  actionHandlers,
 }: {
   sections: PanelSectionDef[];
   values: PanelValues;
   onChange: (next: PanelValues) => void;
-  actionHandlers?: Record<string, () => void>;
 }) {
   const ctx: RenderFieldContext = {
     values,
     setValues: onChange,
     rootValues: values,
     setRootValues: onChange,
-    actionHandlers,
   };
   return (
     <div className="panel-fields">

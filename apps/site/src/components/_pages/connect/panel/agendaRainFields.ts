@@ -1,6 +1,11 @@
-import type { AgendaRainSettings } from "../agenda/agenda-rain-controls";
+import {
+  AGENDA_RAIN_DEFAULTS,
+  AGENDA_RAIN_PANEL_ID,
+  type AgendaRainSettings,
+} from "../agenda/agenda-rain-controls";
 import { rainShaderOptions } from "../agenda/rain-shader-library";
 import { COLOR_LIBRARY } from "./colorLibrary";
+import { configToolsField } from "./configTools";
 import { color, num, optionsFrom, select, toggle } from "./fieldHelpers";
 import type { PanelSectionDef, PanelValues } from "./panelSections";
 import {
@@ -203,7 +208,13 @@ export function buildAgendaRainSections(): PanelSectionDef[] {
       defaultOpen: true,
       persistOpen: false,
       fields: [
-        { type: "action", actionId: "copyConfig", label: "Copy config" },
+        configToolsField({
+          label: "agenda rain",
+          defaults: AGENDA_RAIN_DEFAULTS,
+          storageIds: [AGENDA_RAIN_PANEL_ID],
+          toConfig: agendaRainFromPanelValues,
+          seed: seedAgendaRainPanelValues,
+        }),
       ],
     },
   ];
