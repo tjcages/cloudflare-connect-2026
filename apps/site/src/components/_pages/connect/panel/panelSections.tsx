@@ -12,6 +12,18 @@ import { loadControlDrawerOpen, saveControlDrawerOpen } from "./drawerState";
 export type PanelValues = Record<string, unknown>;
 
 /**
+ * Site-local escape hatch for controls the package doesn't ship (the rain's
+ * GLSL editor). Rendered in place of `renderPanelField`, with the same ctx.
+ */
+export type PanelCustomField = {
+  type: "site-custom";
+  key: string;
+  render: (ctx: RenderFieldContext) => React.ReactNode;
+};
+
+export type PanelFieldDef = PanelField<PanelValues> | PanelCustomField;
+
+/**
  * One collapsible drawer of the shader panel. `id` keys the persisted
  * open/closed state (the same ids — and the same localStorage blob — the
  * previous leva panel used, so saved drawer states carry over).
@@ -22,7 +34,7 @@ export type PanelSectionDef = {
   defaultOpen?: boolean;
   /** Persist open/closed across reloads. Default true; Config stays ephemeral. */
   persistOpen?: boolean;
-  fields: PanelField<PanelValues>[];
+  fields: PanelFieldDef[];
 };
 
 function DrawerSection({
@@ -78,6 +90,13 @@ export function PanelSections({
       {sections.map((section) => (
         <DrawerSection key={section.id} section={section}>
           {section.fields.map((field) => {
+            if (field.type === "site-custom") {
+              return (
+                <div className="panel-field" key={field.key}>
+                  {field.render(ctx)}
+                </div>
+              );
+            }
             const rendered = renderPanelField(field as AnyRenderableField, ctx);
             if (!rendered) return null;
             return (

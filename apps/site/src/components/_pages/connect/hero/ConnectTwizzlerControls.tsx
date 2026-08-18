@@ -14,6 +14,11 @@ import {
 import { copyConfigToClipboard } from "../panel/copyConfig";
 import { PanelSections, type PanelValues } from "../panel/panelSections";
 import {
+  buildRainSections,
+  rainFromPanelValues,
+  seedRainPanelValues,
+} from "../panel/rainFields";
+import {
   buildSpeakerFramesSections,
   seedSpeakerFramesPanelValues,
   speakerFramesFromPanelValues,
@@ -29,6 +34,12 @@ import {
   SPEAKER_FRAME_PANEL_ID,
 } from "../speakers/speaker-frame-controls";
 import {
+  loadRainControlSettings,
+  RAIN_PANEL_ID,
+  resolveConnectHeroRain,
+  type ConnectHeroRain,
+} from "./rain-control-settings";
+import {
   CONNECT_TWIZZLER_CONTROL_DEFAULTS,
   CONNECT_TWIZZLER_PANEL_ID,
   loadConnectTwizzlerControlSettings,
@@ -38,9 +49,10 @@ import {
 interface Props {
   onClose: () => void;
   onSettingsChange: (settings: TwizzlerSettings) => void;
+  onRainChange: (rain: ConnectHeroRain) => void;
 }
 
-type ShaderTarget = "twizzler" | "frames" | "agenda-rain";
+type ShaderTarget = "twizzler" | "rain" | "frames" | "agenda-rain";
 
 const TARGET_STORAGE_KEY = "connect:shader-controls-target";
 const FLOAT_STORAGE_KEY = "connect-shader-controls";
@@ -59,10 +71,12 @@ const loadHeroControlSettings = () =>
 export default function ConnectTwizzlerControls({
   onClose,
   onSettingsChange,
+  onRainChange,
 }: Props) {
   const [target, setTarget] = useState<ShaderTarget>(() => {
     const stored = localStorage.getItem(TARGET_STORAGE_KEY);
-    if (stored === "frames" || stored === "agenda-rain") return stored;
+    if (stored === "frames" || stored === "rain" || stored === "agenda-rain")
+      return stored;
     // The retired per-day agenda Twizzler targets collapse into the shared rain.
     if (stored?.startsWith("agenda-")) return "agenda-rain";
     return "twizzler";
@@ -74,6 +88,9 @@ export default function ConnectTwizzlerControls({
   const [heroValues, setHeroValues] = useState<PanelValues>(() =>
     seedTwizzlerPanelValues(loadHeroControlSettings())
   );
+  const [heroRainValues, setHeroRainValues] = useState<PanelValues>(() =>
+    seedRainPanelValues(loadRainControlSettings())
+  );
   const [frameValues, setFrameValues] = useState<PanelValues>(() =>
     seedSpeakerFramesPanelValues(loadSpeakerFrameSettings())
   );
@@ -83,6 +100,8 @@ export default function ConnectTwizzlerControls({
 
   const heroRef = useRef(heroValues);
   heroRef.current = heroValues;
+  const heroRainRef = useRef(heroRainValues);
+  heroRainRef.current = heroRainValues;
   const framesRef = useRef(frameValues);
   framesRef.current = frameValues;
   const rainRef = useRef(rainValues);
@@ -96,6 +115,16 @@ export default function ConnectTwizzlerControls({
       onSettingsChange(resolveConnectTwizzlerSettings(settings));
     },
     [onSettingsChange]
+  );
+
+  const handleHeroRainChange = useCallback(
+    (next: PanelValues) => {
+      setHeroRainValues(next);
+      const settings = rainFromPanelValues(next);
+      persist(RAIN_PANEL_ID, settings);
+      onRainChange(resolveConnectHeroRain(settings));
+    },
+    [onRainChange]
   );
 
   const handleFramesChange = useCallback((next: PanelValues) => {
@@ -120,6 +149,16 @@ export default function ConnectTwizzlerControls({
         copyConfigToClipboard(
           "hero twizzler",
           twizzlerSettingsFromPanelValues(heroRef.current)
+        ),
+    }),
+    []
+  );
+  const heroRainActions = useMemo(
+    () => ({
+      copyConfig: () =>
+        copyConfigToClipboard(
+          "hero rain",
+          rainFromPanelValues(heroRainRef.current)
         ),
     }),
     []
@@ -153,19 +192,26 @@ export default function ConnectTwizzlerControls({
           onChange: handleRainChange,
           actionHandlers: rainActions,
         }
-      : target === "frames"
+      : target === "rain"
         ? {
-            sections: buildSpeakerFramesSections(),
-            values: frameValues,
-            onChange: handleFramesChange,
-            actionHandlers: framesActions,
+            sections: buildRainSections(),
+            values: heroRainValues,
+            onChange: handleHeroRainChange,
+            actionHandlers: heroRainActions,
           }
-        : {
-            sections: buildTwizzlerSections(heroValues),
-            values: heroValues,
-            onChange: handleHeroChange,
-            actionHandlers: heroActions,
-          };
+        : target === "frames"
+          ? {
+              sections: buildSpeakerFramesSections(),
+              values: frameValues,
+              onChange: handleFramesChange,
+              actionHandlers: framesActions,
+            }
+          : {
+              sections: buildTwizzlerSections(heroValues),
+              values: heroValues,
+              onChange: handleHeroChange,
+              actionHandlers: heroActions,
+            };
 
   const titleSelector = (
     <select
@@ -180,7 +226,7 @@ export default function ConnectTwizzlerControls({
           .matches
           ? ("auto" as const)
           : ("smooth" as const);
-        if (next === "twizzler") {
+        if (next === "twizzler" || next === "rain") {
           window.scrollTo({ top: 0, behavior });
         } else {
           document
@@ -191,6 +237,7 @@ export default function ConnectTwizzlerControls({
       value={target}
     >
       <option value="twizzler">Connect Twizzler</option>
+      <option value="rain">Hero Rain</option>
       <option value="frames">Speaker Frames</option>
       <option value="agenda-rain">Agenda Rain</option>
     </select>
