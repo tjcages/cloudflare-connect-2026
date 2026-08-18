@@ -1,5 +1,10 @@
-import type { RainControlSettings } from "../hero/rain-control-settings";
+import {
+  CONNECT_HERO_RAIN_CONTROL_DEFAULTS,
+  RAIN_PANEL_ID,
+  type RainControlSettings,
+} from "../hero/rain-control-settings";
 import { COLOR_LIBRARY } from "./colorLibrary";
+import { configToolsField } from "./configTools";
 import { num, optionsFrom, select, toggle } from "./fieldHelpers";
 import type { PanelSectionDef, PanelValues } from "./panelSections";
 import { ShaderCodeEditor } from "./ShaderCodeEditor";
@@ -178,7 +183,13 @@ export function buildRainSections(): PanelSectionDef[] {
       defaultOpen: true,
       persistOpen: false,
       fields: [
-        { type: "action", actionId: "copyConfig", label: "Copy config" },
+        configToolsField({
+          label: "hero rain",
+          defaults: CONNECT_HERO_RAIN_CONTROL_DEFAULTS,
+          storageIds: [RAIN_PANEL_ID],
+          toConfig: rainFromPanelValues,
+          seed: seedRainPanelValues,
+        }),
       ],
     },
   ];

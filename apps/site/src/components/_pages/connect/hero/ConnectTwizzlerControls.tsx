@@ -1,6 +1,6 @@
 import type { TwizzlerSettings } from "@tjcages/connect-twizzler";
-import { FloatingPanel } from "@tjcages/panels/dev";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { FloatingPanel, PanelHeaderSelect } from "@tjcages/panels/dev";
+import { useCallback, useState } from "react";
 import {
   AGENDA_RAIN_PANEL_ID,
   loadAgendaRainSettings,
@@ -11,7 +11,6 @@ import {
   buildAgendaRainSections,
   seedAgendaRainPanelValues,
 } from "../panel/agendaRainFields";
-import { copyConfigToClipboard } from "../panel/copyConfig";
 import { PanelSections, type PanelValues } from "../panel/panelSections";
 import {
   buildRainSections,
@@ -98,15 +97,6 @@ export default function ConnectTwizzlerControls({
     seedAgendaRainPanelValues(loadAgendaRainSettings())
   );
 
-  const heroRef = useRef(heroValues);
-  heroRef.current = heroValues;
-  const heroRainRef = useRef(heroRainValues);
-  heroRainRef.current = heroRainValues;
-  const framesRef = useRef(frameValues);
-  framesRef.current = frameValues;
-  const rainRef = useRef(rainValues);
-  rainRef.current = rainValues;
-
   const handleHeroChange = useCallback(
     (next: PanelValues) => {
       setHeroValues(next);
@@ -141,84 +131,36 @@ export default function ConnectTwizzlerControls({
     publishAgendaRainSettings(settings);
   }, []);
 
-  // Copy config snapshots the live values, so the button never captures a
-  // stale mount-time seed.
-  const heroActions = useMemo(
-    () => ({
-      copyConfig: () =>
-        copyConfigToClipboard(
-          "hero twizzler",
-          twizzlerSettingsFromPanelValues(heroRef.current)
-        ),
-    }),
-    []
-  );
-  const heroRainActions = useMemo(
-    () => ({
-      copyConfig: () =>
-        copyConfigToClipboard(
-          "hero rain",
-          rainFromPanelValues(heroRainRef.current)
-        ),
-    }),
-    []
-  );
-  const framesActions = useMemo(
-    () => ({
-      copyConfig: () =>
-        copyConfigToClipboard(
-          "speaker frames",
-          speakerFramesFromPanelValues(framesRef.current)
-        ),
-    }),
-    []
-  );
-  const rainActions = useMemo(
-    () => ({
-      copyConfig: () =>
-        copyConfigToClipboard(
-          "agenda rain",
-          agendaRainFromPanelValues(rainRef.current)
-        ),
-    }),
-    []
-  );
-
   const active =
     target === "agenda-rain"
       ? {
           sections: buildAgendaRainSections(),
           values: rainValues,
           onChange: handleRainChange,
-          actionHandlers: rainActions,
         }
       : target === "rain"
         ? {
             sections: buildRainSections(),
             values: heroRainValues,
             onChange: handleHeroRainChange,
-            actionHandlers: heroRainActions,
           }
         : target === "frames"
           ? {
               sections: buildSpeakerFramesSections(),
               values: frameValues,
               onChange: handleFramesChange,
-              actionHandlers: framesActions,
             }
           : {
               sections: buildTwizzlerSections(heroValues),
               values: heroValues,
               onChange: handleHeroChange,
-              actionHandlers: heroActions,
             };
 
   const titleSelector = (
-    <select
-      aria-label="Shader controls"
-      className="panel-switcher"
-      onChange={(event) => {
-        const next = event.target.value as ShaderTarget;
+    <PanelHeaderSelect
+      ariaLabel="Shader controls"
+      onChange={(nextValue) => {
+        const next = nextValue as ShaderTarget;
         setTarget(next);
         localStorage.setItem(TARGET_STORAGE_KEY, next);
         // Bring the section that hosts the selected shader into view.
@@ -234,13 +176,14 @@ export default function ConnectTwizzlerControls({
             ?.scrollIntoView({ behavior, block: "start" });
         }
       }}
+      options={[
+        { value: "twizzler", label: "Connect Twizzler" },
+        { value: "rain", label: "Hero Rain" },
+        { value: "frames", label: "Speaker Frames" },
+        { value: "agenda-rain", label: "Agenda Rain" },
+      ]}
       value={target}
-    >
-      <option value="twizzler">Connect Twizzler</option>
-      <option value="rain">Hero Rain</option>
-      <option value="frames">Speaker Frames</option>
-      <option value="agenda-rain">Agenda Rain</option>
-    </select>
+    />
   );
 
   return (
@@ -256,7 +199,6 @@ export default function ConnectTwizzlerControls({
       titleSlot={titleSelector}
     >
       <PanelSections
-        actionHandlers={active.actionHandlers}
         onChange={active.onChange}
         sections={active.sections}
         values={active.values}

@@ -1,7 +1,12 @@
 import { parseTwizzlerGradientStops } from "@tjcages/connect-twizzler/gradient";
 import type { PanelField } from "@tjcages/panels/dev";
-import type { TwizzlerControlSettings } from "../hero/twizzler-control-settings";
+import {
+  CONNECT_TWIZZLER_CONTROL_DEFAULTS,
+  CONNECT_TWIZZLER_PANEL_ID,
+  type TwizzlerControlSettings,
+} from "../hero/twizzler-control-settings";
 import { COLOR_LIBRARY } from "./colorLibrary";
+import { configToolsField } from "./configTools";
 import { color, num, select, toggle } from "./fieldHelpers";
 import type { PanelSectionDef, PanelValues } from "./panelSections";
 
@@ -161,7 +166,13 @@ export function buildTwizzlerSections(
       defaultOpen: true,
       persistOpen: false,
       fields: [
-        { type: "action", actionId: "copyConfig", label: "Copy config" },
+        configToolsField({
+          label: "hero twizzler",
+          defaults: CONNECT_TWIZZLER_CONTROL_DEFAULTS,
+          storageIds: [CONNECT_TWIZZLER_PANEL_ID],
+          toConfig: twizzlerSettingsFromPanelValues,
+          seed: seedTwizzlerPanelValues,
+        }),
       ],
     }
   );

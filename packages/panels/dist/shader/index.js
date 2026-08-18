@@ -2048,6 +2048,21 @@ function ColorPopover({
   const popoverRef = useRef(null);
   const selectedItemRef = useRef(null);
   const listRef = useRef(null);
+  const flatColors = useMemo(
+    () => (library ?? []).flatMap((group) => group.colors),
+    [library]
+  );
+  const groupOffsets = useMemo(() => {
+    const offsets = [];
+    let acc = 0;
+    for (const group of library ?? []) {
+      offsets.push(acc);
+      acc += group.colors.length;
+    }
+    return offsets;
+  }, [library]);
+  const [highlight, setHighlight] = useState(0);
+  const typeahead = useRef({ buffer: "", at: 0 });
   const normalizedColor = normalizeHex(color);
   const [draftColor, setDraftColor] = useState(normalizedColor);
   const [hexDraft, setHexDraft] = useState(normalizedColor.toUpperCase());
@@ -2121,9 +2136,13 @@ function ColorPopover({
     const trigger = triggerRef.current;
     if (!trigger) return;
     setTab("library");
+    const selectedFlat = flatColors.findIndex(
+      (c) => c.hex.toLowerCase() === normalizedColor
+    );
+    setHighlight(Math.max(0, selectedFlat));
     setPos(placePopover(trigger));
     setOpen(true);
-  }, []);
+  }, [flatColors, normalizedColor]);
   useEffect(() => {
     if (!open) return;
     const onPointerDown = (event) => {
@@ -2131,9 +2150,6 @@ function ColorPopover({
       if (triggerRef.current?.contains(target) || popoverRef.current?.contains(target))
         return;
       setOpen(false);
-    };
-    const onKeyDown = (event) => {
-      if (event.key === "Escape") setOpen(false);
     };
     const reposition = () => {
       const trigger = triggerRef.current;
@@ -2144,16 +2160,107 @@ function ColorPopover({
       reposition();
     };
     window.addEventListener("pointerdown", onPointerDown, true);
-    window.addEventListener("keydown", onKeyDown);
     window.addEventListener("scroll", onScroll, true);
     window.addEventListener("resize", reposition);
     return () => {
       window.removeEventListener("pointerdown", onPointerDown, true);
-      window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("scroll", onScroll, true);
       window.removeEventListener("resize", reposition);
     };
   }, [open]);
+  const updateListFades = useCallback(() => {
+    const sc = listRef.current;
+    if (!sc) return;
+    sc.dataset.fadeTop = String(sc.scrollTop > 1);
+    sc.dataset.fadeBottom = String(sc.scrollTop + sc.clientHeight < sc.scrollHeight - 1);
+  }, []);
+  const keepHighlightInView = useCallback(
+    (index) => {
+      const list = listRef.current;
+      const el = list?.querySelector(
+        `[data-panel-flat-index="${index}"]`
+      );
+      if (!list || !el) return;
+      const listRect = list.getBoundingClientRect();
+      const elRect = el.getBoundingClientRect();
+      if (elRect.top < listRect.top + 8) {
+        list.scrollTop += elRect.top - listRect.top - 8;
+      } else if (elRect.bottom > listRect.bottom - 8) {
+        list.scrollTop += elRect.bottom - listRect.bottom + 8;
+      }
+      updateListFades();
+    },
+    [updateListFades]
+  );
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (event) => {
+      const target = event.target;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA"))
+        return;
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        setOpen(false);
+        return;
+      }
+      if (hasLibrary && (event.key === "ArrowLeft" || event.key === "ArrowRight" || event.key === "Tab")) {
+        event.preventDefault();
+        event.stopPropagation();
+        setTab((t) => t === "library" ? "picker" : "library");
+        return;
+      }
+      if (!hasLibrary || tab !== "library" || flatColors.length === 0) return;
+      const move = (delta) => {
+        const next = (highlight + delta + flatColors.length) % flatColors.length;
+        setHighlight(next);
+        keepHighlightInView(next);
+      };
+      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        event.preventDefault();
+        event.stopPropagation();
+        move(event.key === "ArrowDown" ? 1 : -1);
+        return;
+      }
+      if (event.key === "Enter") {
+        event.preventDefault();
+        event.stopPropagation();
+        const picked = flatColors[highlight];
+        if (picked) {
+          updateColor(picked.hex);
+          setOpen(false);
+        }
+        return;
+      }
+      if (event.key.length === 1 && !event.metaKey && !event.ctrlKey && !event.altKey) {
+        event.stopPropagation();
+        const now = Date.now();
+        const t = typeahead.current;
+        t.buffer = now - t.at > 500 ? event.key : t.buffer + event.key;
+        t.at = now;
+        const query = t.buffer.toLowerCase();
+        const from = query.length === 1 ? highlight + 1 : highlight;
+        for (let step = 0; step < flatColors.length; step++) {
+          const i = (from + step) % flatColors.length;
+          if (flatColors[i].label.toLowerCase().startsWith(query)) {
+            setHighlight(i);
+            keepHighlightInView(i);
+            return;
+          }
+        }
+      }
+    };
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
+  }, [
+    open,
+    tab,
+    hasLibrary,
+    flatColors,
+    highlight,
+    keepHighlightInView,
+    updateColor
+  ]);
   useLayoutEffect(() => {
     if (!open) return;
     const el = popoverRef.current;
@@ -2168,12 +2275,6 @@ function ColorPopover({
       { duration: 200, easing: "cubic-bezier(0.17, 1, 0.32, 1)" }
     );
   }, [open]);
-  const updateListFades = useCallback(() => {
-    const sc = listRef.current;
-    if (!sc) return;
-    sc.dataset.fadeTop = String(sc.scrollTop > 1);
-    sc.dataset.fadeBottom = String(sc.scrollTop + sc.clientHeight < sc.scrollHeight - 1);
-  }, []);
   useEffect(() => {
     if (!open || disabled || tab !== "library") return;
     const frame = requestAnimationFrame(() => {
@@ -2260,16 +2361,20 @@ function ColorPopover({
                   listRef.current = node;
                   if (node) updateListFades();
                 },
-                children: library?.map((group) => /* @__PURE__ */ jsxs("div", { className: "panel-color-pop-group", children: [
+                children: library?.map((group, groupIndex) => /* @__PURE__ */ jsxs("div", { className: "panel-color-pop-group", children: [
                   /* @__PURE__ */ jsx("span", { className: "panel-color-pop-group-label", children: group.name }),
-                  group.colors.map((c) => {
+                  group.colors.map((c, colorIndex) => {
                     const selected = c.hex.toLowerCase() === displayColor;
+                    const flatIndex = groupOffsets[groupIndex] + colorIndex;
                     return /* @__PURE__ */ jsxs(
                       "button",
                       {
                         ref: selected ? selectedItemRef : void 0,
                         type: "button",
                         "aria-pressed": selected,
+                        "data-panel-flat-index": flatIndex,
+                        "data-panel-active": flatIndex === highlight ? "true" : "false",
+                        onMouseEnter: () => setHighlight(flatIndex),
                         title: c.oklch ? `${c.oklch} / ${c.p3 ?? c.hex} / fallback ${c.hex.toUpperCase()}` : c.p3 ? `${c.p3} / fallback ${c.hex.toUpperCase()}` : c.hex.toUpperCase(),
                         onClick: () => {
                           updateColor(c.hex);
@@ -2505,6 +2610,7 @@ var colorPopoverStyles = `
 }
 
 .panel-color-pop-item:hover,
+.panel-color-pop-item[data-panel-active="true"],
 .panel-color-pop-item-selected { background: #2a2a2a; }
 
 .panel-color-pop-item-swatch {
@@ -5185,38 +5291,40 @@ function ControlStripeColorsTable({
       ),
       children: [
         /* @__PURE__ */ jsxs("div", { className: "panel-stripes-palette-wrap", children: [
-          /* @__PURE__ */ jsx("span", { className: "panel-stripes-palette-title", children: "Distribution" }),
-          /* @__PURE__ */ jsxs("div", { className: "panel-stripes-palette-toolbar", children: [
-            onShufflePalette ? /* @__PURE__ */ jsx(
-              "button",
-              {
-                type: "button",
-                className: "panel-stripes-palette-action",
-                disabled,
-                onClick: onShufflePalette,
-                children: "Shuffle"
-              }
-            ) : null,
-            onUndoShuffle ? /* @__PURE__ */ jsx(
-              "button",
-              {
-                type: "button",
-                className: "panel-stripes-palette-action",
-                disabled: disabled || !canUndoShuffle,
-                onClick: onUndoShuffle,
-                children: "Undo"
-              }
-            ) : null,
-            /* @__PURE__ */ jsx(
-              "button",
-              {
-                type: "button",
-                className: "panel-stripes-palette-action",
-                disabled: disabled || value.length < 2,
-                onClick: reverseColorOrder,
-                children: "Flip"
-              }
-            )
+          /* @__PURE__ */ jsxs("div", { className: "panel-stripes-palette-head", children: [
+            /* @__PURE__ */ jsx("span", { className: "panel-stripes-palette-title", children: "Distribution" }),
+            /* @__PURE__ */ jsxs("div", { className: "panel-stripes-palette-toolbar", children: [
+              onShufflePalette ? /* @__PURE__ */ jsx(
+                "button",
+                {
+                  type: "button",
+                  className: "panel-stripes-palette-action",
+                  disabled,
+                  onClick: onShufflePalette,
+                  children: "Shuffle"
+                }
+              ) : null,
+              onUndoShuffle ? /* @__PURE__ */ jsx(
+                "button",
+                {
+                  type: "button",
+                  className: "panel-stripes-palette-action",
+                  disabled: disabled || !canUndoShuffle,
+                  onClick: onUndoShuffle,
+                  children: "Undo"
+                }
+              ) : null,
+              /* @__PURE__ */ jsx(
+                "button",
+                {
+                  type: "button",
+                  className: "panel-stripes-palette-action",
+                  disabled: disabled || value.length < 2,
+                  onClick: reverseColorOrder,
+                  children: "Flip"
+                }
+              )
+            ] })
           ] }),
           showRampEasing && onRampEasingChange ? /* @__PURE__ */ jsx(
             EasingControl,
@@ -5344,17 +5452,28 @@ var stripeColorsTableStyles = `
   margin-bottom: 10px;
 }
 
+/* Title left, actions right \u2014 one vertically-centered 24px row. */
+.panel-stripes-palette-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 24px;
+  min-width: 0;
+}
+
 .panel-stripes-palette-title {
   color: var(--panel-text-muted);
   font-weight: 400;
   line-height: 1.2;
+  white-space: nowrap;
 }
 
 .panel-stripes-palette-toolbar {
-  display: grid;
-  grid-template-columns: repeat(3, auto);
-  justify-content: end;
-  gap: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
   min-width: 0;
 }
 
@@ -5446,41 +5565,57 @@ button.panel-stripes-palette-action:disabled {
   vector-effect: non-scaling-stroke;
 }
 
+/* Sub-section disclosure \u2014 matches the .panel-section-header language:
+   transparent 20px row, chevron leading, 500-weight label, muted count. */
 .panel-stripes-drawer-toggle {
-  display: grid;
-  grid-template-columns: 14px minmax(0, 1fr) auto;
+  display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   width: 100%;
   min-width: 0;
-  height: 28px;
+  height: 20px;
   margin-top: 8px;
-  padding: 0 8px;
-  border: 1px solid transparent;
+  padding: 0;
+  border: 0;
   border-radius: 4px;
-  background-color: var(--panel-surface);
-  color: var(--panel-text-muted);
+  background: transparent;
+  color: var(--panel-label);
   font: inherit;
   font-size: 11px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
   text-align: left;
   cursor: pointer;
 }
 
+.panel-stripes-drawer-toggle svg {
+  flex-shrink: 0;
+  color: var(--panel-muted-icon);
+  transition: color 150ms ease;
+}
+
 .panel-stripes-drawer-toggle:not(:disabled):hover,
 .panel-stripes-drawer-toggle:not(:disabled):focus-visible {
-  background-color: var(--panel-surface-active);
-  color: var(--panel-text);
+  color: var(--panel-label-active);
   outline: none;
+}
+
+.panel-stripes-drawer-toggle:not(:disabled):hover svg,
+.panel-stripes-drawer-toggle:not(:disabled):focus-visible svg {
+  color: var(--panel-label-active);
 }
 
 .panel-stripes-drawer-toggle span:nth-child(2) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
 }
 
 .panel-stripes-drawer-count {
+  margin-left: auto;
   color: var(--panel-text-muted);
+  font-weight: 400;
   font-variant-numeric: tabular-nums;
 }
 
@@ -7388,6 +7523,132 @@ var PANEL_CSS = `
 .panel-switcher:hover { background-color: var(--panel-surface); }
 .panel-switcher:focus { outline: none; background-color: var(--panel-surface); }
 
+/* \u2500\u2500 Header select \u2014 custom switcher dropdown (PanelHeaderSelect) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+   Trigger fits its label when closed and animates its width to match the
+   menu while open; the menu renders inline-absolute inside the header so it
+   shares the panel's stacking. */
+.panel-hselect {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+[data-panel] .panel-hselect-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  background: transparent;
+  color: var(--panel-text);
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 150ms cubic-bezier(0.22, 1, 0.36, 1),
+    width 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+[data-panel] .panel-hselect-trigger:hover,
+[data-panel] .panel-hselect-trigger:focus-visible,
+[data-panel] .panel-hselect-trigger[aria-expanded="true"] {
+  outline: none;
+  background-color: var(--panel-surface);
+}
+/* No ellipsis \u2014 the width fits the label; clip only while animating. */
+.panel-hselect-value {
+  min-width: 0;
+  overflow: hidden;
+}
+.panel-hselect-chevron {
+  width: 12px;
+  height: 12px;
+  opacity: 0.6;
+  flex-shrink: 0;
+}
+/* Invisible natural-width mirror of the trigger \u2014 measured so the trigger's
+   explicit (animatable) width can track the current label. */
+.panel-hselect-sizer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+.panel-hselect-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 1002;
+  width: max-content;
+  min-width: 100%;
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 4px;
+  border-radius: 6px;
+  border: 1px solid var(--panel-border);
+  background: var(--panel-bg);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.28), 0 12px 32px rgb(0 0 0 / 0.32);
+  scrollbar-width: thin;
+  scrollbar-color: var(--panel-scrollbar-thumb) transparent;
+  animation: panel-hselect-in 160ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes panel-hselect-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+    filter: blur(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+[data-panel] .panel-hselect-option {
+  /* No width: 100% \u2014 a percentage here collapses the menu's max-content
+     sizing to its min-width and clips every label. Block-level flex options
+     stretch to the menu naturally. */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border: 0;
+  background: transparent;
+  color: var(--panel-label);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.2;
+  text-align: left;
+  white-space: nowrap;
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 120ms cubic-bezier(0.22, 1, 0.36, 1),
+    color 120ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+[data-panel] .panel-hselect-option[data-panel-active="true"] {
+  background: var(--panel-surface-active);
+  color: var(--panel-label-active);
+}
+[data-panel] .panel-hselect-option[aria-selected="true"] {
+  color: var(--panel-text);
+}
+.panel-hselect-check {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  opacity: 0.9;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-panel] .panel-hselect-trigger { transition: none; }
+  .panel-hselect-menu { animation: none; }
+  [data-panel] .panel-hselect-option { transition: none; }
+}
+
 .panel-close-btn {
   position: relative;
   display: flex;
@@ -8404,12 +8665,21 @@ var PANEL_CSS = `
   width: 100%;
   padding: 4px 0;
 }
+/* With a label the group shares the slider rows' two-column grid. */
+.panel-toggle-group:has(> .panel-toggle-group-label) {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
 .panel-toggle-group-label {
   font-size: 11px;
   font-weight: 400;
   color: var(--panel-label);
   line-height: 1.35;
-  padding: 0 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .panel-toggle-group-track {
   display: flex;
@@ -8490,11 +8760,14 @@ var PANEL_CSS = `
 [data-panel] .panel-select[data-panel-layout="inline"]:hover {
   background: var(--panel-surface-active);
 }
+/* Stacked selects share the slider rows' label column (0.9fr @ 8px gap) so
+   labels align down the panel; the control spans the track+input width. */
 .panel-select[data-panel-layout="stacked"] {
-  flex-direction: column;
-  align-items: stretch;
-  gap: 6px;
-  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-height: 24px;
   height: auto;
   padding: 0;
   background: transparent;
@@ -8507,7 +8780,9 @@ var PANEL_CSS = `
   line-height: 1.35;
 }
 .panel-select[data-panel-layout="stacked"] .panel-select-label {
-  white-space: normal;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .panel-select[data-panel-layout="inline"] .panel-select-label {
   flex: 1 1 auto;
@@ -8791,16 +9066,19 @@ var PANEL_CSS = `
 
 /* \u2500\u2500 Preset selector \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
 .panel-presets {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
   padding: 0 0 2px;
 }
 .panel-presets-label {
   font-size: 11px;
   font-weight: 400;
   color: var(--panel-label);
-  padding: 0 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 [data-panel] .panel-preset-select {
   appearance: none;
