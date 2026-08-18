@@ -71,6 +71,7 @@ export function buildRainLevaSchema(values: RainControlSettings) {
         rainGapsCoverage: num(values.gapsCoverage, "Gap coverage", 0, 1, 0.01),
         rainGapsSpeed: num(values.gapsSpeed, "Gap speed", 0, 10, 0.05),
         rainMaxFps: num(values.maxFps, "Max FPS (0 = off)", 0, 120, 1),
+        rainTopFadePct: num(values.topFadePct, "Top fade %", 0, 100, 1),
       },
       true
     ),
@@ -285,5 +286,6 @@ export function rainSettingsFromLevaValues(
     sourceWidth: pick("rainSourceWidth", fallback.sourceWidth),
     sourceHeight: pick("rainSourceHeight", fallback.sourceHeight),
     sourceGlsl: pick("rainSourceGlsl", fallback.sourceGlsl),
+    topFadePct: pick("rainTopFadePct", fallback.topFadePct),
   };
 }

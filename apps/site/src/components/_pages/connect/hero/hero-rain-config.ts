@@ -142,9 +142,11 @@ export const CONNECT_HERO_RAIN_CONFIG: DeepPartial<EngineConfig> = {
 };
 
 /**
- * "Corridor" by @XorDev — the lab's Graphic-rain texture source ("Wave to Full
- * Screen", shaderLibrary preset a1f684cd). Only iTime/iResolution are read.
- * https://x.com/XorDev/status/1923882930834751520
+ * "Corridor" by @XorDev, comment-stripped — the lab's Graphic-rain texture
+ * source ("Wave to Full Screen", shaderLibrary preset a1f684cd). Kept inline so
+ * the hero island does not pull the vendored shader library (panel-chunk only);
+ * the library's matcher is comment-insensitive, so the preset select still
+ * recognizes it. https://x.com/XorDev/status/1923882930834751520
  */
 export const CONNECT_HERO_RAIN_GLSL = `void mainImage(out vec4 O, vec2 I)
 {

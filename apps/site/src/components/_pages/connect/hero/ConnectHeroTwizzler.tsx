@@ -58,32 +58,45 @@ export default function ConnectHeroTwizzler({ posterSrc }: IslandProps<Props>) {
           />
         </Suspense>
       ) : null}
-      <ConnectTwizzler
-        canvasClassName="size-full"
-        className="size-full"
-        maxDpr={1.5}
-        maxFps={30}
-        posterSrc={posterSrc}
-        rootMargin="240px"
-        settings={settings}
-      />
-      {/* Rain sits above the ribbon with a transparent clear, matching the
-          lab's Both stack (.lab-canvas-output over .lab-canvas-twizzler). */}
-      <StripesShader
-        className="absolute inset-0 size-full"
-        config={asThemedEngineConfig(rain.config)}
-        label="hero-rain"
-        maxDpr={1.5}
-        onShaderSourceError={(error) => {
-          window.dispatchEvent(
-            new CustomEvent<string | null>(RAIN_SHADER_ERROR_EVENT, {
-              detail: error,
-            })
-          );
-        }}
-        rootMargin="240px"
-        shaderSource={rain.shaderSource}
-      />
+      {/* The mask fades the whole stack (ribbon + rain) out toward the top;
+          its height is the panel's "Top fade %" control. */}
+      <div
+        className="absolute inset-0"
+        style={
+          rain.topFadePct > 0
+            ? {
+                maskImage: `linear-gradient(to bottom, transparent, black ${rain.topFadePct}%)`,
+              }
+            : undefined
+        }
+      >
+        <ConnectTwizzler
+          canvasClassName="size-full"
+          className="size-full"
+          maxDpr={1.5}
+          maxFps={30}
+          posterSrc={posterSrc}
+          rootMargin="240px"
+          settings={settings}
+        />
+        {/* Rain sits above the ribbon with a transparent clear, matching the
+            lab's Both stack (.lab-canvas-output over .lab-canvas-twizzler). */}
+        <StripesShader
+          className="absolute inset-0 size-full"
+          config={asThemedEngineConfig(rain.config)}
+          label="hero-rain"
+          maxDpr={1.5}
+          onShaderSourceError={(error) => {
+            window.dispatchEvent(
+              new CustomEvent<string | null>(RAIN_SHADER_ERROR_EVENT, {
+                detail: error,
+              })
+            );
+          }}
+          rootMargin="240px"
+          shaderSource={rain.shaderSource}
+        />
+      </div>
     </>
   );
 }

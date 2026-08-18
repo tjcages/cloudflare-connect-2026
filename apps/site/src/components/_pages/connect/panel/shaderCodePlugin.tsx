@@ -9,16 +9,25 @@ import {
   CONNECT_HERO_RAIN_GLSL,
   RAIN_SHADER_ERROR_EVENT,
 } from "../hero/rain-control-settings";
+import {
+  findRainShaderEntry,
+  matchRainShaderEntry,
+  RAIN_SHADER_LIBRARY,
+} from "../hero/rain-shader-library";
 
 const { Row } = Components;
 
 /**
  * GLSL editor for the rain's texture source. The Leva value is the applied
  * `mainImage` source; edits stay local until Apply so half-typed shaders never
- * hit the compiler. The worker reports each apply's compile result through
- * {@link RAIN_SHADER_ERROR_EVENT} — errors render inline and the previous
- * shader keeps running.
+ * hit the compiler. The preset select carries the lab's shader library —
+ * picking one applies it immediately, and it reads "Custom" whenever the
+ * applied GLSL matches no library entry. The worker reports each apply's
+ * compile result through {@link RAIN_SHADER_ERROR_EVENT} — errors render
+ * inline and the previous shader keeps running.
  */
+
+const CUSTOM_PRESET_ID = "custom";
 
 type ShaderCodeSettings = Record<string, never>;
 
@@ -47,10 +56,32 @@ function ShaderCodePluginComponent() {
   }, []);
 
   const dirty = draft !== applied;
+  const presetId = matchRainShaderEntry(applied)?.id ?? CUSTOM_PRESET_ID;
 
   return (
     <Row>
       <div className="connect-shader-code">
+        <label className="connect-shader-code__preset">
+          <span>Preset</span>
+          <select
+            onChange={(event) => {
+              const entry = findRainShaderEntry(event.target.value);
+              if (entry) onUpdate(entry.source);
+            }}
+            value={presetId}
+          >
+            {presetId === CUSTOM_PRESET_ID ? (
+              <option disabled value={CUSTOM_PRESET_ID}>
+                Custom
+              </option>
+            ) : null}
+            {RAIN_SHADER_LIBRARY.map((entry) => (
+              <option key={entry.id} value={entry.id}>
+                {entry.label}
+              </option>
+            ))}
+          </select>
+        </label>
         <textarea
           aria-label="Shader source (mainImage GLSL)"
           onChange={(event) => setDraft(event.target.value)}
@@ -75,7 +106,7 @@ function ShaderCodePluginComponent() {
             onClick={() => onUpdate(CONNECT_HERO_RAIN_GLSL)}
             type="button"
           >
-            Reset to Corridor
+            Reset to default
           </button>
         </div>
         {error ? (
