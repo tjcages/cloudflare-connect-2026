@@ -4,7 +4,7 @@ import DashedLine from "@/components/dashed-line/DashedLine";
 import Eyebrow from "@/components/Eyebrow";
 import Section from "@/layouts/Section.astro";
 import { type AgendaSlotAccent, connectAgenda, connectHero } from "../data";
-import AgendaTwizzlerOverlay from "./AgendaTwizzlerOverlay";
+import AgendaRainOverlay from "./AgendaRainOverlay";
 
 // Written out in full so Tailwind sees each class literally.
 const SLOT_DOT: Record<AgendaSlotAccent, string> = {
@@ -27,7 +27,7 @@ const SLOT_DOT: Record<AgendaSlotAccent, string> = {
     <span>Register Now</span>
   </Button>
 
-  <div data-agenda-twizzler-root class="relative flex flex-col gap-48 p-40">
+  <div data-agenda-rain-root class="relative flex flex-col gap-48 p-40">
     {connectAgenda.map((item, index) => (
       <Fragment>
         {index > 0 && (
@@ -41,17 +41,21 @@ const SLOT_DOT: Record<AgendaSlotAccent, string> = {
 
         <div class="flex flex-col gap-16">
           <div
-            data-agenda-twizzler-aperture
+            data-agenda-rain-aperture
             class="relative h-200 overflow-clip bg-background-surface after:inside-border after:z-20 after:border-border-muted"
           >
-            <div class="relative z-10 flex size-full flex-col justify-end gap-8 p-32">
-              <Eyebrow
-                client:visible
-                direction="left"
-                title={item.day}
-                variant="faint"
-              />
-              <div class="text-heading-h3 text-orange-900">{item.date}</div>
+            <div class="relative z-10 flex size-full flex-col justify-end p-32">
+              {/* Padding is cancelled by the negative margin so the text keeps
+                  its position while the plate lifts it off the shader. */}
+              <div class="-m-16 flex w-fit flex-col gap-8 bg-background-surface/90 p-16">
+                <Eyebrow
+                  client:visible
+                  direction="left"
+                  title={item.day}
+                  variant="faint"
+                />
+                <div class="text-heading-h3 text-orange-900">{item.date}</div>
+              </div>
             </div>
           </div>
 
@@ -100,7 +104,7 @@ const SLOT_DOT: Record<AgendaSlotAccent, string> = {
     ))}
 
     <div class="pointer-events-none absolute inset-0 z-0">
-      <AgendaTwizzlerOverlay client:visible={{ rootMargin: "240px" }} />
+      <AgendaRainOverlay client:visible={{ rootMargin: "240px" }} />
     </div>
   </div>
 </Section>
