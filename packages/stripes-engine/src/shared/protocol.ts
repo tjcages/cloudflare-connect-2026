@@ -1,5 +1,6 @@
 import type { EngineConfig } from "../config/types";
 import type { FramesOverlay } from "../frames/framesPaint";
+import type { SharedShaderSourceSpec } from "./shaderSourceRenderer";
 
 export type InstanceId = string;
 
@@ -13,6 +14,12 @@ export type RegisterMessage = {
   dpr: number;
   config?: Partial<EngineConfig>;
   seed?: number;
+  /**
+   * Render the instance's source texture from GLSL inside the worker instead
+   * of streaming media from the host. The renderer only advances on ticks the
+   * instance actually renders, so the engine's `maxFps` caps it too.
+   */
+  shaderSource?: SharedShaderSourceSpec;
 };
 
 export type TickMessage = {

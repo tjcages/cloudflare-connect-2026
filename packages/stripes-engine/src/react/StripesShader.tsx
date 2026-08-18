@@ -3,11 +3,21 @@
 import { useEffect, useMemo, useRef, type CSSProperties, type Ref } from "react";
 import { resolveThemedConfig, type ThemedEngineConfig, type ThemeName } from "../config/theme";
 import type { SharedShaderHandle } from "../shared/coordinator";
+import type { SharedShaderSourceSpec } from "../shared/shaderSourceRenderer";
 
 export type StripesShaderProps = {
-  src: string;
+  /** Media source URL. Optional when `shaderSource` supplies the texture instead. */
+  src?: string;
   /** Inferred from `src` when omitted; pass only for extension-less srcs (e.g. `blob:`). */
   mediaKind?: "video" | "image";
+  /**
+   * Render the source texture from Shadertoy-style GLSL inside the shared
+   * worker instead of fetching media. Takes precedence over `src`. Held by
+   * reference for the instance's lifetime — pass a stable object.
+   */
+  shaderSource?: SharedShaderSourceSpec;
+  /** Clamp the device pixel ratio the instance renders at. */
+  maxDpr?: number;
   config?: ThemedEngineConfig;
   /** The rendered `<canvas>` (always `aria-hidden` — the output is decorative). */
   ref?: Ref<HTMLCanvasElement>;
@@ -68,6 +78,8 @@ export function StripesShader(props: StripesShaderProps) {
   const {
     src,
     mediaKind,
+    shaderSource,
+    maxDpr,
     config,
     theme = "light",
     width,
@@ -90,6 +102,10 @@ export function StripesShader(props: StripesShaderProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const sharedHandleRef = useRef<SharedShaderHandle | null>(null);
   const configRef = useRef(resolvedConfig);
+  // Held in a ref: the GLSL spec is only read at registration, so a new object
+  // identity must not tear the instance down.
+  const shaderSourceRef = useRef(shaderSource);
+  shaderSourceRef.current = shaderSource;
   // Held in a ref so a new handler identity never tears the instance down.
   const waterActivityRef = useRef(onWaterActivity);
   waterActivityRef.current = onWaterActivity;
@@ -112,6 +128,8 @@ export function StripesShader(props: StripesShaderProps) {
         canvas: canvasRef.current,
         src,
         mediaKind,
+        shaderSource: shaderSourceRef.current,
+        maxDpr,
         config: configRef.current,
         revealDelayMs,
         loop,
@@ -130,7 +148,7 @@ export function StripesShader(props: StripesShaderProps) {
       handle?.unregister();
       sharedHandleRef.current = null;
     };
-  }, [src, mediaKind, autoPlay, loop, muted, rootMargin, preloadRootMargin, revealDelayMs, label]);
+  }, [src, mediaKind, maxDpr, autoPlay, loop, muted, rootMargin, preloadRootMargin, revealDelayMs, label]);
 
   useEffect(() => {
     const handle = sharedHandleRef.current;

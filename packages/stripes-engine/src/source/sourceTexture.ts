@@ -1,4 +1,10 @@
-export type EngineSource = HTMLImageElement | HTMLVideoElement | ImageBitmap | HTMLCanvasElement | VideoFrame;
+export type EngineSource =
+  | HTMLImageElement
+  | HTMLVideoElement
+  | ImageBitmap
+  | HTMLCanvasElement
+  | OffscreenCanvas
+  | VideoFrame;
 
 function isVideoElement(media: EngineSource): media is HTMLVideoElement {
   return typeof HTMLVideoElement !== "undefined" && media instanceof HTMLVideoElement;
@@ -17,8 +23,8 @@ function mediaSize(media: EngineSource): { width: number; height: number } {
   if (isImageElement(media)) return { width: media.naturalWidth || 1, height: media.naturalHeight || 1 };
   if (isVideoFrame(media)) return { width: media.displayWidth || 1, height: media.displayHeight || 1 };
   return {
-    width: (media as ImageBitmap | HTMLCanvasElement).width || 1,
-    height: (media as ImageBitmap | HTMLCanvasElement).height || 1,
+    width: (media as ImageBitmap | HTMLCanvasElement | OffscreenCanvas).width || 1,
+    height: (media as ImageBitmap | HTMLCanvasElement | OffscreenCanvas).height || 1,
   };
 }
 
