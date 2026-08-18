@@ -4,10 +4,7 @@ import {
   type StripesEngine,
 } from "@necatikcl/stripes-engine";
 import { useEffect, useRef } from "react";
-import {
-  AGENDA_RAIN_CONFIG,
-  AGENDA_RAIN_MAX_DPR,
-} from "./agenda-rain-config";
+import { AGENDA_RAIN_CONFIG, AGENDA_RAIN_MAX_DPR } from "./agenda-rain-config";
 import {
   AGENDA_RAIN_DEFAULTS,
   AGENDA_RAIN_SETTINGS_EVENT,

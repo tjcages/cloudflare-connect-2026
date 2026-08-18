@@ -27,7 +27,10 @@ const SLOT_DOT: Record<AgendaSlotAccent, string> = {
     <span>Register Now</span>
   </Button>
 
-  <div data-agenda-rain-root class="relative flex flex-col gap-48 p-40">
+  <div
+    data-agenda-rain-root
+    class="relative flex flex-col gap-48 p-40 max-lg:p-24"
+  >
     {connectAgenda.map((item, index) => (
       <Fragment>
         {index > 0 && (

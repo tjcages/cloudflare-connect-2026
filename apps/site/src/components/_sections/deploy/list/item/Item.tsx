@@ -52,7 +52,7 @@ export default function DeployListItem({
         duration: 0.45,
         ease: [0.6, 0.6, 0, 1],
       }}
-      className="absolute top-0 left-0 flex w-full max-w-560 items-center gap-52 px-20 py-16 text-body-x-small text-text-base before:inside-border-b before:border-border-default"
+      className="absolute top-0 left-0 flex w-full max-w-560 items-center gap-52 px-20 py-16 text-body-x-small text-text-base before:inside-border-b before:border-border-default max-lg:gap-16 max-lg:px-12"
     >
       <div
         style={{ color: colors[status] }}
@@ -103,10 +103,13 @@ export default function DeployListItem({
 
       <div
         style={{ color: mutedTextColor[status] }}
-        className="flex-1 transition-colors duration-200"
+        className="flex-1 transition-colors duration-200 max-lg:min-w-0"
       >
-        {title}
-        <div className="whitespace-nowrap text-text-muted"> {commitName}</div>
+        <div className="max-lg:truncate">{title}</div>
+        <div className="whitespace-nowrap text-text-muted max-lg:truncate">
+          {" "}
+          {commitName}
+        </div>
       </div>
 
       <div

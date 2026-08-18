@@ -86,12 +86,12 @@ export default function CodeTabsContent({
 
       <div
         aria-labelledby={`code-tab-${activeTab}`}
-        className="relative flex before:inside-border-b before:border-border-default"
+        className="relative flex before:inside-border-b before:border-border-default max-lg:flex-col"
         id="code-tabpanel"
         role="tabpanel"
         tabIndex={0}
       >
-        <div className="relative flex min-w-0 shrink grow basis-640 flex-col overflow-clip p-80">
+        <div className="relative flex min-w-0 shrink grow basis-640 flex-col overflow-clip p-80 max-lg:basis-auto max-lg:p-24">
           <div className="text-decorative-small text-text-subtle">
             CODE · <span className="text-orange-900" ref={numberRef} />
           </div>

@@ -4,20 +4,20 @@ import Card from "./Card.astro";
 ---
 
 <Container>
-  <div class="relative flex flex-col gap-40 p-40">
-    <div class="flex justify-between">
+  <div class="relative flex flex-col gap-40 p-40 max-lg:p-24">
+    <div class="flex justify-between max-lg:flex-col max-lg:gap-40">
       <Card name="canva" width={320} />
-      <div class="w-1 bg-border-muted"></div>
+      <div class="w-1 bg-border-muted max-lg:hidden"></div>
       <Card name="teamviewer" width={320} />
-      <div class="w-1 bg-border-muted"></div>
+      <div class="w-1 bg-border-muted max-lg:hidden"></div>
       <Card name="vsco" width={320} />
     </div>
 
-    <div class="flex justify-between">
+    <div class="flex justify-between max-lg:flex-col max-lg:gap-40">
       <Card name="liveblocks" width={320} />
-      <div class="w-1 bg-border-muted"></div>
+      <div class="w-1 bg-border-muted max-lg:hidden"></div>
       <Card name="elementor" width={320} />
-      <div class="w-1 bg-border-muted"></div>
+      <div class="w-1 bg-border-muted max-lg:hidden"></div>
       <Card name="docker" width={320} />
     </div>
   </div>

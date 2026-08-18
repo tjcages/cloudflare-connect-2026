@@ -29,7 +29,7 @@ export default function CarouselContainer({
 
   return (
     <div className="relative">
-      <div className="absolute -top-122 right-84 flex gap-8 p-2">
+      <div className="absolute -top-122 right-84 flex gap-8 p-2 max-lg:static max-lg:mb-16 max-lg:justify-end max-lg:pr-24">
         <Button
           variant="secondary"
           disabled={isBeginning}

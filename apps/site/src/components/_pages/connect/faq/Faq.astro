@@ -14,7 +14,9 @@ import { connectFaq } from "../data";
   description="Registration, venue, and what to expect."
   headerClass="pb-72!"
 >
-  <div class="mx-auto flex w-full max-w-720 flex-col px-40 pt-80 pb-80">
+  <div
+    class="mx-auto flex w-full max-w-720 flex-col px-40 pt-80 pb-80 max-lg:px-24 max-lg:pt-40 max-lg:pb-40"
+  >
     {connectFaq.map((item, index) => (
       <div
         class:list={[

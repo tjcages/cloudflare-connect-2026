@@ -26,8 +26,11 @@ export default function CategorySidebar({
   });
 
   return (
-    <aside className="relative w-300 shrink-0 self-stretch before:inside-border-r before:inside-border-b before:border-border-muted">
-      <nav aria-label={ariaLabel} className="sticky top-80 flex flex-col p-40">
+    <aside className="relative w-300 shrink-0 self-stretch before:inside-border-r before:inside-border-b before:border-border-muted max-lg:w-full max-lg:self-auto max-lg:before:border-r-transparent">
+      <nav
+        aria-label={ariaLabel}
+        className="sticky top-80 flex flex-col p-40 max-lg:static max-lg:p-24"
+      >
         <div className="mb-16 px-12 text-body-x-small text-text-muted">
           Browse by category
         </div>

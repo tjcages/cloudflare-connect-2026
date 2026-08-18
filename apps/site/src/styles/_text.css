@@ -172,6 +172,43 @@
   --text-blog-quote--font-weight: 300;
 }
 
+/* Mobile type scale. Utilities read the tokens through var(), so overriding the
+   tokens below md rescales every heading without touching call sites. Body,
+   label, and decorative sizes already work at phone widths and stay as-is. */
+@media (max-width: 767px) {
+  :root {
+    --text-heading-hero: 38px;
+    --text-heading-hero--line-height: 42px;
+
+    --text-heading-display: 36px;
+    --text-heading-display--line-height: 40px;
+
+    --text-heading-h1: 32px;
+    --text-heading-h1--line-height: 36px;
+
+    --text-heading-h2: 28px;
+    --text-heading-h2--line-height: 32px;
+
+    --text-heading-h3: 26px;
+    --text-heading-h3--line-height: 30px;
+
+    --text-quote-large: 22px;
+    --text-quote-large--line-height: 30px;
+
+    --text-quote-small: 20px;
+    --text-quote-small--line-height: 28px;
+
+    --text-blog-h1: 30px;
+    --text-blog-h1--line-height: 38px;
+
+    --text-blog-h2: 24px;
+    --text-blog-h2--line-height: 32px;
+
+    --text-blog-quote: 22px;
+    --text-blog-quote--line-height: 30px;
+  }
+}
+
 @layer utilities {
   .text-heading-hero,
   .text-heading-display,

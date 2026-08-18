@@ -9,7 +9,9 @@ interface Props {
 const { post } = Astro.props;
 ---
 
-<div class="flex items-center justify-between gap-40">
+<div
+  class="flex items-center justify-between gap-40 max-sm:flex-col max-sm:items-start max-sm:gap-12"
+>
   <PostAuthors post={post} />
 
   <div class="flex items-center gap-16 whitespace-nowrap">

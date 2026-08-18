@@ -9,7 +9,7 @@ export default function ConnectHeaderLogo() {
       href="/connect"
     >
       <ConnectCloud aria-hidden className="h-32 w-auto shrink-0" />
-      <span className="flex flex-col leading-none">
+      <span className="flex flex-col leading-none max-xs:hidden">
         <span className="font-sans text-[18px] font-medium tracking-[-0.36px] text-orange-900">
           Cloudflare
         </span>

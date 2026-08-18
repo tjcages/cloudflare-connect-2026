@@ -10,13 +10,15 @@ const { bordered = true } = Astro.props;
 
 <section
   class:list={[
-    "relative flex flex-col items-start p-80",
+    "relative flex flex-col items-start p-80 max-lg:p-24 max-lg:py-48",
     bordered &&
       "before:inside-border-y before:border-border-default before:[transition:none]",
   ]}
 >
-  <div class="flex w-full items-end justify-between">
-    <div class="flex w-380 flex-col gap-8">
+  <div
+    class="flex w-full items-end justify-between max-lg:flex-col max-lg:items-start max-lg:gap-32"
+  >
+    <div class="flex w-380 flex-col gap-8 max-lg:w-full">
       <h2 class="text-heading-h3 text-text-base">
         Subscribe to receive notifications of new posts
       </h2>
@@ -27,7 +29,7 @@ const { bordered = true } = Astro.props;
     </div>
 
     <form
-      class="flex h-48 w-480 items-center gap-4 rounded-full bg-background-base py-4 pr-4 pl-22 shadow-input-rest transition-shadow focus-within:shadow-input-active not-focus-within:hover:shadow-input-hover"
+      class="flex h-48 w-480 items-center gap-4 rounded-full bg-background-base py-4 pr-4 pl-22 shadow-input-rest transition-shadow focus-within:shadow-input-active not-focus-within:hover:shadow-input-hover max-lg:w-full"
       data-blog-subscribe
     >
       <label class="sr-only" for="blog-subscribe-email">Email address</label>

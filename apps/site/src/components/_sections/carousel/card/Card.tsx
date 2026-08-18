@@ -25,7 +25,7 @@ export default function CarouselCard({
 
   const Component = components[type];
   return (
-    <div className="relative mr-40 w-480 shrink-0 snap-center bg-background-base p-40 shadow-elevation-default">
+    <div className="relative mr-40 w-480 shrink-0 snap-center bg-background-base p-40 shadow-elevation-default max-lg:mr-16 max-lg:w-[calc(100vw-80px)] max-lg:p-24">
       <div className="relative mb-32 bg-background-surface before:inside-border before:z-20 before:border-border-muted">
         {<Component />}
       </div>

@@ -74,10 +74,10 @@ export default function StoriesTable() {
         />
       </div>
 
-      <div className="pointer-events-none sticky top-80 z-20 h-120">
+      <div className="pointer-events-none sticky top-80 z-20 h-120 max-lg:static max-lg:h-auto">
         <div
           className={cn(
-            "pointer-events-auto relative flex items-center transition-[height] duration-200 ease-[cubic-bezier(0.165,0.84,0.44,1)] after:inside-border-x after:inside-border-b after:border-border-default after:transition-opacity after:duration-200",
+            "pointer-events-auto relative flex items-center transition-[height] duration-200 ease-[cubic-bezier(0.165,0.84,0.44,1)] after:inside-border-x after:inside-border-b after:border-border-default after:transition-opacity after:duration-200 max-lg:h-auto max-lg:py-16 max-lg:after:opacity-0",
             pinned ? "h-80 after:opacity-100" : "h-120 after:opacity-0"
           )}
         >
@@ -90,8 +90,8 @@ export default function StoriesTable() {
             )}
           />
 
-          <div className="relative flex w-full items-center gap-12 px-80">
-            <p className="w-112 text-body-x-small text-text-default">
+          <div className="relative flex w-full items-center gap-12 px-80 max-lg:flex-wrap max-lg:px-24">
+            <p className="w-112 text-body-x-small text-text-default max-lg:w-full">
               Filter by:
             </p>
 

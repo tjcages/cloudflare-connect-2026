@@ -83,7 +83,7 @@ export default function DeployTerminal() {
         </button>
       </div>
 
-      <div className="flex h-80 items-center gap-12 pl-28 text-code-default">
+      <div className="flex h-80 items-center gap-12 pl-28 text-code-default max-lg:overflow-x-auto max-lg:pr-16 max-lg:pl-16">
         <span className="text-text-subtle">$</span>
         <span
           ref={stackRef}

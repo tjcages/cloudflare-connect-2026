@@ -50,7 +50,7 @@ export default function CodeTabsContentTabs({
   };
 
   return (
-    <div className="relative flex-center w-full py-20 before:inside-border-y before:border-border-default">
+    <div className="relative flex-center w-full py-20 before:inside-border-y before:border-border-default max-lg:justify-start max-lg:overflow-x-auto max-lg:px-16">
       <div
         aria-label="Code examples"
         className="relative flex gap-12"
@@ -114,7 +114,9 @@ export default function CodeTabsContentTabs({
               tabRefs.current[i] = el;
             }}
           >
-            <span className="relative z-20">{item.tabTitle}</span>
+            <span className="relative z-20 max-lg:whitespace-nowrap">
+              {item.tabTitle}
+            </span>
           </button>
         ))}
       </div>

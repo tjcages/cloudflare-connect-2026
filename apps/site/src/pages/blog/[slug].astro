@@ -35,7 +35,7 @@ const shareUrl = new URL(`/blog/${post.slug}`, Astro.site).href;
   title={`${post.title} | The Cloudflare Blog`}
 >
   <Section layout="headerless" noGridArea>
-    <div class="mx-auto flex w-800 flex-col gap-40">
+    <div class="mx-auto flex w-800 flex-col gap-40 max-lg:w-full max-lg:px-24">
       <PostHero post={post} />
       <PostCover post={post} />
       <PostByline post={post} />
@@ -43,7 +43,9 @@ const shareUrl = new URL(`/blog/${post.slug}`, Astro.site).href;
   </Section>
 
   <Section layout="headerless" noGridArea>
-    <div class="flex justify-between px-120">
+    <div
+      class="flex justify-between px-120 max-lg:flex-col max-lg:gap-40 max-lg:px-24"
+    >
       <PostSidebar
         client:load
         entries={entries}
@@ -52,7 +54,7 @@ const shareUrl = new URL(`/blog/${post.slug}`, Astro.site).href;
       />
 
       <article
-        class="flex w-640 flex-col gap-28 [&>h2]:mt-52 [&>h2]:scroll-mt-120 [&>h2:first-child]:mt-0 [&>h3]:mt-52 [&>h3]:scroll-mt-120"
+        class="flex w-640 flex-col gap-28 max-lg:w-full max-lg:min-w-0 [&>h2]:mt-52 [&>h2]:scroll-mt-120 [&>h2:first-child]:mt-0 [&>h3]:mt-52 [&>h3]:scroll-mt-120"
       >
         <ArticleBody blocks={post.blocks} copyAnchors />
 
@@ -70,7 +72,7 @@ const shareUrl = new URL(`/blog/${post.slug}`, Astro.site).href;
   </Container>
 
   <Section layout="headerless" noGridArea>
-    <div class="px-40">
+    <div class="px-40 max-lg:px-24">
       <PostGrid posts={related} />
     </div>
   </Section>

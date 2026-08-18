@@ -56,12 +56,14 @@ const items: (Omit<UseCasesCardProps, "index"> & {
   description="See real-world examples of Cloudflare Workers"
   headerClass="pb-72!"
 >
-  <div class="relative grid grid-cols-2" data-usecases-grid>
-    <DashedLineGrid
-      client:visible={{ rootMargin: "200px" }}
-      rows={2}
-      columns={2}
-    />
+  <div class="relative grid grid-cols-2 max-lg:grid-cols-1" data-usecases-grid>
+    <div class="pointer-events-none absolute inset-0 max-lg:hidden">
+      <DashedLineGrid
+        client:visible={{ rootMargin: "200px" }}
+        rows={2}
+        columns={2}
+      />
+    </div>
 
     {items.map(({ component: Component, ...item }, index: number) => (
       <UseCasesCard index={index} {...item}>

@@ -10,7 +10,7 @@ export default function IsolatesCanvas() {
       canvasAttrs={{
         "aria-hidden": "true",
         className:
-          "pointer-events-none absolute top-80 left-161 z-10 h-[calc(100%-160px)] w-[calc(100%-322px)]",
+          "pointer-events-none absolute top-80 left-161 z-10 h-[calc(100%-160px)] w-[calc(100%-322px)] max-lg:hidden",
       }}
       tickers={[
         createSectionVisuals({

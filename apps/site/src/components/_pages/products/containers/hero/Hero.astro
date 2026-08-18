@@ -68,30 +68,34 @@ const boxes: IProductsBox[] = compileBoxes([
 ]);
 ---
 
-<div class="relative mx-auto max-w-1200 pt-280 pb-96">
+<div
+  class="relative mx-auto max-w-1200 pt-280 pb-96 max-lg:pt-160 max-lg:pb-64"
+>
   <HeroGrid />
 
   <SectionEyebrow text="Hero" />
 
   <CornerDots count={4} faintClassName="z-30" />
 
-  <Products boxes={boxes} />
+  <div class="contents max-lg:hidden">
+    <Products boxes={boxes} />
 
-  <CodePiece
-    duotone
-    code={`const { "session-id": sessionId } = await request.json();`}
-    align="right"
-    class="absolute top-480 -left-80 w-240 *:data-code-decode:line-clamp-2"
-  />
+    <CodePiece
+      duotone
+      code={`const { "session-id": sessionId } = await request.json();`}
+      align="right"
+      class="absolute top-480 -left-80 w-240 *:data-code-decode:line-clamp-2"
+    />
 
-  <CodePiece
-    duotone
-    code={`import { Container, getContainer } from "@cloudflare/containers";`}
-    align="left"
-    class="absolute top-560 -right-80 w-320"
-  />
+    <CodePiece
+      duotone
+      code={`import { Container, getContainer } from "@cloudflare/containers";`}
+      align="left"
+      class="absolute top-560 -right-80 w-320"
+    />
+  </div>
 
-  <div class="mx-auto max-w-640 select-auto">
+  <div class="mx-auto max-w-640 select-auto max-lg:px-24">
     <Scramble
       client:visible
       preset="eyebrow-hero"
@@ -112,7 +116,7 @@ const boxes: IProductsBox[] = compileBoxes([
       across Cloudflare's global network.
     </p>
 
-    <div class="flex justify-center gap-12">
+    <div class="flex justify-center gap-12 max-sm:flex-col max-sm:items-center">
       <Button size="large" href="https://dash.cloudflare.com/sign-up">
         <Icon name="cloudflare" className="h-20 w-30" />
         <span>Start building for free</span>

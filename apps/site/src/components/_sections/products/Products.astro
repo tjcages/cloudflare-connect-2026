@@ -10,7 +10,7 @@ import Section from "@/layouts/Section.astro";
   layout="split"
   eyebrow="products"
   sectionEyebrow="products"
-  cardClass="grid grid-cols-3"
+  cardClass="grid grid-cols-3 max-lg:grid-cols-1"
 >
   <Fragment slot="title">
     Powerful primitives, <br />seamlessly integrated
@@ -27,13 +27,15 @@ import Section from "@/layouts/Section.astro";
     standard.
   </div>
 
-  <DashedLineGrid
-    client:visible={{ rootMargin: "200px" }}
-    columns={3}
-    rows={2}
-  />
+  <div class="pointer-events-none absolute inset-0 max-lg:hidden">
+    <DashedLineGrid
+      client:visible={{ rootMargin: "200px" }}
+      columns={3}
+      rows={2}
+    />
+  </div>
   {sectionProductGroups.map((product) => (
-    <div class="min-h-600 p-40">
+    <div class="min-h-600 p-40 max-lg:min-h-0 max-lg:p-24">
       <div class="mb-28 px-4 text-body-x-small text-text-muted">
         {product.label}
       </div>

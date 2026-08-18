@@ -160,8 +160,11 @@ export default function FilterBar({
   }, [showArchive, showDefault, searching, trimmed, visibleKey]);
 
   return (
-    <div className="flex h-40 items-center justify-between" ref={rootRef}>
-      <div className="flex items-center gap-4">
+    <div
+      className="flex h-40 items-center justify-between max-lg:h-auto max-lg:flex-col max-lg:items-stretch max-lg:gap-16"
+      ref={rootRef}
+    >
+      <div className="flex items-center gap-4 max-lg:flex-wrap">
         <Button
           className={cn(
             "shrink-0 [&>span]:transition-[padding] [&>span]:duration-250 [&>span]:ease-[cubic-bezier(0.165,0.84,0.44,1)]",
@@ -225,7 +228,7 @@ export default function FilterBar({
       </div>
 
       <div className="flex items-center gap-12">
-        <div className="flex h-40 w-280 items-center gap-4 rounded-full bg-background-base p-7 shadow-input-rest transition-shadow focus-within:shadow-input-active not-focus-within:hover:shadow-input-hover">
+        <div className="flex h-40 w-280 items-center gap-4 rounded-full bg-background-base p-7 shadow-input-rest transition-shadow focus-within:shadow-input-active not-focus-within:hover:shadow-input-hover max-lg:w-auto max-lg:flex-1">
           <Icon
             className="mx-2 text-icon-muted"
             name="magnifying-glass-2"

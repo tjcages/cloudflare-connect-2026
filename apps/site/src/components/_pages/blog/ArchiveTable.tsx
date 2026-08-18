@@ -7,7 +7,7 @@ import type { ArchiveEntry } from "./data";
 function ArchiveRow({ entry }: { entry: ArchiveEntry }) {
   return (
     <a
-      className="group relative flex h-72 shrink-0 items-center gap-24 bg-background-base px-80 transition-colors duration-150 outline-none before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-border-default hover:bg-background-surface focus-visible:shadow-[inset_0_0_0_2px_var(--color-orange-900)]"
+      className="group relative flex h-72 shrink-0 items-center gap-24 bg-background-base px-80 transition-colors duration-150 outline-none before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-border-default hover:bg-background-surface focus-visible:shadow-[inset_0_0_0_2px_var(--color-orange-900)] max-lg:gap-12 max-lg:px-24"
       href={`/blog/${entry.slug}`}
     >
       <span className="min-w-0 flex-1 truncate text-label-x-small text-text-base transition-colors duration-150 group-hover:text-orange-900">
@@ -15,9 +15,9 @@ function ArchiveRow({ entry }: { entry: ArchiveEntry }) {
       </span>
 
       <span className="flex shrink-0 items-center gap-10 text-body-x-small whitespace-nowrap">
-        <span className="text-text-muted">{entry.byline}</span>
+        <span className="text-text-muted max-sm:hidden">{entry.byline}</span>
 
-        <span className="text-text-faint">·</span>
+        <span className="text-text-faint max-sm:hidden">·</span>
 
         <span className="text-text-muted">{entry.date}</span>
       </span>

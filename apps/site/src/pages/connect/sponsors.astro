@@ -38,11 +38,11 @@ import Layout from "@/layouts/Layout.astro";
     headerClass="pb-72!"
   >
     <div
-      class="relative grid grid-cols-3 before:inside-border before:border-border-default"
+      class="relative grid grid-cols-3 before:inside-border before:border-border-default max-lg:grid-cols-1"
     >
       {sponsorOpportunities.map((item) => (
         <Item
-          class="h-full min-h-262"
+          class="h-full min-h-262 max-lg:min-h-0"
           iconName={item.iconName}
           title={item.title}
         >
@@ -50,11 +50,13 @@ import Layout from "@/layouts/Layout.astro";
         </Item>
       ))}
 
-      <DashedLineGrid
-        client:visible={{ rootMargin: "200px" }}
-        columns={3}
-        rows={1}
-      />
+      <div class="pointer-events-none absolute inset-0 max-lg:hidden">
+        <DashedLineGrid
+          client:visible={{ rootMargin: "200px" }}
+          columns={3}
+          rows={1}
+        />
+      </div>
     </div>
   </Section>
 
@@ -64,7 +66,9 @@ import Layout from "@/layouts/Layout.astro";
 
     <div class="h-80"></div>
 
-    <div class="flex items-end justify-between gap-40 px-80 pb-40">
+    <div
+      class="flex items-end justify-between gap-40 px-80 pb-40 max-lg:flex-col max-lg:items-start max-lg:gap-24 max-lg:px-24"
+    >
       <div>
         <h2 class="mb-16 text-heading-h2 text-text-base">
           Our Connect 2026 sponsors
@@ -79,18 +83,18 @@ import Layout from "@/layouts/Layout.astro";
       </Button>
     </div>
 
-    <div class="flex flex-col gap-40 px-40 pb-40">
+    <div class="flex flex-col gap-40 px-40 pb-40 max-lg:px-16">
       {sponsorTiers.map((tier) => {
         const tierSponsors = connectSponsors.filter((s) => s.tier === tier);
         if (tierSponsors.length === 0) return null;
 
         return (
-          <section class="relative bg-background-base p-40 before:inside-border before:border-border-muted">
+          <section class="relative bg-background-base p-40 before:inside-border before:border-border-muted max-lg:p-24">
             <h3 class="text-heading-h5 text-text-base">{tier}</h3>
 
             <div class="mx-4 mt-32 mb-31 h-px bg-border-default" />
 
-            <div class="grid grid-cols-3 gap-x-8 gap-y-24">
+            <div class="grid grid-cols-3 gap-x-8 gap-y-24 max-lg:grid-cols-2 max-sm:grid-cols-1">
               {tierSponsors.map((sponsor) => (
                 <NavigationItem
                   description={sponsor.website.replace(/^https?:\/\//, "")}

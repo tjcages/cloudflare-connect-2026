@@ -9,31 +9,35 @@ import Grid from "./_svg/Grid.svg";
   <CornerDots count={4} faintClassName="z-30" />
 
   <div
-    class="relative h-640 before:inside-border-b before:border-border-default"
+    class="relative h-640 before:inside-border-b before:border-border-default max-lg:h-auto"
   >
     <Grid
       aria-hidden="true"
-      class="pointer-events-none absolute -top-0.5 -right-0.5 -z-10 h-641 w-401 text-border-default"
+      class="pointer-events-none absolute -top-0.5 -right-0.5 -z-10 h-641 w-401 text-border-default max-lg:hidden"
     />
 
-    <div class="absolute top-0 right-0 h-640 w-560">
+    <div class="absolute top-0 right-0 h-640 w-560 max-lg:hidden">
       <slot />
     </div>
 
-    <div class="absolute bottom-80 left-80 flex w-520 flex-col gap-40">
+    <div
+      class="absolute bottom-80 left-80 flex w-520 flex-col gap-40 max-lg:static max-lg:w-full max-lg:px-24 max-lg:py-64"
+    >
       <slot name="eyebrow" />
 
       <div>
-        <h1 class="mb-16 text-heading-h1 text-text-base">
+        <h1 class="mb-16 text-heading-h1 text-text-base max-lg:[&_br]:hidden">
           <slot name="title" />
         </h1>
 
-        <div class="flex flex-col gap-24 text-body-large text-text-base">
+        <div
+          class="flex flex-col gap-24 text-body-large text-text-base max-lg:[&_br]:hidden"
+        >
           <slot name="description" />
         </div>
       </div>
 
-      <div class="flex gap-12">
+      <div class="flex gap-12 max-sm:flex-col">
         <slot name="action" />
       </div>
     </div>

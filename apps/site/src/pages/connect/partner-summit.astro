@@ -39,10 +39,10 @@ import Layout from "@/layouts/Layout.astro";
     <div
       class="relative flex flex-col before:inside-border before:border-border-default"
     >
-      <div class="relative grid grid-cols-2">
+      <div class="relative grid grid-cols-2 max-lg:grid-cols-1">
         {partnerWhy.items.map((item) => (
           <Item
-            class="h-full min-h-262"
+            class="h-full min-h-262 max-lg:min-h-0"
             iconName={item.iconName}
             title={item.title}
           >
@@ -50,16 +50,18 @@ import Layout from "@/layouts/Layout.astro";
           </Item>
         ))}
 
-        <DashedLineGrid
-          client:visible={{ rootMargin: "200px" }}
-          columns={2}
-          rows={2}
-        />
+        <div class="pointer-events-none absolute inset-0 max-lg:hidden">
+          <DashedLineGrid
+            client:visible={{ rootMargin: "200px" }}
+            columns={2}
+            rows={2}
+          />
+        </div>
       </div>
 
       {/* Tickets / Isolates full-card info — snaps to elevated card rails */}
       <div
-        class="relative flex h-80 items-center gap-20 bg-background-surface px-40 text-body-x-small text-text-default"
+        class="relative flex h-80 items-center gap-20 bg-background-surface px-40 text-body-x-small text-text-default max-lg:h-auto max-lg:px-20 max-lg:py-16"
       >
         <div
           class="relative flex-center size-40 shrink-0 rounded-full bg-background-surface before:inside-border before:border-border-default"
@@ -134,7 +136,9 @@ import Layout from "@/layouts/Layout.astro";
     description="Eligibility, registration types, and what to expect."
     headerClass="pb-72!"
   >
-    <div class="mx-auto w-full max-w-720 px-40 pt-80 pb-80">
+    <div
+      class="mx-auto w-full max-w-720 px-40 pt-80 pb-80 max-lg:px-24 max-lg:pt-40 max-lg:pb-40"
+    >
       <FaqList items={partnerFaq} />
     </div>
   </Section>

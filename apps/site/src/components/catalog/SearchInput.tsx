@@ -14,7 +14,7 @@ export default function SearchInput({
   placeholder: string;
 }) {
   return (
-    <div className="flex w-560 items-center gap-4 rounded-full bg-background-base p-11 shadow-input-rest transition-shadow focus-within:shadow-input-active not-focus-within:hover:shadow-input-hover">
+    <div className="flex w-560 items-center gap-4 rounded-full bg-background-base p-11 shadow-input-rest transition-shadow focus-within:shadow-input-active not-focus-within:hover:shadow-input-hover max-lg:w-full">
       <Icon
         className="mx-2 text-icon-muted"
         name="magnifying-glass-2"

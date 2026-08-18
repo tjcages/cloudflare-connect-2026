@@ -136,7 +136,9 @@ const previewImage = new URL("/preview.png", Astro.site).href;
     <Font cssVariable="--font-stk-bureau-serif" />
     <Font cssVariable="--font-paper-mono" />
   </head>
-  <body class="relative bg-background-base font-sans text-text-base">
+  <body
+    class="relative overflow-x-clip bg-background-base font-sans text-text-base"
+  >
     <div
       class="pointer-events-none fixed top-0 centering-max-w-1200 z-10 h-screen before:inside-border-x before:border-border-default"
     >

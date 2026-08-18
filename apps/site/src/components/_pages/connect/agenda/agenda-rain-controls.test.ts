@@ -32,9 +32,7 @@ describe("agenda rain controls", () => {
       AGENDA_RAIN_DEFAULTS.stripes.length
     );
     expect(AGENDA_RAIN_DEFAULTS.stripes[0].color).toBe("#fafafa");
-    expect(AGENDA_RAIN_DEFAULTS.fieldScale).toBe(
-      AGENDA_RAIN_CONFIG.fieldScale
-    );
+    expect(AGENDA_RAIN_DEFAULTS.fieldScale).toBe(AGENDA_RAIN_CONFIG.fieldScale);
   });
 
   it("defaults the texture source to the authored library preset", () => {

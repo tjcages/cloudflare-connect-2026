@@ -16,7 +16,9 @@ const tags = tagsOf(post);
 ---
 
 <footer class="flex flex-col gap-24">
-  <div class="flex items-center justify-between gap-40">
+  <div
+    class="flex items-center justify-between gap-40 max-sm:flex-col max-sm:items-start max-sm:gap-12"
+  >
     <PostAuthors post={post} />
 
     <CopyLink client:visible label="Copy link" />
@@ -26,7 +28,7 @@ const tags = tagsOf(post);
     <>
       <div class="h-px w-full bg-border-muted" />
 
-      <div class="flex items-start gap-16">
+      <div class="flex items-start gap-16 max-sm:flex-col max-sm:gap-8">
         <span class="w-180 shrink-0 py-6 text-body-x-small text-text-default">
           Related tags
         </span>
@@ -49,12 +51,12 @@ const tags = tagsOf(post);
 
   <div class="h-px w-full bg-border-muted"></div>
 
-  <div class="flex items-start">
+  <div class="flex items-start max-sm:flex-col max-sm:gap-8">
     <span class="w-180 shrink-0 py-6 text-body-x-small text-text-default">
       Follow on social media
     </span>
 
-    <div class="flex flex-1 flex-wrap justify-end gap-8">
+    <div class="flex flex-1 flex-wrap justify-end gap-8 max-sm:justify-start">
       {FOLLOW_LINKS.map(({ icon, label, href }) => (
         <Button
           aria-label={label}

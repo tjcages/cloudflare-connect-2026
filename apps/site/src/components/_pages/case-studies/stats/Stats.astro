@@ -9,12 +9,14 @@ const stats = [
 ---
 
 <Section layout="headerless" noGridArea>
-  <div class="flex justify-between px-80">
-    <h2 class="w-320 text-heading-h2 text-text-base">
+  <div
+    class="flex justify-between px-80 max-lg:flex-col max-lg:gap-48 max-lg:px-24"
+  >
+    <h2 class="w-320 text-heading-h2 text-text-base max-lg:w-full">
       Trusted by millions. Proven every second.
     </h2>
 
-    <div class="flex w-520 flex-col gap-40">
+    <div class="flex w-520 flex-col gap-40 max-lg:w-full">
       {stats.map((stat, index) => (
         <div
           class:list={[

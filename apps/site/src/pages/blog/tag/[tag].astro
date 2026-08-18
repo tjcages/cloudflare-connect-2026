@@ -45,7 +45,9 @@ const records = POSTS.map((post) => ({
 >
   <div data-blog-page>
     <Container>
-      <div class="relative flex flex-col gap-48 px-80 py-80">
+      <div
+        class="relative flex flex-col gap-48 px-80 py-80 max-lg:px-24 max-lg:py-48"
+      >
         <BlogHeader
           eyebrow="NOW"
           title={tag.label}
@@ -61,7 +63,7 @@ const records = POSTS.map((post) => ({
       </div>
 
       <div data-blog-default>
-        <div class="relative px-40 pb-80">
+        <div class="relative px-40 pb-80 max-lg:px-24 max-lg:pb-48">
           <FilterBarGrid posts={grid} />
         </div>
       </div>
