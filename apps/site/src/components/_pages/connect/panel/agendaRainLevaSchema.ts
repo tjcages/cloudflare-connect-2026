@@ -1,8 +1,9 @@
 import { folder } from "leva";
 import type {
-  SpeakerFrameSettings,
-  SpeakerStripeControl,
-} from "../speakers/speaker-frame-controls";
+  AgendaRainSettings,
+  AgendaRainStripeControl,
+} from "../agenda/agenda-rain-controls";
+import { rainShaderOptions } from "../agenda/rain-shader-library";
 import { colorLibraryInputPlugin } from "./colorLibraryInputPlugin";
 import { copyConfigFolder } from "./copyConfig";
 import { loadControlDrawerOpen } from "./drawerState";
@@ -13,10 +14,10 @@ import {
 } from "./stripeColorsTablePlugin";
 
 /**
- * The speaker-frame surface of the lab's Leva panel: grid geometry, the stripe
- * palette table, tone, sparkle, stripe detail, detected frames, cursor
- * distortion and color mapping — the same folders, labels and ranges the lab
- * uses, bound to the site's `SpeakerFrameSettings`.
+ * The agenda-rain surface of the lab's Leva panel: the "Wave to Full Screen"
+ * source framing, the Rain stream knobs, grid geometry, the stripe palette
+ * table, tone and background FX — the lab's Graphic Rain controls bound to
+ * the site's `AgendaRainSettings`.
  */
 
 const RENDER_MODES = [
@@ -69,8 +70,8 @@ const num = (
   step: number
 ) => ({ value, label, min, max, step });
 
-export const toEditableStripes = (
-  stripes: SpeakerStripeControl[]
+export const toEditableRainStripes = (
+  stripes: AgendaRainStripeControl[]
 ): EditableStripe[] =>
   stripes.map((stripe) => ({
     id: stripe.id,
@@ -80,74 +81,55 @@ export const toEditableStripes = (
     opacity: stripe.opacity,
   }));
 
-export const fromEditableStripes = (
-  rows: EditableStripe[]
-): SpeakerStripeControl[] =>
-  rows.map((row) => ({
-    id: row.id,
-    color: row.hex,
-    startFrom: row.startFrom,
-    width: row.width,
-    opacity: row.opacity,
-  }));
-
-export function buildSpeakerFramesLevaSchema(
-  values: SpeakerFrameSettings,
+export function buildAgendaRainLevaSchema(
+  values: AgendaRainSettings,
   onCopyConfig: () => void
 ) {
   return {
-    Frames: drawerFolder(
-      "Frames",
+    Rain: drawerFolder(
+      "Rain",
       {
-        frameCount: num(values.frameCount, "Frame count", 0, 6, 1),
-        frameWidth: num(values.frameWidth, "Frame width", 0.35, 2, 0.01),
-        frameHeight: num(values.frameHeight, "Frame height", 0.35, 2, 0.01),
-        horizontalSpeed: num(
-          values.horizontalSpeed,
-          "Horizontal speed",
-          0,
-          4,
-          0.01
+        rainEnabled: { value: values.rainEnabled, label: "Rain streams" },
+        gapsCoverage: num(values.gapsCoverage, "Gap coverage", 0, 0.95, 0.01),
+        gapsSpeed: num(values.gapsSpeed, "Gap speed", 0, 5, 0.01),
+        waveEnabled: { value: values.waveEnabled, label: "Stream wave" },
+        waveSqueeze: num(values.waveSqueeze, "Wave squeeze", 0, 1, 0.01),
+        waveWavelengthCells: num(
+          values.waveWavelengthCells,
+          "Wave length",
+          2,
+          64,
+          1
         ),
-        verticalSpeed: num(values.verticalSpeed, "Vertical speed", 0, 4, 0.01),
-        cursorWidth: num(values.cursorWidth, "Pointer width", 0.35, 2, 0.01),
-        cursorHeight: num(values.cursorHeight, "Pointer height", 0.35, 2, 0.01),
-        cursorFollow: num(values.cursorFollow, "Follow", 0.01, 1, 0.01),
+        waveSpeed: num(values.waveSpeed, "Wave speed", -10, 10, 0.01),
+        wavePhaseDeg: num(values.wavePhaseDeg, "Wave phase", -180, 180, 1),
       },
       true
     ),
 
-    "Shader output": drawerFolder("Shader output", {
-      shaderOpacity: num(values.shaderOpacity, "Opacity", 0, 1, 0.01),
-      renderMode: {
-        value: values.renderMode,
-        label: "Render style",
-        options: optionsFrom(RENDER_MODES),
+    "Texture source": drawerFolder(
+      "Texture source",
+      {
+        shaderPreset: {
+          value: values.shaderPreset,
+          label: "Shader",
+          options: rainShaderOptions(),
+        },
+        sourceSpeed: num(values.sourceSpeed, "Source speed", 0, 4, 0.01),
+        sourceScale: num(values.sourceScale, "Source resolution", 0.25, 2, 0.05),
+        sourceZoom: num(values.sourceZoom, "Source zoom", 0.2, 5, 0.01),
+        sourcePanX: num(values.sourcePanX, "Source pan X", -1, 1, 0.01),
+        sourcePanY: num(values.sourcePanY, "Source pan Y", -1, 1, 0.01),
+        sourceRotateX: num(values.sourceRotateX, "Rotate X", -89, 89, 1),
+        sourceRotateY: num(values.sourceRotateY, "Rotate Y", -180, 180, 1),
+        sourceRotateZ: num(values.sourceRotateZ, "Rotate Z", -180, 180, 1),
       },
-      renderIntensity: num(
-        values.renderIntensity,
-        "Render intensity",
-        0,
-        2,
-        0.01
-      ),
-      renderParamA: num(values.renderParamA, "Style parameter A", 0, 1, 0.01),
-      renderParamB: num(values.renderParamB, "Style parameter B", 0, 1, 0.01),
-      renderParamC: num(values.renderParamC, "Style parameter C", 0, 1, 0.01),
-      renderParamD: num(values.renderParamD, "Style parameter D", 0, 1, 0.01),
-      renderColorA: colorLibraryInputPlugin({
-        value: values.renderColorA,
-        label: "Render color A",
-      }),
-      renderColorB: colorLibraryInputPlugin({
-        value: values.renderColorB,
-        label: "Render color B",
-      }),
-    }),
+      true
+    ),
 
     "Grid geometry": drawerFolder("Grid geometry", {
-      gridCellWidth: num(values.gridCellWidth, "Cell width", 2, 48, 1),
-      gridCellHeight: num(values.gridCellHeight, "Cell height", 2, 48, 1),
+      gridCellWidth: num(values.gridCellWidth, "Cell width", 1, 48, 1),
+      gridCellHeight: num(values.gridCellHeight, "Cell height", 1, 48, 1),
       gridGapX: num(values.gridGapX, "Horizontal gap", 0, 24, 0.25),
       gridGapY: num(values.gridGapY, "Vertical gap", 0, 24, 0.25),
       gridCornerRadius: num(
@@ -173,11 +155,11 @@ export function buildSpeakerFramesLevaSchema(
           value: values.stripesEnabled,
           label: "Stripes enabled",
         },
-        fieldScale: num(values.fieldScale, "Field scale", 0.1, 4, 0.01),
+        fieldScale: num(values.fieldScale, "Field scale", 0.25, 2, 0.01),
         // The table's rows and edit handlers come from `stripeColorsTableRuntime`;
         // the Leva value is only a sync key that changes when the palette does.
         stripeColorsTable: stripeColorsTablePlugin({
-          value: stripeSyncKey(toEditableStripes(values.stripes)),
+          value: stripeSyncKey(toEditableRainStripes(values.stripes)),
         }),
       },
       true
@@ -244,6 +226,31 @@ export function buildSpeakerFramesLevaSchema(
         2,
         0.01
       ),
+      motionEnabled: { value: values.motionEnabled, label: "Stripe motion" },
+      motionAmplitude: num(
+        values.motionAmplitude,
+        "Motion amplitude",
+        0,
+        64,
+        0.1
+      ),
+      motionStagger: num(values.motionStagger, "Motion stagger", 0, 256, 1),
+      motionMaxOffset: num(
+        values.motionMaxOffset,
+        "Motion max offset",
+        0,
+        128,
+        0.5
+      ),
+      motionSpeed: num(values.motionSpeed, "Motion speed", 0, 5, 0.01),
+      motionDirection: {
+        value: values.motionDirection,
+        label: "Motion direction",
+        options: {
+          "Left to right": "leftToRight",
+          "Right to left": "rightToLeft",
+        },
+      },
     }),
 
     "Stripe detail": drawerFolder("Stripe detail", {
@@ -286,47 +293,18 @@ export function buildSpeakerFramesLevaSchema(
       ),
     }),
 
-    "Detected frames": drawerFolder("Detected frames", {
-      engineFramesEnabled: {
-        value: values.engineFramesEnabled,
-        label: "Detected frame overlay",
+    Background: drawerFolder("Background", {
+      backgroundTransparent: {
+        value: values.backgroundTransparent,
+        label: "Transparent",
       },
-      engineFrameThreshold: num(
-        values.engineFrameThreshold,
-        "Luminance threshold",
-        0,
-        1,
-        0.01
-      ),
-      engineFrameStripeCount: num(
-        values.engineFrameStripeCount,
-        "Highlighted stripes",
-        1,
-        24,
-        1
-      ),
-      engineFrameDistance: num(
-        values.engineFrameDistance,
-        "Group distance",
-        0,
-        24,
-        1
-      ),
-      engineFrameColor: colorLibraryInputPlugin({
-        value: values.engineFrameColor,
-        label: "Overlay color",
+      backgroundColor: colorLibraryInputPlugin({
+        value: values.backgroundColor,
+        label: "Background color",
       }),
-    }),
-
-    "Cursor distortion": drawerFolder("Cursor distortion", {
-      trailEnabled: {
-        value: values.trailEnabled,
-        label: "Shader cursor trail",
-      },
-      trailRadius: num(values.trailRadius, "Particle radius", 1, 160, 1),
-      trailAlpha: num(values.trailAlpha, "Particle alpha", 0, 1, 0.01),
-      trailLife: num(values.trailLife, "Particle life", 50, 4000, 10),
-      trailPush: num(values.trailPush, "Push strength", 0, 160, 1),
+      starsEnabled: { value: values.starsEnabled, label: "Stars" },
+      meteorsEnabled: { value: values.meteorsEnabled, label: "Meteors" },
+      flamesEnabled: { value: values.flamesEnabled, label: "Flames" },
     }),
 
     "Color mapping": drawerFolder("Color mapping", {
@@ -340,34 +318,34 @@ export function buildSpeakerFramesLevaSchema(
         label: "Stripe blend",
         options: optionsFrom(BLEND_MODES),
       },
-      imageColorLightness: num(
-        values.imageColorLightness,
-        "Source lightness",
-        -1,
-        1,
-        0.01
-      ),
-      imageColorDensity: num(
-        values.imageColorDensity,
-        "Source density",
-        0,
-        2,
-        0.01
-      ),
-      imageColorRemoveThin: num(
-        values.imageColorRemoveThin,
-        "Remove thin stripes",
+    }),
+
+    "Shader output": drawerFolder("Shader output", {
+      shaderOpacity: num(values.shaderOpacity, "Opacity", 0, 1, 0.01),
+      renderMode: {
+        value: values.renderMode,
+        label: "Render style",
+        options: optionsFrom(RENDER_MODES),
+      },
+      renderIntensity: num(
+        values.renderIntensity,
+        "Render intensity",
         0,
         1,
         0.01
       ),
-      imageColorBoostThick: num(
-        values.imageColorBoostThick,
-        "Boost thick stripes",
-        0,
-        2,
-        0.01
-      ),
+      renderParamA: num(values.renderParamA, "Style parameter A", 0, 1, 0.01),
+      renderParamB: num(values.renderParamB, "Style parameter B", 0, 1, 0.01),
+      renderParamC: num(values.renderParamC, "Style parameter C", 0, 1, 0.01),
+      renderParamD: num(values.renderParamD, "Style parameter D", 0, 1, 0.01),
+      renderColorA: colorLibraryInputPlugin({
+        value: values.renderColorA,
+        label: "Render color A",
+      }),
+      renderColorB: colorLibraryInputPlugin({
+        value: values.renderColorB,
+        label: "Render color B",
+      }),
     }),
 
     // Always the closing section, so the authored look can be lifted out.
@@ -376,18 +354,18 @@ export function buildSpeakerFramesLevaSchema(
 }
 
 /**
- * Flat Leva values → the speaker-frame settings record. `stripes` is not a Leva
- * value; the palette table edits it through the runtime handlers, so the current
- * list is carried over from `fallback`.
+ * Flat Leva values → the agenda-rain settings record. `stripes` is not a Leva
+ * value; the palette table edits it through the runtime handlers, so the
+ * current list is carried over from `fallback`.
  */
-export function speakerFramesFromLevaValues(
+export function agendaRainFromLevaValues(
   values: Record<string, unknown>,
-  fallback: SpeakerFrameSettings
-): SpeakerFrameSettings {
+  fallback: AgendaRainSettings
+): AgendaRainSettings {
   const next = { ...fallback } as Record<string, unknown>;
   for (const key of Object.keys(fallback)) {
     if (key === "stripes") continue;
     if (key in values) next[key] = values[key];
   }
-  return next as SpeakerFrameSettings;
+  return next as AgendaRainSettings;
 }

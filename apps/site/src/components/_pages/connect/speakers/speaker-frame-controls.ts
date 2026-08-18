@@ -109,7 +109,7 @@ export const SPEAKER_FRAME_DEFAULTS: SpeakerFrameSettings = {
   cursorWidth: 1,
   cursorHeight: 1,
   cursorFollow: 0.22,
-  shaderOpacity: 1,
+  shaderOpacity: 0.56,
   gridCellWidth: SPEAKER_SHADER_CONFIG.grid.cellWidth,
   gridCellHeight: SPEAKER_SHADER_CONFIG.grid.cellHeight,
   gridGapX: SPEAKER_SHADER_CONFIG.grid.gapX,

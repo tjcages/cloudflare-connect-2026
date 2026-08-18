@@ -1,9 +1,9 @@
-import { button, folder } from "leva";
-import {
-  loadRainControlSettings,
-  type RainControlSettings,
-  type RainStripeControl,
+import { folder } from "leva";
+import type {
+  RainControlSettings,
+  RainStripeControl,
 } from "../hero/rain-control-settings";
+import { copyConfigFolder } from "./copyConfig";
 import { loadControlDrawerOpen } from "./drawerState";
 import { shaderCodePlugin } from "./shaderCodePlugin";
 import type { EditableStripe } from "./stripeAdapter";
@@ -63,7 +63,10 @@ export const toEditableRainStripes = (
     opacity: stripe.opacity,
   }));
 
-export function buildRainLevaSchema(values: RainControlSettings) {
+export function buildRainLevaSchema(
+  values: RainControlSettings,
+  onCopyConfig: () => void
+) {
   return {
     Rain: drawerFolder(
       "Rain",
@@ -227,14 +230,7 @@ export function buildRainLevaSchema(values: RainControlSettings) {
       rainSourceGlsl: shaderCodePlugin({ value: values.sourceGlsl }),
     }),
 
-    // Every change persists before this runs, so the stored record is always
-    // the live state — including stripes, which bypass Leva values.
-    "Copy config": button(() => {
-      const json = JSON.stringify(loadRainControlSettings(), null, 2);
-      void navigator.clipboard.writeText(json).catch(() => {
-        window.prompt("Copy the rain config JSON:", json);
-      });
-    }),
+    Config: copyConfigFolder(onCopyConfig),
   };
 }
 

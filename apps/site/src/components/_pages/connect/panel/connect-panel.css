@@ -16,7 +16,9 @@
   max-height: calc(100dvh - 32px);
   width: 360px;
   flex-direction: column;
-  overflow: hidden;
+  /* Visible so the snap hint pills can sit outside the panel; the body
+     scroller clips its own bottom corners instead. */
+  overflow: visible;
   border-radius: 8px;
   background: var(--leva-panel-bg, #1c1c1c);
   box-shadow:
@@ -36,13 +38,278 @@
   padding: 8px 8px 4px 16px;
   color: var(--leva-text, #d4d4d4);
   font-size: 11px;
+  cursor: grab;
+  touch-action: none;
+}
+
+/* Invisible resize hit areas. Inset (not overhanging) because the panel
+   clips overflow for its border radius. */
+.connect-leva-panel__resize {
+  position: absolute;
+  /* Above leva's own chrome, which layers past 10. */
+  z-index: 1000;
+  touch-action: none;
+}
+
+.connect-leva-panel__resize--n,
+.connect-leva-panel__resize--s {
+  right: 10px;
+  left: 10px;
+  height: 5px;
+  cursor: ns-resize;
+}
+
+.connect-leva-panel__resize--e,
+.connect-leva-panel__resize--w {
+  top: 10px;
+  bottom: 10px;
+  width: 5px;
+  cursor: ew-resize;
+}
+
+.connect-leva-panel__resize--n {
+  top: 0;
+}
+
+.connect-leva-panel__resize--s {
+  bottom: 0;
+}
+
+.connect-leva-panel__resize--e {
+  right: 0;
+}
+
+.connect-leva-panel__resize--w {
+  left: 0;
+}
+
+.connect-leva-panel__resize--ne,
+.connect-leva-panel__resize--nw,
+.connect-leva-panel__resize--se,
+.connect-leva-panel__resize--sw {
+  width: 10px;
+  height: 10px;
+}
+
+.connect-leva-panel__resize--ne {
+  top: 0;
+  right: 0;
+  cursor: nesw-resize;
+}
+
+.connect-leva-panel__resize--nw {
+  top: 0;
+  left: 0;
+  cursor: nwse-resize;
+}
+
+.connect-leva-panel__resize--se {
+  right: 0;
+  bottom: 0;
+  cursor: nwse-resize;
+}
+
+.connect-leva-panel__resize--sw {
+  bottom: 0;
+  left: 0;
+  cursor: nesw-resize;
+}
+
+/* Hint pill: sits OUTSIDE the panel on one side, in the panel's own color.
+   Shown while dragging inside a viewport-edge snap zone (data-snap-x /
+   data-snap-y) and while hovering an edge resize handle. */
+.connect-leva-panel__hint {
+  pointer-events: none;
+  position: absolute;
+  z-index: 1001;
+  border-radius: 999px;
+  background: var(--leva-panel-bg, #1c1c1c);
+  opacity: 0;
+  transition:
+    opacity 140ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 220ms cubic-bezier(0.35, 1.55, 0.65, 1);
+}
+
+.connect-leva-panel__hint--left,
+.connect-leva-panel__hint--right {
+  top: 50%;
+  width: 4px;
+  height: 28px;
+  transform: translateY(-50%) scale(0.4);
+}
+
+.connect-leva-panel__hint--top,
+.connect-leva-panel__hint--bottom {
+  left: 50%;
+  width: 28px;
+  height: 4px;
+  transform: translateX(-50%) scale(0.4);
+}
+
+.connect-leva-panel__hint--left {
+  left: -8px;
+}
+
+.connect-leva-panel__hint--right {
+  right: -8px;
+}
+
+.connect-leva-panel__hint--top {
+  top: -8px;
+}
+
+.connect-leva-panel__hint--bottom {
+  bottom: -8px;
+}
+
+.connect-leva-panel[data-snap-x="left"] .connect-leva-panel__hint--left,
+.connect-leva-panel[data-snap-x="right"] .connect-leva-panel__hint--right {
+  opacity: 1;
+  transform: translateY(-50%) scale(1);
+}
+
+.connect-leva-panel[data-snap-y="top"] .connect-leva-panel__hint--top,
+.connect-leva-panel[data-snap-y="bottom"] .connect-leva-panel__hint--bottom {
+  opacity: 1;
+  transform: translateX(-50%) scale(1);
+}
+
+/* Hovering an edge resize handle shows a light pill INSIDE the panel at
+   that edge (the outside dark pills stay reserved for viewport snapping). */
+.connect-leva-panel__resize--n::after,
+.connect-leva-panel__resize--s::after,
+.connect-leva-panel__resize--e::after,
+.connect-leva-panel__resize--w::after {
+  content: "";
+  position: absolute;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.6);
+  opacity: 0;
+  transform: scale(0.4);
+  transition:
+    opacity 140ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 220ms cubic-bezier(0.35, 1.55, 0.65, 1);
+}
+
+.connect-leva-panel__resize--e::after,
+.connect-leva-panel__resize--w::after {
+  top: 50%;
+  width: 3px;
+  height: 28px;
+  margin-top: -14px;
+}
+
+.connect-leva-panel__resize--n::after,
+.connect-leva-panel__resize--s::after {
+  left: 50%;
+  width: 28px;
+  height: 3px;
+  margin-left: -14px;
+}
+
+.connect-leva-panel__resize--w::after {
+  left: 5px;
+}
+
+.connect-leva-panel__resize--e::after {
+  right: 5px;
+}
+
+.connect-leva-panel__resize--n::after {
+  top: 5px;
+}
+
+.connect-leva-panel__resize--s::after {
+  bottom: 5px;
+}
+
+.connect-leva-panel__resize--n:hover::after,
+.connect-leva-panel__resize--s:hover::after,
+.connect-leva-panel__resize--e:hover::after,
+.connect-leva-panel__resize--w:hover::after {
+  opacity: 1;
+  transform: scale(1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .connect-leva-panel__hint,
+  .connect-leva-panel__resize::after,
+  .connect-leva-panel__body,
+  .connect-color-popover__list {
+    transition: none;
+  }
+}
+
+/* Animatable fade height for the cut-off mask below. */
+@property --panel-fade {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
 }
 
 .connect-leva-panel__body {
   min-height: 0;
   flex: 1;
+  overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
+  border-radius: 0 0 8px 8px;
+  padding-bottom: 32px;
+  scrollbar-width: thin;
+  scrollbar-color: rgb(255 255 255 / 0.25) transparent;
+  /* Content fades out at the bottom while more of it is cut off below
+     (`--cut-off` is toggled from the scroll/resize observer). */
+  mask-image: linear-gradient(
+    to bottom,
+    black calc(100% - var(--panel-fade)),
+    transparent 100%
+  );
+  transition: --panel-fade 240ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.connect-leva-panel__body--cut-off {
+  --panel-fade: 56px;
+}
+
+/* Color popover library list: full-bleed scroller with its padding inside,
+   thin scrollbar, and fades on whichever end is clipped (data-fade-top /
+   data-fade-bottom are set from the component's scroll handler). */
+@property --pop-fade-top {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --pop-fade-bottom {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+.connect-color-popover__list {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 8px 8px;
+  scrollbar-width: thin;
+  scrollbar-color: rgb(255 255 255 / 0.25) transparent;
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    black var(--pop-fade-top),
+    black calc(100% - var(--pop-fade-bottom)),
+    transparent 100%
+  );
+  transition:
+    --pop-fade-top 240ms cubic-bezier(0.22, 1, 0.36, 1),
+    --pop-fade-bottom 240ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.connect-color-popover__list[data-fade-top="true"] {
+  --pop-fade-top: 32px;
+}
+
+.connect-color-popover__list[data-fade-bottom="true"] {
+  --pop-fade-bottom: 40px;
 }
 
 .connect-leva-panel__close {
@@ -72,6 +339,25 @@
   stroke: currentColor;
   stroke-linecap: round;
   stroke-width: 1.5;
+}
+
+/* Site deviation from the lab: one 11px text size across the whole panel —
+   the lab mixes in 10px sub-labels. Mirrors the lab selectors so it also
+   reaches the portaled color popover. */
+.playground-leva-panel .time-transport-readout,
+.playground-leva-panel .time-transport-buttons > button,
+.twizzler-gradient-editor-title,
+.playground-leva-panel button.twizzler-gradient-editor-action,
+.playground-leva-panel .stripe-colors-table .stripe-colors-opacity-control output,
+.playground-leva-panel .stripe-colors-table .stripe-colors-color-code,
+.playground-leva-panel
+  .stripe-colors-table
+  .stripe-colors-threshold-slider
+  output,
+.playground-leva-panel .library-color-input-value,
+.playground-leva-panel button.surface-new-area,
+.surface-new-area {
+  font-size: 11px !important;
 }
 
 .connect-shader-selector {
