@@ -147,8 +147,8 @@ export const CONNECT_HERO_RAIN_CONTROL_DEFAULTS: RainControlSettings = {
   sourceWidth: CONNECT_HERO_RAIN_SHADER_SOURCE.width,
   sourceHeight: CONNECT_HERO_RAIN_SHADER_SOURCE.height,
   sourceGlsl: CONNECT_HERO_RAIN_GLSL,
-  topFadePct: 40,
-  topFadeOffsetPct: 0,
+  topFadePct: 34,
+  topFadeOffsetPct: 23,
 };
 
 export const RAIN_PANEL_ID = "connect-hero-rain-v1";

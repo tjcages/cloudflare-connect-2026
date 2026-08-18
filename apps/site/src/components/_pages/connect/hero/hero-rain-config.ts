@@ -62,7 +62,7 @@ export const CONNECT_HERO_RAIN_CONFIG: DeepPartial<EngineConfig> = {
     },
   },
   grid: {
-    cellWidth: 17,
+    cellWidth: 15,
     cellHeight: 1,
     gapX: 12,
     gapY: 0,
@@ -70,17 +70,17 @@ export const CONNECT_HERO_RAIN_CONFIG: DeepPartial<EngineConfig> = {
     orientation: "vertical",
     angleDeg: 45,
     rotationMode: "cell",
-    overlapAmount: 1.2,
+    overlapAmount: 0,
     streamGapWave: {
       enabled: false,
       squeeze: 0.14,
       wavelengthCells: 9,
-      speed: -4,
+      speed: 20,
       phaseDeg: -180,
     },
   },
   stripes: [
-    { color: 0xfafafa, startFrom: 0, width: 0.5, opacity: 1 },
+    { color: 0xfafafa, startFrom: 0, width: 0.5, opacity: 0 },
     { color: 0xfff8e8, startFrom: 0.1644, width: 1, opacity: 1 },
     { color: 0xfeefd2, startFrom: 0.4418, width: 1.5, opacity: 1 },
     { color: 0xffe3b5, startFrom: 0.6357, width: 2, opacity: 1 },
@@ -96,7 +96,7 @@ export const CONNECT_HERO_RAIN_CONFIG: DeepPartial<EngineConfig> = {
   // The lab leaves the rain uncapped; the hero caps it to the Twizzler's 30fps.
   maxFps: 30,
   sparkle: {
-    gaps: { enabled: true, coverage: 0, speed: 1 },
+    gaps: { enabled: true, coverage: 0, speed: 0 },
     width: { enabled: false },
     stripe: { enabled: false },
     motion: { enabled: false },
@@ -142,47 +142,68 @@ export const CONNECT_HERO_RAIN_CONFIG: DeepPartial<EngineConfig> = {
 };
 
 /**
- * "Corridor" by @XorDev, comment-stripped — the lab's Graphic-rain texture
- * source ("Wave to Full Screen", shaderLibrary preset a1f684cd). Kept inline so
- * the hero island does not pull the vendored shader library (panel-chunk only);
- * the library's matcher is comment-insensitive, so the preset select still
- * recognizes it. https://x.com/XorDev/status/1923882930834751520
+ * The authored hero texture source: a tuned variant of the "recursive noise
+ * experiment" (Samuel YAN / Connect library entry) with tighter UV scale and
+ * mix weights. Kept inline so the hero island does not pull the vendored
+ * shader library (panel-chunk only); the preset select shows Custom since the
+ * tuning diverges from the library's Connect entry.
  */
-export const CONNECT_HERO_RAIN_GLSL = `void mainImage(out vec4 O, vec2 I)
-{
-    float t = iTime,
-    i,
-    d,
-    z;
-    for(O *= i; i++<3e1;)
-    {
-        vec3 r = normalize(vec3(I+I,0)-iResolution.xyy),
-        p = z*r,
-        w = abs(r);
-        w /= max(w.x,w.y);
-        w.z += t;
-        p.z -= t;
+export const CONNECT_HERO_RAIN_GLSL = `// "recursive noise experiment" by Samuel YAN
+// Inspired by ompuco: https://www.shadertoy.com/view/wllGzr
 
-        r = ++p;
-        z += d = length(
-            (p.xy=abs(mod(p.xy-2.,4.)-2.))-1.
-            +cos(p.z/vec2(3.1,2))) +
-            .1 * length(p-r) *
-            exp(dot(cos(ceil(w/=.3)),sin(w/.6).yzx));
+float connectHash(float n) {
+  return fract(clamp(n, 0.0, 1.0) * 23758.5453);
+}
 
-        O.rgb += (cos(p)+1.4) / d / z;
-    }
-    O = tanh(O/4e1);
+float connectNoise(vec3 x) {
+  vec3 p = floor(x);
+  vec3 f = fract(x);
+
+  f = f * f * (5.0 - 5.0 * f);
+  float n = 0.0;
+
+  return mix(
+    mix(
+      mix(connectHash(n + 1.0), connectHash(n + 1.0), f.x),
+      mix(connectHash(n + 0.5), connectHash(n + 0.5), f.x),
+      f.y
+    ),
+    mix(
+      mix(connectHash(n + 0.75), connectHash(n + 1.0), f.x),
+      mix(connectHash(n + 1.0), connectHash(n + 1.0), f.x),
+      f.y
+    ),
+    f.z
+  ) - 0.55;
+}
+
+void mainImage(out vec4 fragColor, in vec2 fragCoord) {
+  vec3 t = (iTime * vec3(1.0, 2.0, 3.0)) / 20.0;
+  vec2 uv = fragCoord / iResolution.xy;
+  uv /= 15.0;
+
+  vec3 col = vec3(0.25);
+
+  for (int i = 0; i < 20; i++) {
+    float iteration = float(i);
+    col.r += connectNoise(uv.xyy * (1.0 + iteration) + col.rgb + t * sin(cos(iteration / 0.1)));
+    col.g += connectNoise(uv.xyx * iteration + col.rgb + t * sin(cos(iteration)));
+    col.b += connectNoise(uv.yyx * iteration + col.rgb + t * sin(cos(iteration)));
+  }
+
+  col /= 0.1;
+  col = normalize(col);
+  fragColor = vec4(col, 1.0);
 }`;
 
 /**
  * Rendered inside the shared worker at the lab's factory source size
- * (1280×960, identity view). The lab's transport starts paused (iTime frozen);
- * the hero plays it at 1× so the corridor scroll animates the rain field.
+ * (1280×960, identity view), at the authored 0.2× time scale so the noise
+ * drifts slowly under the rain grid.
  */
 export const CONNECT_HERO_RAIN_SHADER_SOURCE: SharedShaderSourceSpec = {
   source: CONNECT_HERO_RAIN_GLSL,
   width: 1280,
   height: 960,
-  speed: 1,
+  speed: 0.2,
 };
