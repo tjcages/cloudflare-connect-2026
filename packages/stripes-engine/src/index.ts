@@ -47,6 +47,7 @@ export type {
   EngineConfig,
   Stripe,
   Fit,
+  StripeBlendMode,
   RenderMode,
   CursorTrailType,
   CursorTrailConfig,

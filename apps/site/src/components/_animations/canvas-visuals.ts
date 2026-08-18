@@ -86,6 +86,7 @@ export function createCanvasVisuals(
     frame = requestAnimationFrame(step);
     const dt = Math.min((now - last) / 1000, MAX_STEP);
     last = now;
+    let anyTicked = false;
     for (const item of visuals) {
       if (!visible.get(item.root)) continue;
       // Built on first paint-visible frame, not at mount: island-rendered chips
@@ -100,7 +101,13 @@ export function createCanvasVisuals(
       });
       item.elapsed += dt;
       item.visual.tick(item.elapsed, dt);
-      for (const fn of tickers) fn({ deltaMS: dt * 1000 });
+      anyTicked = true;
+    }
+    // Shared tickers advance once per frame — inside the loop they fired once
+    // per visible visual, running their animations at N× speed.
+    if (anyTicked) for (const fn of tickers) fn({ deltaMS: dt * 1000 });
+    for (const item of visuals) {
+      if (!visible.get(item.root)) continue;
       item.painter.paint();
     }
   };

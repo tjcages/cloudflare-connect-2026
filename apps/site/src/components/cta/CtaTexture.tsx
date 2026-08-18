@@ -24,6 +24,14 @@ const getTheme = (): ThemeName =>
 
 const getServerTheme = (): ThemeName | null => null;
 
+// Uncapped, the engine renders at raw devicePixelRatio — 2.25× this cap's
+// pixel work on a 3× phone for no visible gain on a texture backdrop.
+const MAX_DPR = 2;
+
+const readDpr = (canvas: HTMLCanvasElement) =>
+  Math.min(window.devicePixelRatio || 1, MAX_DPR) *
+  (canvas.currentCSSZoom ?? 1);
+
 export default function CtaTexture() {
   const theme = useSyncExternalStore(subscribeTheme, getTheme, getServerTheme);
   const stripesOff = useStripesOff();
@@ -52,7 +60,7 @@ export default function CtaTexture() {
     };
 
     const size = readSize();
-    const engine = createStripesEngine(canvas);
+    const engine = createStripesEngine(canvas, { dpr: readDpr(canvas) });
     const comet = createCometLogoTextureRenderer(size.width, size.height, {
       shape: CTA_COMET_LOGO_SHAPE,
     });
@@ -111,6 +119,7 @@ export default function CtaTexture() {
     const resizeObserver = new ResizeObserver(() => {
       const next = readSize();
       if (next.width < 1 || next.height < 1) return;
+      engine.setDpr(readDpr(canvas));
       engine.resize(next.width, next.height);
       comet.resize(next.width, next.height);
       engine.setSource(comet.canvas);

@@ -161,6 +161,8 @@ export type EngineOptions = {
 export type CellGridReadback = { cols: number; rows: number; values: Uint8Array; colors: Uint8Array | null };
 export type StripesEngine = {
   resize(cssWidth: number, cssHeight: number): void;
+  /** Override the DPR the surface renders at (e.g. to clamp devicePixelRatio). */
+  setDpr(dpr: number): void;
   renderFrame(): void;
   /** Arm the rAF render loop. Idempotent, and never restarts an in-flight reveal. */
   start(): void;

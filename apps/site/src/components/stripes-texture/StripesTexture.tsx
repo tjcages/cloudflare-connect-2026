@@ -15,6 +15,10 @@ const getTheme = (): ThemeName =>
 
 const getServerTheme = (): ThemeName | null => null;
 
+// The shared engine renders at raw devicePixelRatio otherwise — on a 3× phone
+// that is 2.25× the pixel work of this cap for no visible gain on textures.
+const MAX_DPR = 2;
+
 interface Props {
   src: string;
   darkSrc?: string;
@@ -73,6 +77,7 @@ export default function StripesTexture({
           : null),
       })}
       label={label}
+      maxDpr={MAX_DPR}
       onWaterActivity={onWaterActivity}
       ref={canvasRef}
       rootMargin={rootMargin}

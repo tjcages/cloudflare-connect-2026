@@ -1,5 +1,6 @@
 import type { EngineConfig } from "../config/types";
 import type { FramesOverlay } from "../frames/framesPaint";
+import type { SharedShaderSourceSpec } from "./shaderSourceRenderer";
 
 export type InstanceId = string;
 
@@ -13,6 +14,12 @@ export type RegisterMessage = {
   dpr: number;
   config?: Partial<EngineConfig>;
   seed?: number;
+  /**
+   * Render the instance's source texture from GLSL inside the worker instead
+   * of streaming media from the host. The renderer only advances on ticks the
+   * instance actually renders, so the engine's `maxFps` caps it too.
+   */
+  shaderSource?: SharedShaderSourceSpec;
 };
 
 export type TickMessage = {
@@ -44,6 +51,13 @@ export type SetConfigMessage = {
   type: "setConfig";
   id: InstanceId;
   config: Partial<EngineConfig>;
+};
+
+/** Replace or retune a shader-driven instance's GLSL texture source. */
+export type ShaderSourceMessage = {
+  type: "shaderSource";
+  id: InstanceId;
+  spec: SharedShaderSourceSpec;
 };
 
 export type CursorMessage = {
@@ -97,6 +111,7 @@ export type MainToWorkerMessage =
   | VisibilityMessage
   | SourceMessage
   | SetConfigMessage
+  | ShaderSourceMessage
   | CursorMessage
   | ClickMessage
   | RevealMessage
@@ -163,6 +178,16 @@ export type WaterActivityMessage = {
   activity: number;
 };
 
+/**
+ * Result of the last shader-source apply: the compile/link error, or null when
+ * it took. On error the previous renderer keeps running.
+ */
+export type ShaderSourceErrorMessage = {
+  type: "shaderSourceError";
+  id: InstanceId;
+  error: string | null;
+};
+
 /** The worker's authoritative view of one instance, for the debug readout. */
 export type InstanceStatsSample = {
   id: InstanceId;
@@ -203,4 +228,5 @@ export type WorkerToMainMessage =
   | FrameMessage
   | TockMessage
   | WaterActivityMessage
+  | ShaderSourceErrorMessage
   | StatsMessage;

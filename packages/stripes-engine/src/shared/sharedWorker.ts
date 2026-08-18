@@ -10,6 +10,11 @@ import type {
   SharedSourceFrame,
   WorkerToMainMessage,
 } from "./protocol";
+import {
+  createSharedShaderSourceRenderer,
+  type SharedShaderSourceRenderer,
+  type SharedShaderSourceSpec,
+} from "./shaderSourceRenderer";
 import { createSurfaceSizeState, nextSurfaceSize } from "./surfaceSize";
 
 type WorkerScope = {
@@ -25,12 +30,21 @@ type GlColorSpaceCtx = WebGL2RenderingContext & {
   unpackColorSpace?: string;
 };
 
+type ShaderSourceState = {
+  renderer: SharedShaderSourceRenderer;
+  timeSec: number;
+  lastMs: number | null;
+  speed: number;
+  spec: SharedShaderSourceSpec;
+};
+
 type Instance = {
   engine: SharedStripesEngine;
   visible: boolean;
   hasSource: boolean;
   pendingReveal: boolean;
   frameCap: FrameCapState;
+  shaderSource: ShaderSourceState | null;
 };
 
 const SHARED_GL_ATTRIBUTES: WebGLContextAttributes = {
@@ -88,7 +102,14 @@ function onContextRestored(): void {
   context = next;
   for (const [id, instance] of instances) {
     instance.engine.rebuild(next);
-    scope.postMessage({ type: "needsSource", id });
+    // Shader-driven sources live in the worker; only media sources need the
+    // host to reload anything.
+    if (instance.shaderSource) {
+      instance.shaderSource.renderer.render(instance.shaderSource.timeSec);
+      instance.engine.setSource(instance.shaderSource.renderer.canvas);
+    } else {
+      scope.postMessage({ type: "needsSource", id });
+    }
   }
 }
 
@@ -180,6 +201,7 @@ function renderTick(): void {
     if (!instance.visible) continue;
     const { engine } = instance;
     if (!shouldRenderFrame(instance.frameCap, engine.maxFps, now)) continue;
+    advanceShaderSource(instance, now);
     candidates.push({ id, instance, x: 0, y: 0, width: engine.outputWidth, height: engine.outputHeight });
   }
 
@@ -227,6 +249,58 @@ function asEngineSource(source: SharedSourceFrame): EngineSource {
   return source as unknown as EngineSource;
 }
 
+// Clamped so a long offscreen stretch resumes the animation rather than
+// fast-forwarding through the missed time.
+const MAX_SHADER_STEP_SEC = 0.1;
+
+// Recompiling for a speed-only change would visibly restart the animation;
+// everything else (GLSL, size, view) genuinely needs a fresh renderer. Returns
+// the compile/link error instead of throwing — a bad edit must leave the
+// previous renderer running, not tear the instance down.
+function applyShaderSource(instance: Instance, spec: SharedShaderSourceSpec): string | null {
+  const prev = instance.shaderSource;
+  const rendererUnchanged =
+    prev &&
+    prev.spec.source === spec.source &&
+    prev.spec.width === spec.width &&
+    prev.spec.height === spec.height &&
+    JSON.stringify(prev.spec.view ?? null) === JSON.stringify(spec.view ?? null);
+  if (prev && rendererUnchanged) {
+    prev.speed = spec.speed ?? 1;
+    prev.spec = spec;
+    return null;
+  }
+  let renderer: SharedShaderSourceRenderer;
+  try {
+    renderer = createSharedShaderSourceRenderer(spec);
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
+  }
+  prev?.renderer.dispose();
+  instance.shaderSource = {
+    renderer,
+    timeSec: prev?.timeSec ?? 0,
+    lastMs: prev?.lastMs ?? null,
+    speed: spec.speed ?? 1,
+    spec,
+  };
+  renderer.render(instance.shaderSource.timeSec);
+  instance.engine.setSource(renderer.canvas);
+  instance.hasSource = true;
+  return null;
+}
+
+function advanceShaderSource(instance: Instance, nowMs: number): void {
+  const shader = instance.shaderSource;
+  if (!shader) return;
+  const deltaSec =
+    shader.lastMs === null ? 0 : Math.min(MAX_SHADER_STEP_SEC, Math.max(0, (nowMs - shader.lastMs) / 1000));
+  shader.lastMs = nowMs;
+  shader.timeSec += deltaSec * shader.speed;
+  shader.renderer.render(shader.timeSec);
+  instance.engine.updateSourceFrame(shader.renderer.canvas);
+}
+
 function closeFrame(frame: SharedSourceFrame): void {
   (frame as { close?: () => void }).close?.();
 }
@@ -249,13 +323,20 @@ function handle(message: MainToWorkerMessage): void {
       // Both gates live on the main thread: hold the reveal clock until the
       // coordinator's reveal observers say the element is worth revealing.
       engine.setRevealGate(false);
-      instances.set(message.id, {
+      const instance: Instance = {
         engine,
         visible: false,
         hasSource: false,
         pendingReveal: false,
         frameCap: createFrameCapState(),
-      });
+        shaderSource: null,
+      };
+      if (message.shaderSource) {
+        const error = applyShaderSource(instance, message.shaderSource);
+        scope.postMessage({ type: "shaderSourceError", id: message.id, error });
+        instance.pendingReveal = true;
+      }
+      instances.set(message.id, instance);
       return;
     }
     case "tick": {
@@ -325,6 +406,13 @@ function handle(message: MainToWorkerMessage): void {
       instance.engine.setConfig(message.config);
       return;
     }
+    case "shaderSource": {
+      const instance = instances.get(message.id);
+      if (!instance) return;
+      const error = applyShaderSource(instance, message.spec);
+      scope.postMessage({ type: "shaderSourceError", id: message.id, error });
+      return;
+    }
     case "cursor": {
       const instance = instances.get(message.id);
       if (!instance) return;
@@ -352,6 +440,7 @@ function handle(message: MainToWorkerMessage): void {
     case "unregister": {
       const instance = instances.get(message.id);
       if (!instance) return;
+      instance.shaderSource?.renderer.dispose();
       instance.engine.dispose();
       instances.delete(message.id);
       return;
@@ -382,7 +471,10 @@ function handle(message: MainToWorkerMessage): void {
       return;
     }
     case "terminate": {
-      for (const instance of instances.values()) instance.engine.dispose();
+      for (const instance of instances.values()) {
+        instance.shaderSource?.renderer.dispose();
+        instance.engine.dispose();
+      }
       instances.clear();
       scope.close();
       return;

@@ -11,14 +11,19 @@ import { ConnectLevaPanel, useLevaTarget } from "../panel/ConnectLevaPanel";
 import {
   agendaRainFromLevaValues,
   buildAgendaRainLevaSchema,
-  toEditableRainStripes,
+  toEditableRainStripes as toEditableAgendaRainStripes,
 } from "../panel/agendaRainLevaSchema";
+import { copyConfigToClipboard } from "../panel/copyConfig";
+import {
+  buildRainLevaSchema,
+  rainSettingsFromLevaValues,
+  toEditableRainStripes as toEditableHeroRainStripes,
+} from "../panel/rainLevaSchema";
 import {
   buildSpeakerFramesLevaSchema,
   speakerFramesFromLevaValues,
   toEditableStripes,
 } from "../panel/speakerFramesLevaSchema";
-import { copyConfigToClipboard } from "../panel/copyConfig";
 import { stripeColorsTableRuntime } from "../panel/stripeColorsTablePlugin";
 import {
   buildTwizzlerLevaSchema,
@@ -31,6 +36,14 @@ import {
   type SpeakerStripeControl,
 } from "../speakers/speaker-frame-controls";
 import {
+  loadRainControlSettings,
+  RAIN_PANEL_ID,
+  resolveConnectHeroRain,
+  type ConnectHeroRain,
+  type RainControlSettings,
+  type RainStripeControl,
+} from "./rain-control-settings";
+import {
   CONNECT_TWIZZLER_CONTROL_DEFAULTS,
   resolveConnectTwizzlerSettings,
   type TwizzlerControlSettings,
@@ -38,9 +51,10 @@ import {
 
 interface Props {
   onSettingsChange: (settings: TwizzlerSettings) => void;
+  onRainChange: (rain: ConnectHeroRain) => void;
 }
 
-type ShaderTarget = "twizzler" | "frames" | "agenda-rain";
+type ShaderTarget = "twizzler" | "rain" | "frames" | "agenda-rain";
 
 const TWIZZLER_PANEL_ID = "connect-twizzler-hero-v3";
 const SPEAKER_FRAME_PANEL_ID = "connect-speaker-frames-v2";
@@ -68,10 +82,14 @@ const loadHeroControlSettings = (): TwizzlerControlSettings => {
   }
 };
 
-export default function ConnectTwizzlerControls({ onSettingsChange }: Props) {
+export default function ConnectTwizzlerControls({
+  onSettingsChange,
+  onRainChange,
+}: Props) {
   const [target, setTarget] = useState<ShaderTarget>(() => {
     const stored = localStorage.getItem(TARGET_STORAGE_KEY);
-    if (stored === "frames" || stored === "agenda-rain") return stored;
+    if (stored === "frames" || stored === "rain" || stored === "agenda-rain")
+      return stored;
     // The retired per-day agenda Twizzler targets collapse into the shared rain.
     if (stored?.startsWith("agenda-")) return "agenda-rain";
     return "twizzler";
@@ -87,11 +105,17 @@ export default function ConnectTwizzlerControls({ onSettingsChange }: Props) {
     () => frameSeed.stripes
   );
 
-  const [rainSeed] = useState(loadAgendaRainSettings);
-  const rainValuesRef = useRef<AgendaRainSettings>(rainSeed);
-  const [rainStripes, setRainStripes] = useState<AgendaRainStripeControl[]>(
-    () => rainSeed.stripes
+  const [heroRainSeed] = useState(loadRainControlSettings);
+  const heroRainValuesRef = useRef<RainControlSettings>(heroRainSeed);
+  const [heroRainStripes, setHeroRainStripes] = useState<RainStripeControl[]>(
+    () => heroRainSeed.stripes
   );
+
+  const [agendaRainSeed] = useState(loadAgendaRainSettings);
+  const agendaRainValuesRef = useRef<AgendaRainSettings>(agendaRainSeed);
+  const [agendaRainStripes, setAgendaRainStripes] = useState<
+    AgendaRainStripeControl[]
+  >(() => agendaRainSeed.stripes);
 
   const publishFrames = useCallback((next: SpeakerFrameSettings) => {
     frameValuesRef.current = next;
@@ -99,8 +123,17 @@ export default function ConnectTwizzlerControls({ onSettingsChange }: Props) {
     publishSpeakerFrameSettings(next);
   }, []);
 
-  const publishRain = useCallback((next: AgendaRainSettings) => {
-    rainValuesRef.current = next;
+  const publishHeroRain = useCallback(
+    (next: RainControlSettings) => {
+      heroRainValuesRef.current = next;
+      persist(RAIN_PANEL_ID, next);
+      onRainChange(resolveConnectHeroRain(next));
+    },
+    [onRainChange]
+  );
+
+  const publishAgendaRain = useCallback((next: AgendaRainSettings) => {
+    agendaRainValuesRef.current = next;
     persist(AGENDA_RAIN_PANEL_ID, next);
     publishAgendaRainSettings(next);
   }, []);
@@ -119,9 +152,15 @@ export default function ConnectTwizzlerControls({ onSettingsChange }: Props) {
     []
   );
 
-  const rainFromValues = useCallback(
+  const heroRainFromValues = useCallback(
     (values: Record<string, unknown>) =>
-      agendaRainFromLevaValues(values, rainValuesRef.current),
+      rainSettingsFromLevaValues(values, heroRainValuesRef.current),
+    []
+  );
+
+  const agendaRainFromValues = useCallback(
+    (values: Record<string, unknown>) =>
+      agendaRainFromLevaValues(values, agendaRainValuesRef.current),
     []
   );
 
@@ -135,13 +174,21 @@ export default function ConnectTwizzlerControls({ onSettingsChange }: Props) {
     twizzlerSettingsFromLevaValues,
     publishHero
   );
-  const rainStore = useLevaTarget(
+  const heroRainStore = useLevaTarget(
     () =>
-      buildAgendaRainLevaSchema(rainSeed, () =>
-        copyConfigToClipboard("agenda rain", rainValuesRef.current)
+      buildRainLevaSchema(heroRainSeed, () =>
+        copyConfigToClipboard("hero rain", heroRainValuesRef.current)
       ),
-    rainFromValues,
-    publishRain
+    heroRainFromValues,
+    publishHeroRain
+  );
+  const agendaRainStore = useLevaTarget(
+    () =>
+      buildAgendaRainLevaSchema(agendaRainSeed, () =>
+        copyConfigToClipboard("agenda rain", agendaRainValuesRef.current)
+      ),
+    agendaRainFromValues,
+    publishAgendaRain
   );
   const framesStore = useLevaTarget(
     () =>
@@ -152,68 +199,104 @@ export default function ConnectTwizzlerControls({ onSettingsChange }: Props) {
     publishFrames
   );
 
-  // Feed the palette table its rows and edit handlers. The runtime is a
-  // singleton read by whichever store's table is rendered, so it always
-  // mirrors the active target.
-  const rainTable = target === "agenda-rain";
-  stripeColorsTableRuntime.stripes = rainTable
-    ? toEditableRainStripes(rainStripes)
-    : toEditableStripes(stripes);
+  // Feed the palette table its rows and edit handlers. The table runtime is a
+  // module singleton and only the selected target's panel renders it, so the
+  // active target decides whose rows and setters it carries.
+  type StripeRow = { id: string; color: string };
+  const stripeRowHandlers = <T extends StripeRow>(
+    setRows: (update: (rows: T[]) => T[]) => void,
+    makeRow: (index: number) => T
+  ) => ({
+    ...stripeColorsTableRuntime.handlers,
+    onColorChange: (id: string, hex: string) =>
+      setRows((rows) =>
+        rows.map((row) => (row.id === id ? { ...row, color: hex } : row))
+      ),
+    onOpacityChange: (id: string, opacity: number) =>
+      setRows((rows) =>
+        rows.map((row) => (row.id === id ? { ...row, opacity } : row))
+      ),
+    onThresholdChange: (id: string, startFrom: number) =>
+      setRows((rows) =>
+        rows.map((row) => (row.id === id ? { ...row, startFrom } : row))
+      ),
+    onWidthChange: (id: string, width: number) =>
+      setRows((rows) =>
+        rows.map((row) => (row.id === id ? { ...row, width } : row))
+      ),
+    onColorReorder: (orderedIds: string[]) =>
+      setRows((rows) =>
+        orderedIds
+          .map((id) => rows.find((row) => row.id === id))
+          .filter((row): row is T => Boolean(row))
+      ),
+    onReverseColorOrder: () => setRows((rows) => [...rows].reverse()),
+    onAdd: () => setRows((rows) => [...rows, makeRow(rows.length + 1)]),
+    onRemove: (id: string) =>
+      setRows((rows) =>
+        rows.length > 1 ? rows.filter((row) => row.id !== id) : rows
+      ),
+  });
+
   stripeColorsTableRuntime.showRampEasing = false;
   stripeColorsTableRuntime.showSavePalette = false;
   stripeColorsTableRuntime.canUndoShuffle = false;
-  const setActiveStripes = rainTable
-    ? (setRainStripes as typeof setStripes)
-    : setStripes;
-  stripeColorsTableRuntime.handlers = {
-    ...stripeColorsTableRuntime.handlers,
-    onColorChange: (id, hex) =>
-      setActiveStripes((rows) =>
-        rows.map((row) => (row.id === id ? { ...row, color: hex } : row))
-      ),
-    onOpacityChange: (id, opacity) =>
-      setActiveStripes((rows) =>
-        rows.map((row) => (row.id === id ? { ...row, opacity } : row))
-      ),
-    onThresholdChange: (id, startFrom) =>
-      setActiveStripes((rows) =>
-        rows.map((row) => (row.id === id ? { ...row, startFrom } : row))
-      ),
-    onWidthChange: (id, width) =>
-      setActiveStripes((rows) =>
-        rows.map((row) => (row.id === id ? { ...row, width } : row))
-      ),
-    onColorReorder: (orderedIds) =>
-      setActiveStripes((rows) =>
-        orderedIds
-          .map((id) => rows.find((row) => row.id === id))
-          .filter((row): row is SpeakerStripeControl => Boolean(row))
-      ),
-    onReverseColorOrder: () => setActiveStripes((rows) => [...rows].reverse()),
-    onAdd: () =>
-      setActiveStripes((rows) => [
-        ...rows,
-        {
-          id: `stripe-${rows.length + 1}`,
-          color: "#ff7a1f",
-          startFrom: 0.5,
-          width: 1,
-          opacity: 1,
-        },
-      ]),
-    onRemove: (id) =>
-      setActiveStripes((rows) =>
-        rows.length > 1 ? rows.filter((row) => row.id !== id) : rows
-      ),
-  };
+  if (target === "rain") {
+    stripeColorsTableRuntime.stripes = toEditableHeroRainStripes(
+      heroRainStripes
+    );
+    stripeColorsTableRuntime.handlers = stripeRowHandlers(
+      setHeroRainStripes,
+      (index) => ({
+        id: `stripe-${index}`,
+        color: "#f46021",
+        startFrom: 0.5,
+        width: 1,
+        opacity: 1,
+      })
+    );
+  } else if (target === "agenda-rain") {
+    stripeColorsTableRuntime.stripes = toEditableAgendaRainStripes(
+      agendaRainStripes
+    );
+    stripeColorsTableRuntime.handlers = stripeRowHandlers(
+      setAgendaRainStripes,
+      (index) => ({
+        id: `stripe-${index}`,
+        color: "#ff7a1f",
+        startFrom: 0.5,
+        width: 1,
+        opacity: 1,
+      })
+    );
+  } else {
+    stripeColorsTableRuntime.stripes = toEditableStripes(stripes);
+    stripeColorsTableRuntime.handlers = stripeRowHandlers(
+      setStripes,
+      (index) => ({
+        id: `stripe-${index}`,
+        color: "#ff7a1f",
+        startFrom: 0.5,
+        width: 1,
+        opacity: 1,
+      })
+    );
+  }
 
   useEffect(() => {
     publishFrames({ ...frameValuesRef.current, stripes });
   }, [publishFrames, stripes]);
 
   useEffect(() => {
-    publishRain({ ...rainValuesRef.current, stripes: rainStripes });
-  }, [publishRain, rainStripes]);
+    publishHeroRain({ ...heroRainValuesRef.current, stripes: heroRainStripes });
+  }, [publishHeroRain, heroRainStripes]);
+
+  useEffect(() => {
+    publishAgendaRain({
+      ...agendaRainValuesRef.current,
+      stripes: agendaRainStripes,
+    });
+  }, [publishAgendaRain, agendaRainStripes]);
 
   const togglePanel = useCallback(() => setOpen((current) => !current), []);
   useEffect(() => {
@@ -235,10 +318,12 @@ export default function ConnectTwizzlerControls({ onSettingsChange }: Props) {
 
   const activeStore =
     target === "agenda-rain"
-      ? rainStore
-      : target === "frames"
-        ? framesStore
-        : heroStore;
+      ? agendaRainStore
+      : target === "rain"
+        ? heroRainStore
+        : target === "frames"
+          ? framesStore
+          : heroStore;
 
   const titleSelector = (
     <span className="connect-shader-selector">
@@ -253,7 +338,7 @@ export default function ConnectTwizzlerControls({ onSettingsChange }: Props) {
             .matches
             ? ("auto" as const)
             : ("smooth" as const);
-          if (next === "twizzler") {
+          if (next === "twizzler" || next === "rain") {
             window.scrollTo({ top: 0, behavior });
           } else {
             document
@@ -264,6 +349,7 @@ export default function ConnectTwizzlerControls({ onSettingsChange }: Props) {
         value={target}
       >
         <option value="twizzler">Connect Twizzler</option>
+        <option value="rain">Hero Rain</option>
         <option value="frames">Speaker Frames</option>
         <option value="agenda-rain">Agenda Rain</option>
       </select>

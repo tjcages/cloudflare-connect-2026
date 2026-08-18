@@ -11,6 +11,7 @@ import {
 import { paintFramesOverlay } from "../frames/framesPaint";
 import { createVideoFramePump, inferMediaKind, loadImageFrame, type VideoFramePump } from "./media";
 import type { FrameSlot, InstanceId, InstanceStatsSample, MainToWorkerMessage, WorkerToMainMessage } from "./protocol";
+import type { SharedShaderSourceSpec } from "./shaderSourceRenderer";
 import SharedShaderWorker from "./sharedWorker?worker&inline";
 import {
   publishStats,
@@ -22,15 +23,26 @@ import {
 
 export type SharedShaderHandle = {
   setConfig(config: Partial<EngineConfig>): void;
+  /** Replace or retune the GLSL texture source of a shader-driven instance. */
+  setShaderSource(spec: SharedShaderSourceSpec): void;
   triggerReveal(): void;
   unregister(): void;
 };
 
 export type RegisterSharedShaderOptions = {
   canvas: HTMLCanvasElement;
-  src: string;
+  /** Media source URL. Optional when `shaderSource` supplies the texture instead. */
+  src?: string;
   /** Inferred from `src` when omitted; pass only for extension-less srcs (e.g. `blob:`). */
   mediaKind?: "image" | "video";
+  /**
+   * Render the source texture from Shadertoy-style GLSL inside the worker —
+   * no media fetch, no per-frame transfer, and the same shared GL pipeline.
+   * Takes precedence over `src`.
+   */
+  shaderSource?: SharedShaderSourceSpec;
+  /** Clamp the device pixel ratio the instance renders at. */
+  maxDpr?: number;
   config?: Partial<EngineConfig>;
   revealDelayMs?: number;
   loop?: boolean;
@@ -40,6 +52,11 @@ export type RegisterSharedShaderOptions = {
   preloadRootMargin?: string;
   /** Called when the "wave" trail's 0..1 activity changes meaningfully. */
   onWaterActivity?: (activity: number) => void;
+  /**
+   * Result of each shader-source apply: the GLSL compile/link error, or null
+   * when it took. On error the previous source keeps rendering.
+   */
+  onShaderSourceError?: (error: string | null) => void;
   /** Human-readable name for this instance in the debug stats readout. */
   label?: string;
 };
@@ -49,7 +66,7 @@ type RegisteredInstance = {
   canvas: HTMLCanvasElement;
   displayCtx: CanvasRenderingContext2D | null;
   src: string;
-  mediaKind: "image" | "video";
+  mediaKind: "image" | "video" | "shader";
   renderObserver: IntersectionObserver;
   revealObserver: IntersectionObserver;
   revealViewportObserver: IntersectionObserver;
@@ -64,6 +81,7 @@ type RegisteredInstance = {
   revealArmed: boolean;
   revealTimer: ReturnType<typeof setTimeout> | null;
   onWaterActivity: ((activity: number) => void) | null;
+  onShaderSourceError: ((error: string | null) => void) | null;
   label: string;
   blits: number;
   /** Latest known frame cap, mirrored from config so the pump can throttle. */
@@ -78,6 +96,7 @@ const instances = new Map<InstanceId, RegisteredInstance>();
 let nextId = 0;
 let clockRafId = 0;
 let tickInFlight = false;
+let visibleCount = 0;
 
 const statsCollector = {
   start(intervalMs: number): void {
@@ -190,9 +209,16 @@ setStatsCollector(statsCollector);
 
 // The worker renders one tick per main-thread rAF: worker rAF stalls without a
 // placeholder canvas, and the main clock pauses with the tab exactly like rAF.
+// The loop parks itself once every instance is offscreen — the worker skips
+// invisible instances anyway, so ticking through an all-hidden page is pure
+// wakeup cost — and visibility transitions restart it.
 function clockFrame(): void {
+  if (visibleCount === 0 || instances.size === 0) {
+    clockRafId = 0;
+    return;
+  }
   clockRafId = requestAnimationFrame(clockFrame);
-  if (tickInFlight || instances.size === 0) return;
+  if (tickInFlight) return;
   tickInFlight = true;
   post({ type: "tick" });
 }
@@ -262,6 +288,11 @@ function ensureWorker(): Worker {
       const instance = instances.get(data.id);
       if (!instance || instance.disposed) return;
       instance.onWaterActivity?.(data.activity);
+    } else if (data.type === "shaderSourceError") {
+      const instance = instances.get(data.id);
+      if (!instance || instance.disposed) return;
+      if (data.error) console.error(`[stripes-engine:shared] ${data.id} shader source: ${data.error}`);
+      instance.onShaderSourceError?.(data.error);
     } else if (data.type === "stats") {
       statsPending = false;
       if (statsEnabled()) emitStats(data.instances);
@@ -274,6 +305,7 @@ function ensureWorker(): Worker {
 
 function teardownWorker(): void {
   stopClock();
+  visibleCount = 0;
   if (!worker) return;
   post({ type: "terminate" });
   if (workerMessageHandler) worker.removeEventListener("message", workerMessageHandler);
@@ -282,8 +314,9 @@ function teardownWorker(): void {
   workerMessageHandler = null;
 }
 
-function readDpr(canvas: HTMLCanvasElement): number {
-  return (window.devicePixelRatio || 1) * (canvas.currentCSSZoom ?? 1);
+function readDpr(canvas: HTMLCanvasElement, maxDpr?: number): number {
+  const dpr = (window.devicePixelRatio || 1) * (canvas.currentCSSZoom ?? 1);
+  return maxDpr != null ? Math.min(dpr, maxDpr) : dpr;
 }
 
 // Fallback root for the reveal gate when `rootBounds` is null (cross-origin iframe).
@@ -299,6 +332,8 @@ function readSize(canvas: HTMLCanvasElement): { cssWidth: number; cssHeight: num
 }
 
 function startMedia(instance: RegisteredInstance, src: string): void {
+  // Shader sources render inside the worker; there is no media to start.
+  if (instance.mediaKind === "shader") return;
   if (instance.revealDelayMs > 0 && !instance.revealArmed) {
     instance.revealArmed = true;
     instance.revealTimer = setTimeout(() => {
@@ -340,14 +375,15 @@ export function registerSharedShader(opts: RegisterSharedShaderOptions): SharedS
   ensureWorker();
 
   const id: InstanceId = `shared-${nextId++}`;
-  const { canvas, src } = opts;
-  const mediaKind = opts.mediaKind ?? inferMediaKind(src);
+  const { canvas } = opts;
+  const src = opts.src ?? "";
+  const mediaKind = opts.shaderSource ? "shader" : (opts.mediaKind ?? inferMediaKind(src));
 
   // Present on a 2D display-p3 context: readbacks honor a P3-tagged ImageBitmap,
   // but the compositor paints bitmaprenderer canvases as sRGB (clipping P3).
   const displayCtx = canvas.getContext("2d", { colorSpace: "display-p3" });
   const { cssWidth, cssHeight } = readSize(canvas);
-  const dpr = readDpr(canvas);
+  const dpr = readDpr(canvas, opts.maxDpr);
 
   post({
     type: "register",
@@ -356,6 +392,7 @@ export function registerSharedShader(opts: RegisterSharedShaderOptions): SharedS
     cssHeight,
     dpr,
     config: opts.config,
+    shaderSource: opts.shaderSource,
   });
 
   const pump =
@@ -383,7 +420,8 @@ export function registerSharedShader(opts: RegisterSharedShaderOptions): SharedS
     revealArmed: false,
     revealTimer: null,
     onWaterActivity: opts.onWaterActivity ?? null,
-    label: opts.label ?? basename(src),
+    onShaderSourceError: opts.onShaderSourceError ?? null,
+    label: opts.label ?? (mediaKind === "shader" ? "shader" : basename(src)),
     blits: 0,
     maxFps: opts.config?.maxFps ?? 0,
     revealGateOpen: false,
@@ -403,9 +441,14 @@ export function registerSharedShader(opts: RegisterSharedShaderOptions): SharedS
         const visible = entry.isIntersecting;
         if (visible === instance.visible) continue;
         instance.visible = visible;
+        visibleCount += visible ? 1 : -1;
         post({ type: "visibility", id, visible });
-        if (visible) startMedia(instance, src);
-        else stopMedia(instance);
+        if (visible) {
+          startClock();
+          startMedia(instance, src);
+        } else {
+          stopMedia(instance);
+        }
       }
     },
     { rootMargin: opts.rootMargin ?? DEFAULT_RENDER_ROOT_MARGIN },
@@ -463,7 +506,7 @@ export function registerSharedShader(opts: RegisterSharedShaderOptions): SharedS
 
   const resizeObserver = new ResizeObserver(() => {
     const size = readSize(canvas);
-    post({ type: "resize", id, cssWidth: size.cssWidth, cssHeight: size.cssHeight, dpr: readDpr(canvas) });
+    post({ type: "resize", id, cssWidth: size.cssWidth, cssHeight: size.cssHeight, dpr: readDpr(canvas, opts.maxDpr) });
   });
 
   let pointerInside = false;
@@ -528,12 +571,20 @@ export function registerSharedShader(opts: RegisterSharedShaderOptions): SharedS
       if (config.maxFps != null) instance.maxFps = config.maxFps;
       post({ type: "setConfig", id, config });
     },
+    setShaderSource(spec: SharedShaderSourceSpec) {
+      if (instance.mediaKind !== "shader") return;
+      post({ type: "shaderSource", id, spec });
+    },
     triggerReveal() {
       post({ type: "reveal", id });
     },
     unregister() {
       if (instance.disposed) return;
       instance.disposed = true;
+      if (instance.visible) {
+        instance.visible = false;
+        visibleCount -= 1;
+      }
       if (instance.revealTimer) {
         clearTimeout(instance.revealTimer);
         instance.revealTimer = null;

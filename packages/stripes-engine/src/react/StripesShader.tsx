@@ -3,11 +3,27 @@
 import { useEffect, useMemo, useRef, type CSSProperties, type Ref } from "react";
 import { resolveThemedConfig, type ThemedEngineConfig, type ThemeName } from "../config/theme";
 import type { SharedShaderHandle } from "../shared/coordinator";
+import type { SharedShaderSourceSpec } from "../shared/shaderSourceRenderer";
 
 export type StripesShaderProps = {
-  src: string;
+  /** Media source URL. Optional when `shaderSource` supplies the texture instead. */
+  src?: string;
   /** Inferred from `src` when omitted; pass only for extension-less srcs (e.g. `blob:`). */
   mediaKind?: "video" | "image";
+  /**
+   * Render the source texture from Shadertoy-style GLSL inside the shared
+   * worker instead of fetching media. Takes precedence over `src`. Changes are
+   * applied live (content-compared, so unstable object identity is fine);
+   * speed-only changes retune the running animation without restarting it.
+   */
+  shaderSource?: SharedShaderSourceSpec;
+  /**
+   * Result of each shader-source apply: the GLSL compile/link error, or null
+   * when it took. On error the previous source keeps rendering.
+   */
+  onShaderSourceError?: (error: string | null) => void;
+  /** Clamp the device pixel ratio the instance renders at. */
+  maxDpr?: number;
   config?: ThemedEngineConfig;
   /** The rendered `<canvas>` (always `aria-hidden` — the output is decorative). */
   ref?: Ref<HTMLCanvasElement>;
@@ -68,6 +84,9 @@ export function StripesShader(props: StripesShaderProps) {
   const {
     src,
     mediaKind,
+    shaderSource,
+    onShaderSourceError,
+    maxDpr,
     config,
     theme = "light",
     width,
@@ -90,9 +109,16 @@ export function StripesShader(props: StripesShaderProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const sharedHandleRef = useRef<SharedShaderHandle | null>(null);
   const configRef = useRef(resolvedConfig);
+  // Held in a ref so a new object identity never tears the instance down;
+  // content changes are pushed through setShaderSource below.
+  const shaderSourceRef = useRef(shaderSource);
+  shaderSourceRef.current = shaderSource;
+  const postedShaderSourceRef = useRef<string | null>(null);
   // Held in a ref so a new handler identity never tears the instance down.
   const waterActivityRef = useRef(onWaterActivity);
   waterActivityRef.current = onWaterActivity;
+  const shaderSourceErrorRef = useRef(onShaderSourceError);
+  shaderSourceErrorRef.current = onShaderSourceError;
 
   const mergedStyle = useMemo<CSSProperties>(
     () => ({ display: "block", ...(width != null && height != null ? { width, height } : null), ...style }),
@@ -112,6 +138,8 @@ export function StripesShader(props: StripesShaderProps) {
         canvas: canvasRef.current,
         src,
         mediaKind,
+        shaderSource: shaderSourceRef.current,
+        maxDpr,
         config: configRef.current,
         revealDelayMs,
         loop,
@@ -121,8 +149,10 @@ export function StripesShader(props: StripesShaderProps) {
         preloadRootMargin,
         label,
         onWaterActivity: (activity) => waterActivityRef.current?.(activity),
+        onShaderSourceError: (error) => shaderSourceErrorRef.current?.(error),
       });
       sharedHandleRef.current = handle;
+      postedShaderSourceRef.current = shaderSourceRef.current ? JSON.stringify(shaderSourceRef.current) : null;
       if (configRef.current) handle.setConfig(configRef.current);
     });
     return () => {
@@ -130,12 +160,21 @@ export function StripesShader(props: StripesShaderProps) {
       handle?.unregister();
       sharedHandleRef.current = null;
     };
-  }, [src, mediaKind, autoPlay, loop, muted, rootMargin, preloadRootMargin, revealDelayMs, label]);
+  }, [src, mediaKind, maxDpr, autoPlay, loop, muted, rootMargin, preloadRootMargin, revealDelayMs, label]);
 
   useEffect(() => {
     const handle = sharedHandleRef.current;
     if (handle && resolvedConfig) handle.setConfig(resolvedConfig);
   }, [resolvedConfig]);
+
+  useEffect(() => {
+    const handle = sharedHandleRef.current;
+    if (!handle || !shaderSource) return;
+    const serialized = JSON.stringify(shaderSource);
+    if (serialized === postedShaderSourceRef.current) return;
+    postedShaderSourceRef.current = serialized;
+    handle.setShaderSource(shaderSource);
+  }, [shaderSource]);
 
   return (
     <canvas
