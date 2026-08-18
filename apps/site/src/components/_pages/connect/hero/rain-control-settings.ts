@@ -77,8 +77,10 @@ export type RainControlSettings = {
   sourceHeight: number;
   /** Shadertoy-style `mainImage` GLSL for the texture source. */
   sourceGlsl: string;
-  /** Height of the hero stack's top fade-out mask, as % of the stack. */
+  /** Height of the hero stack's top fade band, as % of the stack. */
   topFadePct: number;
+  /** Where the fade band starts, as % from the top; everything above is hidden. */
+  topFadeOffsetPct: number;
 };
 
 const toHex = (color: number) => `#${color.toString(16).padStart(6, "0")}`;
@@ -146,6 +148,7 @@ export const CONNECT_HERO_RAIN_CONTROL_DEFAULTS: RainControlSettings = {
   sourceHeight: CONNECT_HERO_RAIN_SHADER_SOURCE.height,
   sourceGlsl: CONNECT_HERO_RAIN_GLSL,
   topFadePct: 40,
+  topFadeOffsetPct: 0,
 };
 
 export const RAIN_PANEL_ID = "connect-hero-rain-v1";
@@ -192,14 +195,17 @@ export const loadRainControlSettings = (): RainControlSettings => {
 export type ConnectHeroRain = {
   config: DeepPartial<EngineConfig>;
   shaderSource: SharedShaderSourceSpec;
-  /** Height of the hero stack's top fade-out mask, as % of the stack. */
+  /** Height of the hero stack's top fade band, as % of the stack. */
   topFadePct: number;
+  /** Where the fade band starts, as % from the top; everything above is hidden. */
+  topFadeOffsetPct: number;
 };
 
 export const CONNECT_HERO_RAIN_DEFAULT: ConnectHeroRain = {
   config: CONNECT_HERO_RAIN_CONFIG,
   shaderSource: CONNECT_HERO_RAIN_SHADER_SOURCE,
   topFadePct: CONNECT_HERO_RAIN_CONTROL_DEFAULTS.topFadePct,
+  topFadeOffsetPct: CONNECT_HERO_RAIN_CONTROL_DEFAULTS.topFadeOffsetPct,
 };
 
 /** Panel settings → the engine config + worker shader source the hero renders. */
@@ -298,4 +304,5 @@ export const resolveConnectHeroRain = (
     height: settings.sourceHeight,
   },
   topFadePct: settings.topFadePct,
+  topFadeOffsetPct: settings.topFadeOffsetPct,
 });

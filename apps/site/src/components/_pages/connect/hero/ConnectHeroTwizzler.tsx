@@ -58,14 +58,16 @@ export default function ConnectHeroTwizzler({ posterSrc }: IslandProps<Props>) {
           />
         </Suspense>
       ) : null}
-      {/* The mask fades the whole stack (ribbon + rain) out toward the top;
-          its height is the panel's "Top fade %" control. */}
+      {/* The mask fades the whole stack (ribbon + rain) out toward the top.
+          "Fade offset %" slides the band down (fully hidden above it) and
+          "Fade height %" sets the band's length, so the fade translates
+          instead of stretching from the top edge. */}
       <div
         className="absolute inset-0"
         style={
-          rain.topFadePct > 0
+          rain.topFadePct > 0 || rain.topFadeOffsetPct > 0
             ? {
-                maskImage: `linear-gradient(to bottom, transparent, black ${rain.topFadePct}%)`,
+                maskImage: `linear-gradient(to bottom, transparent ${rain.topFadeOffsetPct}%, black ${Math.min(100, rain.topFadeOffsetPct + rain.topFadePct)}%)`,
               }
             : undefined
         }
