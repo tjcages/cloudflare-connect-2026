@@ -1,4 +1,5 @@
 import { AGENDA_RAIN_CONFIG } from "./agenda-rain-config";
+import { DEFAULT_RAIN_SHADER_ID } from "./rain-shader-library";
 
 export type AgendaRainStripeControl = {
   id: string;
@@ -9,11 +10,16 @@ export type AgendaRainStripeControl = {
 };
 
 export type AgendaRainSettings = {
-  // Texture source ("Wave to Full Screen" framing)
+  // Texture source (shader library preset + framing)
+  shaderPreset: string;
   sourceSpeed: number;
+  sourceScale: number;
   sourceZoom: number;
   sourcePanX: number;
   sourcePanY: number;
+  sourceRotateX: number;
+  sourceRotateY: number;
+  sourceRotateZ: number;
   // Rain streams
   rainEnabled: boolean;
   gapsCoverage: number;
@@ -44,6 +50,42 @@ export type AgendaRainSettings = {
   whitePoint: number;
   gamma: number;
   invert: boolean;
+  posterizeLevels: number;
+  thresholdBias: number;
+  noiseAmount: number;
+  blurRadius: number;
+  sharpenAmount: number;
+  // Stripe sparkle
+  sparkleWidthEnabled: boolean;
+  sparkleWidthCoverage: number;
+  sparkleSwing: number;
+  sparkleStripeEnabled: boolean;
+  sparkleStripeCoverage: number;
+  sparkleBrightness: number;
+  sparkleSpeed: number;
+  sparkleHueDrift: number;
+  sparkleSaturation: number;
+  // Stripe motion
+  motionEnabled: boolean;
+  motionAmplitude: number;
+  motionStagger: number;
+  motionMaxOffset: number;
+  motionSpeed: number;
+  motionDirection: "leftToRight" | "rightToLeft";
+  // Stripe detail
+  dotsEnabled: boolean;
+  dotsDensity: number;
+  dotsVisibility: number;
+  dotsSize: number;
+  dotsBrightness: number;
+  dotsHueDrift: number;
+  dotsSaturation: number;
+  borderEnabled: boolean;
+  borderMinWidth: number;
+  borderDensity: number;
+  gridLinesEnabled: boolean;
+  gridLinesBrightness: number;
+  gridLinesDensity: number;
   // Background
   backgroundTransparent: boolean;
   backgroundColor: string;
@@ -55,6 +97,14 @@ export type AgendaRainSettings = {
   stripeBlendMode: string;
   // Output
   shaderOpacity: number;
+  renderMode: string;
+  renderIntensity: number;
+  renderParamA: number;
+  renderParamB: number;
+  renderParamC: number;
+  renderParamD: number;
+  renderColorA: string;
+  renderColorB: string;
 };
 
 const toHex = (color: number) => `#${color.toString(16).padStart(6, "0")}`;
@@ -69,10 +119,15 @@ const defaultStripes = (): AgendaRainStripeControl[] =>
   }));
 
 export const AGENDA_RAIN_DEFAULTS: AgendaRainSettings = {
+  shaderPreset: DEFAULT_RAIN_SHADER_ID,
   sourceSpeed: 1,
+  sourceScale: 1,
   sourceZoom: 1,
   sourcePanX: 0,
   sourcePanY: 0,
+  sourceRotateX: 0,
+  sourceRotateY: 0,
+  sourceRotateZ: 0,
   rainEnabled: AGENDA_RAIN_CONFIG.sparkle.gaps.enabled,
   gapsCoverage: AGENDA_RAIN_CONFIG.sparkle.gaps.coverage,
   gapsSpeed: AGENDA_RAIN_CONFIG.sparkle.gaps.speed,
@@ -99,6 +154,40 @@ export const AGENDA_RAIN_DEFAULTS: AgendaRainSettings = {
   whitePoint: AGENDA_RAIN_CONFIG.adjustments.whitePoint,
   gamma: AGENDA_RAIN_CONFIG.adjustments.gamma,
   invert: AGENDA_RAIN_CONFIG.adjustments.invert,
+  posterizeLevels: AGENDA_RAIN_CONFIG.adjustments.posterizeLevels,
+  thresholdBias: AGENDA_RAIN_CONFIG.adjustments.thresholdBias,
+  noiseAmount: AGENDA_RAIN_CONFIG.adjustments.noiseAmount,
+  blurRadius: AGENDA_RAIN_CONFIG.adjustments.blurRadius,
+  sharpenAmount: AGENDA_RAIN_CONFIG.adjustments.sharpenAmount,
+  sparkleWidthEnabled: AGENDA_RAIN_CONFIG.sparkle.width.enabled,
+  sparkleWidthCoverage: AGENDA_RAIN_CONFIG.sparkle.width.coverage,
+  sparkleSwing: AGENDA_RAIN_CONFIG.sparkle.width.swingPx,
+  sparkleStripeEnabled: AGENDA_RAIN_CONFIG.sparkle.stripe.enabled,
+  sparkleStripeCoverage: AGENDA_RAIN_CONFIG.sparkle.stripe.coverage,
+  sparkleBrightness: AGENDA_RAIN_CONFIG.sparkle.stripe.maxBrightness,
+  sparkleSpeed: AGENDA_RAIN_CONFIG.sparkle.stripe.speed,
+  sparkleHueDrift: AGENDA_RAIN_CONFIG.sparkle.stripe.hueDriftDeg,
+  sparkleSaturation: AGENDA_RAIN_CONFIG.sparkle.stripe.saturationBoost,
+  motionEnabled: AGENDA_RAIN_CONFIG.sparkle.motion.enabled,
+  motionAmplitude: AGENDA_RAIN_CONFIG.sparkle.motion.amplitudePx,
+  motionStagger: AGENDA_RAIN_CONFIG.sparkle.motion.staggerPx,
+  motionMaxOffset: AGENDA_RAIN_CONFIG.sparkle.motion.maxOffsetPx,
+  motionSpeed: AGENDA_RAIN_CONFIG.sparkle.motion.speed,
+  motionDirection: AGENDA_RAIN_CONFIG.sparkle.motion
+    .direction as AgendaRainSettings["motionDirection"],
+  dotsEnabled: AGENDA_RAIN_CONFIG.stripeDots.enabled,
+  dotsDensity: AGENDA_RAIN_CONFIG.stripeDots.density,
+  dotsVisibility: AGENDA_RAIN_CONFIG.stripeDots.randomVisibility,
+  dotsSize: AGENDA_RAIN_CONFIG.stripeDots.sizePx,
+  dotsBrightness: AGENDA_RAIN_CONFIG.stripeDots.brightness,
+  dotsHueDrift: AGENDA_RAIN_CONFIG.stripeDots.hueDriftDeg,
+  dotsSaturation: AGENDA_RAIN_CONFIG.stripeDots.saturationBoost,
+  borderEnabled: AGENDA_RAIN_CONFIG.stripeBorder.enabled,
+  borderMinWidth: AGENDA_RAIN_CONFIG.stripeBorder.minWidthPx,
+  borderDensity: AGENDA_RAIN_CONFIG.stripeBorder.density,
+  gridLinesEnabled: AGENDA_RAIN_CONFIG.gridLines.enabled,
+  gridLinesBrightness: AGENDA_RAIN_CONFIG.gridLines.brightness,
+  gridLinesDensity: AGENDA_RAIN_CONFIG.gridLines.density,
   backgroundTransparent: AGENDA_RAIN_CONFIG.background.transparent,
   backgroundColor: toHex(AGENDA_RAIN_CONFIG.background.color),
   starsEnabled: AGENDA_RAIN_CONFIG.background.stars.enabled,
@@ -107,6 +196,14 @@ export const AGENDA_RAIN_DEFAULTS: AgendaRainSettings = {
   colorMode: AGENDA_RAIN_CONFIG.colors.mode,
   stripeBlendMode: AGENDA_RAIN_CONFIG.colors.stripeBlendMode,
   shaderOpacity: 1,
+  renderMode: AGENDA_RAIN_CONFIG.renderMode,
+  renderIntensity: AGENDA_RAIN_CONFIG.renderIntensity,
+  renderParamA: AGENDA_RAIN_CONFIG.renderParams[0],
+  renderParamB: AGENDA_RAIN_CONFIG.renderParams[1],
+  renderParamC: AGENDA_RAIN_CONFIG.renderParams[2],
+  renderParamD: AGENDA_RAIN_CONFIG.renderParams[3],
+  renderColorA: toHex(AGENDA_RAIN_CONFIG.renderColorA),
+  renderColorB: toHex(AGENDA_RAIN_CONFIG.renderColorB),
 };
 
 export const AGENDA_RAIN_PANEL_ID = "connect-agenda-rain-v1";

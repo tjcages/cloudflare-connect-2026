@@ -3,6 +3,7 @@ import type {
   AgendaRainSettings,
   AgendaRainStripeControl,
 } from "../agenda/agenda-rain-controls";
+import { rainShaderOptions } from "../agenda/rain-shader-library";
 import { colorLibraryInputPlugin } from "./colorLibraryInputPlugin";
 import { loadControlDrawerOpen } from "./drawerState";
 import type { EditableStripe } from "./stripeAdapter";
@@ -17,6 +18,23 @@ import {
  * table, tone and background FX — the lab's Graphic Rain controls bound to
  * the site's `AgendaRainSettings`.
  */
+
+const RENDER_MODES = [
+  "sharp",
+  "abstract",
+  "charcoal",
+  "pencil",
+  "brush",
+  "halftone",
+  "risograph",
+  "stainedGlass",
+  "paperCutout",
+  "crt",
+  "glitch",
+  "vhs",
+  "amber",
+  "gummy",
+];
 
 const BLEND_MODES = [
   "normal",
@@ -85,12 +103,25 @@ export function buildAgendaRainLevaSchema(values: AgendaRainSettings) {
       true
     ),
 
-    "Texture source": drawerFolder("Texture source", {
-      sourceSpeed: num(values.sourceSpeed, "Source speed", 0, 4, 0.01),
-      sourceZoom: num(values.sourceZoom, "Source zoom", 0.2, 5, 0.01),
-      sourcePanX: num(values.sourcePanX, "Source pan X", -1, 1, 0.01),
-      sourcePanY: num(values.sourcePanY, "Source pan Y", -1, 1, 0.01),
-    }),
+    "Texture source": drawerFolder(
+      "Texture source",
+      {
+        shaderPreset: {
+          value: values.shaderPreset,
+          label: "Shader",
+          options: rainShaderOptions(),
+        },
+        sourceSpeed: num(values.sourceSpeed, "Source speed", 0, 4, 0.01),
+        sourceScale: num(values.sourceScale, "Source resolution", 0.25, 2, 0.05),
+        sourceZoom: num(values.sourceZoom, "Source zoom", 0.2, 5, 0.01),
+        sourcePanX: num(values.sourcePanX, "Source pan X", -1, 1, 0.01),
+        sourcePanY: num(values.sourcePanY, "Source pan Y", -1, 1, 0.01),
+        sourceRotateX: num(values.sourceRotateX, "Rotate X", -89, 89, 1),
+        sourceRotateY: num(values.sourceRotateY, "Rotate Y", -180, 180, 1),
+        sourceRotateZ: num(values.sourceRotateZ, "Rotate Z", -180, 180, 1),
+      },
+      true
+    ),
 
     "Grid geometry": drawerFolder("Grid geometry", {
       gridCellWidth: num(values.gridCellWidth, "Cell width", 1, 48, 1),
@@ -138,6 +169,124 @@ export function buildAgendaRainLevaSchema(values: AgendaRainSettings) {
       whitePoint: num(values.whitePoint, "White point", 0, 1, 0.01),
       gamma: num(values.gamma, "Gamma", 0.1, 4, 0.01),
       invert: { value: values.invert, label: "Invert" },
+      posterizeLevels: num(
+        values.posterizeLevels,
+        "Posterize levels",
+        0,
+        32,
+        1
+      ),
+      thresholdBias: num(values.thresholdBias, "Threshold bias", -1, 1, 0.01),
+      noiseAmount: num(values.noiseAmount, "Noise", 0, 1, 0.01),
+      blurRadius: num(values.blurRadius, "Blur", 0, 24, 0.25),
+      sharpenAmount: num(values.sharpenAmount, "Sharpen", 0, 4, 0.01),
+    }),
+
+    "Stripe sparkle": drawerFolder("Stripe sparkle", {
+      sparkleWidthEnabled: {
+        value: values.sparkleWidthEnabled,
+        label: "Width shimmer",
+      },
+      sparkleWidthCoverage: num(
+        values.sparkleWidthCoverage,
+        "Width coverage",
+        0,
+        1,
+        0.01
+      ),
+      sparkleSwing: num(values.sparkleSwing, "Width swing", 0, 12, 0.1),
+      sparkleStripeEnabled: {
+        value: values.sparkleStripeEnabled,
+        label: "Stripe shimmer",
+      },
+      sparkleStripeCoverage: num(
+        values.sparkleStripeCoverage,
+        "Stripe coverage",
+        0,
+        1,
+        0.01
+      ),
+      sparkleBrightness: num(
+        values.sparkleBrightness,
+        "Maximum brightness",
+        0,
+        2,
+        0.01
+      ),
+      sparkleSpeed: num(values.sparkleSpeed, "Sparkle speed", 0, 5, 0.01),
+      sparkleHueDrift: num(values.sparkleHueDrift, "Hue drift", -180, 180, 1),
+      sparkleSaturation: num(
+        values.sparkleSaturation,
+        "Saturation boost",
+        -1,
+        2,
+        0.01
+      ),
+      motionEnabled: { value: values.motionEnabled, label: "Stripe motion" },
+      motionAmplitude: num(
+        values.motionAmplitude,
+        "Motion amplitude",
+        0,
+        64,
+        0.1
+      ),
+      motionStagger: num(values.motionStagger, "Motion stagger", 0, 256, 1),
+      motionMaxOffset: num(
+        values.motionMaxOffset,
+        "Motion max offset",
+        0,
+        128,
+        0.5
+      ),
+      motionSpeed: num(values.motionSpeed, "Motion speed", 0, 5, 0.01),
+      motionDirection: {
+        value: values.motionDirection,
+        label: "Motion direction",
+        options: {
+          "Left to right": "leftToRight",
+          "Right to left": "rightToLeft",
+        },
+      },
+    }),
+
+    "Stripe detail": drawerFolder("Stripe detail", {
+      dotsEnabled: { value: values.dotsEnabled, label: "Stripe dots" },
+      dotsDensity: num(values.dotsDensity, "Dot density", 0, 1, 0.01),
+      dotsVisibility: num(
+        values.dotsVisibility,
+        "Random visibility",
+        0,
+        1,
+        0.01
+      ),
+      dotsSize: num(values.dotsSize, "Dot size", 0.25, 8, 0.05),
+      dotsBrightness: num(values.dotsBrightness, "Dot brightness", 0, 2, 0.01),
+      dotsHueDrift: num(values.dotsHueDrift, "Dot hue drift", -180, 180, 1),
+      dotsSaturation: num(values.dotsSaturation, "Dot saturation", -1, 2, 0.01),
+      borderEnabled: { value: values.borderEnabled, label: "Stripe borders" },
+      borderMinWidth: num(
+        values.borderMinWidth,
+        "Border minimum width",
+        0,
+        24,
+        0.25
+      ),
+      borderDensity: num(values.borderDensity, "Border density", 0, 1, 0.01),
+      gridLinesEnabled: { value: values.gridLinesEnabled, label: "Grid lines" },
+      gridLinesBrightness: num(
+        values.gridLinesBrightness,
+        "Grid line brightness",
+        -1,
+        2,
+        0.01
+      ),
+      gridLinesDensity: num(
+        values.gridLinesDensity,
+        "Grid line density",
+        0,
+        1,
+        0.01
+      ),
     }),
 
     Background: drawerFolder("Background", {
@@ -169,6 +318,30 @@ export function buildAgendaRainLevaSchema(values: AgendaRainSettings) {
 
     "Shader output": drawerFolder("Shader output", {
       shaderOpacity: num(values.shaderOpacity, "Opacity", 0, 1, 0.01),
+      renderMode: {
+        value: values.renderMode,
+        label: "Render style",
+        options: optionsFrom(RENDER_MODES),
+      },
+      renderIntensity: num(
+        values.renderIntensity,
+        "Render intensity",
+        0,
+        1,
+        0.01
+      ),
+      renderParamA: num(values.renderParamA, "Style parameter A", 0, 1, 0.01),
+      renderParamB: num(values.renderParamB, "Style parameter B", 0, 1, 0.01),
+      renderParamC: num(values.renderParamC, "Style parameter C", 0, 1, 0.01),
+      renderParamD: num(values.renderParamD, "Style parameter D", 0, 1, 0.01),
+      renderColorA: colorLibraryInputPlugin({
+        value: values.renderColorA,
+        label: "Render color A",
+      }),
+      renderColorB: colorLibraryInputPlugin({
+        value: values.renderColorB,
+        label: "Render color B",
+      }),
     }),
   };
 }

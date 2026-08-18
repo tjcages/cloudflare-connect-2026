@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { AGENDA_RAIN_CONFIG } from "./agenda-rain-config";
 import { AGENDA_RAIN_DEFAULTS } from "./agenda-rain-controls";
+import {
+  DEFAULT_RAIN_SHADER_ID,
+  findRainShaderSource,
+  RAIN_SHADER_LIBRARY,
+} from "./rain-shader-library";
 
 describe("agenda rain controls", () => {
   it("arms the rain streams in the production config", () => {
@@ -27,6 +32,25 @@ describe("agenda rain controls", () => {
     expect(AGENDA_RAIN_DEFAULTS.fieldScale).toBe(
       AGENDA_RAIN_CONFIG.fieldScale
     );
+  });
+
+  it("defaults the texture source to the lab's Graphic Rain preset", () => {
+    expect(AGENDA_RAIN_DEFAULTS.shaderPreset).toBe(DEFAULT_RAIN_SHADER_ID);
+    const defaultEntry = RAIN_SHADER_LIBRARY.find(
+      ({ id }) => id === DEFAULT_RAIN_SHADER_ID
+    );
+    expect(defaultEntry?.label).toBe("Wave to Full Screen");
+  });
+
+  it("ships a picker-ready shader library with unique ids and sources", () => {
+    expect(RAIN_SHADER_LIBRARY.length).toBeGreaterThanOrEqual(30);
+    expect(new Set(RAIN_SHADER_LIBRARY.map(({ id }) => id)).size).toBe(
+      RAIN_SHADER_LIBRARY.length
+    );
+    for (const entry of RAIN_SHADER_LIBRARY) {
+      expect(entry.source).toContain("mainImage");
+    }
+    expect(findRainShaderSource("not-a-shader")).toBeNull();
   });
 
   it("keeps interaction FX off — the overlay is pointer-inert", () => {

@@ -14,8 +14,12 @@ import {
   loadAgendaRainSettings,
   type AgendaRainSettings,
 } from "./agenda-rain-controls";
+import { DEFAULT_RAIN_SHADER_ID } from "./rain-shader-library";
 import {
   createRainTextureRenderer,
+  DEFAULT_RAIN_SHADER_SOURCE,
+  RAIN_SOURCE_HEIGHT,
+  RAIN_SOURCE_WIDTH,
   type RainTextureRenderer,
 } from "./rain-texture-source";
 
@@ -69,6 +73,7 @@ export default function AgendaRainOverlay() {
     let animationFrame = 0;
     let visible = false;
     let disposed = false;
+    let appliedShaderId = DEFAULT_RAIN_SHADER_ID;
 
     const readGeometry = () => {
       const rootRect = root.getBoundingClientRect();
@@ -89,15 +94,27 @@ export default function AgendaRainOverlay() {
     const paint = () => {
       outputContext.setTransform(renderDpr, 0, 0, renderDpr, 0, 0);
       outputContext.clearRect(0, 0, width, height);
-      outputContext.save();
-      outputContext.beginPath();
-      for (const rect of apertures) {
-        outputContext.rect(rect.x, rect.y, rect.width, rect.height);
-      }
-      outputContext.clip();
       outputContext.globalAlpha = settingsRef.current.shaderOpacity;
-      outputContext.drawImage(renderCanvas, 0, 0, width, height);
-      outputContext.restore();
+      // Blit each aperture's slice of the shared frame instead of clipping a
+      // full-root draw — the panels cover a fraction of the root, and 2D
+      // drawImage from a WebGL canvas is the expensive step here.
+      const scaleX = renderCanvas.width / width;
+      const scaleY = renderCanvas.height / height;
+      for (const rect of apertures) {
+        if (rect.width < 1 || rect.height < 1) continue;
+        outputContext.drawImage(
+          renderCanvas,
+          rect.x * scaleX,
+          rect.y * scaleY,
+          rect.width * scaleX,
+          rect.height * scaleY,
+          rect.x,
+          rect.y,
+          rect.width,
+          rect.height
+        );
+      }
+      outputContext.globalAlpha = 1;
     };
 
     const renderOnce = () => {
@@ -106,6 +123,9 @@ export default function AgendaRainOverlay() {
       rainSource.render(
         reducedMotion.matches ? STATIC_TIME_SEC : shaderTimeSec,
         {
+          rotateXDeg: settings.sourceRotateX,
+          rotateYDeg: settings.sourceRotateY,
+          rotateZDeg: settings.sourceRotateZ,
           zoom: settings.sourceZoom,
           panX: settings.sourcePanX,
           panY: settings.sourcePanY,
@@ -159,8 +179,39 @@ export default function AgendaRainOverlay() {
       if (visible && reducedMotion.matches) renderOnce();
     };
 
+    const applyShaderSource = (source: string, id: string) => {
+      const error = rainSource?.setSource(source);
+      if (error) {
+        console.warn(`Agenda rain shader "${id}" failed to compile.`, error);
+        return;
+      }
+      appliedShaderId = id;
+      if (visible && reducedMotion.matches) renderOnce();
+    };
+
+    const applyShaderPreset = (id: string) => {
+      if (!rainSource || id === appliedShaderId) return;
+      if (id === DEFAULT_RAIN_SHADER_ID) {
+        applyShaderSource(DEFAULT_RAIN_SHADER_SOURCE, id);
+        return;
+      }
+      // The library ships every lab shader (~95KB of GLSL); load it only
+      // when a non-default preset is actually picked.
+      void import("./rain-shader-library").then(({ findRainShaderSource }) => {
+        if (disposed || settingsRef.current.shaderPreset !== id) return;
+        const source = findRainShaderSource(id);
+        if (source) applyShaderSource(source, id);
+        else console.warn(`Unknown agenda rain shader preset "${id}".`);
+      });
+    };
+
     const applySettings = (settings: AgendaRainSettings) => {
       settingsRef.current = settings;
+      applyShaderPreset(settings.shaderPreset);
+      rainSource?.resize(
+        RAIN_SOURCE_WIDTH * settings.sourceScale,
+        RAIN_SOURCE_HEIGHT * settings.sourceScale
+      );
       engine?.setConfig({
         grid: {
           ...AGENDA_RAIN_CONFIG.grid,
@@ -181,12 +232,53 @@ export default function AgendaRainOverlay() {
           },
         },
         sparkle: {
-          ...AGENDA_RAIN_CONFIG.sparkle,
           gaps: {
             enabled: settings.rainEnabled,
             coverage: settings.gapsCoverage,
             speed: settings.gapsSpeed,
           },
+          width: {
+            ...AGENDA_RAIN_CONFIG.sparkle.width,
+            enabled: settings.sparkleWidthEnabled,
+            coverage: settings.sparkleWidthCoverage,
+            swingPx: settings.sparkleSwing,
+          },
+          stripe: {
+            ...AGENDA_RAIN_CONFIG.sparkle.stripe,
+            enabled: settings.sparkleStripeEnabled,
+            coverage: settings.sparkleStripeCoverage,
+            maxBrightness: settings.sparkleBrightness,
+            speed: settings.sparkleSpeed,
+            hueDriftDeg: settings.sparkleHueDrift,
+            saturationBoost: settings.sparkleSaturation,
+          },
+          motion: {
+            enabled: settings.motionEnabled,
+            amplitudePx: settings.motionAmplitude,
+            staggerPx: settings.motionStagger,
+            maxOffsetPx: settings.motionMaxOffset,
+            speed: settings.motionSpeed,
+            direction: settings.motionDirection,
+          },
+        },
+        stripeDots: {
+          enabled: settings.dotsEnabled,
+          density: settings.dotsDensity,
+          randomVisibility: settings.dotsVisibility,
+          sizePx: settings.dotsSize,
+          brightness: settings.dotsBrightness,
+          hueDriftDeg: settings.dotsHueDrift,
+          saturationBoost: settings.dotsSaturation,
+        },
+        stripeBorder: {
+          enabled: settings.borderEnabled,
+          minWidthPx: settings.borderMinWidth,
+          density: settings.borderDensity,
+        },
+        gridLines: {
+          enabled: settings.gridLinesEnabled,
+          brightness: settings.gridLinesBrightness,
+          density: settings.gridLinesDensity,
         },
         stripesEnabled: settings.stripesEnabled,
         fieldScale: settings.fieldScale,
@@ -205,6 +297,11 @@ export default function AgendaRainOverlay() {
           whitePoint: settings.whitePoint,
           gamma: settings.gamma,
           invert: settings.invert,
+          posterizeLevels: settings.posterizeLevels,
+          thresholdBias: settings.thresholdBias,
+          noiseAmount: settings.noiseAmount,
+          blurRadius: settings.blurRadius,
+          sharpenAmount: settings.sharpenAmount,
         },
         background: {
           ...AGENDA_RAIN_CONFIG.background,
@@ -232,6 +329,22 @@ export default function AgendaRainOverlay() {
           stripeBlendMode:
             settings.stripeBlendMode as EngineConfig["colors"]["stripeBlendMode"],
         },
+        renderMode: settings.renderMode as EngineConfig["renderMode"],
+        renderIntensity: settings.renderIntensity,
+        renderParams: [
+          settings.renderParamA,
+          settings.renderParamB,
+          settings.renderParamC,
+          settings.renderParamD,
+        ],
+        renderColorA: colorNumber(
+          settings.renderColorA,
+          AGENDA_RAIN_CONFIG.renderColorA
+        ),
+        renderColorB: colorNumber(
+          settings.renderColorB,
+          AGENDA_RAIN_CONFIG.renderColorB
+        ),
       });
       if (visible && reducedMotion.matches) renderOnce();
     };
