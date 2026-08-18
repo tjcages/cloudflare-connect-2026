@@ -70,29 +70,31 @@ const boxes: IProductsBox[] = compileBoxes([
 ]);
 ---
 
-<div class="relative mx-auto max-w-1200 pt-280 pb-120">
+<div class="relative mx-auto max-w-1200 pt-280 pb-120 max-lg:pt-160 max-lg:pb-80">
   <HeroGrid />
   <SectionEyebrow text="Hero" />
 
   <CornerDots count={4} faintClassName="z-30" />
 
-  <Products boxes={boxes} />
+  <div class="contents max-lg:hidden">
+    <Products boxes={boxes} />
 
-  <CodePiece
-    duotone
-    code="const { results } = await stmt.all();"
-    align="right"
-    class="absolute top-480 -left-80 w-240"
-  />
+    <CodePiece
+      duotone
+      code="const { results } = await stmt.all();"
+      align="right"
+      class="absolute top-480 -left-80 w-240"
+    />
 
-  <CodePiece
-    duotone
-    code={`import { DurableObject } from "cloudflare:workers";`}
-    align="left"
-    class="absolute top-560 -right-80 w-320"
-  />
+    <CodePiece
+      duotone
+      code={`import { DurableObject } from "cloudflare:workers";`}
+      align="left"
+      class="absolute top-560 -right-80 w-320"
+    />
+  </div>
 
-  <div class="mx-auto max-w-640 select-auto">
+  <div class="mx-auto max-w-640 select-auto max-lg:px-24">
     <Scramble
       client:visible
       preset="eyebrow-hero"
@@ -112,7 +114,7 @@ const boxes: IProductsBox[] = compileBoxes([
       automatically from zero to millions of requests.
     </div>
 
-    <div class="flex justify-center gap-12">
+    <div class="flex justify-center gap-12 max-sm:flex-col max-sm:items-center">
       <Button size="large">
         <Icon name="cloudflare" className="h-20 w-30" />
         <span>Start building for free</span>

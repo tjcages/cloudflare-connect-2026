@@ -128,7 +128,7 @@ export default function Catalog({
   return (
     <>
       <div className="relative mx-auto max-w-1200 before:inside-border-b before:border-border-default">
-        <div className="mx-auto flex w-640 flex-col items-center pt-40">
+        <div className="mx-auto flex w-640 flex-col items-center pt-40 max-lg:w-full max-lg:px-24">
           <SearchInput
             ariaLabel={`Search ${noun.plural}`}
             inputRef={searchInputRef}
@@ -150,7 +150,7 @@ export default function Catalog({
           : ""}
       </div>
 
-      <div className="relative mx-auto flex max-w-1200 items-start">
+      <div className="relative mx-auto flex max-w-1200 items-start max-lg:flex-col">
         <CategorySidebar
           activeSlug={activeSlug}
           ariaLabel={categoriesLabel}
@@ -167,7 +167,7 @@ export default function Catalog({
           }}
         />
 
-        <div className="flex min-w-0 flex-1 flex-col gap-80 bg-background-surface">
+        <div className="flex min-w-0 flex-1 flex-col gap-80 bg-background-surface max-lg:w-full">
           {filteredGroups.map((group) => (
             <GroupCard columns={columns} group={group} key={group.slug} />
           ))}

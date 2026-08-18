@@ -46,10 +46,10 @@ const {
     <Fragment>
       <div class="relative h-80 before:inside-border-b before:border-border-default" />
 
-      <div class="relative flex items-start">
+      <div class="relative flex items-start max-lg:flex-col">
         <div
           class:list={[
-            "sticky top-80 shrink-0 self-start pt-80 pl-80",
+            "sticky top-80 shrink-0 self-start pt-80 pl-80 max-lg:static max-lg:w-full max-lg:px-24 max-lg:pt-48",
             stickyColumnClass ?? "w-400",
           ]}
         >
@@ -75,7 +75,7 @@ const {
           )}
         </div>
 
-        <div class="relative ml-auto w-640 p-40">
+        <div class="relative ml-auto w-640 p-40 max-lg:mt-40 max-lg:w-full max-lg:p-16">
           <GridArea className="overlay bg-background-surface" />
 
           <div
@@ -94,10 +94,11 @@ const {
   {layout !== "headerless" && layout !== "sticky" && (
     <div
       class:list={[
-        "relative px-80 pb-80",
+        "relative px-80 pb-80 max-lg:px-24 max-lg:pb-48",
         layout === "split-custom" ? "pt-80" : "pt-120",
         {
-          "flex items-end": layout === "split",
+          "flex items-end max-lg:flex-col max-lg:items-start max-lg:gap-24":
+            layout === "split",
           "text-center": layout === "center",
         },
         headerClass,
@@ -157,7 +158,7 @@ const {
     <div
       class:list={[
         "relative",
-        noGridArea ? "" : "p-40",
+        noGridArea ? "" : "p-40 max-lg:p-16",
         Astro.slots.info && "pb-0",
       ]}
     >
