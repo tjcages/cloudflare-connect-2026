@@ -10,6 +10,7 @@ import {
   useInputContext,
   type LevaInputProps,
 } from "leva/plugin";
+import { cn } from "./cn";
 import { HexColorPopover } from "./HexColorPopover";
 import { cssColorForHex, findLibraryColorByHex } from "./colorLibrary";
 // The lab backs `persist: "backgroundColor"` with its own sticky-background
@@ -114,7 +115,10 @@ function ColorLibraryInputComponent() {
     <Row input>
       <Label>{label}</Label>
       <div
-        className={`library-color-input${settings.persist === "backgroundColor" && color ? "has-clear" : ""}`}
+        className={cn([
+          "library-color-input",
+          settings.persist === "backgroundColor" && color && "has-clear",
+        ])}
       >
         <HexColorPopover
           color={swatchColor}
@@ -126,7 +130,10 @@ function ColorLibraryInputComponent() {
           align="right"
         />
         <input
-          className={`library-color-input-value${libraryMatch && !focused ? "is-token" : ""}`}
+          className={cn([
+            "library-color-input-value",
+            libraryMatch && !focused && "is-token",
+          ])}
           value={draft}
           placeholder={
             settings.persist === "backgroundColor" ? "Transparent" : "#RRGGBB"
