@@ -216,6 +216,18 @@ export default function ConnectTwizzlerControls({ onSettingsChange }: Props) {
           const next = event.target.value as ShaderTarget;
           setTarget(next);
           localStorage.setItem(TARGET_STORAGE_KEY, next);
+          // Bring the section that hosts the selected shader into view.
+          const behavior = window.matchMedia("(prefers-reduced-motion: reduce)")
+            .matches
+            ? ("auto" as const)
+            : ("smooth" as const);
+          if (next === "twizzler") {
+            window.scrollTo({ top: 0, behavior });
+          } else {
+            document
+              .querySelector(next === "frames" ? "#speakers" : "#agenda")
+              ?.scrollIntoView({ behavior, block: "start" });
+          }
         }}
         value={target}
       >

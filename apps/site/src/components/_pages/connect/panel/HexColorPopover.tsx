@@ -6,6 +6,7 @@ import {
   type ReactNode,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -214,7 +215,7 @@ function EmbeddedHexColorPicker({
   );
 
   return (
-    <div className="flex w-200 flex-col gap-3">
+    <div className="flex w-200 flex-col gap-12">
       <button
         type="button"
         ref={saturationRef}
@@ -224,7 +225,7 @@ function EmbeddedHexColorPicker({
         aria-valuemax={100}
         aria-valuenow={Math.round(hsv.v)}
         aria-valuetext={`Saturation ${Math.round(hsv.s)}%, Brightness ${Math.round(hsv.v)}%`}
-        className="rounded-lg relative h-164 w-200 cursor-crosshair touch-none overflow-hidden border-0 p-0"
+        className="relative h-164 w-200 cursor-crosshair touch-none overflow-hidden rounded-8 border-0 p-0"
         style={{
           backgroundColor: `hsl(${hsv.h}, 100%, 50%)`,
           backgroundImage:
@@ -250,7 +251,7 @@ function EmbeddedHexColorPicker({
         }
       >
         <span
-          className="border-white pointer-events-none absolute size-7 rounded-full border-2 shadow-[0_2px_4px_rgba(0,0,0,0.25)]"
+          className="pointer-events-none absolute size-28 rounded-full border-2 border-[#ffffff] shadow-[0_2px_4px_rgba(0,0,0,0.25)]"
           style={{
             left: `${hsv.s}%`,
             top: `${100 - hsv.v}%`,
@@ -267,7 +268,7 @@ function EmbeddedHexColorPicker({
         aria-valuemin={0}
         aria-valuemax={360}
         aria-valuenow={Math.round(hsv.h)}
-        className="rounded-b-lg relative h-6 w-200 cursor-ew-resize touch-none border-0 p-0"
+        className="relative h-24 w-200 cursor-ew-resize touch-none rounded-b-8 border-0 p-0"
         style={{
           background:
             "linear-gradient(90deg, red 0%, #ff0 17%, #0f0 33%, #0ff 50%, #00f 67%, #f0f 83%, red 100%)",
@@ -289,7 +290,7 @@ function EmbeddedHexColorPicker({
         }
       >
         <span
-          className="border-white pointer-events-none absolute top-1/2 size-7 rounded-full border-2 shadow-[0_2px_4px_rgba(0,0,0,0.25)]"
+          className="pointer-events-none absolute top-1/2 size-28 rounded-full border-2 border-[#ffffff] shadow-[0_2px_4px_rgba(0,0,0,0.25)]"
           style={{
             left: `${(hsv.h / 360) * 100}%`,
             transform: "translate(-50%, -50%)",
@@ -300,6 +301,9 @@ function EmbeddedHexColorPicker({
     </div>
   );
 }
+
+/* Keep in sync with the root's max-h class so opening never reflows. */
+const POPOVER_MAX_HEIGHT = 420;
 
 export const HexColorPopover = ({
   color,
@@ -315,6 +319,18 @@ export const HexColorPopover = ({
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<PopoverTab>("library");
   const selectedLibraryButtonRef = useRef<HTMLButtonElement | null>(null);
+  const libraryListRef = useRef<HTMLDivElement | null>(null);
+
+  // Scroll affordances: fade the clipped end(s) of the library list, same as
+  // the panel body.
+  const updateListFades = useCallback(() => {
+    const sc = libraryListRef.current;
+    if (!sc) return;
+    sc.dataset.fadeTop = String(sc.scrollTop > 1);
+    sc.dataset.fadeBottom = String(
+      sc.scrollTop + sc.clientHeight < sc.scrollHeight - 1
+    );
+  }, []);
   const normalizedColor = normalizeHex(color);
   const [draftColor, setDraftColor] = useState(normalizedColor);
   const [hexDraft, setHexDraft] = useState(normalizedColor.toUpperCase());
@@ -380,9 +396,12 @@ export const HexColorPopover = ({
     [displayColor]
   );
 
-  const { refs, floatingStyles, context } = useFloating({
+  const { refs, floatingStyles, context, isPositioned } = useFloating({
     open: open && !disabled,
     onOpenChange: setOpen,
+    // top/left positioning instead of translate, so the entrance animation
+    // can own the transform without fighting the positioner.
+    transform: false,
     placement: align === "right" ? "bottom-end" : "bottom-start",
     whileElementsMounted: autoUpdate,
     middleware: [
@@ -392,7 +411,9 @@ export const HexColorPopover = ({
       size({
         padding: 8,
         apply({ availableHeight, elements }) {
-          elements.floating.style.maxHeight = `${Math.max(220, availableHeight)}px`;
+          // Cap below the class max-height only when the viewport is tighter,
+          // so opening never paints tall and then visibly shrinks.
+          elements.floating.style.maxHeight = `${Math.min(POPOVER_MAX_HEIGHT, Math.max(220, availableHeight))}px`;
         },
       }),
     ],
@@ -422,6 +443,29 @@ export const HexColorPopover = ({
     if (open) setTab("library");
   }, [open]);
 
+  // Entrance: scale up from the anchored corner, like the panel surfacing.
+  // Close stays instant (the element just unmounts).
+  const entrancePlayed = useRef(false);
+  useLayoutEffect(() => {
+    if (!open) {
+      entrancePlayed.current = false;
+      return;
+    }
+    const el = refs.floating.current;
+    if (!isPositioned || entrancePlayed.current || !el) return;
+    entrancePlayed.current = true;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const placement = context.placement;
+    el.style.transformOrigin = `${placement.endsWith("end") ? "right" : "left"} ${placement.startsWith("top") ? "bottom" : "top"}`;
+    el.animate(
+      [
+        { opacity: 0, transform: "scale(0.6)" },
+        { opacity: 1, transform: "scale(1)" },
+      ],
+      { duration: 200, easing: "cubic-bezier(0.17, 1, 0.32, 1)" }
+    );
+  }, [open, isPositioned, context, refs]);
+
   useEffect(() => {
     if (disabled) setOpen(false);
   }, [disabled]);
@@ -429,10 +473,18 @@ export const HexColorPopover = ({
   useEffect(() => {
     if (!open || disabled || tab !== "library") return;
     const frame = requestAnimationFrame(() => {
-      selectedLibraryButtonRef.current?.scrollIntoView({ block: "center" });
+      // Scroll only the list — scrollIntoView would also scroll the page to
+      // center the popover, nudging the document on every open.
+      const btn = selectedLibraryButtonRef.current;
+      const list = libraryListRef.current;
+      if (!btn || !list) return;
+      const delta =
+        btn.getBoundingClientRect().top - list.getBoundingClientRect().top;
+      list.scrollTop += delta - (list.clientHeight - btn.clientHeight) / 2;
+      updateListFades();
     });
     return () => cancelAnimationFrame(frame);
-  }, [disabled, displayColor, open, tab]);
+  }, [disabled, displayColor, open, tab, updateListFades]);
 
   return (
     <div className={cn("relative inline-flex", containerClassName)}>
@@ -455,12 +507,15 @@ export const HexColorPopover = ({
           <div
             ref={refs.setFloating}
             data-hex-color-popover
-            className="rounded-md border-neutral-300 bg-white z-2147483647 flex w-56 flex-col gap-2 overflow-hidden border p-2 shadow-lg"
-            style={floatingStyles}
+            className="z-2147483647 flex max-h-420 w-224 flex-col overflow-hidden rounded-6 border border-[#2e2e2e] bg-[#1c1c1c] shadow-[0_1px_2px_rgba(0,0,0,0.28),0_12px_32px_rgba(0,0,0,0.32)]"
+            style={{
+              ...floatingStyles,
+              visibility: isPositioned ? undefined : "hidden",
+            }}
             {...getFloatingProps()}
           >
             <div
-              className="rounded-md bg-neutral-100 flex shrink-0 p-0.5"
+              className="mx-8 mt-8 mb-8 flex shrink-0 rounded-6 bg-[#2a2a2a] p-2"
               role="tablist"
             >
               {(["library", "picker"] as const).map((value) => (
@@ -470,10 +525,10 @@ export const HexColorPopover = ({
                   role="tab"
                   aria-selected={tab === value}
                   className={cn(
-                    "rounded text-xs flex-1 cursor-pointer px-2 py-1 font-medium capitalize transition-colors",
+                    "flex-1 cursor-pointer rounded-4 px-8 py-4 text-[11px] font-medium capitalize transition-colors",
                     tab === value
-                      ? "bg-white text-neutral-900 shadow-sm"
-                      : "text-neutral-500 hover:text-neutral-700"
+                      ? "bg-[#3a3a3a] text-neutral-5"
+                      : "text-[#8f8f8f] hover:text-[#d4d4d4]"
                   )}
                   onClick={() => setTab(value)}
                 >
@@ -482,12 +537,12 @@ export const HexColorPopover = ({
               ))}
             </div>
             {tab === "picker" ? (
-              <div className="flex shrink-0 flex-col gap-2">
+              <div className="flex shrink-0 flex-col gap-8 px-8 pb-8">
                 <EmbeddedHexColorPicker
                   color={displayColor}
                   onChange={updateColor}
                 />
-                <div className="rounded border-neutral-300 text-xs flex items-center border px-2 py-1 font-mono">
+                <div className="flex items-center rounded-4 border border-[#2e2e2e] px-8 py-4 font-mono text-[11px] text-[#d4d4d4]">
                   <input
                     value={hexDraft}
                     onChange={(event) => {
@@ -516,10 +571,17 @@ export const HexColorPopover = ({
                 </div>
               </div>
             ) : (
-              <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-1">
+              <div
+                className="connect-color-popover__list flex min-h-0 flex-1 flex-col gap-8"
+                onScroll={updateListFades}
+                ref={(node) => {
+                  libraryListRef.current = node;
+                  if (node) updateListFades();
+                }}
+              >
                 {COLOR_LIBRARY.map((group) => (
-                  <div key={group.name} className="flex flex-col gap-0.5">
-                    <span className="text-neutral-400 px-1 py-0.5 text-[0.625rem] font-semibold tracking-wide uppercase">
+                  <div key={group.name} className="flex flex-col gap-2">
+                    <span className="px-4 py-2 text-[11px] font-medium tracking-wide text-[#737373] uppercase">
                       {group.name}
                     </span>
                     {group.colors.map((c) => {
@@ -542,23 +604,23 @@ export const HexColorPopover = ({
                             setOpen(false);
                           }}
                           className={cn(
-                            "rounded hover:bg-neutral-100 flex cursor-pointer items-center gap-2 px-1 py-1 text-left transition-colors",
-                            selected && "bg-neutral-100"
+                            "flex cursor-pointer items-center gap-8 rounded-4 px-4 py-4 text-left transition-colors hover:bg-[#2a2a2a]",
+                            selected && "bg-[#2a2a2a]"
                           )}
                         >
                           <span
                             className={cn(
-                              "rounded size-5 shrink-0 border",
+                              "size-20 shrink-0 rounded-4 border",
                               selected
-                                ? "border-blue-500 ring-1 ring-blue-500"
-                                : "border-neutral-300"
+                                ? "border-[#3b82f6] ring-1 ring-[#3b82f6]"
+                                : "border-[#3a3a3a]"
                             )}
                             style={{ backgroundColor: cssColorForHex(c.hex) }}
                           />
-                          <span className="text-xs text-neutral-700 min-w-0 flex-1 truncate">
+                          <span className="min-w-0 flex-1 truncate text-[11px] text-[#d4d4d4]">
                             {c.label}
                           </span>
-                          <span className="text-neutral-400 shrink-0 font-mono text-[0.625rem] uppercase">
+                          <span className="shrink-0 font-mono text-[11px] text-[#737373] uppercase">
                             {c.hex}
                           </span>
                         </button>

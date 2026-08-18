@@ -3,7 +3,13 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import "./panel.css";
 import "./connect-panel.css";
+import { cn } from "./cn";
 import { LAB_LEVA_THEME } from "./levaTheme";
+import {
+  HINT_SIDES,
+  RESIZE_DIRS,
+  usePanelDragResize,
+} from "./usePanelDragResize";
 
 export type LevaStore = ReturnType<typeof useCreateStore>;
 
@@ -52,10 +58,59 @@ export function ConnectLevaPanel({
   // a fixed-position child in its stacking context and clips it. Portal to
   // <body> so the panel always paints above the page, whatever it is mounted
   // inside — the panel this replaced portaled to <body> too.
+  const { panelRef, onHeaderPointerDown, onResizePointerDown } =
+    usePanelDragResize();
+
+  // Arm the bottom fade mask while more content is cut off below the fold.
+  const bodyRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const sc = bodyRef.current;
+    if (!sc) return;
+    const update = () =>
+      sc.classList.toggle(
+        "connect-leva-panel__body--cut-off",
+        sc.scrollTop + sc.clientHeight < sc.scrollHeight - 1
+      );
+    update();
+    sc.addEventListener("scroll", update, { passive: true });
+    const ro = new ResizeObserver(update);
+    ro.observe(sc);
+    // The leva root grows/shrinks as folders toggle.
+    if (sc.firstElementChild) ro.observe(sc.firstElementChild);
+    return () => {
+      sc.removeEventListener("scroll", update);
+      ro.disconnect();
+    };
+  }, []);
+
   const panel = (
     // `playground-leva-panel` is what every lifted lab selector is scoped to.
-    <div className="connect-leva-panel playground-leva-panel">
-      <div className="connect-leva-panel__header">
+    <div className="connect-leva-panel playground-leva-panel" ref={panelRef}>
+      {/* Before the header on purpose: lab CSS keys off `> div:last-child`. */}
+      {RESIZE_DIRS.map((dir) => (
+        <div
+          className={cn([
+            "connect-leva-panel__resize",
+            `connect-leva-panel__resize--${dir}`,
+          ])}
+          key={dir}
+          onPointerDown={(e) => onResizePointerDown(e, dir)}
+        />
+      ))}
+      {HINT_SIDES.map((side) => (
+        <div
+          aria-hidden
+          className={cn([
+            "connect-leva-panel__hint",
+            `connect-leva-panel__hint--${side}`,
+          ])}
+          key={side}
+        />
+      ))}
+      <div
+        className="connect-leva-panel__header"
+        onPointerDown={onHeaderPointerDown}
+      >
         {titleSlot}
         <button
           aria-label="Close shader controls"
@@ -75,7 +130,10 @@ export function ConnectLevaPanel({
         stretched to the scroller's height and its content spills instead of
         scrolling.
       */}
-      <div className="connect-leva-panel__body playground-leva-panel">
+      <div
+        className="connect-leva-panel__body playground-leva-panel"
+        ref={bodyRef}
+      >
         <LevaPanel
           store={store}
           theme={LAB_LEVA_THEME}
