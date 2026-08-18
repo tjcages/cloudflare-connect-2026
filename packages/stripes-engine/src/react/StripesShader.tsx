@@ -12,8 +12,9 @@ export type StripesShaderProps = {
   mediaKind?: "video" | "image";
   /**
    * Render the source texture from Shadertoy-style GLSL inside the shared
-   * worker instead of fetching media. Takes precedence over `src`. Held by
-   * reference for the instance's lifetime — pass a stable object.
+   * worker instead of fetching media. Takes precedence over `src`. Changes are
+   * applied live (content-compared, so unstable object identity is fine);
+   * speed-only changes retune the running animation without restarting it.
    */
   shaderSource?: SharedShaderSourceSpec;
   /** Clamp the device pixel ratio the instance renders at. */
@@ -102,10 +103,11 @@ export function StripesShader(props: StripesShaderProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const sharedHandleRef = useRef<SharedShaderHandle | null>(null);
   const configRef = useRef(resolvedConfig);
-  // Held in a ref: the GLSL spec is only read at registration, so a new object
-  // identity must not tear the instance down.
+  // Held in a ref so a new object identity never tears the instance down;
+  // content changes are pushed through setShaderSource below.
   const shaderSourceRef = useRef(shaderSource);
   shaderSourceRef.current = shaderSource;
+  const postedShaderSourceRef = useRef<string | null>(null);
   // Held in a ref so a new handler identity never tears the instance down.
   const waterActivityRef = useRef(onWaterActivity);
   waterActivityRef.current = onWaterActivity;
@@ -141,6 +143,7 @@ export function StripesShader(props: StripesShaderProps) {
         onWaterActivity: (activity) => waterActivityRef.current?.(activity),
       });
       sharedHandleRef.current = handle;
+      postedShaderSourceRef.current = shaderSourceRef.current ? JSON.stringify(shaderSourceRef.current) : null;
       if (configRef.current) handle.setConfig(configRef.current);
     });
     return () => {
@@ -154,6 +157,15 @@ export function StripesShader(props: StripesShaderProps) {
     const handle = sharedHandleRef.current;
     if (handle && resolvedConfig) handle.setConfig(resolvedConfig);
   }, [resolvedConfig]);
+
+  useEffect(() => {
+    const handle = sharedHandleRef.current;
+    if (!handle || !shaderSource) return;
+    const serialized = JSON.stringify(shaderSource);
+    if (serialized === postedShaderSourceRef.current) return;
+    postedShaderSourceRef.current = serialized;
+    handle.setShaderSource(shaderSource);
+  }, [shaderSource]);
 
   return (
     <canvas

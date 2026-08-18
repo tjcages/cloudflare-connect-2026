@@ -53,6 +53,13 @@ export type SetConfigMessage = {
   config: Partial<EngineConfig>;
 };
 
+/** Replace or retune a shader-driven instance's GLSL texture source. */
+export type ShaderSourceMessage = {
+  type: "shaderSource";
+  id: InstanceId;
+  spec: SharedShaderSourceSpec;
+};
+
 export type CursorMessage = {
   type: "cursor";
   id: InstanceId;
@@ -104,6 +111,7 @@ export type MainToWorkerMessage =
   | VisibilityMessage
   | SourceMessage
   | SetConfigMessage
+  | ShaderSourceMessage
   | CursorMessage
   | ClickMessage
   | RevealMessage

@@ -23,6 +23,8 @@ import {
 
 export type SharedShaderHandle = {
   setConfig(config: Partial<EngineConfig>): void;
+  /** Replace or retune the GLSL texture source of a shader-driven instance. */
+  setShaderSource(spec: SharedShaderSourceSpec): void;
   triggerReveal(): void;
   unregister(): void;
 };
@@ -556,6 +558,10 @@ export function registerSharedShader(opts: RegisterSharedShaderOptions): SharedS
     setConfig(config: Partial<EngineConfig>) {
       if (config.maxFps != null) instance.maxFps = config.maxFps;
       post({ type: "setConfig", id, config });
+    },
+    setShaderSource(spec: SharedShaderSourceSpec) {
+      if (instance.mediaKind !== "shader") return;
+      post({ type: "shaderSource", id, spec });
     },
     triggerReveal() {
       post({ type: "reveal", id });

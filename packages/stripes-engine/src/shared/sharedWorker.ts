@@ -10,7 +10,11 @@ import type {
   SharedSourceFrame,
   WorkerToMainMessage,
 } from "./protocol";
-import { createSharedShaderSourceRenderer, type SharedShaderSourceRenderer } from "./shaderSourceRenderer";
+import {
+  createSharedShaderSourceRenderer,
+  type SharedShaderSourceRenderer,
+  type SharedShaderSourceSpec,
+} from "./shaderSourceRenderer";
 import { createSurfaceSizeState, nextSurfaceSize } from "./surfaceSize";
 
 type WorkerScope = {
@@ -31,6 +35,7 @@ type ShaderSourceState = {
   timeSec: number;
   lastMs: number | null;
   speed: number;
+  spec: SharedShaderSourceSpec;
 };
 
 type Instance = {
@@ -248,6 +253,35 @@ function asEngineSource(source: SharedSourceFrame): EngineSource {
 // fast-forwarding through the missed time.
 const MAX_SHADER_STEP_SEC = 0.1;
 
+// Recompiling for a speed-only change would visibly restart the animation;
+// everything else (GLSL, size, view) genuinely needs a fresh renderer.
+function applyShaderSource(instance: Instance, spec: SharedShaderSourceSpec): void {
+  const prev = instance.shaderSource;
+  const rendererUnchanged =
+    prev &&
+    prev.spec.source === spec.source &&
+    prev.spec.width === spec.width &&
+    prev.spec.height === spec.height &&
+    JSON.stringify(prev.spec.view ?? null) === JSON.stringify(spec.view ?? null);
+  if (prev && rendererUnchanged) {
+    prev.speed = spec.speed ?? 1;
+    prev.spec = spec;
+    return;
+  }
+  prev?.renderer.dispose();
+  const renderer = createSharedShaderSourceRenderer(spec);
+  instance.shaderSource = {
+    renderer,
+    timeSec: prev?.timeSec ?? 0,
+    lastMs: prev?.lastMs ?? null,
+    speed: spec.speed ?? 1,
+    spec,
+  };
+  renderer.render(instance.shaderSource.timeSec);
+  instance.engine.setSource(renderer.canvas);
+  instance.hasSource = true;
+}
+
 function advanceShaderSource(instance: Instance, nowMs: number): void {
   const shader = instance.shaderSource;
   if (!shader) return;
@@ -290,16 +324,7 @@ function handle(message: MainToWorkerMessage): void {
         shaderSource: null,
       };
       if (message.shaderSource) {
-        const renderer = createSharedShaderSourceRenderer(message.shaderSource);
-        instance.shaderSource = {
-          renderer,
-          timeSec: 0,
-          lastMs: null,
-          speed: message.shaderSource.speed ?? 1,
-        };
-        renderer.render(0);
-        engine.setSource(renderer.canvas);
-        instance.hasSource = true;
+        applyShaderSource(instance, message.shaderSource);
         instance.pendingReveal = true;
       }
       instances.set(message.id, instance);
@@ -370,6 +395,12 @@ function handle(message: MainToWorkerMessage): void {
       const instance = instances.get(message.id);
       if (!instance) return;
       instance.engine.setConfig(message.config);
+      return;
+    }
+    case "shaderSource": {
+      const instance = instances.get(message.id);
+      if (!instance) return;
+      applyShaderSource(instance, message.spec);
       return;
     }
     case "cursor": {

@@ -13,6 +13,11 @@ import {
   type LevaStore,
 } from "../panel/ConnectLevaPanel";
 import {
+  buildRainLevaSchema,
+  rainSettingsFromLevaValues,
+  toEditableRainStripes,
+} from "../panel/rainLevaSchema";
+import {
   buildSpeakerFramesLevaSchema,
   speakerFramesFromLevaValues,
   toEditableStripes,
@@ -29,6 +34,14 @@ import {
   type SpeakerStripeControl,
 } from "../speakers/speaker-frame-controls";
 import {
+  loadRainControlSettings,
+  RAIN_PANEL_ID,
+  resolveConnectHeroRain,
+  type ConnectHeroRain,
+  type RainControlSettings,
+  type RainStripeControl,
+} from "./rain-control-settings";
+import {
   CONNECT_TWIZZLER_CONTROL_DEFAULTS,
   resolveConnectTwizzlerSettings,
   type TwizzlerControlSettings,
@@ -36,9 +49,10 @@ import {
 
 interface Props {
   onSettingsChange: (settings: TwizzlerSettings) => void;
+  onRainChange: (rain: ConnectHeroRain) => void;
 }
 
-type ShaderTarget = "twizzler" | "frames" | AgendaTwizzlerTarget;
+type ShaderTarget = "twizzler" | "rain" | "frames" | AgendaTwizzlerTarget;
 
 const TWIZZLER_PANEL_ID = "connect-twizzler-hero-v3";
 const SPEAKER_FRAME_PANEL_ID = "connect-speaker-frames-v2";
@@ -78,10 +92,18 @@ function useAgendaTarget(id: AgendaTwizzlerTarget): LevaStore {
   );
 }
 
-export default function ConnectTwizzlerControls({ onSettingsChange }: Props) {
+export default function ConnectTwizzlerControls({
+  onSettingsChange,
+  onRainChange,
+}: Props) {
   const [target, setTarget] = useState<ShaderTarget>(() => {
     const stored = localStorage.getItem(TARGET_STORAGE_KEY);
-    if (stored === "frames" || isAgendaTwizzlerTarget(stored)) return stored;
+    if (
+      stored === "frames" ||
+      stored === "rain" ||
+      isAgendaTwizzlerTarget(stored)
+    )
+      return stored;
     return "twizzler";
   });
   const [open, setOpen] = useState(true);
@@ -94,11 +116,27 @@ export default function ConnectTwizzlerControls({ onSettingsChange }: Props) {
     () => frameSeed.stripes
   );
 
+  // Rain stripes follow the same shape: React state feeding the shared table.
+  const [rainSeed] = useState(loadRainControlSettings);
+  const rainValuesRef = useRef<RainControlSettings>(rainSeed);
+  const [rainStripes, setRainStripes] = useState<RainStripeControl[]>(
+    () => rainSeed.stripes
+  );
+
   const publishFrames = useCallback((next: SpeakerFrameSettings) => {
     frameValuesRef.current = next;
     persist(SPEAKER_FRAME_PANEL_ID, next);
     publishSpeakerFrameSettings(next);
   }, []);
+
+  const publishRain = useCallback(
+    (next: RainControlSettings) => {
+      rainValuesRef.current = next;
+      persist(RAIN_PANEL_ID, next);
+      onRainChange(resolveConnectHeroRain(next));
+    },
+    [onRainChange]
+  );
 
   const publishHero = useCallback(
     (next: TwizzlerControlSettings) => {
@@ -114,10 +152,21 @@ export default function ConnectTwizzlerControls({ onSettingsChange }: Props) {
     []
   );
 
+  const rainFromValues = useCallback(
+    (values: Record<string, unknown>) =>
+      rainSettingsFromLevaValues(values, rainValuesRef.current),
+    []
+  );
+
   const heroStore = useLevaTarget(
     () => buildTwizzlerLevaSchema(loadHeroControlSettings()),
     twizzlerSettingsFromLevaValues,
     publishHero
+  );
+  const rainStore = useLevaTarget(
+    () => buildRainLevaSchema(rainSeed),
+    rainFromValues,
+    publishRain
   );
   const agendaMonStore = useAgendaTarget("agenda-mon");
   const agendaTueStore = useAgendaTarget("agenda-tue");
@@ -128,56 +177,81 @@ export default function ConnectTwizzlerControls({ onSettingsChange }: Props) {
     publishFrames
   );
 
-  // Feed the palette table its rows and edit handlers.
-  stripeColorsTableRuntime.stripes = toEditableStripes(stripes);
+  // Feed the palette table its rows and edit handlers. The table runtime is a
+  // module singleton and only the selected target's panel renders it, so the
+  // active target decides whose rows and setters it carries.
+  type StripeRow = { id: string; color: string };
+  const stripeRowHandlers = <T extends StripeRow>(
+    setRows: (update: (rows: T[]) => T[]) => void,
+    makeRow: (index: number) => T
+  ) => ({
+    ...stripeColorsTableRuntime.handlers,
+    onColorChange: (id: string, hex: string) =>
+      setRows((rows) =>
+        rows.map((row) => (row.id === id ? { ...row, color: hex } : row))
+      ),
+    onOpacityChange: (id: string, opacity: number) =>
+      setRows((rows) =>
+        rows.map((row) => (row.id === id ? { ...row, opacity } : row))
+      ),
+    onThresholdChange: (id: string, startFrom: number) =>
+      setRows((rows) =>
+        rows.map((row) => (row.id === id ? { ...row, startFrom } : row))
+      ),
+    onWidthChange: (id: string, width: number) =>
+      setRows((rows) =>
+        rows.map((row) => (row.id === id ? { ...row, width } : row))
+      ),
+    onColorReorder: (orderedIds: string[]) =>
+      setRows((rows) =>
+        orderedIds
+          .map((id) => rows.find((row) => row.id === id))
+          .filter((row): row is T => Boolean(row))
+      ),
+    onReverseColorOrder: () => setRows((rows) => [...rows].reverse()),
+    onAdd: () => setRows((rows) => [...rows, makeRow(rows.length + 1)]),
+    onRemove: (id: string) =>
+      setRows((rows) =>
+        rows.length > 1 ? rows.filter((row) => row.id !== id) : rows
+      ),
+  });
+
   stripeColorsTableRuntime.showRampEasing = false;
   stripeColorsTableRuntime.showSavePalette = false;
   stripeColorsTableRuntime.canUndoShuffle = false;
-  stripeColorsTableRuntime.handlers = {
-    ...stripeColorsTableRuntime.handlers,
-    onColorChange: (id, hex) =>
-      setStripes((rows) =>
-        rows.map((row) => (row.id === id ? { ...row, color: hex } : row))
-      ),
-    onOpacityChange: (id, opacity) =>
-      setStripes((rows) =>
-        rows.map((row) => (row.id === id ? { ...row, opacity } : row))
-      ),
-    onThresholdChange: (id, startFrom) =>
-      setStripes((rows) =>
-        rows.map((row) => (row.id === id ? { ...row, startFrom } : row))
-      ),
-    onWidthChange: (id, width) =>
-      setStripes((rows) =>
-        rows.map((row) => (row.id === id ? { ...row, width } : row))
-      ),
-    onColorReorder: (orderedIds) =>
-      setStripes((rows) =>
-        orderedIds
-          .map((id) => rows.find((row) => row.id === id))
-          .filter((row): row is SpeakerStripeControl => Boolean(row))
-      ),
-    onReverseColorOrder: () => setStripes((rows) => [...rows].reverse()),
-    onAdd: () =>
-      setStripes((rows) => [
-        ...rows,
-        {
-          id: `stripe-${rows.length + 1}`,
-          color: "#ff7a1f",
-          startFrom: 0.5,
-          width: 1,
-          opacity: 1,
-        },
-      ]),
-    onRemove: (id) =>
-      setStripes((rows) =>
-        rows.length > 1 ? rows.filter((row) => row.id !== id) : rows
-      ),
-  };
+  if (target === "rain") {
+    stripeColorsTableRuntime.stripes = toEditableRainStripes(rainStripes);
+    stripeColorsTableRuntime.handlers = stripeRowHandlers(
+      setRainStripes,
+      (index) => ({
+        id: `stripe-${index}`,
+        color: "#f46021",
+        startFrom: 0.5,
+        width: 1,
+        opacity: 1,
+      })
+    );
+  } else {
+    stripeColorsTableRuntime.stripes = toEditableStripes(stripes);
+    stripeColorsTableRuntime.handlers = stripeRowHandlers(
+      setStripes,
+      (index) => ({
+        id: `stripe-${index}`,
+        color: "#ff7a1f",
+        startFrom: 0.5,
+        width: 1,
+        opacity: 1,
+      })
+    );
+  }
 
   useEffect(() => {
     publishFrames({ ...frameValuesRef.current, stripes });
   }, [publishFrames, stripes]);
+
+  useEffect(() => {
+    publishRain({ ...rainValuesRef.current, stripes: rainStripes });
+  }, [publishRain, rainStripes]);
 
   const togglePanel = useCallback(() => setOpen((current) => !current), []);
   useEffect(() => {
@@ -206,7 +280,9 @@ export default function ConnectTwizzlerControls({ onSettingsChange }: Props) {
     ? agendaStores[target]
     : target === "frames"
       ? framesStore
-      : heroStore;
+      : target === "rain"
+        ? rainStore
+        : heroStore;
 
   const titleSelector = (
     <span className="connect-shader-selector">
@@ -220,6 +296,7 @@ export default function ConnectTwizzlerControls({ onSettingsChange }: Props) {
         value={target}
       >
         <option value="twizzler">Connect Twizzler</option>
+        <option value="rain">Hero Rain</option>
         <option value="frames">Speaker Frames</option>
         {AGENDA_TWIZZLER_TARGETS.map(({ id, label }) => (
           <option key={id} value={id}>

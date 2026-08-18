@@ -5,9 +5,9 @@ import { lazy, Suspense, useEffect, useState } from "react";
 import { asThemedEngineConfig } from "@/components/stripes-texture/config";
 import type { IslandProps } from "@/types/island-props";
 import {
-  CONNECT_HERO_RAIN_CONFIG,
-  CONNECT_HERO_RAIN_SHADER_SOURCE,
-} from "./hero-rain-config";
+  CONNECT_HERO_RAIN_DEFAULT,
+  type ConnectHeroRain,
+} from "./rain-control-settings";
 import { CONNECT_HERO_TWIZZLER_DEFAULTS } from "./twizzler-defaults";
 
 interface Props {
@@ -21,6 +21,7 @@ export default function ConnectHeroTwizzler({ posterSrc }: IslandProps<Props>) {
   const [settings, setSettings] = useState<TwizzlerSettings>(
     CONNECT_HERO_TWIZZLER_DEFAULTS
   );
+  const [rain, setRain] = useState<ConnectHeroRain>(CONNECT_HERO_RAIN_DEFAULT);
   const [panelLoaded, setPanelLoaded] = useState(false);
 
   useEffect(() => {
@@ -50,7 +51,10 @@ export default function ConnectHeroTwizzler({ posterSrc }: IslandProps<Props>) {
     <>
       {panelLoaded ? (
         <Suspense fallback={null}>
-          <ConnectTwizzlerControls onSettingsChange={setSettings} />
+          <ConnectTwizzlerControls
+            onRainChange={setRain}
+            onSettingsChange={setSettings}
+          />
         </Suspense>
       ) : null}
       <ConnectTwizzler
@@ -66,11 +70,11 @@ export default function ConnectHeroTwizzler({ posterSrc }: IslandProps<Props>) {
           lab's Both stack (.lab-canvas-output over .lab-canvas-twizzler). */}
       <StripesShader
         className="absolute inset-0 size-full"
-        config={asThemedEngineConfig(CONNECT_HERO_RAIN_CONFIG)}
+        config={asThemedEngineConfig(rain.config)}
         label="hero-rain"
         maxDpr={1.5}
         rootMargin="240px"
-        shaderSource={CONNECT_HERO_RAIN_SHADER_SOURCE}
+        shaderSource={rain.shaderSource}
       />
     </>
   );
