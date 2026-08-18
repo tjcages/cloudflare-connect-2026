@@ -8,6 +8,11 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
   workflow_dispatch:
+    inputs:
+      alias:
+        description: "Preview alias override (e.g. pr-82); defaults to the branch-derived alias"
+        required: false
+        type: string
 
 concurrency:
   group: workers-preview-${{ github.event.pull_request.number || github.ref }}
@@ -38,6 +43,8 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             ALIAS="pr-${{ github.event.pull_request.number }}"
+          elif [ -n "${{ inputs.alias }}" ]; then
+            ALIAS=$(printf '%s' "${{ inputs.alias }}" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//; s/^(.{48}).*/\1/')
           else
             BRANCH="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
             ALIAS=$(printf '%s' "$BRANCH" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//; s/^(.{48}).*/\1/')
