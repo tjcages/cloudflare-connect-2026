@@ -18,13 +18,14 @@ import { DEFAULT_RAIN_SHADER_ID } from "./rain-shader-library";
 import {
   createRainTextureRenderer,
   DEFAULT_RAIN_SHADER_SOURCE,
-  RAIN_SOURCE_HEIGHT,
-  RAIN_SOURCE_WIDTH,
   type RainTextureRenderer,
 } from "./rain-texture-source";
 
 /** Shader time used for the single static frame under reduced motion. */
 const STATIC_TIME_SEC = 6;
+
+/** Cap on the shader source canvas's longest side. */
+const SOURCE_MAX_DIM = 2048;
 
 type Rect = { x: number; y: number; width: number; height: number };
 
@@ -168,6 +169,19 @@ export default function AgendaRainOverlay() {
       engine?.settle();
     };
 
+    // The source must match the root's aspect: the engine fits it by width,
+    // so a squarer canvas would collapse the texture to a fraction of the
+    // section's height instead of flowing through all three panels.
+    const resizeSource = () => {
+      if (!rainSource || width < 1 || height < 1) return;
+      const scale = settingsRef.current.sourceScale;
+      const cap = Math.min(
+        1,
+        SOURCE_MAX_DIM / Math.max(width * scale, height * scale)
+      );
+      rainSource.resize(width * scale * cap, height * scale * cap);
+    };
+
     const resize = () => {
       readGeometry();
       if (width < 1 || height < 1) return;
@@ -176,6 +190,7 @@ export default function AgendaRainOverlay() {
       outputCanvas.width = Math.max(1, Math.round(width * renderDpr));
       outputCanvas.height = Math.max(1, Math.round(height * renderDpr));
       engine?.resize(width, height);
+      resizeSource();
       if (visible && reducedMotion.matches) renderOnce();
     };
 
@@ -208,10 +223,7 @@ export default function AgendaRainOverlay() {
     const applySettings = (settings: AgendaRainSettings) => {
       settingsRef.current = settings;
       applyShaderPreset(settings.shaderPreset);
-      rainSource?.resize(
-        RAIN_SOURCE_WIDTH * settings.sourceScale,
-        RAIN_SOURCE_HEIGHT * settings.sourceScale
-      );
+      resizeSource();
       engine?.setConfig({
         grid: {
           ...AGENDA_RAIN_CONFIG.grid,
