@@ -182,7 +182,10 @@ export const loadRainControlSettings = (): RainControlSettings => {
       if (key === "stripes" && Array.isArray(value)) {
         const stripes = value.filter(isStripe).slice(0, 24);
         if (stripes.length > 0) settings.stripes = stripes;
-      } else if (typeof value === typeof fallback && typeof value !== "object") {
+      } else if (
+        typeof value === typeof fallback &&
+        typeof value !== "object"
+      ) {
         (settings as Record<string, unknown>)[key] = value;
       }
     }

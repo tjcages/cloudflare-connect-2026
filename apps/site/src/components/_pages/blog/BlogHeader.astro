@@ -11,7 +11,9 @@ interface Props {
 const { eyebrow, title, description } = Astro.props;
 ---
 
-<div class="flex items-end gap-120 max-lg:flex-col max-lg:items-start max-lg:gap-24">
+<div
+  class="flex items-end gap-120 max-lg:flex-col max-lg:items-start max-lg:gap-24"
+>
   <div class="flex w-440 flex-col items-start gap-24 max-lg:w-full">
     <Eyebrow client:visible direction="left" title={eyebrow} variant="faint" />
 

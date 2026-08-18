@@ -15,7 +15,7 @@ export default function StoryRow({ story }: { story: Story }) {
       }}
     >
       <a
-        className="group relative flex h-72 shrink-0 items-center gap-8 bg-background-base px-80 max-lg:px-24 transition-colors duration-150 outline-none before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-border-default hover:bg-background-surface focus-visible:shadow-[inset_0_0_0_2px_var(--color-orange-900)]"
+        className="group relative flex h-72 shrink-0 items-center gap-8 bg-background-base px-80 transition-colors duration-150 outline-none before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-border-default hover:bg-background-surface focus-visible:shadow-[inset_0_0_0_2px_var(--color-orange-900)] max-lg:px-24"
         href={story.href}
       >
         <div className="flex w-248 items-center gap-20 max-lg:min-w-0 max-lg:flex-1">

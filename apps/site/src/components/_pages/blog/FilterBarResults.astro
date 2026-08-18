@@ -3,7 +3,11 @@ import { POSTS } from "./data";
 import FilterBarGrid from "./FilterBarGrid.astro";
 ---
 
-<div class="relative px-40 pb-80 max-lg:px-24 max-lg:pb-48" data-blog-results hidden>
+<div
+  class="relative px-40 pb-80 max-lg:px-24 max-lg:pb-48"
+  data-blog-results
+  hidden
+>
   <FilterBarGrid posts={POSTS} />
 
   <div data-blog-empty hidden>

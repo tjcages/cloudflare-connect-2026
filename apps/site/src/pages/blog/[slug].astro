@@ -43,7 +43,9 @@ const shareUrl = new URL(`/blog/${post.slug}`, Astro.site).href;
   </Section>
 
   <Section layout="headerless" noGridArea>
-    <div class="flex justify-between px-120 max-lg:flex-col max-lg:gap-40 max-lg:px-24">
+    <div
+      class="flex justify-between px-120 max-lg:flex-col max-lg:gap-40 max-lg:px-24"
+    >
       <PostSidebar
         client:load
         entries={entries}

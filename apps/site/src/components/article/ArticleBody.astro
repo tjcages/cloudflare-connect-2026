@@ -117,27 +117,27 @@ const { blocks, copyAnchors, headingScale = "display" } = Astro.props;
     return (
       <div class="max-lg:overflow-x-auto">
         <table class="w-full border-collapse text-left">
-        <thead>
-          <tr>
-            {block.head.map((cell) => (
-              <th class="relative px-12 py-8 text-blog-highlight text-text-base before:inside-border-b before:border-border-default before:[transition:none]">
-                <RichText text={cell} />
-              </th>
-            ))}
-          </tr>
-        </thead>
-
-        <tbody>
-          {block.rows.map((row) => (
+          <thead>
             <tr>
-              {row.map((cell) => (
-                <td class="relative px-12 py-8 align-top text-blog-body text-text-base before:inside-border-b before:border-border-muted before:[transition:none]">
+              {block.head.map((cell) => (
+                <th class="relative px-12 py-8 text-blog-highlight text-text-base before:inside-border-b before:border-border-default before:[transition:none]">
                   <RichText text={cell} />
-                </td>
+                </th>
               ))}
             </tr>
-          ))}
-        </tbody>
+          </thead>
+
+          <tbody>
+            {block.rows.map((row) => (
+              <tr>
+                {row.map((cell) => (
+                  <td class="relative px-12 py-8 align-top text-blog-body text-text-base before:inside-border-b before:border-border-muted before:[transition:none]">
+                    <RichText text={cell} />
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
         </table>
       </div>
     );

@@ -145,9 +145,7 @@ export default function MobileMenu({
                 <button
                   aria-expanded={isExpanded}
                   className="relative flex w-full cursor-pointer items-center justify-between py-16 text-label-medium text-text-base before:inside-border-b before:border-border-muted"
-                  onClick={() =>
-                    setExpanded(isExpanded ? null : section.label)
-                  }
+                  onClick={() => setExpanded(isExpanded ? null : section.label)}
                   type="button"
                 >
                   {section.label}

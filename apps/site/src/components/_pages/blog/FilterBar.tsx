@@ -228,7 +228,7 @@ export default function FilterBar({
       </div>
 
       <div className="flex items-center gap-12">
-        <div className="flex h-40 w-280 items-center gap-4 max-lg:w-auto max-lg:flex-1 rounded-full bg-background-base p-7 shadow-input-rest transition-shadow focus-within:shadow-input-active not-focus-within:hover:shadow-input-hover">
+        <div className="flex h-40 w-280 items-center gap-4 rounded-full bg-background-base p-7 shadow-input-rest transition-shadow focus-within:shadow-input-active not-focus-within:hover:shadow-input-hover max-lg:w-auto max-lg:flex-1">
           <Icon
             className="mx-2 text-icon-muted"
             name="magnifying-glass-2"
