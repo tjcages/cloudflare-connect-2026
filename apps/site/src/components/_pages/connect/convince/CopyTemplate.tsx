@@ -23,7 +23,7 @@ export default function CopyTemplate({
 
   return (
     <div className="flex flex-col gap-24">
-      <div className="flex gap-8">
+      <div className="flex flex-wrap gap-8">
         <Button
           onClick={() => setTab("email")}
           size="default"
@@ -40,7 +40,7 @@ export default function CopyTemplate({
         </Button>
       </div>
 
-      <div className="relative bg-background-surface p-40 before:inside-border before:border-border-muted">
+      <div className="relative bg-background-surface p-40 before:inside-border before:border-border-muted max-lg:p-20">
         <pre className="font-sans text-body-medium whitespace-pre-wrap text-text-default">
           {value}
         </pre>

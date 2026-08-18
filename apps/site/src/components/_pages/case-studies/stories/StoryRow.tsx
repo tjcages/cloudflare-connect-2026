@@ -15,10 +15,10 @@ export default function StoryRow({ story }: { story: Story }) {
       }}
     >
       <a
-        className="group relative flex h-72 shrink-0 items-center gap-8 bg-background-base px-80 transition-colors duration-150 outline-none before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-border-default hover:bg-background-surface focus-visible:shadow-[inset_0_0_0_2px_var(--color-orange-900)]"
+        className="group relative flex h-72 shrink-0 items-center gap-8 bg-background-base px-80 max-lg:px-24 transition-colors duration-150 outline-none before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-border-default hover:bg-background-surface focus-visible:shadow-[inset_0_0_0_2px_var(--color-orange-900)]"
         href={story.href}
       >
-        <div className="flex w-248 items-center gap-20">
+        <div className="flex w-248 items-center gap-20 max-lg:min-w-0 max-lg:flex-1">
           <story.logo aria-hidden className="size-20 shrink-0 text-icon-base" />
 
           <span className="min-w-0 flex-1 truncate text-label-x-small text-text-base">
@@ -26,7 +26,7 @@ export default function StoryRow({ story }: { story: Story }) {
           </span>
         </div>
 
-        <div className="flex w-372 items-center gap-20">
+        <div className="flex w-372 items-center gap-20 max-lg:hidden">
           {story.products.slice(0, 2).map((product) => (
             <span className="flex items-center gap-6" key={product}>
               <Icon
@@ -48,7 +48,7 @@ export default function StoryRow({ story }: { story: Story }) {
           )}
         </div>
 
-        <div className="flex min-w-0 flex-1 items-center gap-10 pr-32 text-body-x-small">
+        <div className="flex min-w-0 flex-1 items-center gap-10 pr-32 text-body-x-small max-lg:hidden">
           <span className="whitespace-nowrap text-text-muted">
             {story.industry}
           </span>

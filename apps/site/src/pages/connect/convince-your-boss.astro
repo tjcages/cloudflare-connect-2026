@@ -30,7 +30,9 @@ import Layout from "@/layouts/Layout.astro";
     description="Copy the email or a shorter Slack / Teams message, then personalize the placeholders."
     headerClass="pb-72!"
   >
-    <div class="mx-auto w-full max-w-720 px-40 pt-80 pb-80">
+    <div
+      class="mx-auto w-full max-w-720 px-40 pt-80 pb-80 max-lg:px-16 max-lg:pt-40 max-lg:pb-40"
+    >
       <CopyTemplate
         client:visible
         emailTemplate={convinceEmailTemplate}

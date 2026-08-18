@@ -24,7 +24,7 @@ const picks = [-3, -2, -1].map(
 ---
 
 <Container as="section" aria-labelledby="read-more-heading">
-  <div class="pt-120 pb-80">
+  <div class="pt-120 pb-80 max-lg:pt-80 max-lg:pb-48">
     <h2
       class="text-center text-heading-h2 text-text-base"
       id="read-more-heading"
@@ -32,10 +32,12 @@ const picks = [-3, -2, -1].map(
       Read more customer stories
     </h2>
 
-    <div class="mx-40 mt-80 flex justify-between">
+    <div class="mx-40 mt-80 flex justify-between max-lg:mx-24 max-lg:mt-48 max-lg:flex-col max-lg:gap-40">
       {picks.map((name, index) => (
         <>
-          {index > 0 && <div class="h-440 w-px self-start bg-border-muted" />}
+          {index > 0 && (
+            <div class="h-440 w-px self-start bg-border-muted max-lg:hidden" />
+          )}
           <Card name={name} width={320} />
         </>
       ))}

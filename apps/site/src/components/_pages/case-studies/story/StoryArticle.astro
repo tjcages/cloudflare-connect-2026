@@ -19,10 +19,12 @@ const initials = story.quote.author
 ---
 
 <Container>
-  <div class="flex justify-between px-120 pt-80 pb-80">
+  <div
+    class="flex justify-between px-120 pt-80 pb-80 max-lg:flex-col max-lg:gap-48 max-lg:px-24 max-lg:pt-40 max-lg:pb-48"
+  >
     <StorySidebar story={story} />
 
-    <article class="flex w-640 flex-col">
+    <article class="flex w-640 flex-col max-lg:w-full">
       <figure class="flex flex-col gap-40">
         <blockquote class="flex flex-col gap-36">
           {story.quote.text.map((paragraph) => (
