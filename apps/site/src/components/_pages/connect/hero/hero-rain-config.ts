@@ -146,7 +146,7 @@ export const CONNECT_HERO_RAIN_CONFIG: DeepPartial<EngineConfig> = {
  * Screen", shaderLibrary preset a1f684cd). Only iTime/iResolution are read.
  * https://x.com/XorDev/status/1923882930834751520
  */
-const CONNECT_HERO_RAIN_GLSL = `void mainImage(out vec4 O, vec2 I)
+export const CONNECT_HERO_RAIN_GLSL = `void mainImage(out vec4 O, vec2 I)
 {
     float t = iTime,
     i,

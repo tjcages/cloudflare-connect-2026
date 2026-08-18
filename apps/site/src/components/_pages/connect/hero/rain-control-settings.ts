@@ -7,8 +7,14 @@ import type {
 import type { SharedShaderSourceSpec } from "@necatikcl/stripes-engine/react";
 import {
   CONNECT_HERO_RAIN_CONFIG,
+  CONNECT_HERO_RAIN_GLSL,
   CONNECT_HERO_RAIN_SHADER_SOURCE,
 } from "./hero-rain-config";
+
+export { CONNECT_HERO_RAIN_GLSL } from "./hero-rain-config";
+
+/** Carries the worker's last GLSL compile result to the panel's code editor. */
+export const RAIN_SHADER_ERROR_EVENT = "connect:rain-shader-error";
 
 export type RainStripeControl = {
   id: string;
@@ -69,6 +75,8 @@ export type RainControlSettings = {
   sourceSpeed: number;
   sourceWidth: number;
   sourceHeight: number;
+  /** Shadertoy-style `mainImage` GLSL for the texture source. */
+  sourceGlsl: string;
 };
 
 const toHex = (color: number) => `#${color.toString(16).padStart(6, "0")}`;
@@ -134,6 +142,7 @@ export const CONNECT_HERO_RAIN_CONTROL_DEFAULTS: RainControlSettings = {
   sourceSpeed: CONNECT_HERO_RAIN_SHADER_SOURCE.speed ?? 1,
   sourceWidth: CONNECT_HERO_RAIN_SHADER_SOURCE.width,
   sourceHeight: CONNECT_HERO_RAIN_SHADER_SOURCE.height,
+  sourceGlsl: CONNECT_HERO_RAIN_GLSL,
 };
 
 export const RAIN_PANEL_ID = "connect-hero-rain-v1";
@@ -274,6 +283,10 @@ export const resolveConnectHeroRain = (
   },
   shaderSource: {
     ...CONNECT_HERO_RAIN_SHADER_SOURCE,
+    source:
+      typeof settings.sourceGlsl === "string" && settings.sourceGlsl.trim()
+        ? settings.sourceGlsl
+        : CONNECT_HERO_RAIN_GLSL,
     speed: settings.sourceSpeed,
     width: settings.sourceWidth,
     height: settings.sourceHeight,

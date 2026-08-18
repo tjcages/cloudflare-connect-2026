@@ -178,6 +178,16 @@ export type WaterActivityMessage = {
   activity: number;
 };
 
+/**
+ * Result of the last shader-source apply: the compile/link error, or null when
+ * it took. On error the previous renderer keeps running.
+ */
+export type ShaderSourceErrorMessage = {
+  type: "shaderSourceError";
+  id: InstanceId;
+  error: string | null;
+};
+
 /** The worker's authoritative view of one instance, for the debug readout. */
 export type InstanceStatsSample = {
   id: InstanceId;
@@ -218,4 +228,5 @@ export type WorkerToMainMessage =
   | FrameMessage
   | TockMessage
   | WaterActivityMessage
+  | ShaderSourceErrorMessage
   | StatsMessage;

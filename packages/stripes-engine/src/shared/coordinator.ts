@@ -52,6 +52,11 @@ export type RegisterSharedShaderOptions = {
   preloadRootMargin?: string;
   /** Called when the "wave" trail's 0..1 activity changes meaningfully. */
   onWaterActivity?: (activity: number) => void;
+  /**
+   * Result of each shader-source apply: the GLSL compile/link error, or null
+   * when it took. On error the previous source keeps rendering.
+   */
+  onShaderSourceError?: (error: string | null) => void;
   /** Human-readable name for this instance in the debug stats readout. */
   label?: string;
 };
@@ -76,6 +81,7 @@ type RegisteredInstance = {
   revealArmed: boolean;
   revealTimer: ReturnType<typeof setTimeout> | null;
   onWaterActivity: ((activity: number) => void) | null;
+  onShaderSourceError: ((error: string | null) => void) | null;
   label: string;
   blits: number;
   /** Latest known frame cap, mirrored from config so the pump can throttle. */
@@ -282,6 +288,11 @@ function ensureWorker(): Worker {
       const instance = instances.get(data.id);
       if (!instance || instance.disposed) return;
       instance.onWaterActivity?.(data.activity);
+    } else if (data.type === "shaderSourceError") {
+      const instance = instances.get(data.id);
+      if (!instance || instance.disposed) return;
+      if (data.error) console.error(`[stripes-engine:shared] ${data.id} shader source: ${data.error}`);
+      instance.onShaderSourceError?.(data.error);
     } else if (data.type === "stats") {
       statsPending = false;
       if (statsEnabled()) emitStats(data.instances);
@@ -409,6 +420,7 @@ export function registerSharedShader(opts: RegisterSharedShaderOptions): SharedS
     revealArmed: false,
     revealTimer: null,
     onWaterActivity: opts.onWaterActivity ?? null,
+    onShaderSourceError: opts.onShaderSourceError ?? null,
     label: opts.label ?? (mediaKind === "shader" ? "shader" : basename(src)),
     blits: 0,
     maxFps: opts.config?.maxFps ?? 0,

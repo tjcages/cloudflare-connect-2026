@@ -6,6 +6,7 @@ import { asThemedEngineConfig } from "@/components/stripes-texture/config";
 import type { IslandProps } from "@/types/island-props";
 import {
   CONNECT_HERO_RAIN_DEFAULT,
+  RAIN_SHADER_ERROR_EVENT,
   type ConnectHeroRain,
 } from "./rain-control-settings";
 import { CONNECT_HERO_TWIZZLER_DEFAULTS } from "./twizzler-defaults";
@@ -73,6 +74,13 @@ export default function ConnectHeroTwizzler({ posterSrc }: IslandProps<Props>) {
         config={asThemedEngineConfig(rain.config)}
         label="hero-rain"
         maxDpr={1.5}
+        onShaderSourceError={(error) => {
+          window.dispatchEvent(
+            new CustomEvent<string | null>(RAIN_SHADER_ERROR_EVENT, {
+              detail: error,
+            })
+          );
+        }}
         rootMargin="240px"
         shaderSource={rain.shaderSource}
       />

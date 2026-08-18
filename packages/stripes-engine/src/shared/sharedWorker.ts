@@ -254,8 +254,10 @@ function asEngineSource(source: SharedSourceFrame): EngineSource {
 const MAX_SHADER_STEP_SEC = 0.1;
 
 // Recompiling for a speed-only change would visibly restart the animation;
-// everything else (GLSL, size, view) genuinely needs a fresh renderer.
-function applyShaderSource(instance: Instance, spec: SharedShaderSourceSpec): void {
+// everything else (GLSL, size, view) genuinely needs a fresh renderer. Returns
+// the compile/link error instead of throwing — a bad edit must leave the
+// previous renderer running, not tear the instance down.
+function applyShaderSource(instance: Instance, spec: SharedShaderSourceSpec): string | null {
   const prev = instance.shaderSource;
   const rendererUnchanged =
     prev &&
@@ -266,10 +268,15 @@ function applyShaderSource(instance: Instance, spec: SharedShaderSourceSpec): vo
   if (prev && rendererUnchanged) {
     prev.speed = spec.speed ?? 1;
     prev.spec = spec;
-    return;
+    return null;
+  }
+  let renderer: SharedShaderSourceRenderer;
+  try {
+    renderer = createSharedShaderSourceRenderer(spec);
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
   }
   prev?.renderer.dispose();
-  const renderer = createSharedShaderSourceRenderer(spec);
   instance.shaderSource = {
     renderer,
     timeSec: prev?.timeSec ?? 0,
@@ -280,6 +287,7 @@ function applyShaderSource(instance: Instance, spec: SharedShaderSourceSpec): vo
   renderer.render(instance.shaderSource.timeSec);
   instance.engine.setSource(renderer.canvas);
   instance.hasSource = true;
+  return null;
 }
 
 function advanceShaderSource(instance: Instance, nowMs: number): void {
@@ -324,7 +332,8 @@ function handle(message: MainToWorkerMessage): void {
         shaderSource: null,
       };
       if (message.shaderSource) {
-        applyShaderSource(instance, message.shaderSource);
+        const error = applyShaderSource(instance, message.shaderSource);
+        scope.postMessage({ type: "shaderSourceError", id: message.id, error });
         instance.pendingReveal = true;
       }
       instances.set(message.id, instance);
@@ -400,7 +409,8 @@ function handle(message: MainToWorkerMessage): void {
     case "shaderSource": {
       const instance = instances.get(message.id);
       if (!instance) return;
-      applyShaderSource(instance, message.spec);
+      const error = applyShaderSource(instance, message.spec);
+      scope.postMessage({ type: "shaderSourceError", id: message.id, error });
       return;
     }
     case "cursor": {

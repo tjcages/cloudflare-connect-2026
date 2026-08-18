@@ -4,6 +4,7 @@ import type {
   RainStripeControl,
 } from "../hero/rain-control-settings";
 import { loadControlDrawerOpen } from "./drawerState";
+import { shaderCodePlugin } from "./shaderCodePlugin";
 import type { EditableStripe } from "./stripeAdapter";
 import {
   stripeColorsTablePlugin,
@@ -214,6 +215,7 @@ export function buildRainLevaSchema(values: RainControlSettings) {
         2048,
         64
       ),
+      rainSourceGlsl: shaderCodePlugin({ value: values.sourceGlsl }),
     }),
   };
 }
@@ -282,5 +284,6 @@ export function rainSettingsFromLevaValues(
     sourceSpeed: pick("rainSourceSpeed", fallback.sourceSpeed),
     sourceWidth: pick("rainSourceWidth", fallback.sourceWidth),
     sourceHeight: pick("rainSourceHeight", fallback.sourceHeight),
+    sourceGlsl: pick("rainSourceGlsl", fallback.sourceGlsl),
   };
 }

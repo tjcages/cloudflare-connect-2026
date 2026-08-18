@@ -115,3 +115,69 @@
   stroke-linejoin: round;
   stroke-width: 1.5;
 }
+
+.connect-shader-code {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
+  padding: 4px 0;
+}
+
+.connect-shader-code textarea {
+  width: 100%;
+  min-height: 180px;
+  resize: vertical;
+  border: 1px solid var(--leva-elevation1, #292929);
+  border-radius: 4px;
+  background: var(--leva-elevation3, #373737);
+  color: var(--leva-highlight3, #fefefe);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  line-height: 1.45;
+  padding: 6px;
+  white-space: pre;
+  overflow-x: auto;
+}
+
+.connect-shader-code__actions {
+  display: flex;
+  gap: 6px;
+}
+
+.connect-shader-code__actions button {
+  border: 0;
+  border-radius: 4px;
+  background: var(--leva-elevation1, #292929);
+  color: var(--leva-highlight3, #fefefe);
+  cursor: pointer;
+  font-size: 10px;
+  padding: 4px 8px;
+}
+
+.connect-shader-code__actions button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.connect-shader-code__error {
+  margin: 0;
+  max-height: 96px;
+  overflow: auto;
+  border-radius: 4px;
+  background: rgb(127 29 29 / 0.35);
+  color: #fca5a5;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 9px;
+  line-height: 1.4;
+  padding: 6px;
+  white-space: pre-wrap;
+}
+
+.connect-shader-code__hint {
+  margin: 0;
+  color: var(--leva-highlight1, #535760);
+  font-size: 9px;
+  line-height: 1.4;
+}

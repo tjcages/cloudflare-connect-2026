@@ -17,6 +17,11 @@ export type StripesShaderProps = {
    * speed-only changes retune the running animation without restarting it.
    */
   shaderSource?: SharedShaderSourceSpec;
+  /**
+   * Result of each shader-source apply: the GLSL compile/link error, or null
+   * when it took. On error the previous source keeps rendering.
+   */
+  onShaderSourceError?: (error: string | null) => void;
   /** Clamp the device pixel ratio the instance renders at. */
   maxDpr?: number;
   config?: ThemedEngineConfig;
@@ -80,6 +85,7 @@ export function StripesShader(props: StripesShaderProps) {
     src,
     mediaKind,
     shaderSource,
+    onShaderSourceError,
     maxDpr,
     config,
     theme = "light",
@@ -111,6 +117,8 @@ export function StripesShader(props: StripesShaderProps) {
   // Held in a ref so a new handler identity never tears the instance down.
   const waterActivityRef = useRef(onWaterActivity);
   waterActivityRef.current = onWaterActivity;
+  const shaderSourceErrorRef = useRef(onShaderSourceError);
+  shaderSourceErrorRef.current = onShaderSourceError;
 
   const mergedStyle = useMemo<CSSProperties>(
     () => ({ display: "block", ...(width != null && height != null ? { width, height } : null), ...style }),
@@ -141,6 +149,7 @@ export function StripesShader(props: StripesShaderProps) {
         preloadRootMargin,
         label,
         onWaterActivity: (activity) => waterActivityRef.current?.(activity),
+        onShaderSourceError: (error) => shaderSourceErrorRef.current?.(error),
       });
       sharedHandleRef.current = handle;
       postedShaderSourceRef.current = shaderSourceRef.current ? JSON.stringify(shaderSourceRef.current) : null;
