@@ -4,16 +4,16 @@ import type { EngineConfig } from "@necatikcl/stripes-engine";
 export const SPEAKER_SHADER_CONFIG = {
   transform: { fit: "width", zoom: 1, panX: 0, panY: 0 },
   adjustments: {
-    brightness: 0,
-    exposure: 0,
-    contrast: 1,
+    brightness: 0.33,
+    exposure: 0.87,
+    contrast: 1.35,
     blackPoint: 0,
     whitePoint: 1,
-    gamma: 1,
-    invert: false,
+    gamma: 0.75,
+    invert: true,
     posterizeLevels: 0,
     thresholdBias: 0,
-    noiseAmount: 0,
+    noiseAmount: 1,
     blurRadius: 0,
     sharpenAmount: 0,
   },
@@ -72,18 +72,19 @@ export const SPEAKER_SHADER_CONFIG = {
       seed: 1,
     },
   },
-  // Grid + stripes mirror the agenda rain's authored look (AGENDA_RAIN_CONFIG)
-  // so both sections read as one stripe system; everything else is untouched.
+  // Stripes mirror the agenda rain's authored palette so both sections read
+  // as one stripe system; the grid and tone are the speaker section's own
+  // authored values (Speaker Frames panel → Copy config).
   grid: {
-    cellWidth: 13,
+    cellWidth: 9,
     cellHeight: 15,
-    gapX: 12,
+    gapX: 6.5,
     gapY: 0,
     cornerRadius: 0,
     orientation: "vertical",
     angleDeg: 45,
     rotationMode: "cell",
-    overlapAmount: 1.2,
+    overlapAmount: 0,
     streamGapWave: {
       enabled: false,
       squeeze: 0.23,
@@ -105,7 +106,7 @@ export const SPEAKER_SHADER_CONFIG = {
     { color: 16015393, startFrom: 0.7988, width: 5, opacity: 1 },
   ],
   stripesEnabled: true,
-  fieldScale: 1,
+  fieldScale: 0.58,
   maxFps: 0,
   reveal: {
     enabled: true,
@@ -270,7 +271,7 @@ export const SPEAKER_SHADER_CONFIG = {
     type: "default",
     particleRadius: 40,
     particleAlpha: 0.08,
-    particleLifeMs: 1000,
+    particleLifeMs: 290,
     particleLifeJitterMs: 100,
     emitterVelocitySmoothing: 0.7,
     particleVelocityScale: 0.01,
@@ -284,7 +285,7 @@ export const SPEAKER_SHADER_CONFIG = {
     densityRadiusMinScale: 0.2,
     densityRadiusLifeScale: 1,
     pushRadiusScale: 0.9,
-    pushStrengthPx: 48,
+    pushStrengthPx: 160,
     pushLagPx: 0,
     pushWobblePx: 12,
     pushLeadBlackAlpha: 0,
@@ -423,8 +424,9 @@ export const SPEAKER_SHADER_CONFIG = {
     },
   },
   renderMode: "sharp",
-  renderIntensity: 1,
-  renderParams: [0.5, 0.5, 0.5, 0.5],
+  // The panel authors 0..2; the engine clamps to 1 at normalize time.
+  renderIntensity: 1.52,
+  renderParams: [0, 0.5, 0.5, 0.5],
   renderColorA: 2236962,
   renderColorB: 16777215,
 } satisfies EngineConfig;
