@@ -5,6 +5,7 @@ import {
 import { folder } from "leva";
 import type { TwizzlerControlSettings } from "../hero/twizzler-control-settings";
 import { colorLibraryInputPlugin } from "./colorLibraryInputPlugin";
+import { copyConfigFolder } from "./copyConfig";
 import { loadControlDrawerOpen } from "./drawerState";
 import { gradientStopsPlugin } from "./gradientStopsPlugin";
 
@@ -49,7 +50,10 @@ const isFieldGradient = (get: Get) => {
 };
 
 /** Leva schema for one Twizzler target, seeded from its persisted values. */
-export function buildTwizzlerLevaSchema(values: TwizzlerControlSettings) {
+export function buildTwizzlerLevaSchema(
+  values: TwizzlerControlSettings,
+  onCopyConfig: () => void
+) {
   const colorNear = values.colorNear ?? values.color;
 
   return {
@@ -324,6 +328,9 @@ export function buildTwizzlerLevaSchema(values: TwizzlerControlSettings) {
       },
       { defaultOpen: true }
     ),
+
+    // Always the closing section, so the authored look can be lifted out.
+    Config: copyConfigFolder(onCopyConfig),
   };
 }
 

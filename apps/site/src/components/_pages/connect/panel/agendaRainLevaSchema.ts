@@ -5,6 +5,7 @@ import type {
 } from "../agenda/agenda-rain-controls";
 import { rainShaderOptions } from "../agenda/rain-shader-library";
 import { colorLibraryInputPlugin } from "./colorLibraryInputPlugin";
+import { copyConfigFolder } from "./copyConfig";
 import { loadControlDrawerOpen } from "./drawerState";
 import type { EditableStripe } from "./stripeAdapter";
 import {
@@ -80,7 +81,10 @@ export const toEditableRainStripes = (
     opacity: stripe.opacity,
   }));
 
-export function buildAgendaRainLevaSchema(values: AgendaRainSettings) {
+export function buildAgendaRainLevaSchema(
+  values: AgendaRainSettings,
+  onCopyConfig: () => void
+) {
   return {
     Rain: drawerFolder(
       "Rain",
@@ -343,6 +347,9 @@ export function buildAgendaRainLevaSchema(values: AgendaRainSettings) {
         label: "Render color B",
       }),
     }),
+
+    // Always the closing section, so the authored look can be lifted out.
+    Config: copyConfigFolder(onCopyConfig),
   };
 }
 

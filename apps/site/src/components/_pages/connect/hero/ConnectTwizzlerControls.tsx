@@ -18,6 +18,7 @@ import {
   speakerFramesFromLevaValues,
   toEditableStripes,
 } from "../panel/speakerFramesLevaSchema";
+import { copyConfigToClipboard } from "../panel/copyConfig";
 import { stripeColorsTableRuntime } from "../panel/stripeColorsTablePlugin";
 import {
   buildTwizzlerLevaSchema,
@@ -124,18 +125,29 @@ export default function ConnectTwizzlerControls({ onSettingsChange }: Props) {
     []
   );
 
+  // Copy config reads the persisted blobs / live refs, so the button always
+  // snapshots the current values rather than the mount-time seed.
   const heroStore = useLevaTarget(
-    () => buildTwizzlerLevaSchema(loadHeroControlSettings()),
+    () =>
+      buildTwizzlerLevaSchema(loadHeroControlSettings(), () =>
+        copyConfigToClipboard("hero twizzler", loadHeroControlSettings())
+      ),
     twizzlerSettingsFromLevaValues,
     publishHero
   );
   const rainStore = useLevaTarget(
-    () => buildAgendaRainLevaSchema(rainSeed),
+    () =>
+      buildAgendaRainLevaSchema(rainSeed, () =>
+        copyConfigToClipboard("agenda rain", rainValuesRef.current)
+      ),
     rainFromValues,
     publishRain
   );
   const framesStore = useLevaTarget(
-    () => buildSpeakerFramesLevaSchema(frameSeed),
+    () =>
+      buildSpeakerFramesLevaSchema(frameSeed, () =>
+        copyConfigToClipboard("speaker frames", frameValuesRef.current)
+      ),
     framesFromValues,
     publishFrames
   );

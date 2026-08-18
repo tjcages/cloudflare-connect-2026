@@ -4,6 +4,7 @@ import type {
   SpeakerStripeControl,
 } from "../speakers/speaker-frame-controls";
 import { colorLibraryInputPlugin } from "./colorLibraryInputPlugin";
+import { copyConfigFolder } from "./copyConfig";
 import { loadControlDrawerOpen } from "./drawerState";
 import type { EditableStripe } from "./stripeAdapter";
 import {
@@ -90,7 +91,10 @@ export const fromEditableStripes = (
     opacity: row.opacity,
   }));
 
-export function buildSpeakerFramesLevaSchema(values: SpeakerFrameSettings) {
+export function buildSpeakerFramesLevaSchema(
+  values: SpeakerFrameSettings,
+  onCopyConfig: () => void
+) {
   return {
     Frames: drawerFolder(
       "Frames",
@@ -365,6 +369,9 @@ export function buildSpeakerFramesLevaSchema(values: SpeakerFrameSettings) {
         0.01
       ),
     }),
+
+    // Always the closing section, so the authored look can be lifted out.
+    Config: copyConfigFolder(onCopyConfig),
   };
 }
 
