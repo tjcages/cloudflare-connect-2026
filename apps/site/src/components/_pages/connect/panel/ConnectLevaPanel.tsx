@@ -1,5 +1,6 @@
 import { LevaPanel, useControls, useCreateStore } from "leva";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import "./panel.css";
 import "./connect-panel.css";
 import { LAB_LEVA_THEME } from "./levaTheme";
@@ -47,7 +48,11 @@ export function ConnectLevaPanel({
   titleSlot?: ReactNode;
   onClose: () => void;
 }) {
-  return (
+  // The hero this island lives in is `isolate` + `overflow-hidden`, which traps
+  // a fixed-position child in its stacking context and clips it. Portal to
+  // <body> so the panel always paints above the page, whatever it is mounted
+  // inside — the panel this replaced portaled to <body> too.
+  const panel = (
     // `playground-leva-panel` is what every lifted lab selector is scoped to.
     <div className="connect-leva-panel playground-leva-panel">
       <div className="connect-leva-panel__header">
@@ -74,4 +79,6 @@ export function ConnectLevaPanel({
       </div>
     </div>
   );
+
+  return createPortal(panel, document.body);
 }

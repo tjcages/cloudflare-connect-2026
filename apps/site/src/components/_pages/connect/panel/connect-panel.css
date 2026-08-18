@@ -8,7 +8,10 @@
   position: fixed;
   top: 16px;
   right: 16px;
-  z-index: 1000;
+  /* Portaled to <body>, so this only has to clear the site's own overlays
+     (top of stack is 9999). The color popover portals separately at
+     2147483647 and must stay above this. */
+  z-index: 2147483000;
   display: flex;
   max-height: calc(100dvh - 32px);
   width: 360px;
