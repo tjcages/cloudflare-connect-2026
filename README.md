@@ -8,9 +8,8 @@ in one repository and deploy as separate Cloudflare Workers.
 This is a pnpm-workspace monorepo:
 
 - `apps/lab/` — the authoring app and the **live Cloudflare Worker** [`connect-shader`](https://dash.cloudflare.com/944ca70087298faa2e84783db46162c5/workers/services/view/connect-shader/production) (served at `/`).
-- `apps/site/` — the Astro refresh site and the `connect-2026-site` Worker (Connect homepage at `/connect/`).
+- `apps/site/` — the Astro refresh site and the `connect-2026-site` Worker (Connect homepage at `/connect/`). Shader controls use the published `@tjcages/panels` package (`/dev` entry so the panel still mounts in production-mode previews).
 - `packages/connect-twizzler/` — the packaged Connect hero shader used by the site.
-- `packages/panels/` — the packaged shader control panel used by the site.
 - `packages/stripes-engine/` — the WebGL2 render core (`createStripesEngine`) plus the render-only
   `<StripesShader>` React canvas at `@necatikcl/stripes-engine/react`. See its README for usage.
 

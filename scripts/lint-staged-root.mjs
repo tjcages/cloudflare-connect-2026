@@ -8,8 +8,7 @@ const files = process.argv.slice(3).filter((file) => {
   const relative = path.relative(process.cwd(), file).split(path.sep).join("/");
   return (
     !relative.startsWith("apps/site/") &&
-    !relative.startsWith("packages/connect-twizzler/dist/") &&
-    !relative.startsWith("packages/panels/dist/")
+    !relative.startsWith("packages/connect-twizzler/dist/")
   );
 });
 

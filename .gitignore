@@ -3,8 +3,6 @@ package-lock.json
 dist
 !packages/connect-twizzler/dist/
 !packages/connect-twizzler/dist/**
-!packages/panels/dist/
-!packages/panels/dist/**
 .astro
 .DS_Store
 *.tsbuildinfo

@@ -94,13 +94,7 @@ export function buildTwizzlerSections(
     num("scale", "Zoom", 0.05, 20, 0.05)
   );
 
-  const sections: PanelSectionDef[] = [
-    {
-      id: "Appearance",
-      title: "Appearance",
-      defaultOpen: true,
-      fields: appearance,
-    },
+  const twizzlerChildren: PanelSectionDef[] = [
     {
       id: "Twizzler Shape",
       title: "Shape",
@@ -123,7 +117,7 @@ export function buildTwizzlerSections(
 
   // Axis X/Y/Z mixes only drive Baked segments (Color mode).
   if (isBaked) {
-    sections.push({
+    twizzlerChildren.push({
       id: "Twizzler Gradients",
       title: "Gradients",
       defaultOpen: true,
@@ -140,7 +134,7 @@ export function buildTwizzlerSections(
     });
   }
 
-  sections.push(
+  twizzlerChildren.push(
     {
       id: "Twizzler Stroke",
       title: "Stroke",
@@ -158,6 +152,22 @@ export function buildTwizzlerSections(
       title: "Motion",
       defaultOpen: true,
       fields: [num("speed", "Speed", 0, 20, 0.05)],
+    }
+  );
+
+  return [
+    {
+      id: "Appearance",
+      title: "Appearance",
+      defaultOpen: true,
+      fields: appearance,
+    },
+    {
+      id: "Twizzler",
+      title: "Twizzler",
+      defaultOpen: true,
+      fields: [],
+      children: twizzlerChildren,
     },
     // Always the closing section, so the authored look can be lifted out.
     {
@@ -174,8 +184,6 @@ export function buildTwizzlerSections(
           seed: seedTwizzlerPanelValues,
         }),
       ],
-    }
-  );
-
-  return sections;
+    },
+  ];
 }
