@@ -38,11 +38,14 @@ describe("speaker shader production contract", () => {
       SPEAKER_SHADER_CONFIG.stripes.length
     );
     expect(SPEAKER_FRAME_DEFAULTS.stripes[0]).toMatchObject({
-      color: "#261106",
+      // Agenda rain's authored palette, mirrored into the speaker stripes.
+      color: "#fafafa",
       startFrom: SPEAKER_SHADER_CONFIG.stripes[0].startFrom,
       width: SPEAKER_SHADER_CONFIG.stripes[0].width,
       opacity: SPEAKER_SHADER_CONFIG.stripes[0].opacity,
     });
+    expect(SPEAKER_SHADER_CONFIG.stripes[0].opacity).toBe(0.41);
+    expect(SPEAKER_SHADER_CONFIG.grid.angleDeg).toBe(45);
   });
 
   it("keeps render, tone, and stripe-detail controls aligned with the production config", () => {
