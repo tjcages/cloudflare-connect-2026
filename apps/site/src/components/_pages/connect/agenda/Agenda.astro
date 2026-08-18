@@ -55,27 +55,43 @@ const SLOT_DOT: Record<AgendaSlotAccent, string> = {
             </div>
           </div>
 
-          <div class="flex flex-col gap-20">
-            {item.slots.map((slot) => (
-              <div class="flex flex-col gap-8">
-                <div class="flex items-center gap-8">
+          <div class="flex flex-col">
+            {item.slots.map((slot, slotIndex) => (
+              <div class="flex gap-16">
+                <div class="relative flex w-6 flex-col items-center">
                   <span
                     class:list={[
-                      "size-6 shrink-0 rounded-full",
+                      "mt-5 size-6 shrink-0 rounded-full",
                       SLOT_DOT[slot.accent],
                     ]}
                   />
 
+                  {slotIndex < item.slots.length - 1 && (
+                    <DashedLine
+                      className="absolute top-17 bottom-0 text-border-dashed"
+                      direction="vertical"
+                    />
+                  )}
+                </div>
+
+                <div
+                  class:list={[
+                    "flex min-w-0 flex-col gap-8",
+                    slotIndex < item.slots.length - 1 && "pb-24",
+                  ]}
+                >
                   <span class="text-decorative-small text-text-faint uppercase">
                     {slot.label}
                   </span>
-                </div>
 
-                <ul class="flex flex-col gap-4 pl-14">
-                  {slot.items.map((event) => (
-                    <li class="text-body-medium text-text-default">{event}</li>
-                  ))}
-                </ul>
+                  <ul class="flex flex-col gap-4">
+                    {slot.items.map((event) => (
+                      <li class="text-body-medium text-text-default">
+                        {event}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </div>
             ))}
           </div>
