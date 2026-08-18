@@ -409,6 +409,7 @@ var trackPointer = (el, cursor, onMove, onDone) => {
 function usePanelDragResize({
   enabled,
   collapsed,
+  ready = true,
   storageKey
 }) {
   const panelRef = useRef(null);
@@ -422,7 +423,7 @@ function usePanelDragResize({
     }
   }, [persistKey]);
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || !ready) return;
     const el = panelRef.current;
     if (!el) return;
     if (persistKey) {
@@ -457,9 +458,9 @@ function usePanelDragResize({
       el.style.transition = "";
       persist();
     };
-  }, [enabled, persistKey, persist]);
+  }, [enabled, ready, persistKey, persist]);
   useEffect(() => {
-    if (!enabled || collapsed) return;
+    if (!enabled || !ready || collapsed) return;
     const el = panelRef.current;
     if (!el || reducedMotion()) return;
     const r = el.getBoundingClientRect();
@@ -473,7 +474,25 @@ function usePanelDragResize({
       ],
       { duration: 200, easing: "cubic-bezier(0.17, 1, 0.32, 1)" }
     );
-  }, [enabled, collapsed]);
+  }, [enabled, ready, collapsed]);
+  const settle = useCallback(
+    (el, m, vx, vy) => {
+      const cur = el.getBoundingClientRect();
+      const maxL = vw() - cur.width - MARGIN;
+      const maxT = vh() - cur.height - MARGIN;
+      let left = clamp(cur.left + vx * MOMENTUM, MARGIN, maxL);
+      let top = clamp(cur.top + vy * MOMENTUM, MARGIN, maxT);
+      const armed = snapSides(left, top, cur.width, cur.height);
+      if (armed.x === "left") left = MARGIN;
+      else if (armed.x === "right") left = Math.max(MARGIN, maxL);
+      if (armed.y === "top") top = MARGIN;
+      else if (armed.y === "bottom") top = Math.max(MARGIN, maxT);
+      setHints(el, "", "");
+      animateTo(el, m, left, top);
+      persist();
+    },
+    [persist]
+  );
   const onHeaderPointerDown = useCallback(
     (e) => {
       const el = panelRef.current;
@@ -509,25 +528,60 @@ function usePanelDragResize({
           const armed = snapSides(left, top, m.r.width, m.r.height);
           setHints(el, armed.x, armed.y);
         },
-        () => {
-          const cur = el.getBoundingClientRect();
-          const maxL = vw() - cur.width - MARGIN;
-          const maxT = vh() - cur.height - MARGIN;
-          let left = clamp(cur.left + vx * MOMENTUM, MARGIN, maxL);
-          let top = clamp(cur.top + vy * MOMENTUM, MARGIN, maxT);
-          const armed = snapSides(left, top, cur.width, cur.height);
-          if (armed.x === "left") left = MARGIN;
-          else if (armed.x === "right") left = Math.max(MARGIN, maxL);
-          if (armed.y === "top") top = MARGIN;
-          else if (armed.y === "bottom") top = Math.max(MARGIN, maxT);
-          setHints(el, "", "");
-          animateTo(el, m, left, top);
-          persist();
-        }
+        () => settle(el, m, vx, vy)
       );
     },
-    [enabled, persist]
+    [enabled, settle]
   );
+  const headerElRef = useRef(null);
+  const wheelGesture = useRef(null);
+  useEffect(() => {
+    const header = headerElRef.current;
+    if (!enabled || !ready || !header) return;
+    const onWheel = (e) => {
+      const el = panelRef.current;
+      if (!el) return;
+      e.preventDefault();
+      const now = performance.now();
+      let g = wheelGesture.current;
+      if (!g) {
+        g = { m: pin(el), vx: 0, vy: 0, lastT: now, endTimer: 0 };
+        wheelGesture.current = g;
+      }
+      window.clearTimeout(g.endTimer);
+      const dx = -e.deltaX;
+      const dy = -e.deltaY;
+      const dt = Math.max(1, now - g.lastT);
+      g.vx = 0.8 * (dx / dt) + 0.2 * g.vx;
+      g.vy = 0.8 * (dy / dt) + 0.2 * g.vy;
+      g.lastT = now;
+      const r = el.getBoundingClientRect();
+      const maxL = vw() - r.width - MARGIN;
+      const maxT = vh() - r.height - MARGIN;
+      const left = clamp(r.left + dx, MARGIN, maxL);
+      const top = clamp(r.top + dy, MARGIN, maxT);
+      el.style.left = `${g.m.toStyleX(left)}px`;
+      el.style.top = `${g.m.toStyleY(top)}px`;
+      const armed = snapSides(left, top, r.width, r.height);
+      setHints(el, armed.x, armed.y);
+      g.endTimer = window.setTimeout(() => {
+        const gesture = wheelGesture.current;
+        wheelGesture.current = null;
+        if (gesture) settle(el, gesture.m, gesture.vx, gesture.vy);
+      }, 90);
+    };
+    header.addEventListener("wheel", onWheel, { passive: false });
+    return () => {
+      header.removeEventListener("wheel", onWheel);
+      if (wheelGesture.current) {
+        window.clearTimeout(wheelGesture.current.endTimer);
+        wheelGesture.current = null;
+      }
+    };
+  }, [enabled, ready, settle]);
+  const headerRef = useCallback((node) => {
+    headerElRef.current = node;
+  }, []);
   const onResizePointerDown = useCallback(
     (e, dir) => {
       const el = panelRef.current;
@@ -573,7 +627,7 @@ function usePanelDragResize({
     },
     [enabled, persist]
   );
-  return { panelRef, onHeaderPointerDown, onResizePointerDown };
+  return { panelRef, headerRef, onHeaderPointerDown, onResizePointerDown };
 }
 function clamp2(value, min, max) {
   return Math.min(max, Math.max(min, value));
@@ -2248,15 +2302,17 @@ var gradientStopsStyles = `
 button.panel-gradient-action {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 4px;
   height: 22px;
-  padding: 0 7px;
+  padding: 0 12px;
   border: 0;
   border-radius: 4px;
   background: var(--panel-surface);
   color: var(--panel-text-muted);
   font: inherit;
-  font-size: 10px;
+  font-size: 11px;
+  text-align: center;
   cursor: pointer;
 }
 
@@ -3000,6 +3056,8 @@ function prefersReducedMotion() {
 var FRICTION = 0.94;
 var MIN_VELOCITY = 2e-5;
 var MAX_VELOCITY = 6e-3;
+var THROW_VELOCITY = 12e-4;
+var VELOCITY_STALE_MS = 80;
 function ControlSlider({
   label,
   value,
@@ -3125,7 +3183,7 @@ function ControlSlider({
       const finishDrag = () => {
         setState((prev) => prev === "drag" ? "hover" : prev);
       };
-      const onUp = () => {
+      const onUp = (upEvent) => {
         window.removeEventListener("pointermove", onMove);
         window.removeEventListener("pointerup", onUp);
         if (reduced) {
@@ -3134,10 +3192,11 @@ function ControlSlider({
           return;
         }
         springBack();
+        if (upEvent.timeStamp - lastT > VELOCITY_STALE_MS) velocity = 0;
         let v = Math.max(-MAX_VELOCITY, Math.min(MAX_VELOCITY, velocity));
         let frac = lastFrac;
         let last = performance.now();
-        if (Math.abs(v) < MIN_VELOCITY) {
+        if (Math.abs(v) < THROW_VELOCITY) {
           finishDrag();
           return;
         }
@@ -3172,49 +3231,116 @@ function ControlSlider({
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
     };
   }, []);
+  const [draft, setDraft] = useState(null);
+  const commitDraft = useCallback(
+    (raw) => {
+      setDraft(null);
+      const parsed = Number.parseFloat(raw.replace(",", "."));
+      if (!Number.isFinite(parsed)) return;
+      const stepped = Math.round(parsed / step) * step;
+      onChangeRef.current(
+        Math.max(
+          min,
+          Math.min(max, Number.parseFloat(stepped.toFixed(decimals)))
+        )
+      );
+    },
+    [min, max, step, decimals]
+  );
+  const stepBy = useCallback(
+    (direction, multiplier) => {
+      const next = value + direction * step * multiplier;
+      onChangeRef.current(
+        Math.max(min, Math.min(max, Number.parseFloat(next.toFixed(decimals))))
+      );
+    },
+    [value, min, max, step, decimals]
+  );
   const discreteSteps = (max - min) / step;
   const hashCount = discreteSteps <= 10 ? discreteSteps - 1 : 9;
   const hashMarks = Array.from({ length: hashCount }, (_, i) => {
     const pct = discreteSteps <= 10 ? (i + 1) * step / (max - min) * 100 : (i + 1) * 10;
     return /* @__PURE__ */ jsx("div", { className: "panel-slider-hash", style: { left: `${pct}%` } }, `h${pct}`);
   });
-  return /* @__PURE__ */ jsx("div", { "data-panel-state": state, className: cn("panel-slider", className), children: /* @__PURE__ */ jsx("div", { ref: overscrollRef, className: "panel-slider-overscroll", children: /* @__PURE__ */ jsxs(
+  return /* @__PURE__ */ jsxs(
     "div",
     {
-      ref: trackRef,
-      role: "slider",
-      tabIndex: 0,
-      "aria-valuenow": value,
-      "aria-valuemin": min,
-      "aria-valuemax": max,
-      "aria-label": label,
-      className: "panel-slider-track",
-      onPointerDown: handlePointerDown,
-      onPointerEnter: () => setState((s) => s === "drag" ? s : "hover"),
-      onPointerLeave: () => setState((s) => s === "drag" ? s : "idle"),
+      "data-panel-state": state,
+      className: cn("panel-slider-row", className),
       children: [
-        /* @__PURE__ */ jsx("div", { className: "panel-slider-hash-row", children: hashMarks }),
-        /* @__PURE__ */ jsx(
+        /* @__PURE__ */ jsx("span", { className: "panel-slider-row-label", title: label, children: label }),
+        /* @__PURE__ */ jsx("div", { className: "panel-slider", children: /* @__PURE__ */ jsx("div", { ref: overscrollRef, className: "panel-slider-overscroll", children: /* @__PURE__ */ jsxs(
           "div",
           {
-            ref: fillRef,
-            className: "panel-slider-fill",
-            style: { "--panel-fill-pct": `${percentage}%` }
+            ref: trackRef,
+            role: "slider",
+            tabIndex: 0,
+            "aria-valuenow": value,
+            "aria-valuemin": min,
+            "aria-valuemax": max,
+            "aria-label": label,
+            className: "panel-slider-track",
+            onPointerDown: handlePointerDown,
+            onPointerEnter: () => setState((s) => s === "drag" ? s : "hover"),
+            onPointerLeave: () => setState((s) => s === "drag" ? s : "idle"),
+            children: [
+              /* @__PURE__ */ jsx("div", { className: "panel-slider-hash-row", children: hashMarks }),
+              /* @__PURE__ */ jsx(
+                "div",
+                {
+                  ref: fillRef,
+                  className: "panel-slider-fill",
+                  style: { "--panel-fill-pct": `${percentage}%` }
+                }
+              ),
+              /* @__PURE__ */ jsx(
+                "div",
+                {
+                  ref: handleRef,
+                  className: "panel-slider-handle",
+                  style: {
+                    "--panel-handle-left": `${percentage}%`
+                  }
+                }
+              )
+            ]
           }
-        ),
+        ) }) }),
         /* @__PURE__ */ jsx(
-          "div",
+          "input",
           {
-            ref: handleRef,
-            className: "panel-slider-handle",
-            style: { "--panel-handle-left": `${percentage}%` }
+            className: "panel-slider-num",
+            type: "text",
+            inputMode: "decimal",
+            "aria-label": `${label} value`,
+            value: draft ?? displayValue,
+            onFocus: (e) => {
+              setDraft(displayValue);
+              e.currentTarget.select();
+            },
+            onChange: (e) => setDraft(e.target.value),
+            onBlur: (e) => commitDraft(e.target.value),
+            onKeyDown: (e) => {
+              e.stopPropagation();
+              if (e.key === "Enter") e.currentTarget.blur();
+              else if (e.key === "Escape") {
+                setDraft(null);
+                e.currentTarget.blur();
+              } else if (e.key === "ArrowUp") {
+                e.preventDefault();
+                setDraft(null);
+                stepBy(1, e.shiftKey ? 10 : 1);
+              } else if (e.key === "ArrowDown") {
+                e.preventDefault();
+                setDraft(null);
+                stepBy(-1, e.shiftKey ? 10 : 1);
+              }
+            }
           }
-        ),
-        /* @__PURE__ */ jsx("span", { className: "panel-slider-label", children: label }),
-        /* @__PURE__ */ jsx("span", { className: "panel-slider-value", children: displayValue })
+        )
       ]
     }
-  ) }) });
+  );
 }
 var STRIPE_START_FROM_MIN = 0;
 var STRIPE_START_FROM_MAX = 0.8;
@@ -3862,9 +3988,13 @@ var stripeColorsTableStyles = `
 }
 
 button.panel-stripes-palette-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-width: 44px;
   height: 24px;
-  padding: 0 8px;
+  padding: 0 12px;
+  text-align: center;
   border: 1px solid transparent;
   border-radius: 4px;
   background-color: var(--panel-surface);
@@ -4566,7 +4696,7 @@ var PANEL_CSS = `
   justify-content: space-between;
   gap: 8px;
   border-bottom: 1px solid var(--panel-header-border);
-  padding: 8px 8px 4px 16px;
+  padding: 8px 8px 4px 12px;
   font-size: 11px;
 }
 .panel-panel-title-row {
@@ -4583,6 +4713,10 @@ var PANEL_CSS = `
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* An empty title collapses so the switcher's inner padding lines its text up
+   with the body content's left edge. */
+.panel-panel-title:empty { display: none; }
+.panel-panel-title:empty + .panel-switcher { margin-left: -8px; }
 .panel-panel-header-end {
   display: flex;
   flex-shrink: 0;
@@ -4662,7 +4796,7 @@ var PANEL_CSS = `
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 8px 8px 32px;
+  padding: 8px 12px 32px;
   scrollbar-width: thin;
   scrollbar-color: var(--panel-scrollbar-thumb) transparent;
   /* Content fades out at the bottom while more of it is cut off below
@@ -4782,12 +4916,17 @@ var PANEL_CSS = `
 /* Scoped under [data-panel] to beat the global button reset on
    specificity \u2014 otherwise the always-on surface fill loses. */
 [data-panel] .panel-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 100%;
   height: 24px;
+  padding: 0 12px;
   border-radius: 4px;
   font-size: 11px;
   font-weight: 400;
   line-height: 1;
+  text-align: center;
   background: var(--panel-action-bg);
   color: var(--panel-action-text);
   transition-property: background-color, color, scale;
@@ -5166,16 +5305,57 @@ var PANEL_CSS = `
   letter-spacing: 0.01em;
 }
 
+/* Slider row, between the old full-row fill and leva's grid:
+   label | stretchy fill track | editable value box. */
+.panel-slider-row {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.4fr) 52px;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+.panel-slider-row-label {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--panel-label);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color 150ms ease;
+}
+.panel-slider-row[data-panel-state="hover"] .panel-slider-row-label,
+.panel-slider-row[data-panel-state="drag"] .panel-slider-row-label {
+  color: var(--panel-label-active);
+}
+[data-panel] .panel-slider-num {
+  width: 100%;
+  height: 20px;
+  border: 0;
+  border-radius: 4px;
+  background: var(--panel-surface);
+  color: var(--panel-text);
+  font-family: inherit;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  outline: none;
+  transition: background-color 150ms ease;
+}
+[data-panel] .panel-slider-num:hover { background: var(--panel-surface-active); }
+[data-panel] .panel-slider-num:focus {
+  background: var(--panel-surface-active);
+  color: var(--panel-label-active);
+}
 [data-panel] .panel-slider {
   position: relative;
-  height: 24px;
+  height: 18px;
   width: 100%;
   margin: 0;
   overflow: visible;
   transition: transform 220ms cubic-bezier(0.34, 1.16, 0.64, 1);
 }
-[data-panel] .panel-slider[data-panel-state="hover"] { transform: scale(1.01); }
-[data-panel] .panel-slider[data-panel-state="drag"] { transform: scale(1.018); }
+.panel-slider-row[data-panel-state="hover"] .panel-slider { transform: scale(1.01); }
+.panel-slider-row[data-panel-state="drag"] .panel-slider { transform: scale(1.018); }
 
 .panel-slider-overscroll {
   position: absolute;
@@ -5189,6 +5369,7 @@ var PANEL_CSS = `
 @media (prefers-reduced-motion: reduce) {
   .panel-slider-overscroll[data-panel-release="true"] { transition: none; }
   [data-panel] .panel-slider { transition: none; }
+  [data-panel] .panel-slider-num { transition: none; }
 }
 
 .panel-slider-track {
@@ -5217,8 +5398,8 @@ var PANEL_CSS = `
   background: transparent;
   transition: background-color 200ms ease;
 }
-.panel-slider[data-panel-state="hover"] .panel-slider-hash,
-.panel-slider[data-panel-state="drag"] .panel-slider-hash { background: var(--panel-hash); }
+.panel-slider-row[data-panel-state="hover"] .panel-slider-hash,
+.panel-slider-row[data-panel-state="drag"] .panel-slider-hash { background: var(--panel-hash); }
 
 .panel-slider-fill {
   position: absolute;
@@ -5230,11 +5411,11 @@ var PANEL_CSS = `
   background: var(--panel-surface-idle-fill);
   transition: background-color 150ms ease, width 220ms cubic-bezier(0.2, 0, 0, 1);
 }
-.panel-slider[data-panel-state="drag"] .panel-slider-fill {
+.panel-slider-row[data-panel-state="drag"] .panel-slider-fill {
   transition: background-color 150ms ease, width 0ms;
   background: var(--panel-surface-active);
 }
-.panel-slider[data-panel-state="hover"] .panel-slider-fill { background: var(--panel-surface-active); }
+.panel-slider-row[data-panel-state="hover"] .panel-slider-fill { background: var(--panel-surface-active); }
 
 .panel-slider-handle {
   position: absolute;
@@ -5253,8 +5434,8 @@ var PANEL_CSS = `
     transform 200ms cubic-bezier(0.32, 0.72, 0, 1),
     left 220ms cubic-bezier(0.2, 0, 0, 1);
 }
-.panel-slider[data-panel-state="hover"] .panel-slider-handle { opacity: 0.5; }
-.panel-slider[data-panel-state="drag"] .panel-slider-handle {
+.panel-slider-row[data-panel-state="hover"] .panel-slider-handle { opacity: 0.5; }
+.panel-slider-row[data-panel-state="drag"] .panel-slider-handle {
   opacity: 0.9;
   transform: translate(-1.5px, -50%) scaleY(1.3);
   transition:
@@ -5262,32 +5443,6 @@ var PANEL_CSS = `
     transform 200ms cubic-bezier(0.32, 0.72, 0, 1),
     left 0ms;
 }
-
-.panel-slider-label {
-  position: absolute;
-  left: 8px;
-  top: 50%;
-  transform: translateY(-50%);
-  pointer-events: none;
-  font-size: 11px;
-  font-weight: 400;
-  color: var(--panel-label);
-}
-.panel-slider-value {
-  position: absolute;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
-  pointer-events: none;
-  font-family: inherit;
-  font-variant-numeric: tabular-nums;
-  font-size: 11px;
-  font-weight: 400;
-  color: var(--panel-label);
-  transition: color 150ms ease;
-}
-.panel-slider[data-panel-state="hover"] .panel-slider-value,
-.panel-slider[data-panel-state="drag"] .panel-slider-value { color: var(--panel-label-active); }
 
 .panel-color {
   display: flex;
@@ -6784,9 +6939,10 @@ function FloatingPanel({
   const theme = usePanelTheme(defaultTheme);
   const [mounted, setMounted] = useState(false);
   const floating = float && !inline;
-  const { panelRef, onHeaderPointerDown, onResizePointerDown } = usePanelDragResize({
+  const { panelRef, headerRef, onHeaderPointerDown, onResizePointerDown } = usePanelDragResize({
     enabled: floating,
     collapsed,
+    ready: mounted,
     storageKey: floatStorageKey
   });
   const showPeek = peek && !inline && !floating;
@@ -6871,6 +7027,7 @@ function FloatingPanel({
               {
                 className: "panel-panel-header",
                 onPointerDown: floating ? onHeaderPointerDown : void 0,
+                ref: floating ? headerRef : void 0,
                 children: [
                   /* @__PURE__ */ jsxs("div", { className: "panel-panel-title-row", children: [
                     /* @__PURE__ */ jsx("span", { className: "panel-panel-title", children: title }),
