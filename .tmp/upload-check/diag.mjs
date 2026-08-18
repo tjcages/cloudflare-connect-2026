@@ -1,0 +1,15 @@
+import { chromium } from "playwright";
+const url = process.env.PLAYGROUND_URL ?? "http://localhost:5184/playground";
+const browser = await chromium.launch({ channel: "chrome", headless: true });
+const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+const errs = [];
+page.on("console", (m) => m.type() === "error" && errs.push(m.text()));
+page.on("pageerror", (e) => errs.push(String(e)));
+await page.goto(url, { waitUntil: "domcontentloaded" });
+await page.waitForTimeout(6000);
+const bodyText = (await page.locator("body").innerText().catch(() => "")).slice(0, 600);
+const hasPanel = await page.getByTestId("playground-leva-panel").count();
+const hasTopBtn = await page.getByTestId("playground-top-upload-button").count();
+await page.screenshot({ path: ".tmp/upload-check/diag.png", fullPage: false });
+console.log(JSON.stringify({ hasPanel, hasTopBtn, errs: errs.slice(0,8), bodyText }, null, 2));
+await browser.close();
