@@ -10,11 +10,11 @@ const { post } = Astro.props;
 ---
 
 <a
-  class="group flex w-720 shrink-0 flex-col gap-24 outline-none focus-visible:shadow-button-tertiary-focus"
+  class="group flex w-720 shrink-0 flex-col gap-24 outline-none focus-visible:shadow-button-tertiary-focus max-lg:w-full"
   href={`/blog/${post.slug}`}
 >
   <div
-    class="relative h-360 w-full bg-background-surface before:inside-border before:border-border-default before:[transition:none]"
+    class="relative h-360 w-full bg-background-surface before:inside-border before:border-border-default before:[transition:none] max-sm:h-200"
   >
     {post.cover && (
       <div class="size-full overflow-clip">

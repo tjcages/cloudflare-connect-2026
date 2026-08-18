@@ -9,10 +9,12 @@ interface Props {
 const { posts } = Astro.props;
 ---
 
-<div class="flex w-full justify-between">
+<div class="flex w-full justify-between max-lg:flex-col max-lg:gap-48">
   {posts.map((post, index: number) => (
     <>
-      {index > 0 && <div class="w-px shrink-0 self-stretch bg-border-muted" />}
+      {index > 0 && (
+        <div class="w-px shrink-0 self-stretch bg-border-muted max-lg:hidden" />
+      )}
 
       <PostCard post={post} />
     </>

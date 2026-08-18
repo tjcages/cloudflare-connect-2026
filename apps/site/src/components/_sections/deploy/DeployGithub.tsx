@@ -82,10 +82,10 @@ export default function DeployGithub() {
   return (
     <div
       ref={mainRef}
-      className="relative z-10 bg-background-base p-40 shadow-elevation-default"
+      className="relative z-10 bg-background-base p-40 shadow-elevation-default max-lg:px-8 max-lg:py-24"
     >
-      <div className="relative mb-40 flex-center gap-16">
-        <div className="p-12">
+      <div className="relative mb-40 flex-center gap-16 max-lg:gap-0">
+        <div className="p-12 max-lg:p-6">
           <div
             ref={githubRef}
             className="flex-center size-56 rounded-full bg-background-base text-icon-base shadow-elevation-default"
@@ -100,7 +100,7 @@ export default function DeployGithub() {
           lineClassName="bg-purple-900"
         />
 
-        <div className="p-12">
+        <div className="p-12 max-lg:p-6">
           <div
             ref={workersRef}
             className="flex-center size-56 rounded-full shadow-elevation-default"
@@ -115,7 +115,7 @@ export default function DeployGithub() {
           lineClassName="bg-orange-900"
         />
 
-        <div className="relative p-12">
+        <div className="relative p-12 max-lg:p-6">
           <span
             ref={pulseRingRef}
             className="absolute inset-12 rounded-full opacity-0 before:inside-border before:border-orange-900"
@@ -136,7 +136,7 @@ export default function DeployGithub() {
         {data.map((item, i) => (
           <div
             key={i}
-            className="relative w-160 text-center text-body-x-small text-text-muted"
+            className="relative w-160 text-center text-body-x-small text-text-muted max-lg:w-auto max-lg:flex-1"
           >
             <VerticalDash className="absolute -top-34 left-1/2 -translate-x-1/2 text-border-dashed" />
             <span className={cn("text-label-x-small", item.className)}>

@@ -14,18 +14,24 @@ import { connectPillars } from "../data";
   headerClass="pb-72!"
 >
   <div
-    class="relative grid grid-cols-3 before:inside-border before:border-border-default"
+    class="relative grid grid-cols-3 before:inside-border before:border-border-default max-lg:grid-cols-1"
   >
     {connectPillars.map((pillar) => (
-      <Item class="h-262" iconName={pillar.iconName} title={pillar.title}>
+      <Item
+        class="h-262 max-lg:h-auto"
+        iconName={pillar.iconName}
+        title={pillar.title}
+      >
         {pillar.body}
       </Item>
     ))}
 
-    <DashedLineGrid
-      client:visible={{ rootMargin: "200px" }}
-      columns={3}
-      rows={2}
-    />
+    <div class="pointer-events-none absolute inset-0 max-lg:hidden">
+      <DashedLineGrid
+        client:visible={{ rootMargin: "200px" }}
+        columns={3}
+        rows={2}
+      />
+    </div>
   </div>
 </Section>

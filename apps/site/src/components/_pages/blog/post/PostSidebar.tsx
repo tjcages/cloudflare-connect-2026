@@ -170,7 +170,7 @@ export default function PostSidebar({
   }, [active]);
 
   return (
-    <aside className="sticky top-160 flex w-280 shrink-0 flex-col gap-40 self-start pr-56">
+    <aside className="sticky top-160 flex w-280 shrink-0 flex-col gap-40 self-start pr-56 max-lg:static max-lg:w-full max-lg:self-auto max-lg:pr-0">
       {entries.length > 0 && (
         <nav aria-label="On this page" className="flex flex-col gap-8">
           <p className="text-body-x-small text-text-default">On this page</p>
@@ -197,7 +197,7 @@ export default function PostSidebar({
                 </div>
 
                 <ol
-                  className="relative ml-36 flex w-188 flex-col gap-20"
+                  className="relative ml-36 flex w-188 flex-col gap-20 max-lg:w-auto"
                   ref={listRef}
                 >
                   {entries.map((entry, index) => (

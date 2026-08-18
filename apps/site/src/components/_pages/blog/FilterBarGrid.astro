@@ -9,14 +9,16 @@ interface Props {
 const { posts } = Astro.props;
 ---
 
-<div class="relative grid grid-cols-[repeat(3,320px)] gap-80">
+<div
+  class="relative grid grid-cols-[repeat(3,320px)] gap-80 max-lg:grid-cols-1 max-lg:gap-48"
+>
   <div
-    class="pointer-events-none absolute inset-y-0 left-360 w-px -translate-x-1/2 bg-border-muted"
+    class="pointer-events-none absolute inset-y-0 left-360 w-px -translate-x-1/2 bg-border-muted max-lg:hidden"
   >
   </div>
 
   <div
-    class="pointer-events-none absolute inset-y-0 left-760 w-px -translate-x-1/2 bg-border-muted"
+    class="pointer-events-none absolute inset-y-0 left-760 w-px -translate-x-1/2 bg-border-muted max-lg:hidden"
   >
   </div>
 

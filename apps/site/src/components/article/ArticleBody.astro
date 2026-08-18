@@ -58,7 +58,7 @@ const { blocks, copyAnchors, headingScale = "display" } = Astro.props;
         id={block.id}
       >
         {anchored && (
-          <span class="absolute top-0 -left-52 flex-center size-44">
+          <span class="absolute top-0 -left-52 flex-center size-44 max-lg:hidden">
             <CopyLink client:visible hash={block.id} />
           </span>
         )}
@@ -115,7 +115,8 @@ const { blocks, copyAnchors, headingScale = "display" } = Astro.props;
 
   if (block.type === "table") {
     return (
-      <table class="w-full border-collapse text-left">
+      <div class="max-lg:overflow-x-auto">
+        <table class="w-full border-collapse text-left">
         <thead>
           <tr>
             {block.head.map((cell) => (
@@ -137,7 +138,8 @@ const { blocks, copyAnchors, headingScale = "display" } = Astro.props;
             </tr>
           ))}
         </tbody>
-      </table>
+        </table>
+      </div>
     );
   }
 

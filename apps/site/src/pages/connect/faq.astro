@@ -30,7 +30,9 @@ import Layout from "@/layouts/Layout.astro";
     description="General, registration, University, experience, and venue."
     headerClass="pb-72!"
   >
-    <div class="flex flex-col gap-80 px-40 pt-80 pb-40">
+    <div
+      class="flex flex-col gap-80 px-40 pt-80 pb-40 max-lg:gap-48 max-lg:px-24 max-lg:pt-40"
+    >
       {faqGroups.map((group) => (
         <div class="mx-auto flex w-full max-w-720 flex-col">
           <h2 class="text-heading-h4 text-text-base">{group.title}</h2>
@@ -39,9 +41,9 @@ import Layout from "@/layouts/Layout.astro";
       ))}
     </div>
 
-    <div class="mx-auto max-w-720 px-40 pb-80">
+    <div class="mx-auto max-w-720 px-40 pb-80 max-lg:px-24 max-lg:pb-40">
       <div
-        class="relative flex h-80 items-center gap-20 bg-background-surface px-40 text-body-x-small text-text-default"
+        class="relative flex h-80 items-center gap-20 bg-background-surface px-40 text-body-x-small text-text-default max-lg:h-auto max-lg:px-20 max-lg:py-16"
       >
         <div
           class="relative flex-center size-40 shrink-0 rounded-full bg-background-surface before:inside-border before:border-border-default"

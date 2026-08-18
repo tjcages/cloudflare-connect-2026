@@ -10,7 +10,7 @@ import SpeakerShaderOverlay from "./SpeakerShaderOverlay";
 
   <div class="h-80"></div>
 
-  <div class="px-80 pb-40">
+  <div class="px-80 pb-40 max-lg:px-24">
     <h2 class="mb-16 text-heading-h2 text-text-base">Meet our speakers</h2>
     <p class="max-w-640 text-body-large text-text-base">
       Learn from and network with industry leaders shaping the modern Internet.
@@ -19,7 +19,7 @@ import SpeakerShaderOverlay from "./SpeakerShaderOverlay";
 
   <div
     data-speaker-shader-root
-    class="relative grid grid-cols-3 gap-y-40 p-40 before:inside-border before:border-border-muted"
+    class="relative grid grid-cols-3 gap-y-40 p-40 before:inside-border before:border-border-muted max-lg:grid-cols-2 max-lg:p-16 max-sm:grid-cols-1"
   >
     {connectSpeakers.map((speaker) => (
       <div class="flex flex-col gap-24 px-24">

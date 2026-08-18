@@ -24,8 +24,10 @@ const { eyebrow, title, body, primaryCta, secondaryCta } = Astro.props;
 >
   <CornerDots count={4} faintClassName="z-30" />
 
-  <div class="flex justify-between px-80 pt-80 pb-160">
-    <div class="flex w-440 flex-col items-start">
+  <div
+    class="flex justify-between px-80 pt-80 pb-160 max-lg:flex-col max-lg:gap-40 max-lg:px-24 max-lg:pt-48 max-lg:pb-80"
+  >
+    <div class="flex w-440 flex-col items-start max-lg:w-full">
       <Eyebrow
         client:visible
         direction="left"
@@ -47,7 +49,7 @@ const { eyebrow, title, body, primaryCta, secondaryCta } = Astro.props;
       </div>
     </div>
 
-    <div class="mt-80 w-480 self-start py-4">
+    <div class="mt-80 w-480 self-start py-4 max-lg:mt-0 max-lg:w-full">
       <p class="text-body-large text-text-base">{body}</p>
     </div>
   </div>

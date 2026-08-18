@@ -28,7 +28,7 @@ const {
   ]}
   layout="headerless"
   sectionEyebrow="Quote"
-  cardClass={[cardClassName, "overflow-clip"]}
+  cardClass={[cardClassName, "overflow-clip max-lg:h-auto"]}
 >
   <div class="absolute top-1/2 right-0 size-560 -translate-y-1/2">
     <QuoteTexture
@@ -39,7 +39,7 @@ const {
     />
   </div>
 
-  <div class="relative flex h-full flex-col justify-between py-96 pl-120">
+  <div class="relative flex h-full flex-col justify-between py-96 pl-120 max-lg:gap-40 max-lg:px-24 max-lg:py-48">
     <div class="max-w-480">
       <Eyebrow
         client:visible

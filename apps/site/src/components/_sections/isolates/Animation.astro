@@ -8,18 +8,18 @@ import IsolatesCanvas from "./IsolatesCanvas";
 ---
 
 <div
-  class="relative flex h-400 items-center justify-between px-160 py-80"
+  class="relative flex h-400 items-center justify-between px-160 py-80 max-lg:h-auto max-lg:flex-col max-lg:gap-64 max-lg:px-0 max-lg:py-64"
   data-isolates-animation
 >
   <AnimationTraditional />
 
   <DashedLine
-    className="h-216 text-border-dashed"
+    className="h-216 text-border-dashed max-lg:hidden"
     animateTowards="top"
     direction="vertical"
   />
 
-  <div class="relative h-full w-160">
+  <div class="relative h-full w-160 max-lg:h-240">
     <AnimationGrayBox name={{ text: "User Code", position: "top" }}>
       <Icon
         name="code-brackets"
@@ -36,7 +36,7 @@ import IsolatesCanvas from "./IsolatesCanvas";
   </div>
 
   <DashedLine
-    className="h-216 text-border-dashed"
+    className="h-216 text-border-dashed max-lg:hidden"
     animateTowards="bottom"
     direction="vertical"
   />

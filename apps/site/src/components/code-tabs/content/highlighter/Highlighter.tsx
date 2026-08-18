@@ -174,7 +174,7 @@ export default function CodeTabsContentHighlighter({
   return (
     <div
       className={cn(
-        "relative flex-center h-full min-w-0 shrink grow basis-560 p-40",
+        "relative flex-center h-full min-w-0 shrink grow basis-560 p-40 max-lg:basis-auto max-lg:p-16",
         className
       )}
     >

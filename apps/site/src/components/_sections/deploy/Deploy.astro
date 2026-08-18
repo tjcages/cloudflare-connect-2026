@@ -9,7 +9,7 @@ import SectionLayout from "@/layouts/Section.astro";
 ---
 
 <SectionLayout layout="headerless" sectionEyebrow="Deploy" noGridArea>
-  <div class="relative mx-auto flex max-w-640 flex-col pt-40">
+  <div class="relative mx-auto flex max-w-640 flex-col pt-40 max-lg:px-16">
     <Section
       iconName="rocket"
       title="Deploy with confidence, even on Fridays"
@@ -42,7 +42,7 @@ allowing you to deploy however, whenever you want"
       </div>
     </div>
 
-    <div class="relative mb-40 p-40">
+    <div class="relative mb-40 p-40 max-lg:p-12">
       <GridArea className="overlay bg-background-surface" />
 
       <DeployList client:visible />

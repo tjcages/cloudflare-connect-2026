@@ -41,7 +41,7 @@ const records = POSTS.map((post) => ({
 >
   <div data-blog-page>
     <Container>
-      <div class="relative flex flex-col gap-48 px-80 py-80">
+      <div class="relative flex flex-col gap-48 px-80 py-80 max-lg:px-24 max-lg:py-48">
         <BlogHeader
           eyebrow="NOW"
           title="Cloudflare Blog"
@@ -65,7 +65,7 @@ const records = POSTS.map((post) => ({
 
     <div data-blog-default>
       <Container>
-        <div class="relative flex flex-col gap-80 px-40 py-80">
+        <div class="relative flex flex-col gap-80 px-40 py-80 max-lg:gap-48 max-lg:px-24 max-lg:py-48">
           {rows.slice(0, 3).map((row) => <PostGrid posts={row} />)}
         </div>
       </Container>
@@ -75,7 +75,7 @@ const records = POSTS.map((post) => ({
       </Container>
 
       <Container>
-        <div class="relative flex flex-col gap-80 px-40 py-80">
+        <div class="relative flex flex-col gap-80 px-40 py-80 max-lg:gap-48 max-lg:px-24 max-lg:py-48">
           {rows.slice(3, 5).map((row) => <PostGrid posts={row} />)}
         </div>
       </Container>
@@ -85,7 +85,7 @@ const records = POSTS.map((post) => ({
       <Press />
 
       <Container>
-        <div class="relative flex flex-col gap-80 px-40 py-80">
+        <div class="relative flex flex-col gap-80 px-40 py-80 max-lg:gap-48 max-lg:px-24 max-lg:py-48">
           {rows.slice(5, 7).map((row) => <PostGrid posts={row} />)}
         </div>
       </Container>
