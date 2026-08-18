@@ -6912,6 +6912,33 @@ function usePanelDragResize({
     },
     [persist]
   );
+  const dockToEdges = useCallback(
+    (el, m, vx, vy) => {
+      const cur = el.getBoundingClientRect();
+      const maxL = vw() - cur.width - MARGIN;
+      const maxT = vh() - cur.height - MARGIN;
+      let left = clamp2(cur.left + vx * MOMENTUM, MARGIN, maxL);
+      let top = clamp2(cur.top + vy * MOMENTUM, MARGIN, maxT);
+      const horizontal = Math.abs(vx) >= Math.abs(vy);
+      const toLeft = vx !== 0 ? vx < 0 : left + cur.width / 2 < vw() / 2;
+      const toTop = vy !== 0 ? vy < 0 : top + cur.height / 2 < vh() / 2;
+      const xEdge = toLeft ? MARGIN : Math.max(MARGIN, maxL);
+      const yEdge = toTop ? MARGIN : Math.max(MARGIN, maxT);
+      const nearX = Math.min(left - MARGIN, maxL - left) < vw() * SNAP_ZONE;
+      const nearY = Math.min(top - MARGIN, maxT - top) < vh() * SNAP_ZONE;
+      if (horizontal) {
+        left = xEdge;
+        if (nearY) top = yEdge;
+      } else {
+        top = yEdge;
+        if (nearX) left = xEdge;
+      }
+      setHints(el, "", "");
+      animateTo(el, m, left, top);
+      persist();
+    },
+    [persist]
+  );
   const onHeaderPointerDown = useCallback(
     (e) => {
       const el = panelRef.current;
@@ -6986,8 +7013,8 @@ function usePanelDragResize({
       g.endTimer = window.setTimeout(() => {
         const gesture = wheelGesture.current;
         wheelGesture.current = null;
-        if (gesture) settle(el, gesture.m, gesture.vx, gesture.vy);
-      }, 90);
+        if (gesture) dockToEdges(el, gesture.m, gesture.vx, gesture.vy);
+      }, 110);
     };
     header.addEventListener("wheel", onWheel, { passive: false });
     return () => {
@@ -6997,7 +7024,7 @@ function usePanelDragResize({
         wheelGesture.current = null;
       }
     };
-  }, [enabled, ready, settle]);
+  }, [enabled, ready, dockToEdges]);
   const headerRef = useCallback((node) => {
     headerElRef.current = node;
   }, []);
@@ -7255,6 +7282,14 @@ var PANEL_CSS = `
 .panel-floating[data-panel-float="true"] .panel-panel-header {
   cursor: grab;
   touch-action: none;
+}
+/* While the header is hovered (a drag/swipe is imminent), the body goes inert
+   so reaching for the header can't land on a control. Releases the moment the
+   pointer leaves the header. */
+.panel-floating[data-panel-float="true"]
+  .panel-panel-header:hover
+  + .panel-panel-body {
+  pointer-events: none;
 }
 
 /* Invisible resize hit areas, inset so the rounded frame stays clean. */
