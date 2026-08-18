@@ -162,9 +162,6 @@ importers:
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
-      leva:
-        specifier: ^0.10.1
-        version: 0.10.1(@types/react-dom@19.2.3(@types/react@19.2.16))(@types/react@19.2.16)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       lucide-react:
         specifier: ^1.14.0
         version: 1.17.0(react@19.2.7)

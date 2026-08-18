@@ -126,6 +126,41 @@ declare function usePanelTheme(defaultTheme?: PanelTheme): PanelTheme;
 declare const PanelThemeProvider: react.Provider<PanelTheme>;
 declare function usePanelThemeContext(): PanelTheme;
 
+/**
+ * Named color library support for color-ish controls (gradient stops, stripe
+ * rows, library color inputs). The package ships NO color data — consumers
+ * inject their own `ColorLibrary` (groups of named swatches) through the field
+ * defs, and these helpers resolve hexes to display tokens / wide-gamut CSS.
+ */
+type LibraryColor = {
+    label: string;
+    hex: string;
+    /** Optional pre-computed `color(display-p3 …)` string for this swatch. */
+    p3?: string;
+    oklch?: string;
+};
+type LibraryGroup = {
+    name: string;
+    colors: LibraryColor[];
+};
+type ColorLibrary = ReadonlyArray<LibraryGroup>;
+type LibraryColorMatch = {
+    group: string;
+    label: string;
+    hex: string;
+    /** Stable display token, e.g. `Orange / 900 [Accent]`. */
+    token: string;
+};
+declare function p3CssFromHex(hex: string): string;
+declare function supportsDisplayP3Color(): boolean;
+/** Library-provided p3 string when the hex matches a swatch, else derived. */
+declare function p3ColorForHex(hex: string, library?: ColorLibrary): string;
+/** Best CSS color for a hex — display-p3 on wide-gamut displays, else the hex. */
+declare function cssColorForHex(hex: string, library?: ColorLibrary): string;
+declare function findLibraryColor(library: ColorLibrary, groupName: string, label: string): LibraryColor | null;
+/** Resolve a hex to a library token when it matches a swatch exactly. */
+declare function findLibraryColorByHex(hex: string, library?: ColorLibrary): LibraryColorMatch | null;
+
 type PanelSide = "left" | "right";
 type PanelSectionField = {
     type: "section";
@@ -146,6 +181,17 @@ type PanelColorField<T extends Record<string, unknown>> = {
     type: "color";
     key: keyof T & string;
     label: string;
+    /**
+     * Named color library. When set the field renders as a library color row —
+     * swatch + token display (`Orange / 900 [Accent]`) for matching hexes.
+     */
+    library?: ColorLibrary;
+    /**
+     * Accepts null values with a clear (×) affordance — the value reads as
+     * "Transparent" when unset. Mirrors the site schemas' persist option so
+     * they stay portable; the package itself does no extra persistence.
+     */
+    persist?: "backgroundColor";
     /** Optional one-line hint rendered as small muted text above the color field. */
     description?: string;
 };
@@ -238,6 +284,52 @@ type PanelPathField<T extends Record<string, unknown>> = {
     min: number;
     max: number;
     anchorKey?: keyof T & string;
+    description?: string;
+};
+/**
+ * Gradient stop editor. The value at `key` is a `GradientStop[]` (or a
+ * serialized JSON string of one — both normalize on render): colored hotspots
+ * on a unit plane, edited on a 2D field preview (or a 1D ramp track) with
+ * draggable stops, add/remove, and per-stop color via the color popover.
+ */
+type PanelGradientStopsField<T extends Record<string, unknown>> = {
+    type: "gradient-stops";
+    key: keyof T & string;
+    label: string;
+    /** Named color library for token display on the selected stop. */
+    library?: ColorLibrary;
+    /** `field` (2D hotspot plane, default) or `ramp` (1D stop track). */
+    layout?: "field" | "ramp";
+    description?: string;
+};
+type PanelStripeTableOptions = {
+    /** Show the brightness-ramp easing select + graph. */
+    showRampEasing?: boolean;
+    /** Show per-row color swatches. Default `true`; off = image-driven levels. */
+    showColorControls?: boolean;
+    /**
+     * Show a "Save palette" button — wire the handler via `actionHandlers`
+     * under the key `` `${field.key}:savePalette` ``.
+     */
+    showSavePalette?: boolean;
+    /** Sibling config key holding the ramp easing string (`EasingName`). */
+    rampEasingKey?: string;
+    /** Sibling config key holding the threshold easing string. */
+    thresholdEasingKey?: string;
+};
+/**
+ * Stripe rows table. The value at `key` is an `EditableStripe[]` — per row a
+ * color swatch, opacity/threshold/width sliders, drag reorder, add/remove,
+ * and a flip-color-order action. Easing selects read/write sibling keys named
+ * in `options`.
+ */
+type PanelStripeTableField<T extends Record<string, unknown>> = {
+    type: "stripe-table";
+    key: keyof T & string;
+    label: string;
+    options?: PanelStripeTableOptions;
+    /** Named color library for token display + wide-gamut swatches. */
+    library?: ColorLibrary;
     description?: string;
 };
 /**
@@ -337,7 +429,7 @@ type PanelReferenceField<T extends Record<string, unknown>> = {
     placeholder?: string;
     description?: string;
 };
-type PanelField<T extends Record<string, unknown>> = PanelSectionField | PanelSliderField<T> | PanelColorField<T> | PanelToggleField<T> | PanelSelectField<T> | PanelToggleGroupField<T> | PanelVec2Field<T> | PanelImageField<T> | PanelPathField<T> | PanelActionField | PanelPresetsField<T> | PanelCollectionField<T> | PanelReferenceField<T>;
+type PanelField<T extends Record<string, unknown>> = PanelSectionField | PanelSliderField<T> | PanelColorField<T> | PanelToggleField<T> | PanelSelectField<T> | PanelToggleGroupField<T> | PanelVec2Field<T> | PanelImageField<T> | PanelPathField<T> | PanelGradientStopsField<T> | PanelStripeTableField<T> | PanelActionField | PanelPresetsField<T> | PanelCollectionField<T> | PanelReferenceField<T>;
 type PanelWriteResult = {
     ok: boolean;
     message: string;
@@ -440,4 +532,4 @@ type UsePanelOptions<T extends PanelState> = Omit<PanelRegistration<T>, "values"
  */
 declare function usePanel<T extends PanelState>(options: UsePanelOptions<T>): [T, (next: T) => void];
 
-export { type PanelWriteResult as A, type ProjectedPoint as B, applyPanelTheme as C, getActivePanel as D, getActivePanelForSide as E, getActivePanelId as F, getActivePanelIdForSide as G, getPanelRegistration as H, getPanelRegistrations as I, getPanelRegistrationsForSide as J, getPanelRevision as K, isPanelSection as L, registerPanel as M, setActivePanel as N, type OverlayProjectorOptions as O, type PanelTheme as P, subscribePanelRegistration as Q, type RendererBinding as R, unregisterPanel as S, usePanel as T, type UsePanelOptions as U, type Vec3 as V, usePanelTheme as W, usePanelThemeContext as X, DEFAULT_PANEL_PROMPTS as Y, fillPanelPrompt as Z, type OverlayProjector as a, type PanelSide as b, type PanelField as c, type PanelPrompt as d, type PanelSelectOption as e, type PanelCollectionField as f, type PanelCollectionItem as g, type PanelReferenceField as h, type OverlayAnchor as i, PANEL_THEME_STORAGE_KEY as j, type PanelActionField as k, type PanelColorField as l, type PanelImageField as m, type PanelPathField as n, type PanelPresetOption as o, type PanelPresetsField as p, type PanelRegistration as q, type PanelSectionField as r, type PanelSelectField as s, type PanelSliderField as t, type PanelState as u, PanelThemeProvider as v, type PanelToggleField as w, type PanelToggleGroupField as x, type PanelToggleGroupOption as y, type PanelVec2Field as z };
+export { p3ColorForHex as $, PanelThemeProvider as A, type PanelToggleField as B, type ColorLibrary as C, type PanelToggleGroupField as D, type PanelToggleGroupOption as E, type PanelVec2Field as F, type PanelWriteResult as G, type ProjectedPoint as H, applyPanelTheme as I, cssColorForHex as J, findLibraryColor as K, type LibraryColor as L, findLibraryColorByHex as M, getActivePanel as N, type OverlayProjectorOptions as O, type PanelTheme as P, getActivePanelForSide as Q, type RendererBinding as R, getActivePanelId as S, getActivePanelIdForSide as T, type UsePanelOptions as U, type Vec3 as V, getPanelRegistration as W, getPanelRegistrations as X, getPanelRegistrationsForSide as Y, getPanelRevision as Z, isPanelSection as _, type OverlayProjector as a, p3CssFromHex as a0, registerPanel as a1, setActivePanel as a2, subscribePanelRegistration as a3, supportsDisplayP3Color as a4, unregisterPanel as a5, usePanel as a6, usePanelTheme as a7, usePanelThemeContext as a8, DEFAULT_PANEL_PROMPTS as a9, fillPanelPrompt as aa, type PanelSide as b, type PanelField as c, type PanelPrompt as d, type PanelSelectOption as e, type PanelCollectionField as f, type PanelCollectionItem as g, type PanelReferenceField as h, type LibraryColorMatch as i, type LibraryGroup as j, type OverlayAnchor as k, PANEL_THEME_STORAGE_KEY as l, type PanelActionField as m, type PanelColorField as n, type PanelGradientStopsField as o, type PanelImageField as p, type PanelPathField as q, type PanelPresetOption as r, type PanelPresetsField as s, type PanelRegistration as t, type PanelSectionField as u, type PanelSelectField as v, type PanelSliderField as w, type PanelState as x, type PanelStripeTableField as y, type PanelStripeTableOptions as z };
