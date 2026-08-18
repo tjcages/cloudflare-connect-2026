@@ -1,6 +1,6 @@
+import { jsx, jsxs, Fragment } from 'react/jsx-runtime';
 import { createContext, useState, useEffect, useContext, useRef, useMemo, useCallback, useLayoutEffect, useId, useSyncExternalStore, createElement } from 'react';
 import { createPortal } from 'react-dom';
-import { jsxs, jsx, Fragment } from 'react/jsx-runtime';
 import { canEncodeVideo, BufferTarget, Output, Mp4OutputFormat, CanvasSource } from 'mediabunny';
 import { createRoot } from 'react-dom/client';
 
@@ -187,6 +187,43 @@ function clearPersistedPanelSections(id) {
 function cn(...inputs) {
   return inputs.filter(Boolean).join(" ");
 }
+function PanelCloseButton({
+  onClick,
+  ariaLabel,
+  size = "md",
+  disabled,
+  className,
+  title
+}) {
+  return /* @__PURE__ */ jsx(
+    "button",
+    {
+      type: "button",
+      className: cn("panel-close-btn", className),
+      "data-panel-size": size,
+      "aria-label": ariaLabel,
+      title,
+      disabled,
+      onClick,
+      children: /* @__PURE__ */ jsx(PanelCloseIcon, {})
+    }
+  );
+}
+function PanelCloseIcon() {
+  return /* @__PURE__ */ jsx(
+    "svg",
+    {
+      viewBox: "0 0 24 24",
+      fill: "none",
+      stroke: "currentColor",
+      strokeWidth: 2,
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+      "aria-hidden": "true",
+      children: /* @__PURE__ */ jsx("path", { d: "M6 6l12 12M18 6L6 18" })
+    }
+  );
+}
 function ControlToggleGroup({
   label,
   value,
@@ -314,6 +351,7 @@ var MARGIN = 16;
 var SNAP_ZONE = 0.05;
 var MIN_W = 240;
 var MIN_H = 200;
+var PANEL_MAX_HEIGHT = 664;
 var EASE = "cubic-bezier(0.22, 1, 0.36, 1)";
 var MOMENTUM = 120;
 var RESIZE_DIRS = [
@@ -350,7 +388,7 @@ var pin = (el) => {
   el.style.right = "auto";
   el.style.bottom = "auto";
   el.style.maxWidth = `${(vw() - 2 * MARGIN) / z}px`;
-  el.style.maxHeight = `${(vh() - 2 * MARGIN) / z}px`;
+  el.style.maxHeight = `${Math.min(vh() - 2 * MARGIN, PANEL_MAX_HEIGHT) / z}px`;
   const probe = el.getBoundingClientRect();
   const toStyleX = (x) => (x - probe.left) / z;
   const toStyleY = (y) => (y - probe.top) / z;
@@ -426,12 +464,24 @@ function usePanelDragResize({
     if (!enabled || !ready) return;
     const el = panelRef.current;
     if (!el) return;
+    let restored = false;
     if (persistKey) {
       try {
         const saved = sessionStorage.getItem(persistKey);
-        if (saved) el.setAttribute("style", saved);
+        if (saved) {
+          el.setAttribute("style", saved);
+          restored = true;
+        }
       } catch {
       }
+    }
+    if (!restored) {
+      const m = pin(el);
+      const left = vw() - m.r.width - MARGIN;
+      const top = vh() > PANEL_MAX_HEIGHT ? Math.max(MARGIN, Math.round((vh() - m.r.height) / 2)) : MARGIN;
+      el.style.left = `${m.toStyleX(left)}px`;
+      el.style.top = `${m.toStyleY(top)}px`;
+      el.style.transition = "";
     }
     const reclamp = () => {
       if (!el.style.left) return;
@@ -2357,13 +2407,13 @@ function ControlLibraryColor({
           }
         ),
         allowClear && color ? /* @__PURE__ */ jsx(
-          "button",
+          PanelCloseButton,
           {
-            type: "button",
             className: "panel-gradient-library-clear",
+            ariaLabel: "Clear color",
+            size: "sm",
             onClick: () => onChange(null),
-            disabled,
-            children: "\xD7"
+            disabled
           }
         ) : null
       ]
@@ -2629,7 +2679,7 @@ button.panel-gradient-swatch {
 }
 
 .panel-gradient-library.has-clear {
-  grid-template-columns: 24px minmax(0, 1fr) 22px;
+  grid-template-columns: 24px minmax(0, 1fr) 18px;
 }
 
 .panel-gradient-library-value {
@@ -2665,25 +2715,9 @@ button.panel-gradient-swatch {
   box-shadow: inset 0 0 0 1px var(--panel-text-muted);
 }
 
+/* Layout only \u2014 look comes from the shared .panel-close-btn. */
 .panel-gradient-library-clear {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  border: 1px solid transparent;
-  border-radius: 4px;
-  background-color: transparent;
-  color: var(--panel-text-muted);
-  font-size: 15px;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.panel-gradient-library-clear:hover:not(:disabled) {
-  background-color: var(--panel-surface-active);
-  color: var(--panel-text);
+  justify-self: end;
 }
 `;
 
@@ -3482,22 +3516,6 @@ function GripIcon() {
     /* @__PURE__ */ jsx("circle", { cx: "15", cy: "18", r: "1.4" })
   ] });
 }
-function CloseIcon2({ size = 12 }) {
-  return /* @__PURE__ */ jsx(
-    "svg",
-    {
-      width: size,
-      height: size,
-      viewBox: "0 0 24 24",
-      fill: "none",
-      stroke: "currentColor",
-      strokeWidth: 2,
-      strokeLinecap: "round",
-      "aria-hidden": "true",
-      children: /* @__PURE__ */ jsx("path", { d: "M18 6L6 18M6 6l12 12" })
-    }
-  );
-}
 function PlusIcon2() {
   return /* @__PURE__ */ jsx(
     "svg",
@@ -3790,14 +3808,13 @@ function StripeDetailRow({
             ] })
           ] }),
           /* @__PURE__ */ jsx(
-            "button",
+            PanelCloseButton,
             {
-              type: "button",
-              "aria-label": `Remove Stripe ${index + 1}`,
+              ariaLabel: `Remove Stripe ${index + 1}`,
               className: "panel-stripes-remove",
+              size: "sm",
               disabled,
-              onClick: () => onRemove(stripe.id),
-              children: /* @__PURE__ */ jsx(CloseIcon2, {})
+              onClick: () => onRemove(stripe.id)
             }
           )
         ] }),
@@ -4356,22 +4373,9 @@ button.panel-stripes-swatch {
   font-size: 10px;
 }
 
-button.panel-stripes-remove {
+/* Layout only \u2014 look comes from the shared .panel-close-btn. */
+.panel-stripes-remove {
   justify-self: end;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 16px;
-  height: 16px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--panel-muted-icon);
-  cursor: pointer;
-}
-
-button.panel-stripes-remove:not(:disabled):hover {
-  color: var(--panel-danger);
 }
 
 .panel-stripes-control-stack {
@@ -4630,7 +4634,9 @@ var PANEL_CSS = `
    the hook plays the scale-up entrance when the panel surfaces. */
 .panel-floating[data-panel-float="true"] {
   bottom: auto;
-  max-height: calc(100dvh - 32px);
+  /* Cap the panel; a taller viewport centers it vertically on first open
+     (see PANEL_MAX_HEIGHT in use-drag-resize). */
+  max-height: min(calc(100dvh - 32px), 664px);
   transition: none;
 }
 .panel-floating[data-panel-float="true"][data-panel-collapsed="true"] {
@@ -5050,6 +5056,10 @@ var PANEL_CSS = `
   background: var(--panel-surface);
 }
 .panel-close-btn svg { width: 12px; height: 12px; }
+/* Dense-row variant \u2014 same treatment, smaller footprint and hit area. */
+.panel-close-btn[data-panel-size="sm"] { width: 18px; height: 18px; }
+.panel-close-btn[data-panel-size="sm"]::before { inset: -4px; }
+.panel-close-btn[data-panel-size="sm"] svg { width: 10px; height: 10px; }
 
 .panel-panel-body {
   min-height: 0;
@@ -6824,34 +6834,9 @@ var PANEL_CSS = `
 .panel-collection-row[data-panel-open="true"] .panel-collection-caret {
   transform: rotate(180deg);
 }
-[data-panel] .panel-collection-remove {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
+/* Layout only \u2014 look comes from the shared .panel-close-btn. */
+.panel-collection-remove {
   flex-shrink: 0;
-  border-radius: 4px;
-  background: transparent;
-  color: var(--panel-muted-icon);
-  transition: color 150ms cubic-bezier(0.22, 1, 0.36, 1),
-    background-color 150ms cubic-bezier(0.22, 1, 0.36, 1),
-    transform 120ms cubic-bezier(0.22, 1, 0.36, 1);
-}
-[data-panel] .panel-collection-remove:hover:not(:disabled) {
-  color: var(--panel-danger);
-  background: var(--panel-surface);
-}
-[data-panel] .panel-collection-remove:active:not(:disabled) {
-  transform: scale(0.98);
-}
-[data-panel] .panel-collection-remove:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
-}
-.panel-collection-remove svg {
-  width: 12px;
-  height: 12px;
 }
 .panel-collection-row-body {
   display: flex;
@@ -7313,16 +7298,7 @@ function FloatingPanel({
                   ] }),
                   /* @__PURE__ */ jsxs("div", { className: "panel-panel-header-end", children: [
                     showThemeToggle ? /* @__PURE__ */ jsx(ControlThemeToggle, { storageKey: themeStorageKey }) : null,
-                    /* @__PURE__ */ jsx(
-                      "button",
-                      {
-                        type: "button",
-                        onClick: onToggle,
-                        "aria-label": "Close panel",
-                        className: "panel-close-btn",
-                        children: /* @__PURE__ */ jsx(CloseIcon3, {})
-                      }
-                    )
+                    /* @__PURE__ */ jsx(PanelCloseButton, { onClick: onToggle, ariaLabel: "Close panel" })
                   ] })
                 ]
               }
@@ -7346,21 +7322,6 @@ function FloatingPanel({
   const target = container2 ?? (typeof document !== "undefined" ? document.body : null);
   if (!target) return null;
   return createPortal(panel, target);
-}
-function CloseIcon3() {
-  return /* @__PURE__ */ jsx(
-    "svg",
-    {
-      viewBox: "0 0 24 24",
-      fill: "none",
-      stroke: "currentColor",
-      strokeWidth: 2,
-      strokeLinecap: "round",
-      strokeLinejoin: "round",
-      "aria-hidden": "true",
-      children: /* @__PURE__ */ jsx("path", { d: "M6 6l12 12M18 6L6 18" })
-    }
-  );
 }
 var TYPEAHEAD_RESET_MS = 500;
 function PanelHeaderSelect({
@@ -9220,14 +9181,13 @@ function ControlCollection({
                   }
                 ),
                 /* @__PURE__ */ jsx(
-                  "button",
+                  PanelCloseButton,
                   {
-                    type: "button",
                     className: "panel-collection-remove",
-                    "aria-label": "Remove",
+                    ariaLabel: "Remove",
+                    size: "sm",
                     disabled: !canRemove,
-                    onClick: () => removeItem(index),
-                    children: /* @__PURE__ */ jsx(CloseIcon4, {})
+                    onClick: () => removeItem(index)
                   }
                 )
               ] }),
@@ -9262,21 +9222,6 @@ function CaretIcon3() {
       strokeLinejoin: "round",
       "aria-hidden": "true",
       children: /* @__PURE__ */ jsx("path", { d: "M19 9l-7 7-7-7" })
-    }
-  );
-}
-function CloseIcon4() {
-  return /* @__PURE__ */ jsx(
-    "svg",
-    {
-      viewBox: "0 0 24 24",
-      fill: "none",
-      stroke: "currentColor",
-      strokeWidth: 2,
-      strokeLinecap: "round",
-      strokeLinejoin: "round",
-      "aria-hidden": "true",
-      children: /* @__PURE__ */ jsx("path", { d: "M18 6L6 18M6 6l12 12" })
     }
   );
 }
@@ -11496,6 +11441,6 @@ function fromEditable(rows) {
   }));
 }
 
-export { ColorPopover, ControlAction, ControlActionGroup, ControlAnimation, ControlCollection, ControlColorInput, ControlDisclosure, ControlGradientStops, ControlHint, ControlImageInput, ControlLibraryColor, ControlOptionList, ControlPath, ControlPresets, ControlReadout, ControlReference, ControlSearchField, ControlSection, ControlSelect, ControlSlider, ControlStripeColorsTable, ControlTextInput, ControlTextarea, ControlThemeToggle, ControlToggle, ControlToggleGroup, ControlVec2, DEFAULT_CUSTOM_EASING, EASING_OPTIONS, EasingGraph, EyeToggle, FloatingPanel, GRADIENT_STOP_MAX, GRADIENT_STOP_MIN, NativeColorSwatch, PANEL_ANIMATION_STEP, PANEL_CSS, PANEL_STYLE_ID, PANEL_THEME_STORAGE_KEY, PANEL_TOGGLE_EVENT, Panel, PanelHeaderSelect, PanelRoot, PanelThemeProvider, PanelToggleButton, PanelToolPanel, TOOL_PANEL_FULL, TOOL_PANEL_INSET, TOOL_PANEL_WIDTH, ToolPanel, ToolShell, addGradientStop, advancePanelAnimationDelta, applyPanelTheme, clearPersistedPanelSections, clearPersistedPanelValues, colorPopoverStyles, createOverlayProjector, cssColorForHex, defaultGradientStops, dispatchPanelToggle, easeValue, embedPngDpi, findLibraryColor, findLibraryColorByHex, formatCustomEasing, fromEditable, getActivePanel, getActivePanelForSide, getActivePanelId, getActivePanelIdForSide, getPanelAnimationRevision, getPanelAnimationSnapshot, getPanelAnimationTime, getPanelRegistration, getPanelRegistrations, getPanelRegistrationsForSide, getPanelRevision, getShaderCapture, getShaderGifExport, getShaderRecordCanvas, getShaderRecordFrame, getShaderRecordPrepare, getShaderVideoExport, gradientCss, gradientStopsStyles, handlePanelShortcutKeydown, hasPersistedPanelValues, initPanelAnimationClock, installPanelKeyboard, isPanelSection, loadPersistedPanelSections, loadPersistedPanelValues, matchPanelShortcut, moveGradientStop, moveGradientStopOffset, normalizeGradientStops, p3ColorForHex, p3CssFromHex, parseCustomEasing, pausePanelAnimation, persistPanelSections, persistPanelValues, playPanelAnimation, printMaxEdgePx, rasterizeGradientField, readPanelOpenFlag, recolorGradientStop, registerPanel, registerShaderCapture, registerShaderGifExport, registerShaderRecordCanvas, registerShaderRecordFrame, registerShaderRecordPrepare, registerShaderVideoExport, removeGradientStop, renderPanelField, resetPanelAnimation, sampleGradientRgb, serializeGradientStops, setActivePanel, setPanelAnimationRate, setPanelAnimationTime, setShaderRecording, sortGradientStops, stepPanelAnimationBackward, stepPanelAnimationForward, stripeColorsTableStyles, subscribePanelAnimation, subscribePanelRegistration, subscribeShaderCapture, subscribeShaderRecording, supportsDisplayP3Color, toEditable, togglePanelAnimation, unregisterPanel, usePanel, usePanelShortcut, usePanelTheme, usePanelThemeContext, writePanelOpenFlag };
+export { ColorPopover, ControlAction, ControlActionGroup, ControlAnimation, ControlCollection, ControlColorInput, ControlDisclosure, ControlGradientStops, ControlHint, ControlImageInput, ControlLibraryColor, ControlOptionList, ControlPath, ControlPresets, ControlReadout, ControlReference, ControlSearchField, ControlSection, ControlSelect, ControlSlider, ControlStripeColorsTable, ControlTextInput, ControlTextarea, ControlThemeToggle, ControlToggle, ControlToggleGroup, ControlVec2, DEFAULT_CUSTOM_EASING, EASING_OPTIONS, EasingGraph, EyeToggle, FloatingPanel, GRADIENT_STOP_MAX, GRADIENT_STOP_MIN, NativeColorSwatch, PANEL_ANIMATION_STEP, PANEL_CSS, PANEL_STYLE_ID, PANEL_THEME_STORAGE_KEY, PANEL_TOGGLE_EVENT, Panel, PanelCloseButton, PanelCloseIcon, PanelHeaderSelect, PanelRoot, PanelThemeProvider, PanelToggleButton, PanelToolPanel, TOOL_PANEL_FULL, TOOL_PANEL_INSET, TOOL_PANEL_WIDTH, ToolPanel, ToolShell, addGradientStop, advancePanelAnimationDelta, applyPanelTheme, clearPersistedPanelSections, clearPersistedPanelValues, colorPopoverStyles, createOverlayProjector, cssColorForHex, defaultGradientStops, dispatchPanelToggle, easeValue, embedPngDpi, findLibraryColor, findLibraryColorByHex, formatCustomEasing, fromEditable, getActivePanel, getActivePanelForSide, getActivePanelId, getActivePanelIdForSide, getPanelAnimationRevision, getPanelAnimationSnapshot, getPanelAnimationTime, getPanelRegistration, getPanelRegistrations, getPanelRegistrationsForSide, getPanelRevision, getShaderCapture, getShaderGifExport, getShaderRecordCanvas, getShaderRecordFrame, getShaderRecordPrepare, getShaderVideoExport, gradientCss, gradientStopsStyles, handlePanelShortcutKeydown, hasPersistedPanelValues, initPanelAnimationClock, installPanelKeyboard, isPanelSection, loadPersistedPanelSections, loadPersistedPanelValues, matchPanelShortcut, moveGradientStop, moveGradientStopOffset, normalizeGradientStops, p3ColorForHex, p3CssFromHex, parseCustomEasing, pausePanelAnimation, persistPanelSections, persistPanelValues, playPanelAnimation, printMaxEdgePx, rasterizeGradientField, readPanelOpenFlag, recolorGradientStop, registerPanel, registerShaderCapture, registerShaderGifExport, registerShaderRecordCanvas, registerShaderRecordFrame, registerShaderRecordPrepare, registerShaderVideoExport, removeGradientStop, renderPanelField, resetPanelAnimation, sampleGradientRgb, serializeGradientStops, setActivePanel, setPanelAnimationRate, setPanelAnimationTime, setShaderRecording, sortGradientStops, stepPanelAnimationBackward, stepPanelAnimationForward, stripeColorsTableStyles, subscribePanelAnimation, subscribePanelRegistration, subscribeShaderCapture, subscribeShaderRecording, supportsDisplayP3Color, toEditable, togglePanelAnimation, unregisterPanel, usePanel, usePanelShortcut, usePanelTheme, usePanelThemeContext, writePanelOpenFlag };
 //# sourceMappingURL=index.js.map
 //# sourceMappingURL=index.js.map
