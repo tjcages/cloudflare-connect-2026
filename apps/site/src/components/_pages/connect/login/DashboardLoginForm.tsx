@@ -139,18 +139,13 @@ export default function DashboardLoginForm() {
           </label>
 
           <button
-            className="relative mt-0 flex h-40 w-full items-center justify-center overflow-hidden rounded-[8px] text-[16px] leading-24 font-medium text-[#ffffff]"
+            className="dash-login-signin"
             data-testid="login-submit-button"
             name="login-submit-button"
-            style={{
-              background:
-                "linear-gradient(to bottom, color-mix(in srgb, #f6821f 85%, white), #f6821f)",
-              boxShadow:
-                "0 0 0 1px color-mix(in srgb, #f6821f 90%, black), 0 1px 2px rgb(0 0 0 / 0.05)",
-            }}
             type="submit"
           >
-            Sign in
+            <span aria-hidden className="dash-login-signin-fill" />
+            <span className="dash-login-signin-label">Sign in</span>
           </button>
         </form>
 

@@ -17,6 +17,7 @@ const loginFormSource = readFileSync(
   resolve(loginDir, "DashboardLoginForm.tsx"),
   "utf8"
 );
+const loginCssSource = readFileSync(resolve(loginDir, "dash-login.css"), "utf8");
 const loginPromoSource = readFileSync(resolve(loginDir, "LoginPromo.astro"), "utf8");
 
 describe("dashboard login shader", () => {
@@ -69,12 +70,21 @@ describe("dashboard login shader", () => {
     expect(loginFormSource).toContain("forgot-email");
     expect(loginFormSource).toContain("forgot-password");
     expect(loginFormSource).toContain("subscriptionagreement");
-    expect(loginFormSource).toContain("#f6821f");
+    expect(loginFormSource).toContain("dash-login-signin");
+    expect(loginCssSource).toContain("#f6821f");
     expect(loginFormSource).not.toContain("There was a problem with verification");
   });
 
   it("keeps Register now on the promo pane", () => {
     expect(loginPromoSource).toContain("LOGIN_OVERLAY_COPY.register");
+  });
+
+  it("uses Cookie Preferences like the live dash OneTrust control", () => {
+    expect(loginPageSource).toContain("Cookie Preferences");
+  });
+
+  it("tints the login shader to the dash promo orange", () => {
+    expect(loginPageSource).toContain('backgroundColor="#ff5e1f"');
   });
 
   it("avoids theme-reset Tailwind white/black color tokens", () => {

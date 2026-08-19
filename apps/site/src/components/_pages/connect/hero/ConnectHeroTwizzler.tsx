@@ -27,6 +27,8 @@ interface Props {
    * stays visible across the pane (Astro omits `={false}` boolean props).
    */
   hideTopFade?: boolean;
+  /** Login tints the ribbon to the dash promo orange so the pane stays #ff5e1f. */
+  backgroundColor?: string;
 }
 
 const PANEL_STORAGE_KEY = "connect:twizzler-controls-visible";
@@ -36,6 +38,7 @@ export default function ConnectHeroTwizzler({
   posterSrc,
   panelTargets,
   hideTopFade = false,
+  backgroundColor,
 }: IslandProps<Props>) {
   const [settings, setSettings] = useState<TwizzlerSettings>(
     CONNECT_HERO_TWIZZLER_DEFAULTS
@@ -115,7 +118,9 @@ export default function ConnectHeroTwizzler({
           maxFps={30}
           posterSrc={posterSrc}
           rootMargin="240px"
-          settings={settings}
+          settings={
+            backgroundColor ? { ...settings, backgroundColor } : settings
+          }
         />
         {/* Rain sits above the ribbon with a transparent clear, matching the
             lab's Both stack (.lab-canvas-output over .lab-canvas-twizzler). */}
