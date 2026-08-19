@@ -1,6 +1,6 @@
 import ConnectCloud from "@/assets/connect/connect-cloud.svg?react";
 import cn from "classnames";
-import { useState, type FormEvent } from "react";
+import { useState } from "react";
 
 const TERMS_HREF = "https://www.cloudflare.com/website-terms/";
 const PRIVACY_HREF = "https://www.cloudflare.com/privacypolicy/";
@@ -20,7 +20,7 @@ const linkClass =
 export default function DashboardLoginForm() {
   const [showPassword, setShowPassword] = useState(false);
 
-  const onSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const onSubmit = (event: { preventDefault: () => void }) => {
     event.preventDefault();
   };
 
