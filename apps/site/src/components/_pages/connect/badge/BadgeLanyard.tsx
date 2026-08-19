@@ -24,19 +24,19 @@ const TEXTURE_W = 720;
 const TEXTURE_H = 1020;
 
 const LANYARD_POINTS = [
-  new Vector3(0, 1.58, -0.04),
-  new Vector3(0.02, 1.9, -0.3),
-  new Vector3(0.26, 1.05, -0.5),
-  new Vector3(0.5, 0.05, -0.42),
-  new Vector3(0.62, -1.2, -0.18),
-  new Vector3(0.78, -1.95, 0.18),
-  new Vector3(0.12, -2.18, 0.72),
-  new Vector3(0.92, -2.62, 0.42),
-  new Vector3(1.08, -3.45, 0.12),
-  new Vector3(0.58, -4.9, 0),
-  new Vector3(0.92, -7.2, 0),
-  new Vector3(0.4, -10.2, 0),
-  new Vector3(0.7, -14.2, 0),
+  new Vector3(0, 1.56, 0.06),
+  new Vector3(0.2, 1.6, -0.04),
+  new Vector3(0.58, 1.12, -0.1),
+  new Vector3(0.82, 0.32, -0.06),
+  new Vector3(0.95, -0.55, 0.1),
+  new Vector3(0.98, -1.52, 0.3),
+  new Vector3(0.18, -2.22, 0.82),
+  new Vector3(1.1, -2.72, 0.38),
+  new Vector3(1.22, -3.72, 0.08),
+  new Vector3(0.65, -5.3, 0),
+  new Vector3(0.98, -7.6, 0),
+  new Vector3(0.45, -10.6, 0),
+  new Vector3(0.75, -14.6, 0),
 ];
 
 function createRoundedPlane(width: number, height: number, radius: number) {
@@ -130,7 +130,7 @@ function BadgeScene({
   fallback: string;
   reducedMotion: boolean;
 }) {
-  const { gl, clock } = useThree();
+  const { gl, clock, camera } = useThree();
   const badgeRef = useRef<Group>(null);
   const rotationY = useRef(0.22);
   const velocityY = useRef(0);
@@ -151,7 +151,7 @@ function BadgeScene({
       new TubeGeometry(
         new CatmullRomCurve3(LANYARD_POINTS, false, "catmullrom", 0.42),
         160,
-        0.28,
+        0.32,
         24,
         false
       ),
@@ -198,6 +198,7 @@ function BadgeScene({
   }, [gl]);
 
   useFrame(() => {
+    camera.position.z = gl.domElement.clientWidth < 700 ? 11.4 : 13.2;
     if (!dragging.current) {
       velocityY.current *= 0.94;
       rotationY.current += velocityY.current;

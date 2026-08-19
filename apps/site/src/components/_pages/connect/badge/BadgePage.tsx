@@ -55,19 +55,21 @@ export default function BadgePage(_props: IslandProps) {
   );
 
   return (
-    <div className="relative isolate mx-auto min-h-760 overflow-hidden before:inside-border-b before:border-border-default md:min-h-[calc(100svh-88px)]">
+    <div className="relative isolate mx-auto min-h-[calc(100svh-88px)] overflow-hidden before:inside-border-b before:border-border-default">
       <CornerDots count={4} faintClassName="z-30" />
 
-      <div className="relative z-10 flex min-h-760 flex-col md:min-h-[calc(100svh-88px)] md:flex-row">
-        <div className="flex w-full shrink-0 items-center justify-center px-24 py-32 md:w-280 md:px-48 md:py-0">
-          <div className="flex flex-col items-start gap-28">
-            <Eyebrow direction="left" title="Badge" variant="faint" />
-            <h1 className="sr-only">Connect 2026 badge</h1>
-            <BadgeCustomizer onChange={setParams} params={params} />
+      <div className="relative z-10 flex min-h-[calc(100svh-88px)] flex-col md:flex-row">
+        <div className="flex w-full shrink-0 items-center justify-center px-24 py-20 md:w-280 md:px-48 md:py-0">
+          <div className="mx-auto w-max">
+            <div className="flex flex-col items-start gap-16">
+              <Eyebrow direction="left" title="Badge" variant="faint" />
+              <h1 className="sr-only">Connect 2026 badge</h1>
+              <BadgeCustomizer onChange={setParams} params={params} />
+            </div>
           </div>
         </div>
 
-        <div className="relative min-h-560 w-full flex-1 md:min-h-0">
+        <div className="relative min-h-0 w-full flex-1">
           <div
             aria-hidden="true"
             className="pointer-events-none absolute inset-0 z-0 opacity-0"
