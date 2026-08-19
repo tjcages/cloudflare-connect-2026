@@ -14,9 +14,9 @@ export const SPEAKER_WIPER_REST_WIDTH = 0.1;
 export const SPEAKER_OVERLAY_REST_WIDTH = 0.8;
 /** Collapse from full-width coverage into the rest rect. */
 export const SPEAKER_WIPER_DURATION_MS = 900;
-export const SPEAKER_WIPER_STAGGER_MS = 180;
-/** Dark used to wait a second stagger (pane index 2). It now starts almost with the overlay. */
-export const SPEAKER_WIPER_DARK_STAGGER_MS = 70;
+export const SPEAKER_WIPER_STAGGER_MS = 0;
+/** Opaque panes collapse with the overlay so they do not sit at full width. */
+export const SPEAKER_WIPER_DARK_STAGGER_MS = 0;
 /** After both edge panes rest, they trade width for this long, then settle. */
 export const SPEAKER_PANE_WIGGLE_DURATION_MS = 9_000;
 export const SPEAKER_PANE_WIGGLE_PERIOD_MS = 2_400;
@@ -26,6 +26,8 @@ export const SPEAKER_PANE_WIGGLE_AMPLITUDE = 0.34;
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
 
 const lerp = (from: number, to: number, t: number) => from + (to - from) * t;
+
+const easeOutCubic = (t: number) => 1 - (1 - t) ** 3;
 
 const easeInOutCubic = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
 
@@ -97,7 +99,7 @@ export const speakerFrameWiperRect = (aperture: Rect, rest: Rect, progress: numb
     return { x: aperture.x, y: rest.y, width: aperture.width, height: rest.height };
   }
 
-  const u = easeInOutCubic(Math.min(1, progress));
+  const u = easeOutCubic(Math.min(1, progress));
   return {
     x: lerp(aperture.x, rest.x, u),
     y: rest.y,

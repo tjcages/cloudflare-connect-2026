@@ -41,6 +41,7 @@ import {
   speakerFrameOutlineColor,
   speakerFramePaintConfig,
   speakerWiperShouldEnter,
+  SPEAKER_WIPER_DURATION_MS,
   SPEAKER_WIPER_ENTER_RATIO,
   type SpeakerWiperClock,
 } from "./speaker-wiper";
@@ -117,6 +118,7 @@ export default function SpeakerShaderOverlay() {
     let height = 0;
     let renderDpr = 1;
     let lastFrameMs = 0;
+    let wiperNowMs = 0;
     let animationFrame = 0;
     let visible = false;
     let disposed = false;
@@ -242,7 +244,7 @@ export default function SpeakerShaderOverlay() {
       const settings = settingsRef.current;
       const apertureRects = apertures.map(({ rect }) => rect);
       const authored = resolveAuthoredFrames(settings.placements, apertureRects);
-      const frames = resolveWipingFrames(authored, apertureRects, wiperClock.startedAtMs, performance.now(), {
+      const frames = resolveWipingFrames(authored, apertureRects, wiperClock.startedAtMs, wiperNowMs, {
         reducedMotion: reducedMotion.matches,
         progressOverride: wiperProgressOverride,
       });
@@ -320,28 +322,44 @@ export default function SpeakerShaderOverlay() {
     // engine render + canvas2d composite for motion nobody can distinguish.
     const minFrameIntervalMs = 1_000 / 60 - 1;
     const tick = (nowMs: number) => {
-      if (!visible || disposed || !engine) return;
+      if (!visible || disposed || !engine) {
+        animationFrame = 0;
+        return;
+      }
       animationFrame = requestAnimationFrame(tick);
       const hasPendingWiper = wiperClock.pending.size > 0;
       if (!hasPendingWiper && nowMs - lastFrameMs < minFrameIntervalMs) return;
       lastFrameMs = nowMs;
       commitPendingSpeakerWipers(wiperClock, nowMs);
+      wiperNowMs = nowMs;
       clock.set(nowMs);
       renderOnce();
+    };
+
+    const replayIdleWipers = () => {
+      const nowMs = performance.now();
+      for (const index of intersectingWipers) {
+        if (wiperClock.pending.has(index)) continue;
+        const startedAt = wiperClock.startedAtMs[index];
+        if (startedAt != null && nowMs - startedAt < SPEAKER_WIPER_DURATION_MS) continue;
+        replayWiper(index);
+      }
     };
 
     const start = () => {
       if (!engine) return;
       engine.setRevealGate(true);
       if (reducedMotion.matches) {
-        for (const index of intersectingWipers) replayWiper(index);
-        clock.set(performance.now());
+        replayIdleWipers();
+        wiperNowMs = performance.now();
+        clock.set(wiperNowMs);
         renderOnce();
         return;
       }
       if (animationFrame) return;
-      for (const index of intersectingWipers) replayWiper(index);
+      replayIdleWipers();
       lastFrameMs = performance.now();
+      wiperNowMs = lastFrameMs;
       clock.set(lastFrameMs);
       animationFrame = requestAnimationFrame(tick);
     };

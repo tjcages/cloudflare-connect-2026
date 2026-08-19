@@ -18,7 +18,6 @@ import {
   speakerWiperStaggerMs,
   SPEAKER_OVERLAY_REST_WIDTH,
   SPEAKER_PANE_WIGGLE_DURATION_MS,
-  SPEAKER_WIPER_DARK_STAGGER_MS,
   SPEAKER_WIPER_DURATION_MS,
   SPEAKER_WIPER_REST_WIDTH,
   SPEAKER_WIPER_STAGGER_MS,
@@ -99,13 +98,24 @@ describe("speaker frame wipers", () => {
     expect(playing[1]?.rect).toEqual({ x: 60, y: 10, width: 20, height: 180 });
   });
 
-  it("lets the dark pane rest before orange, without the old extra stagger", () => {
-    expect(speakerWiperStaggerMs("dark")).toBe(SPEAKER_WIPER_DARK_STAGGER_MS);
-    expect(speakerWiperStaggerMs("dark")).toBeLessThan(speakerWiperStaggerMs("orange"));
-    const bothClosedMs = SPEAKER_WIPER_DURATION_MS + SPEAKER_WIPER_STAGGER_MS;
-    expect(SPEAKER_WIPER_DARK_STAGGER_MS + SPEAKER_WIPER_DURATION_MS).toBeLessThan(bothClosedMs);
-    expect(speakerWiperProgress(bothClosedMs - 50, SPEAKER_WIPER_DARK_STAGGER_MS)).toBe(1);
-    expect(speakerWiperProgress(bothClosedMs - 50, SPEAKER_WIPER_STAGGER_MS)).toBeLessThan(1);
+  it("opens from full coverage into the rest rect while the clip plays", () => {
+    const authored = resolveAuthoredFrames(
+      [{ imageIndex: 0, x: 0.8, y: 0, width: 0.1, height: 1, span: false, variant: "orange" as const }],
+      [aperture],
+    );
+    expect(resolveWipingFrames(authored, [aperture], [0], 0)[0]?.rect.width).toBe(200);
+    const mid = resolveWipingFrames(authored, [aperture], [0], 300)[0]?.rect;
+    expect(mid?.width).toBeGreaterThan(20);
+    expect(mid?.width).toBeLessThan(180);
+    expect(mid?.x).toBeGreaterThan(40);
+    expect(resolveWipingFrames(authored, [aperture], [0], 20_000)[0]?.rect.width).toBe(20);
+  });
+
+  it("starts collapsing every pane together so opaque strips do not sit at full width", () => {
+    expect(speakerWiperStaggerMs("grey")).toBe(0);
+    expect(speakerWiperStaggerMs("dark")).toBe(0);
+    expect(speakerWiperStaggerMs("orange")).toBe(0);
+    expect(speakerWiperProgress(16, 0)).toBeGreaterThan(0);
   });
 
   it("trades orange and dark rest widths after both panes have closed", () => {
