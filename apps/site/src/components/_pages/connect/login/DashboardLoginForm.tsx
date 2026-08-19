@@ -25,7 +25,7 @@ export default function DashboardLoginForm() {
   };
 
   return (
-    <div className="dash-login bg-white flex h-full min-h-svh flex-col px-32 py-24 font-[Inter,ui-sans-serif,system-ui,sans-serif] text-[#1d1d1d] max-lg:min-h-0 max-lg:px-24">
+    <div className="dash-login bg-white flex h-full min-h-svh flex-col px-24 py-24 font-[Inter,ui-sans-serif,system-ui,sans-serif] text-[#1d1d1d] max-lg:min-h-0 lg:px-32">
       <a
         aria-label="Cloudflare"
         className="inline-flex w-max items-center"
@@ -36,7 +36,7 @@ export default function DashboardLoginForm() {
         <ConnectCloud aria-hidden className="h-32 w-auto" />
       </a>
 
-      <div className="flex flex-1 items-center py-40">
+      <div className="flex flex-1 items-center py-24 lg:py-40">
         <form
           className="mx-auto w-full max-w-360"
           noValidate

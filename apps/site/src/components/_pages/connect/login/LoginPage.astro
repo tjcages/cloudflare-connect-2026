@@ -7,15 +7,20 @@ import DashboardLoginForm from "./DashboardLoginForm";
 import { LOGIN_PANEL_TARGETS } from "./login-shader";
 ---
 
+{/*
+    Desktop: dash split (form | globe).
+    Mobile: dash stacks the globe first as a large full-width panel, then the
+    form. Shader replaces that globe block at ~half the viewport.
+  */}
 <div class="bg-white flex min-h-svh max-lg:flex-col" data-theme="light">
   <main
-    class="w-full shrink-0 border-border-default lg:w-480 lg:border-r xl:w-520"
+    class="w-full shrink-0 border-border-default max-lg:order-2 lg:w-480 lg:border-r xl:w-520"
   >
     <DashboardLoginForm client:load />
   </main>
 
   <aside
-    class="relative isolate flex min-h-svh flex-1 overflow-hidden bg-background-base max-lg:min-h-640"
+    class="relative isolate flex flex-1 overflow-hidden bg-background-base max-lg:order-1 max-lg:h-[52svh] max-lg:min-h-320 max-lg:flex-none lg:min-h-svh"
     aria-label="Cloudflare Connect 2026"
   >
     <div class="pointer-events-none absolute inset-0" aria-hidden="true">
@@ -27,7 +32,7 @@ import { LOGIN_PANEL_TARGETS } from "./login-shader";
     </div>
 
     <div
-      class="relative z-10 flex w-full flex-col justify-between gap-40 px-24 py-48 md:px-80 md:py-80"
+      class="relative z-10 flex h-full w-full flex-col justify-end px-20 py-24 md:px-40 lg:justify-start lg:px-80 lg:py-80"
     >
       <div class="flex w-full max-w-440 flex-col items-start">
         <Eyebrow
@@ -37,15 +42,21 @@ import { LOGIN_PANEL_TARGETS } from "./login-shader";
           variant="faint"
         />
 
-        <h2 class="mt-24 text-heading-hero text-text-base">
+        <h2
+          class="mt-16 text-heading-h3 text-text-base lg:mt-24 lg:text-heading-hero"
+        >
           {connectHero.titleLines[0]}
           <br />
           {connectHero.titleLines[1]}
         </h2>
 
-        <p class="mt-24 text-body-large text-text-base">{connectHero.body}</p>
+        <p
+          class="mt-16 text-body-small text-text-base lg:mt-24 lg:text-body-large"
+        >
+          {connectHero.body}
+        </p>
 
-        <div class="mt-40 flex flex-wrap items-center gap-12">
+        <div class="mt-24 flex flex-wrap items-center gap-12 lg:mt-40">
           <Button
             className="px-14"
             href={connectHero.primaryCta.href}
