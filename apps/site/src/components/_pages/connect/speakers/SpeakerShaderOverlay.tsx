@@ -12,6 +12,7 @@ import {
   SPEAKER_FRAME_SETTINGS_EVENT,
   SPEAKER_FRAME_VARIANT_IDS,
   speakerSharedEngineConfig,
+  speakerVariantLook,
   type SpeakerFrameSettings,
 } from "./speaker-frame-controls";
 import {
@@ -234,12 +235,12 @@ export default function SpeakerShaderOverlay() {
       outputContext.clip();
       for (const frame of frames) {
         paintPartialFrameOutline(outputContext, frame.rect, (opacity) =>
-          speakerFrameOutlineColor(frame.variant, opacity),
+          speakerFrameOutlineColor(speakerVariantLook(settings, frame.variant).bgColor, opacity),
         );
       }
       if (pointerFrameRect) {
         paintPartialFrameOutline(outputContext, pointerFrameRect, (opacity) =>
-          speakerFrameOutlineColor("orange", opacity),
+          speakerFrameOutlineColor(settings.orange.bgColor, opacity),
         );
       }
       outputContext.restore();

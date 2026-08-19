@@ -53,6 +53,7 @@ type SpeakerFramePanelValues = SpeakerFrameSettings & {
   blackPoint: number;
   whitePoint: number;
   gamma: number;
+  bgColor: string;
   greyStripes: EditableStripe[];
   greyInvert: boolean;
   greyBrightness: number;
@@ -61,6 +62,7 @@ type SpeakerFramePanelValues = SpeakerFrameSettings & {
   greyBlackPoint: number;
   greyWhitePoint: number;
   greyGamma: number;
+  greyBgColor: string;
   whiteStripes: EditableStripe[];
   whiteInvert: boolean;
   whiteBrightness: number;
@@ -69,6 +71,7 @@ type SpeakerFramePanelValues = SpeakerFrameSettings & {
   whiteBlackPoint: number;
   whiteWhitePoint: number;
   whiteGamma: number;
+  whiteBgColor: string;
 };
 
 const lookFromPanel = (
@@ -80,6 +83,7 @@ const lookFromPanel = (
   blackPoint: unknown,
   whitePoint: unknown,
   gamma: unknown,
+  bgColor: unknown,
   fallback: SpeakerFrameVariantLook,
 ): SpeakerFrameVariantLook => ({
   stripes: (() => {
@@ -93,6 +97,7 @@ const lookFromPanel = (
   blackPoint: typeof blackPoint === "number" ? blackPoint : fallback.blackPoint,
   whitePoint: typeof whitePoint === "number" ? whitePoint : fallback.whitePoint,
   gamma: typeof gamma === "number" ? gamma : fallback.gamma,
+  bgColor: typeof bgColor === "string" ? bgColor : fallback.bgColor,
 });
 
 /** Panel values: settings plus flattened orange/white/grey stripe tables. */
@@ -107,6 +112,7 @@ export function seedSpeakerFramesPanelValues(settings: SpeakerFrameSettings): Pa
     blackPoint: settings.orange.blackPoint,
     whitePoint: settings.orange.whitePoint,
     gamma: settings.orange.gamma,
+    bgColor: settings.orange.bgColor,
     whiteStripes: toEditableControls(settings.white.stripes),
     whiteInvert: settings.white.invert,
     whiteBrightness: settings.white.brightness,
@@ -115,6 +121,7 @@ export function seedSpeakerFramesPanelValues(settings: SpeakerFrameSettings): Pa
     whiteBlackPoint: settings.white.blackPoint,
     whiteWhitePoint: settings.white.whitePoint,
     whiteGamma: settings.white.gamma,
+    whiteBgColor: settings.white.bgColor,
     greyStripes: toEditableControls(settings.grey.stripes),
     greyInvert: settings.grey.invert,
     greyBrightness: settings.grey.brightness,
@@ -123,6 +130,7 @@ export function seedSpeakerFramesPanelValues(settings: SpeakerFrameSettings): Pa
     greyBlackPoint: settings.grey.blackPoint,
     greyWhitePoint: settings.grey.whitePoint,
     greyGamma: settings.grey.gamma,
+    greyBgColor: settings.grey.bgColor,
   } satisfies SpeakerFramePanelValues;
 }
 
@@ -136,6 +144,7 @@ export function speakerFramesFromPanelValues(values: PanelValues): SpeakerFrameS
     blackPoint,
     whitePoint,
     gamma,
+    bgColor,
     greyStripes,
     greyInvert,
     greyBrightness,
@@ -144,6 +153,7 @@ export function speakerFramesFromPanelValues(values: PanelValues): SpeakerFrameS
     greyBlackPoint,
     greyWhitePoint,
     greyGamma,
+    greyBgColor,
     whiteStripes,
     whiteInvert,
     whiteBrightness,
@@ -152,6 +162,7 @@ export function speakerFramesFromPanelValues(values: PanelValues): SpeakerFrameS
     whiteBlackPoint,
     whiteWhitePoint,
     whiteGamma,
+    whiteBgColor,
     orange: _orange,
     white: _white,
     grey: _grey,
@@ -170,6 +181,7 @@ export function speakerFramesFromPanelValues(values: PanelValues): SpeakerFrameS
       blackPoint,
       whitePoint,
       gamma,
+      bgColor,
       SPEAKER_FRAME_DEFAULTS.orange,
     ),
     white: lookFromPanel(
@@ -181,6 +193,7 @@ export function speakerFramesFromPanelValues(values: PanelValues): SpeakerFrameS
       whiteBlackPoint,
       whiteWhitePoint,
       whiteGamma,
+      whiteBgColor,
       SPEAKER_FRAME_DEFAULTS.white,
     ),
     grey: lookFromPanel(
@@ -192,6 +205,7 @@ export function speakerFramesFromPanelValues(values: PanelValues): SpeakerFrameS
       greyBlackPoint,
       greyWhitePoint,
       greyGamma,
+      greyBgColor,
       SPEAKER_FRAME_DEFAULTS.grey,
     ),
   };
@@ -325,6 +339,7 @@ export function buildSpeakerFramesSections(): PanelSectionDef[] {
       title: "Orange variant",
       defaultOpen: true,
       fields: [
+        color("bgColor", "Background"),
         toggle("invert", "Invert"),
         num("brightness", "Brightness", -1, 1, 0.01),
         num("exposure", "Exposure", -2, 2, 0.01),
@@ -350,6 +365,7 @@ export function buildSpeakerFramesSections(): PanelSectionDef[] {
       title: "White variant",
       defaultOpen: true,
       fields: [
+        color("whiteBgColor", "Background"),
         toggle("whiteInvert", "Invert"),
         num("whiteBrightness", "Brightness", -1, 1, 0.01),
         num("whiteExposure", "Exposure", -2, 2, 0.01),
@@ -370,6 +386,7 @@ export function buildSpeakerFramesSections(): PanelSectionDef[] {
       title: "Overlay",
       defaultOpen: true,
       fields: [
+        color("greyBgColor", "Frame color"),
         toggle("greyInvert", "Invert"),
         num("greyBrightness", "Brightness", -1, 1, 0.01),
         num("greyExposure", "Exposure", -2, 2, 0.01),

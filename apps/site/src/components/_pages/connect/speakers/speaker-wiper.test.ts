@@ -7,6 +7,7 @@ import {
   parseSpeakerWiperOverride,
   resetSpeakerWiper,
   resolveWipingFrames,
+  speakerFrameOutlineColor,
   speakerFramePaintConfig,
   speakerFrameWiperRect,
   speakerWiperProgress,
@@ -130,6 +131,17 @@ describe("speaker frame wipers", () => {
     expect(overlay.background?.transparent).toBe(true);
     expect(overlay.background?.stars?.enabled).toBe(false);
     expect(overlay.adjustments?.invert).toBe(false);
+  });
+
+  it("paints orange and white fields from each look's background color", () => {
+    const settings = {
+      ...SPEAKER_FRAME_DEFAULTS,
+      orange: { ...SPEAKER_FRAME_DEFAULTS.orange, bgColor: "#00ffaa" },
+      white: { ...SPEAKER_FRAME_DEFAULTS.white, bgColor: "#aa00ff" },
+    };
+    expect(speakerFramePaintConfig(settings, "orange").background?.color).toBe(0x00_ff_aa);
+    expect(speakerFramePaintConfig(settings, "white").background?.color).toBe(0xaa_00_ff);
+    expect(speakerFrameOutlineColor("#00ffaa", 1)).toBe("rgba(0, 255, 170, 1)");
   });
 
   it("reads a preview override from the query string", () => {

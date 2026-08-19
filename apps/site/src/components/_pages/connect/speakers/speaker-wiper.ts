@@ -1,5 +1,7 @@
 import type { EngineConfig } from "@necatikcl/stripes-engine";
 import {
+  hexToColorNumber,
+  speakerVariantBgNumber,
   speakerVariantEngineConfig,
   type SpeakerFrameSettings,
   type SpeakerFrameVariantId,
@@ -14,9 +16,6 @@ export const SPEAKER_WIPER_DURATION_MS = 1200;
 export const SPEAKER_WIPER_STAGGER_MS = 180;
 /** Expand (left-edge wipe across the portrait) occupies this share of the clip. */
 export const SPEAKER_WIPER_EXPAND_END = 0.6;
-
-const CONNECT_ORANGE = 0xff_bf_14;
-const WHITE = 0xff_ff_ff;
 
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
 
@@ -112,21 +111,15 @@ export const speakerFramePaintConfig = (
   variant: SpeakerFrameVariantId,
 ): Partial<EngineConfig> => {
   const base = speakerVariantEngineConfig(settings, variant);
+  const color = speakerVariantBgNumber(settings, variant);
   switch (variant) {
     case "orange":
-      return {
-        ...base,
-        background: {
-          ...SPEAKER_SHADER_CONFIG.background,
-          color: CONNECT_ORANGE,
-        },
-      };
     case "white":
       return {
         ...base,
         background: {
           ...SPEAKER_SHADER_CONFIG.background,
-          color: WHITE,
+          color,
         },
       };
     case "grey":
@@ -134,6 +127,7 @@ export const speakerFramePaintConfig = (
         ...base,
         background: {
           ...SPEAKER_SHADER_CONFIG.background,
+          color,
           transparent: true,
           stars: { ...SPEAKER_SHADER_CONFIG.background.stars, enabled: false },
           meteors: { ...SPEAKER_SHADER_CONFIG.background.meteors, enabled: false },
@@ -144,17 +138,12 @@ export const speakerFramePaintConfig = (
   }
 };
 
-export const speakerFrameOutlineColor = (variant: SpeakerFrameVariantId, opacity: number) => {
-  switch (variant) {
-    case "orange":
-      return `rgba(255, 191, 20, ${opacity})`;
-    case "white":
-      return `rgba(255, 255, 255, ${opacity})`;
-    case "grey":
-      return `rgba(214, 214, 214, ${opacity})`;
-    default:
-      return unusedVariant(variant);
-  }
+export const speakerFrameOutlineColor = (hex: string, opacity: number) => {
+  const color = hexToColorNumber(hex, 0xd6_d6_d6);
+  const r = (color >> 16) & 0xff;
+  const g = (color >> 8) & 0xff;
+  const b = color & 0xff;
+  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
 };
 
 export const parseSpeakerWiperOverride = (search: string): number | undefined => {

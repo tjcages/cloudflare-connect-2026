@@ -45,4 +45,25 @@ describe("speaker frame panel mapping", () => {
     expect(next.white.brightness).toBe(0.08);
     expect(next.white.invert).toBe(true);
   });
+
+  it("round-trips orange and white frame background colors", () => {
+    const seeded = seedSpeakerFramesPanelValues({
+      ...SPEAKER_FRAME_DEFAULTS,
+      orange: { ...SPEAKER_FRAME_DEFAULTS.orange, bgColor: "#112233" },
+      white: { ...SPEAKER_FRAME_DEFAULTS.white, bgColor: "#abcdef" },
+    });
+
+    expect(seeded.bgColor).toBe("#112233");
+    expect(seeded.whiteBgColor).toBe("#abcdef");
+
+    const next = speakerFramesFromPanelValues({
+      ...seeded,
+      bgColor: "#ff00aa",
+      whiteBgColor: "#00ffaa",
+    });
+
+    expect(next.orange.bgColor).toBe("#ff00aa");
+    expect(next.white.bgColor).toBe("#00ffaa");
+    expect(next.grey.bgColor).toBe(SPEAKER_FRAME_DEFAULTS.grey.bgColor);
+  });
 });

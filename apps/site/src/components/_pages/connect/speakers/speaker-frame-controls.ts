@@ -33,6 +33,7 @@ export type SpeakerFrameVariantLook = {
   whitePoint: number;
   gamma: number;
   invert: boolean;
+  bgColor: string;
 };
 
 export type SpeakerFrameSettings = {
@@ -134,6 +135,16 @@ const GREY_STRIPE_COLORS = [
 
 const toHex = (color: number) => `#${color.toString(16).padStart(6, "0")}`;
 
+export const hexToColorNumber = (value: string, fallback: number) => {
+  const normalized = value.trim().replace(/^#/, "");
+  if (!/^[\da-f]{6}$/i.test(normalized)) return fallback;
+  return Number.parseInt(normalized, 16);
+};
+
+export const SPEAKER_ORANGE_BG = "#ffbf14";
+export const SPEAKER_WHITE_BG = "#ffffff";
+export const SPEAKER_OVERLAY_BG = "#d6d6d6";
+
 const defaultOrangeStripes = (): SpeakerStripeControl[] =>
   SPEAKER_SHADER_CONFIG.stripes.map((stripe, index) => ({
     id: `stripe-${index + 1}`,
@@ -165,6 +176,7 @@ const defaultOrangeLook = (): SpeakerFrameVariantLook => ({
   whitePoint: SPEAKER_SHADER_CONFIG.adjustments.whitePoint,
   gamma: SPEAKER_SHADER_CONFIG.adjustments.gamma,
   invert: SPEAKER_SHADER_CONFIG.adjustments.invert,
+  bgColor: SPEAKER_ORANGE_BG,
 });
 
 const defaultWhiteLook = (): SpeakerFrameVariantLook => ({
@@ -176,6 +188,7 @@ const defaultWhiteLook = (): SpeakerFrameVariantLook => ({
   whitePoint: SPEAKER_SHADER_CONFIG.adjustments.whitePoint,
   gamma: SPEAKER_SHADER_CONFIG.adjustments.gamma,
   invert: false,
+  bgColor: SPEAKER_WHITE_BG,
 });
 
 const defaultGreyLook = (): SpeakerFrameVariantLook => ({
@@ -187,6 +200,7 @@ const defaultGreyLook = (): SpeakerFrameVariantLook => ({
   whitePoint: SPEAKER_SHADER_CONFIG.adjustments.whitePoint,
   gamma: 0.88,
   invert: false,
+  bgColor: SPEAKER_OVERLAY_BG,
 });
 
 const placement = (
@@ -245,6 +259,23 @@ export const speakerVariantLook = (
       return settings.white;
     case "grey":
       return settings.grey;
+    default:
+      return unusedVariant(variant);
+  }
+};
+
+export const speakerVariantBgNumber = (
+  settings: SpeakerFrameSettings,
+  variant: SpeakerFrameVariantId,
+): number => {
+  const hex = speakerVariantLook(settings, variant).bgColor;
+  switch (variant) {
+    case "orange":
+      return hexToColorNumber(hex, 0xff_bf_14);
+    case "white":
+      return hexToColorNumber(hex, 0xff_ff_ff);
+    case "grey":
+      return hexToColorNumber(hex, 0xd6_d6_d6);
     default:
       return unusedVariant(variant);
   }
@@ -356,6 +387,13 @@ const sanitizeStripes = (value: unknown, fallback: SpeakerStripeControl[]): Spea
 const sanitizeNumber = (value: unknown, fallback: number) =>
   typeof value === "number" && Number.isFinite(value) ? value : fallback;
 
+const sanitizeHex = (value: unknown, fallback: string) => {
+  if (typeof value !== "string") return fallback;
+  const normalized = value.trim().replace(/^#/, "");
+  if (!/^[\da-f]{6}$/i.test(normalized)) return fallback;
+  return `#${normalized.toLowerCase()}`;
+};
+
 const sanitizeVariantLook = (value: unknown, fallback: SpeakerFrameVariantLook): SpeakerFrameVariantLook => {
   const parsed = value && typeof value === "object" ? (value as Partial<SpeakerFrameVariantLook>) : {};
   return {
@@ -367,6 +405,7 @@ const sanitizeVariantLook = (value: unknown, fallback: SpeakerFrameVariantLook):
     whitePoint: sanitizeNumber(parsed.whitePoint, fallback.whitePoint),
     gamma: sanitizeNumber(parsed.gamma, fallback.gamma),
     invert: typeof parsed.invert === "boolean" ? parsed.invert : fallback.invert,
+    bgColor: sanitizeHex(parsed.bgColor, fallback.bgColor),
   };
 };
 
@@ -415,12 +454,6 @@ const isFactoryTwoPaneWipers = (placements: SpeakerFramePlacement[]) => {
     if (!isStrip(orange) || !isStrip(white)) return false;
     return (orange.x === 0 && white.x === 0.1) || (orange.x === 0.8 && white.x === 0.9);
   });
-};
-
-const hexToColorNumber = (value: string, fallback: number) => {
-  const normalized = value.trim().replace(/^#/, "");
-  if (!/^[\da-f]{6}$/i.test(normalized)) return fallback;
-  return Number.parseInt(normalized, 16);
 };
 
 export const speakerSharedEngineConfig = (settings: SpeakerFrameSettings): Partial<EngineConfig> => ({
