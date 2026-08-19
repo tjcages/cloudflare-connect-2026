@@ -121,9 +121,12 @@ describe("dashboard login shader", () => {
 
   it("styles the promo overlay like a smaller inverted homepage hero", () => {
     expect(loginPromoSource).toContain('from "@/components/Eyebrow"');
-    expect(loginPromoSource).toContain('from "@/components/HoverArrow"');
-    expect(loginPromoSource).not.toContain('from "@/components/DottedLink"');
+    expect(loginPromoSource).toContain('from "@/components/DottedLink"');
+    expect(loginPromoSource).not.toContain('from "@/components/HoverArrow"');
     expect(loginPromoSource).not.toContain('from "@/components/Button"');
+    expect(loginPromoSource).toContain("text-text-inverse hover:text-orange-800");
+    expect(loginPromoSource).toContain('restColorVar="--color-text-inverse"');
+    expect(loginPromoSource).toContain('hoverColorVar="--color-orange-800"');
     expect(loginPromoSource).toContain("text-heading-h3");
     expect(loginPromoSource).toContain("text-body-medium");
     expect(loginPromoSource).toContain("text-text-inverse");
