@@ -10,10 +10,17 @@ import {
   speakerFrameOutlineColor,
   speakerFramePaintConfig,
   speakerFrameWiperRect,
+  speakerPaneWiggleRects,
+  speakerPaneWiggleShift,
   speakerWiperProgress,
   speakerWiperShouldEnter,
+  speakerWiperStaggerMs,
   SPEAKER_OVERLAY_REST_WIDTH,
+  SPEAKER_PANE_WIGGLE_DURATION_MS,
+  SPEAKER_WIPER_DARK_STAGGER_MS,
+  SPEAKER_WIPER_DURATION_MS,
   SPEAKER_WIPER_REST_WIDTH,
+  SPEAKER_WIPER_STAGGER_MS,
 } from "./speaker-wiper";
 
 const aperture = { x: 40, y: 10, width: 200, height: 180 };
@@ -84,10 +91,52 @@ describe("speaker frame wipers", () => {
 
     expect(resolveWipingFrames(authored, [aperture], [null], 1_000)).toEqual([]);
 
-    const playing = resolveWipingFrames(authored, [aperture], [0], 10_000);
+    const playing = resolveWipingFrames(authored, [aperture], [0], 20_000);
     expect(playing.map((frame) => frame.variant)).toEqual(["orange", "dark"]);
     expect(playing[0]?.rect).toEqual({ x: 40, y: 10, width: 20, height: 180 });
     expect(playing[1]?.rect).toEqual({ x: 60, y: 10, width: 20, height: 180 });
+  });
+
+  it("lets the dark pane rest before orange, without the old extra stagger", () => {
+    expect(speakerWiperStaggerMs("dark")).toBe(SPEAKER_WIPER_DARK_STAGGER_MS);
+    expect(speakerWiperStaggerMs("dark")).toBeLessThan(speakerWiperStaggerMs("orange"));
+    const bothClosedMs = SPEAKER_WIPER_DURATION_MS + SPEAKER_WIPER_STAGGER_MS;
+    expect(SPEAKER_WIPER_DARK_STAGGER_MS + SPEAKER_WIPER_DURATION_MS).toBeLessThan(bothClosedMs);
+    expect(speakerWiperProgress(bothClosedMs - 50, SPEAKER_WIPER_DARK_STAGGER_MS)).toBe(1);
+    expect(speakerWiperProgress(bothClosedMs - 50, SPEAKER_WIPER_STAGGER_MS)).toBeLessThan(1);
+  });
+
+  it("trades orange and dark rest widths after both panes have closed", () => {
+    const orange = { x: 200, y: 10, width: 20, height: 180 };
+    const dark = { x: 220, y: 10, width: 20, height: 180 };
+    expect(speakerPaneWiggleShift(-10, 20)).toBe(0);
+    expect(speakerPaneWiggleShift(SPEAKER_PANE_WIGGLE_DURATION_MS + 50, 20)).toBe(0);
+    const shift = speakerPaneWiggleShift(600, 20);
+    expect(Math.abs(shift)).toBeGreaterThan(1);
+
+    const wiggled = speakerPaneWiggleRects(orange, dark, 6);
+    expect(wiggled.orange.width + wiggled.dark.width).toBe(40);
+    expect(wiggled.dark.x).toBe(wiggled.orange.x + wiggled.orange.width);
+    expect(wiggled.orange.width).toBe(26);
+    expect(wiggled.dark.width).toBe(14);
+
+    const authored = resolveAuthoredFrames(
+      [
+        { imageIndex: 0, x: 0.8, y: 0, width: 0.1, height: 1, span: false, variant: "orange" as const },
+        { imageIndex: 0, x: 0.9, y: 0, width: 0.1, height: 1, span: false, variant: "dark" as const },
+      ],
+      [aperture],
+    );
+    const bothClosedMs = SPEAKER_WIPER_DURATION_MS + SPEAKER_WIPER_STAGGER_MS;
+    const wiggling = resolveWipingFrames(authored, [aperture], [0], bothClosedMs + 600);
+    expect(wiggling).toHaveLength(2);
+    expect(wiggling[0]?.rect.width + wiggling[1]?.rect.width).toBeCloseTo(40);
+    expect(wiggling[0]?.rect.width).not.toBe(20);
+    expect(wiggling[1]?.rect.x).toBeCloseTo(wiggling[0]!.rect.x + wiggling[0]!.rect.width);
+
+    const frozen = resolveWipingFrames(authored, [aperture], [0], bothClosedMs + 600, { progressOverride: 1 });
+    expect(frozen[0]?.rect.width).toBe(20);
+    expect(frozen[1]?.rect.width).toBe(20);
   });
 
   it("jumps authored frames to rest when reduced motion is on", () => {
