@@ -9,10 +9,10 @@ const FORGOT_EMAIL_HREF = "https://dash.cloudflare.com/forgot-email";
 const FORGOT_PASSWORD_HREF = "https://dash.cloudflare.com/forgot-password";
 
 const ringButtonClass =
-  "inline-flex h-40 shrink-0 items-center justify-center gap-8 rounded-[8px] bg-white px-16 text-[16px] leading-24 font-medium text-[#1d1d1d] shadow-[0_1px_2px_rgb(0_0_0_/_0.05)] ring-1 ring-[#d6d6d6] hover:bg-[#f4f4f4] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f6821f]/50";
+  "inline-flex h-40 shrink-0 items-center justify-center gap-8 rounded-[8px] bg-[#ffffff] px-16 text-[16px] leading-24 font-medium text-[#1d1d1d] shadow-[0_1px_2px_rgb(0_0_0_/_0.05)] ring-1 ring-[#d6d6d6] hover:bg-[#f4f4f4] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f6821f]/50";
 
 const fieldClass =
-  "h-40 w-full rounded-[8px] bg-white px-16 text-[16px] leading-24 text-[#1d1d1d] outline-none ring-1 ring-[#d6d6d6] placeholder:text-[#8a8a8a] focus:ring-[1.5px] focus:ring-[#0051c3]/50";
+  "h-40 w-full rounded-[8px] bg-[#ffffff] px-16 text-[16px] leading-24 text-[#1d1d1d] outline-none ring-1 ring-[#d6d6d6] placeholder:text-[#8a8a8a] focus:ring-[1.5px] focus:ring-[#0051c3]/50";
 
 const linkClass =
   "font-medium text-[#0051c3] underline decoration-[#0051c3] underline-offset-2 hover:text-[#1d1d1d]";
@@ -121,8 +121,8 @@ export default function DashboardLoginForm() {
               className={cn(
                 "relative mt-2 flex size-16 shrink-0 items-center justify-center rounded-[2px] ring-1",
                 remember
-                  ? "bg-[#1d1d1d] text-white ring-[#1d1d1d]"
-                  : "bg-white text-transparent ring-[#d6d6d6]"
+                  ? "bg-[#1d1d1d] text-[#ffffff] ring-[#1d1d1d]"
+                  : "bg-[#ffffff] text-transparent ring-[#d6d6d6]"
               )}
               role="checkbox"
             >
@@ -139,7 +139,7 @@ export default function DashboardLoginForm() {
           </label>
 
           <button
-            className="relative mt-0 flex h-40 w-full items-center justify-center overflow-hidden rounded-[8px] text-[16px] leading-24 font-medium text-white"
+            className="relative mt-0 flex h-40 w-full items-center justify-center overflow-hidden rounded-[8px] text-[16px] leading-24 font-medium text-[#ffffff]"
             data-testid="login-submit-button"
             name="login-submit-button"
             style={{

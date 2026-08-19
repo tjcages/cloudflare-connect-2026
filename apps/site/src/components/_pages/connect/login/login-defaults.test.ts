@@ -76,4 +76,13 @@ describe("dashboard login shader", () => {
   it("keeps Register now on the promo pane", () => {
     expect(loginPromoSource).toContain("LOGIN_OVERLAY_COPY.register");
   });
+
+  it("avoids theme-reset Tailwind white/black color tokens", () => {
+    expect(loginPageSource).not.toMatch(/\bbg-white\b/);
+    expect(loginPageSource).not.toMatch(/\btext-white\b/);
+    expect(loginFormSource).not.toMatch(/\bbg-white\b/);
+    expect(loginFormSource).not.toMatch(/\btext-white\b/);
+    expect(loginPromoSource).not.toMatch(/\bbg-white\b/);
+    expect(loginPromoSource).not.toMatch(/\btext-white\b/);
+  });
 });
