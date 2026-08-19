@@ -35,7 +35,7 @@ const BADGE_H = 3.32;
 const BADGE_D = 0.14;
 const FLOOR = -5.6;
 const ANCHOR_Y = 7.15;
-const CORD_RADIUS = 0.055;
+const CORD_RADIUS = 0.07;
 
 function makeParticles(): Particle[] {
   return Array.from({ length: SEGMENT_COUNT }, (_, index) => {
@@ -153,6 +153,8 @@ function LanyardScene({
 
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.032);
+    const mobile = gl.domElement.clientWidth < 700;
+    camera.position.z = mobile ? 18 : 26;
     const pts = particles.current;
     const anchor = pts[0];
     if (anchor) {

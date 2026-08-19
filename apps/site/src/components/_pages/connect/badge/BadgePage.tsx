@@ -119,7 +119,7 @@ export default function BadgePage(_props: IslandProps) {
           </p>
         </div>
 
-        <div className="relative min-h-520 w-full flex-1 md:min-h-640">
+        <div className="relative min-h-440 w-full flex-1 md:min-h-640">
           <Suspense fallback={null}>
             {hydrated ? (
               <BadgeLanyard face={face} reducedMotion={reducedMotion} />
