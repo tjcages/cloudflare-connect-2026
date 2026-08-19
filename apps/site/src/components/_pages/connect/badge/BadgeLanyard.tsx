@@ -2,8 +2,8 @@
 
 import { PerspectiveCamera, useGLTF } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useLayoutEffect, useMemo, useRef, type RefObject } from "react";
-import type { BufferGeometry, Camera, MeshStandardMaterial, Texture } from "three";
+import { useEffect, useMemo, useRef, type RefObject } from "react";
+import type { BufferGeometry, Camera, Texture } from "three";
 import {
   Bone,
   CanvasTexture,
@@ -15,8 +15,9 @@ import {
   MathUtils,
   Mesh,
   MeshBasicMaterial,
-  MeshStandardMaterial as StandardMaterial,
+  MeshStandardMaterial,
   PlaneGeometry,
+  Quaternion,
   Shape,
   Skeleton,
   SkinnedMesh,
@@ -24,28 +25,36 @@ import {
   Uint16BufferAttribute,
   Vector3,
 } from "three";
-import { WiggleBone } from "wiggle";
 
-const LANYARD_ORANGE = "#f46021";
 const LANYARD_URL = "/connect/badge-lanyard.glb";
-const LANYARD_BONES = 4;
-const MODEL_SCALE = 11;
+const MODEL_SCALE = 17;
 const TEXTURE_W = 1024;
 const TEXTURE_H = 1536;
-const STRING_START_Y = 0.165;
 const TAG_CUT_Y = 0.105;
-const DRAG_LIMIT_X = 0.09;
-const DRAG_LIMIT_UP = 0.07;
-const DRAG_LIMIT_DOWN = 0.055;
-const WIGGLE_VELOCITY = 0.22;
+const CLIP_CLUSTER_Y0 = 0.118;
+const CLIP_CLUSTER_Y1 = 0.135;
+const WING_CUT_X = 0.02;
+const CHAIN_BONES = 8;
+const GRAVITY = -6.4;
+const DAMPING = 0.978;
+const CONSTRAINT_ITERS = 14;
+const DRAG_LIMIT_X = 0.11;
+const DRAG_LIMIT_UP = 0.05;
+const DRAG_LIMIT_DOWN = 0.09;
 
 const CARD_W = 0.1;
 const CARD_H = 0.158;
 const CARD_D = 0.012;
-const CLIP_Y = 0.11;
-const CARD_Y = CLIP_Y - CARD_H / 2 + 0.004;
-const SHADER_INSET = 0.003;
 const CARD_RADIUS = 0.007;
+const SHADER_INSET = 0.003;
+const CARD_OVERLAP = 0.006;
+
+const METAL = "#c5cad1";
+const PLASTIC = "#2b2b2b";
+const CORD = "#f46021";
+const WEBBING = "#d4521a";
+
+const Y_UP = new Vector3(0, 1, 0);
 
 export type BadgeCardIdentity = {
   name: string;
@@ -53,6 +62,8 @@ export type BadgeCardIdentity = {
   role: string;
   serial: string;
 };
+
+type LanyardPart = "metal" | "plastic" | "webbing" | "cord";
 
 function roundedRect(width: number, height: number, radius: number) {
   const shape = new Shape();
@@ -161,9 +172,8 @@ function useHeroShaderTexture(
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     const twizzler = twizzlerCanvas.current;
     const rain = rainCanvas.current;
-    const artH = canvas.height;
-    if (twizzler) drawCover(ctx, twizzler, 0, 0, canvas.width, artH);
-    if (rain) drawCover(ctx, rain, 0, 0, canvas.width, artH);
+    if (twizzler) drawCover(ctx, twizzler, 0, 0, canvas.width, canvas.height);
+    if (rain) drawCover(ctx, rain, 0, 0, canvas.width, canvas.height);
     drawIdentity(ctx, identity, canvas.width, canvas.height);
     texture.needsUpdate = true;
   });
@@ -171,50 +181,168 @@ function useHeroShaderTexture(
   return texture;
 }
 
-function stripTagBody(geometry: BufferGeometry) {
+function filterTriangles(
+  geometry: BufferGeometry,
+  keep: (ax: number, ay: number, bx: number, by: number, cx: number, cy: number) => boolean
+) {
   const position = geometry.attributes.position;
   const index = geometry.getIndex();
   if (!position || !index) return;
   const next: number[] = [];
   const vertex = new Vector3();
-  const inTag = (vertIndex: number) => {
+  const read = (vertIndex: number) => {
     vertex.fromBufferAttribute(position, vertIndex);
-    return vertex.y < TAG_CUT_Y;
+    return vertex;
   };
   for (let i = 0; i < index.count; i += 3) {
     const a = index.getX(i);
     const b = index.getX(i + 1);
     const c = index.getX(i + 2);
-    if (inTag(a) && inTag(b) && inTag(c)) continue;
+    const pa = read(a);
+    const ax = pa.x;
+    const ay = pa.y;
+    const pb = read(b);
+    const bx = pb.x;
+    const by = pb.y;
+    const pc = read(c);
+    const cx = pc.x;
+    const cy = pc.y;
+    if (!keep(ax, ay, bx, by, cx, cy)) continue;
     next.push(a, b, c);
   }
   geometry.setIndex(next);
 }
 
-function centerClipOnX(geometry: BufferGeometry) {
+function findClipAnchor(geometry: BufferGeometry): { x: number; y: number } {
   const position = geometry.attributes.position;
   const index = geometry.getIndex();
-  if (!position || !index) return;
+  if (!position || !index) return { x: 0, y: 0 };
   const vertex = new Vector3();
-  let sum = 0;
-  let count = 0;
+  const xs: number[] = [];
+  const ys: number[] = [];
   const seen = new Set<number>();
   for (let i = 0; i < index.count; i += 1) {
     const vertIndex = index.getX(i);
     if (seen.has(vertIndex)) continue;
     seen.add(vertIndex);
     vertex.fromBufferAttribute(position, vertIndex);
-    if (vertex.y < TAG_CUT_Y || vertex.y > TAG_CUT_Y + 0.04) continue;
-    sum += vertex.x;
-    count += 1;
+    if (vertex.y < CLIP_CLUSTER_Y0 || vertex.y > CLIP_CLUSTER_Y1) continue;
+    xs.push(vertex.x);
+    ys.push(vertex.y);
   }
-  if (count === 0) return;
-  geometry.translate(-sum / count, 0, 0);
+  if (xs.length === 0) return { x: 0, y: TAG_CUT_Y };
+  let bestN = 0;
+  let bestX = 0;
+  for (let start = -0.08; start < 0.08; start += 0.002) {
+    let n = 0;
+    let sum = 0;
+    for (const x of xs) {
+      if (x < start || x >= start + 0.025) continue;
+      n += 1;
+      sum += x;
+    }
+    if (n > bestN) {
+      bestN = n;
+      bestX = sum / n;
+    }
+  }
+  const y = ys.reduce((total, value) => total + value, 0) / ys.length;
+  return { x: bestX, y };
+}
+
+function classifyPart(y: number): LanyardPart {
+  if (y < 0.028) return "metal";
+  if (y < 0.068) return "plastic";
+  if (y < 0.09) return "webbing";
+  return "cord";
+}
+
+function splitByPart(geometry: BufferGeometry): Record<LanyardPart, BufferGeometry> {
+  const groups: Record<LanyardPart, number[]> = {
+    metal: [],
+    plastic: [],
+    webbing: [],
+    cord: [],
+  };
+  const position = geometry.attributes.position;
+  const index = geometry.getIndex();
+  if (!position || !index) {
+    return {
+      metal: geometry.clone(),
+      plastic: geometry.clone(),
+      webbing: geometry.clone(),
+      cord: geometry.clone(),
+    };
+  }
+  const vertex = new Vector3();
+  for (let i = 0; i < index.count; i += 3) {
+    const a = index.getX(i);
+    const b = index.getX(i + 1);
+    const c = index.getX(i + 2);
+    vertex.fromBufferAttribute(position, a);
+    const y = (vertex.y +
+      vertex.fromBufferAttribute(position, b).y +
+      vertex.fromBufferAttribute(position, c).y) /
+      3;
+    groups[classifyPart(y)].push(a, b, c);
+  }
+  const split = (part: LanyardPart) => {
+    const next = geometry.clone();
+    next.setIndex(groups[part]);
+    return next;
+  };
+  return {
+    metal: split("metal"),
+    plastic: split("plastic"),
+    webbing: split("webbing"),
+    cord: split("cord"),
+  };
+}
+
+function skinAlongY(geometry: BufferGeometry, length: number) {
+  const position = geometry.attributes.position;
+  if (!position) throw new Error("Lanyard mesh has no positions.");
+  const vertex = new Vector3();
+  const skinIndices: number[] = [];
+  const skinWeights: number[] = [];
+  const usable = Math.max(length, 0.001);
+  for (let index = 0; index < position.count; index += 1) {
+    vertex.fromBufferAttribute(position, index);
+    const along = MathUtils.clamp((vertex.y / usable) * CHAIN_BONES, 0, CHAIN_BONES);
+    const lower = Math.min(Math.floor(along), CHAIN_BONES - 1);
+    const blend = along - lower;
+    skinIndices.push(lower, lower + 1, 0, 0);
+    skinWeights.push(1 - blend, blend, 0, 0);
+  }
+  geometry.setAttribute("skinIndex", new Uint16BufferAttribute(skinIndices, 4));
+  geometry.setAttribute(
+    "skinWeight",
+    new Float32BufferAttribute(skinWeights, 4)
+  );
+}
+
+function makePartMaterial(
+  source: MeshStandardMaterial,
+  color: string,
+  metalness: number,
+  roughness: number
+) {
+  const material = source.clone();
+  material.map = null;
+  material.aoMap = null;
+  material.metalnessMap = null;
+  material.roughnessMap = null;
+  material.color = new Color(color);
+  material.metalness = metalness;
+  material.roughness = roughness;
+  material.side = DoubleSide;
+  material.vertexColors = false;
+  return material;
 }
 
 function createBadgeCard(texture: Texture): Group {
   const card = new Group();
-  card.position.set(0, CARD_Y, 0);
+  card.position.set(0, -(CARD_H / 2) + CARD_OVERLAP, 0);
 
   const bodyGeometry = new ExtrudeGeometry(roundedRect(CARD_W, CARD_H, CARD_RADIUS), {
     depth: CARD_D,
@@ -224,7 +352,7 @@ function createBadgeCard(texture: Texture): Group {
   bodyGeometry.translate(0, 0, -CARD_D / 2);
   const body = new Mesh(
     bodyGeometry,
-    new StandardMaterial({
+    new MeshStandardMaterial({
       color: "#f4f1ea",
       metalness: 0.04,
       roughness: 0.32,
@@ -243,20 +371,22 @@ function createBadgeCard(texture: Texture): Group {
   return card;
 }
 
-type LanyardRig = {
-  skinned: SkinnedMesh;
-  root: Bone;
-  bones: Bone[];
-  card: Group;
+type RopeState = {
+  now: Vector3[];
+  prev: Vector3[];
+  rest: number;
+  pin: Vector3;
 };
 
-/**
- * The uploaded GLB is a paper-thin scan with no skeleton. Stand the strap
- * up along +Y facing the camera, cut off the landscape holder, then skin a
- * bone chain along the remaining clip + cord. WiggleBones wrap every child
- * bone; the badge card is parented to the rigid root so only the string lags
- * when that root is pulled.
- */
+type LanyardRig = {
+  group: Group;
+  root: Bone;
+  bones: Bone[];
+  meshes: SkinnedMesh[];
+  card: Group;
+  rope: RopeState;
+};
+
 function buildLanyardRig(source: Mesh, texture: Texture): LanyardRig {
   const geometry = (source.geometry as BufferGeometry).clone();
   source.updateWorldMatrix(true, false);
@@ -271,64 +401,174 @@ function buildLanyardRig(source: Mesh, texture: Texture): LanyardRig {
     -box.min.y,
     -(box.min.z + box.max.z) / 2
   );
-  stripTagBody(geometry);
-  centerClipOnX(geometry);
+  filterTriangles(geometry, (ax, ay, bx, by, cx, cy) => {
+    const y = (ay + by + cy) / 3;
+    const x = (ax + bx + cx) / 3;
+    if (y < TAG_CUT_Y) return false;
+    if (y < 0.15 && x < WING_CUT_X) return false;
+    return true;
+  });
+  const anchor = findClipAnchor(geometry);
+  geometry.translate(-anchor.x, -anchor.y, 0);
+  const cordLength = Math.max(length - anchor.y, 0.08);
 
-  const segment = length / LANYARD_BONES;
+  skinAlongY(geometry, cordLength);
+  const parts = splitByPart(geometry);
+  const sourceMaterial = source.material as MeshStandardMaterial;
+  const materials: Record<LanyardPart, MeshStandardMaterial> = {
+    metal: makePartMaterial(sourceMaterial, METAL, 0.82, 0.28),
+    plastic: makePartMaterial(sourceMaterial, PLASTIC, 0.08, 0.48),
+    webbing: makePartMaterial(sourceMaterial, WEBBING, 0.04, 0.62),
+    cord: makePartMaterial(sourceMaterial, CORD, 0.03, 0.72),
+  };
+
+  const segment = cordLength / CHAIN_BONES;
   const bones: Bone[] = [];
-  for (let index = 0; index <= LANYARD_BONES; index += 1) {
+  for (let index = 0; index <= CHAIN_BONES; index += 1) {
     const bone = new Bone();
     bone.position.y = index === 0 ? 0 : segment;
     const parent = bones[index - 1];
     if (parent) parent.add(bone);
     bones.push(bone);
   }
-
-  const position = geometry.attributes.position;
-  if (!position) throw new Error("Lanyard mesh has no positions.");
-  const vertex = new Vector3();
-  const skinIndices: number[] = [];
-  const skinWeights: number[] = [];
-  const stringLength = Math.max(length - STRING_START_Y, 0.001);
-  for (let index = 0; index < position.count; index += 1) {
-    vertex.fromBufferAttribute(position, index);
-    const along =
-      vertex.y < STRING_START_Y
-        ? 0
-        : MathUtils.clamp(
-            ((vertex.y - STRING_START_Y) / stringLength) * LANYARD_BONES,
-            0,
-            LANYARD_BONES
-          );
-    const lower = Math.min(Math.floor(along), LANYARD_BONES - 1);
-    const blend = along - lower;
-    skinIndices.push(lower, lower + 1, 0, 0);
-    skinWeights.push(1 - blend, blend, 0, 0);
-  }
-  geometry.setAttribute("skinIndex", new Uint16BufferAttribute(skinIndices, 4));
-  geometry.setAttribute(
-    "skinWeight",
-    new Float32BufferAttribute(skinWeights, 4)
-  );
-
-  const material = (source.material as MeshStandardMaterial).clone();
-  material.map = null;
-  material.aoMap = null;
-  material.metalnessMap = null;
-  material.color = new Color(LANYARD_ORANGE);
-  material.roughness = 0.42;
-  material.metalness = 0.06;
-  material.side = DoubleSide;
-
-  const skinned = new SkinnedMesh(geometry, material);
   const root = bones[0]!;
-  skinned.add(root);
-  skinned.bind(new Skeleton(bones));
+  const skeleton = new Skeleton(bones);
+
+  const group = new Group();
+  group.add(root);
+  const meshes: SkinnedMesh[] = [];
+  const partNames: LanyardPart[] = ["metal", "plastic", "webbing", "cord"];
+  for (const part of partNames) {
+    const mesh = new SkinnedMesh(parts[part], materials[part]);
+    mesh.bind(skeleton);
+    group.add(mesh);
+    meshes.push(mesh);
+  }
 
   const card = createBadgeCard(texture);
   root.add(card);
 
-  return { skinned, root, bones, card };
+  const now: Vector3[] = [];
+  const prev: Vector3[] = [];
+  for (let index = 0; index <= CHAIN_BONES; index += 1) {
+    const point = new Vector3(0, index * segment, 0);
+    now.push(point);
+    prev.push(point.clone());
+  }
+
+  return {
+    group,
+    root,
+    bones,
+    meshes,
+    card,
+    rope: {
+      now,
+      prev,
+      rest: segment,
+      pin: new Vector3(0, cordLength, 0),
+    },
+  };
+}
+
+function solveDistance(
+  a: Vector3,
+  b: Vector3,
+  rest: number,
+  pinA: boolean,
+  pinB: boolean
+) {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const dist = Math.hypot(dx, dy) || 0.0001;
+  const shift = ((dist - rest) / dist) * 0.5;
+  const px = dx * shift;
+  const py = dy * shift;
+  if (!pinA) {
+    a.x += pinB ? px * 2 : px;
+    a.y += pinB ? py * 2 : py;
+  }
+  if (!pinB) {
+    b.x -= pinA ? px * 2 : px;
+    b.y -= pinA ? py * 2 : py;
+  }
+}
+
+function stepRope(
+  rope: RopeState,
+  drag: Vector3 | null,
+  dt: number,
+  reducedMotion: boolean
+) {
+  const last = rope.now.length - 1;
+  if (reducedMotion) {
+    for (let index = 0; index <= last; index += 1) {
+      rope.now[index]!.set(0, index * rope.rest, 0);
+      rope.prev[index]!.copy(rope.now[index]!);
+    }
+    return;
+  }
+
+  const gravity = GRAVITY * dt * dt;
+  for (let index = 0; index < last; index += 1) {
+    const point = rope.now[index]!;
+    const previous = rope.prev[index]!;
+    const vx = (point.x - previous.x) * DAMPING;
+    const vy = (point.y - previous.y) * DAMPING;
+    previous.copy(point);
+    point.x += vx;
+    point.y += vy + gravity;
+    point.z = 0;
+  }
+  rope.now[last]!.copy(rope.pin);
+  rope.prev[last]!.copy(rope.pin);
+  if (drag) {
+    rope.now[0]!.copy(drag);
+    rope.prev[0]!.copy(drag);
+  }
+
+  for (let iter = 0; iter < CONSTRAINT_ITERS; iter += 1) {
+    for (let index = 0; index < last; index += 1) {
+      solveDistance(
+        rope.now[index]!,
+        rope.now[index + 1]!,
+        rope.rest,
+        Boolean(drag) && index === 0,
+        index + 1 === last
+      );
+      rope.now[index]!.z = 0;
+      rope.now[index + 1]!.z = 0;
+    }
+    rope.now[last]!.copy(rope.pin);
+    if (drag) rope.now[0]!.copy(drag);
+  }
+}
+
+function applyRopeToBones(bones: Bone[], rope: RopeState) {
+  const look = new Vector3();
+  const world = new Quaternion();
+  const parent = new Quaternion();
+  const points = rope.now;
+  bones[0]!.position.copy(points[0]!);
+  look.copy(points[1]!).sub(points[0]!);
+  if (look.lengthSq() < 1e-10) look.copy(Y_UP);
+  else look.normalize();
+  bones[0]!.quaternion.setFromUnitVectors(Y_UP, look);
+
+  for (let index = 1; index < bones.length; index += 1) {
+    bones[index]!.position.set(0, rope.rest, 0);
+    const from = points[index]!;
+    const to = points[Math.min(index + 1, points.length - 1)]!;
+    look.copy(to).sub(from);
+    if (look.lengthSq() < 1e-10) look.copy(Y_UP);
+    else look.normalize();
+    world.setFromUnitVectors(Y_UP, look);
+    const parentLook = from.clone().sub(points[index - 1]!);
+    if (parentLook.lengthSq() < 1e-10) parentLook.copy(Y_UP);
+    else parentLook.normalize();
+    parent.setFromUnitVectors(Y_UP, parentLook);
+    bones[index]!.quaternion.copy(parent.invert()).multiply(world);
+  }
 }
 
 function pointerToWorld(
@@ -347,6 +587,12 @@ function pointerToWorld(
   return camera.position.clone().add(dir.multiplyScalar(distance));
 }
 
+function rightColumnWorldX(width: number, viewportWidth: number) {
+  if (width < 992) return 0;
+  const centerPx = width - 80 - 240;
+  return (centerPx / width - 0.5) * viewportWidth;
+}
+
 function LanyardBadge({
   twizzlerCanvas,
   rainCanvas,
@@ -358,13 +604,12 @@ function LanyardBadge({
   reducedMotion: boolean;
   identity: BadgeCardIdentity;
 }) {
-  const { gl, camera } = useThree();
+  const { gl, camera, viewport, size } = useThree();
   const { scene } = useGLTF(LANYARD_URL);
   const groupRef = useRef<Group>(null);
   const dragging = useRef(false);
   const dragOffset = useRef(new Vector3());
   const dragTarget = useRef(new Vector3());
-  const wiggleBones = useRef<WiggleBone[]>([]);
   const texture = useHeroShaderTexture(twizzlerCanvas, rainCanvas, identity);
 
   const rig = useMemo(() => {
@@ -376,24 +621,13 @@ function LanyardBadge({
     return buildLanyardRig(source, texture);
   }, [scene, texture]);
 
-  useLayoutEffect(() => {
-    if (!rig) return;
-    rig.skinned.updateMatrixWorld(true);
-    wiggleBones.current = rig.bones
-      .slice(1)
-      .map((bone) => new WiggleBone(bone, { velocity: WIGGLE_VELOCITY }));
-    for (const wiggleBone of wiggleBones.current) wiggleBone.reset();
-    return () => {
-      for (const wiggleBone of wiggleBones.current) wiggleBone.dispose();
-      wiggleBones.current = [];
-    };
-  }, [rig]);
-
   useEffect(() => {
     if (!rig) return;
     return () => {
-      rig.skinned.geometry.dispose();
-      (rig.skinned.material as MeshStandardMaterial).dispose();
+      for (const mesh of rig.meshes) {
+        mesh.geometry.dispose();
+        (mesh.material as MeshStandardMaterial).dispose();
+      }
       rig.card.traverse((child) => {
         if (!(child instanceof Mesh)) return;
         child.geometry.dispose();
@@ -421,13 +655,10 @@ function LanyardBadge({
         canvas,
         camera
       );
-      const local = rig.skinned.worldToLocal(world);
+      const local = world.clone();
+      rig.group.worldToLocal(local);
       dragTarget.current.set(
-        MathUtils.clamp(
-          local.x + dragOffset.current.x,
-          -DRAG_LIMIT_X,
-          DRAG_LIMIT_X
-        ),
+        MathUtils.clamp(local.x + dragOffset.current.x, -DRAG_LIMIT_X, DRAG_LIMIT_X),
         MathUtils.clamp(
           local.y + dragOffset.current.y,
           -DRAG_LIMIT_DOWN,
@@ -455,22 +686,21 @@ function LanyardBadge({
     };
   }, [camera, gl, rig]);
 
-  useFrame(({ clock }, delta) => {
+  useFrame((_, delta) => {
     if (!rig) return;
-    const root = rig.root;
-    const idleX =
-      dragging.current || reducedMotion
-        ? 0
-        : Math.sin(clock.elapsedTime * 0.85) * 0.014;
-    const goalX = dragging.current ? dragTarget.current.x : idleX;
-    const goalY = dragging.current ? dragTarget.current.y : 0;
-    const ease = 1 - Math.exp(-(dragging.current ? 18 : 4.2) * delta);
-    root.position.x += (goalX - root.position.x) * ease;
-    root.position.y += (goalY - root.position.y) * ease;
-    root.position.z = 0;
-    root.rotation.y = 0;
-    root.rotation.z = MathUtils.clamp(-root.position.x * 3.2, -0.22, 0.22);
-    for (const wiggleBone of wiggleBones.current) wiggleBone.update(delta);
+    const dt = Math.min(delta, 1 / 30);
+    stepRope(
+      rig.rope,
+      dragging.current ? dragTarget.current : null,
+      dt,
+      reducedMotion
+    );
+    applyRopeToBones(rig.bones, rig.rope);
+    const hang = groupRef.current;
+    if (hang) {
+      hang.position.x = rightColumnWorldX(size.width, viewport.width);
+      hang.position.y = 0.45;
+    }
   });
 
   if (!rig) return null;
@@ -487,21 +717,23 @@ function LanyardBadge({
           gl.domElement,
           camera
         );
-        const local = rig.skinned.worldToLocal(world);
+        const local = world.clone();
+        rig.group.worldToLocal(local);
         dragOffset.current.set(
-          rig.root.position.x - local.x,
-          rig.root.position.y - local.y,
+          rig.rope.now[0]!.x - local.x,
+          rig.rope.now[0]!.y - local.y,
           0
         );
-        dragTarget.current.copy(rig.root.position);
+        dragTarget.current.copy(rig.rope.now[0]!);
         gl.domElement.style.cursor = "grabbing";
         gl.domElement.setPointerCapture(event.pointerId);
       }}
-      position={[0, -0.85, 0]}
+      position={[0, 0.45, 0]}
       ref={groupRef}
-      scale={MODEL_SCALE}
     >
-      <primitive object={rig.skinned} />
+      <group scale={MODEL_SCALE}>
+        <primitive object={rig.group} />
+      </group>
     </group>
   );
 }
@@ -519,16 +751,12 @@ function BadgeScene({
 }) {
   return (
     <>
-      <PerspectiveCamera makeDefault fov={32} position={[0, 0.2, 7.2]} />
-      <ambientLight intensity={0.75} />
-      <hemisphereLight args={["#fff7ee", "#2a1a10", 0.7]} />
-      <directionalLight intensity={1.45} position={[4.5, 6, 8]} />
-      <directionalLight intensity={0.5} position={[-5, 2, 4]} />
-      <directionalLight
-        color={LANYARD_ORANGE}
-        intensity={0.25}
-        position={[-3, 1, 5]}
-      />
+      <PerspectiveCamera makeDefault fov={30} position={[0, 0.15, 8]} />
+      <ambientLight intensity={0.62} />
+      <hemisphereLight args={["#fff7ee", "#1a1a1a", 0.55]} />
+      <directionalLight intensity={1.55} position={[5, 7, 8]} />
+      <directionalLight intensity={0.55} position={[-6, 3, 5]} />
+      <directionalLight color="#dfe4ea" intensity={0.4} position={[2, -1, 6]} />
       <LanyardBadge
         identity={identity}
         rainCanvas={rainCanvas}
@@ -554,7 +782,7 @@ export default function BadgeLanyard({
 }) {
   return (
     <Canvas
-      camera={{ fov: 32, position: [0, 0.2, 7.2] }}
+      camera={{ fov: 30, position: [0, 0.15, 8] }}
       dpr={[1, 1.5]}
       gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}
       style={{ height: "100%", touchAction: "none", width: "100%" }}

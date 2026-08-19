@@ -67,11 +67,11 @@ export default function BadgePage(_props: IslandProps) {
   );
 
   return (
-    <div className="relative mx-auto max-w-1200 before:inside-border-b before:border-border-default">
+    <div className="relative isolate mx-auto min-h-760 max-w-1200 overflow-hidden before:inside-border-b before:border-border-default">
       <CornerDots count={4} faintClassName="z-30" />
 
-      <div className="flex justify-between px-80 pt-80 pb-160 max-lg:flex-col max-lg:gap-40 max-lg:px-24 max-lg:pt-48 max-lg:pb-80">
-        <div className="flex w-440 shrink-0 flex-col items-start max-lg:w-full">
+      <div className="relative z-10 flex justify-between px-80 pt-80 pb-160 pointer-events-none max-lg:flex-col max-lg:gap-40 max-lg:px-24 max-lg:pt-48 max-lg:pb-80 max-lg:pointer-events-auto">
+        <div className="flex w-440 shrink-0 flex-col items-start pointer-events-auto max-lg:w-full">
           <Eyebrow direction="left" title="Badge" variant="faint" />
           <h1 className="mt-24 text-heading-hero text-text-base">
             Your Connect 2026 badge
@@ -91,55 +91,53 @@ export default function BadgePage(_props: IslandProps) {
             <span>{copied ? "Copied" : "Copy badge link"}</span>
           </Button>
         </div>
-
-        <div className="relative h-640 w-480 self-start max-lg:h-520 max-lg:w-full">
-          <div
-            aria-hidden="true"
-            className="pointer-events-none fixed top-0 left-[-2000px] z-0 h-[900px] w-[640px]"
-          >
-            <ConnectTwizzler
-              canvasClassName="size-full"
-              className="size-full"
-              maxDpr={1.5}
-              maxFps={30}
-              paused={reducedMotion}
-              posterSrc="/connect/twizzler-poster.png"
-              ref={twizzlerRef}
-              rootMargin="4000px"
-              settings={twizzler}
-            />
-            <StripesShader
-              autoPlay={!reducedMotion}
-              className="absolute inset-0 size-full"
-              config={asThemedEngineConfig(rainConfig)}
-              label="badge-rain"
-              maxDpr={1.5}
-              ref={rainRef}
-              rootMargin="4000px"
-              shaderSource={CONNECT_HERO_RAIN_SHADER_SOURCE}
-            />
-          </div>
-
-          <div className="absolute inset-0 z-10">
-            <Suspense fallback={null}>
-              {hydrated ? (
-                <BadgeLanyard
-                  identity={{
-                    company: view.company,
-                    name: view.name,
-                    role: view.role.label,
-                    serial: view.serial,
-                  }}
-                  rainCanvas={rainRef}
-                  reducedMotion={reducedMotion}
-                  twizzlerCanvas={twizzlerRef}
-                />
-              ) : null}
-            </Suspense>
-          </div>
-        </div>
       </div>
-      <div className="h-80" />
+
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed top-0 left-[-2000px] z-0 h-[900px] w-[640px]"
+      >
+        <ConnectTwizzler
+          canvasClassName="size-full"
+          className="size-full"
+          maxDpr={1.5}
+          maxFps={30}
+          paused={reducedMotion}
+          posterSrc="/connect/twizzler-poster.png"
+          ref={twizzlerRef}
+          rootMargin="4000px"
+          settings={twizzler}
+        />
+        <StripesShader
+          autoPlay={!reducedMotion}
+          className="absolute inset-0 size-full"
+          config={asThemedEngineConfig(rainConfig)}
+          label="badge-rain"
+          maxDpr={1.5}
+          ref={rainRef}
+          rootMargin="4000px"
+          shaderSource={CONNECT_HERO_RAIN_SHADER_SOURCE}
+        />
+      </div>
+
+      <div className="absolute inset-0 z-0 max-lg:relative max-lg:h-520">
+        <Suspense fallback={null}>
+          {hydrated ? (
+            <BadgeLanyard
+              identity={{
+                company: view.company,
+                name: view.name,
+                role: view.role.label,
+                serial: view.serial,
+              }}
+              rainCanvas={rainRef}
+              reducedMotion={reducedMotion}
+              twizzlerCanvas={twizzlerRef}
+            />
+          ) : null}
+        </Suspense>
+      </div>
+      <div className="h-80 max-lg:hidden" />
     </div>
   );
 }
