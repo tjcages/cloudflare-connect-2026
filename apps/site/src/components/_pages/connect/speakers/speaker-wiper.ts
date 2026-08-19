@@ -158,3 +158,45 @@ export const parseSpeakerWiperOverride = (search: string): number | undefined =>
   if (!Number.isFinite(value)) return undefined;
   return clamp01(value);
 };
+
+export const SPEAKER_WIPER_ENTER_RATIO = 0.28;
+
+/** True once a portrait is far enough on-screen to start (or resume) its wipe. */
+export const speakerWiperShouldEnter = (intersectionRatio: number) =>
+  intersectionRatio >= SPEAKER_WIPER_ENTER_RATIO;
+
+export type SpeakerWiperClock = {
+  startedAtMs: (number | null)[];
+  pending: Set<number>;
+};
+
+/**
+ * Arm a portrait wipe only after its image can be painted. The start timestamp
+ * stays pending until the next animation frame so shader init cannot eat the clip.
+ */
+export const armSpeakerWiper = (
+  clock: SpeakerWiperClock,
+  index: number,
+  options: { imageReady: boolean; reducedMotion: boolean; nowMs: number },
+): "pending-image" | "already-started" | "armed" | "rest" => {
+  if (clock.startedAtMs[index] != null || clock.pending.has(index)) return "already-started";
+  if (!options.imageReady) return "pending-image";
+  if (options.reducedMotion) {
+    clock.startedAtMs[index] = options.nowMs;
+    return "rest";
+  }
+  clock.pending.add(index);
+  return "armed";
+};
+
+export const commitPendingSpeakerWipers = (clock: SpeakerWiperClock, nowMs: number) => {
+  for (const index of clock.pending) {
+    if (clock.startedAtMs[index] == null) clock.startedAtMs[index] = nowMs;
+  }
+  clock.pending.clear();
+};
+
+export const resetSpeakerWiper = (clock: SpeakerWiperClock, index: number) => {
+  clock.startedAtMs[index] = null;
+  clock.pending.delete(index);
+};

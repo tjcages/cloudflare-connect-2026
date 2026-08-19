@@ -2,11 +2,15 @@ import { describe, expect, it } from "vitest";
 import { defaultSpeakerFramePlacements, SPEAKER_FRAME_DEFAULTS } from "./speaker-frame-controls";
 import { resolveAuthoredFrames } from "./speaker-shader-geometry";
 import {
+  armSpeakerWiper,
+  commitPendingSpeakerWipers,
   parseSpeakerWiperOverride,
+  resetSpeakerWiper,
   resolveWipingFrames,
   speakerFramePaintConfig,
   speakerFrameWiperRect,
   speakerWiperProgress,
+  speakerWiperShouldEnter,
   SPEAKER_WIPER_REST_WIDTH,
 } from "./speaker-wiper";
 
@@ -122,5 +126,40 @@ describe("speaker frame wipers", () => {
     expect(parseSpeakerWiperOverride("?speakerWiper=0.35")).toBe(0.35);
     expect(parseSpeakerWiperOverride("?speakerWiper=2")).toBe(1);
     expect(parseSpeakerWiperOverride("")).toBeUndefined();
+  });
+
+  it("holds the wipe until the portrait can be painted, then starts on the next frame", () => {
+    const clock = { startedAtMs: [null, null], pending: new Set<number>() };
+
+    expect(
+      armSpeakerWiper(clock, 0, { imageReady: false, reducedMotion: false, nowMs: 50 }),
+    ).toBe("pending-image");
+    expect(clock.startedAtMs[0]).toBeNull();
+
+    expect(
+      armSpeakerWiper(clock, 0, { imageReady: true, reducedMotion: false, nowMs: 80 }),
+    ).toBe("armed");
+    expect(clock.pending.has(0)).toBe(true);
+    expect(clock.startedAtMs[0]).toBeNull();
+
+    commitPendingSpeakerWipers(clock, 120);
+    expect(clock.startedAtMs[0]).toBe(120);
+    expect(clock.pending.size).toBe(0);
+
+    expect(
+      armSpeakerWiper(clock, 0, { imageReady: true, reducedMotion: false, nowMs: 200 }),
+    ).toBe("already-started");
+
+    resetSpeakerWiper(clock, 0);
+    expect(clock.startedAtMs[0]).toBeNull();
+    expect(
+      armSpeakerWiper(clock, 0, { imageReady: true, reducedMotion: true, nowMs: 400 }),
+    ).toBe("rest");
+    expect(clock.startedAtMs[0]).toBe(400);
+  });
+
+  it("enters a wipe at 28% visibility and resets only when fully off-screen", () => {
+    expect(speakerWiperShouldEnter(0.27)).toBe(false);
+    expect(speakerWiperShouldEnter(0.28)).toBe(true);
   });
 });

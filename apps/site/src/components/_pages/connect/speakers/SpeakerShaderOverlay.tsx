@@ -30,10 +30,16 @@ import {
 } from "./speaker-shader-geometry";
 import { SPEAKER_SHADER_CONFIG, SPEAKER_SHADER_MAX_DPR } from "./speaker-shader-config";
 import {
+  armSpeakerWiper,
+  commitPendingSpeakerWipers,
   parseSpeakerWiperOverride,
+  resetSpeakerWiper,
   resolveWipingFrames,
   speakerFrameOutlineColor,
   speakerFramePaintConfig,
+  speakerWiperShouldEnter,
+  SPEAKER_WIPER_ENTER_RATIO,
+  type SpeakerWiperClock,
 } from "./speaker-wiper";
 
 type Aperture = {
@@ -116,7 +122,11 @@ export default function SpeakerShaderOverlay() {
     let lastClientY = Number.NaN;
     let cursorFrame: CursorFrameSeed | null = null;
     let cursorTarget: Point | null = null;
-    const wiperStartedAtMs: (number | null)[] = apertureElements.map(() => null);
+    const wiperClock: SpeakerWiperClock = {
+      startedAtMs: apertureElements.map(() => null),
+      pending: new Set<number>(),
+    };
+    const intersectingWipers = new Set<number>();
     const wiperProgressOverride = parseSpeakerWiperOverride(window.location.search);
 
     const readGeometry = () => {
@@ -190,7 +200,7 @@ export default function SpeakerShaderOverlay() {
       const settings = settingsRef.current;
       const apertureRects = apertures.map(({ rect }) => rect);
       const authored = resolveAuthoredFrames(settings.placements, apertureRects);
-      const frames = resolveWipingFrames(authored, apertureRects, wiperStartedAtMs, performance.now(), {
+      const frames = resolveWipingFrames(authored, apertureRects, wiperClock.startedAtMs, performance.now(), {
         reducedMotion: reducedMotion.matches,
         progressOverride: wiperProgressOverride,
       });
@@ -247,8 +257,10 @@ export default function SpeakerShaderOverlay() {
     const tick = (nowMs: number) => {
       if (!visible || disposed || !engine) return;
       animationFrame = requestAnimationFrame(tick);
-      if (nowMs - lastFrameMs < minFrameIntervalMs) return;
+      const hasPendingWiper = wiperClock.pending.size > 0;
+      if (!hasPendingWiper && nowMs - lastFrameMs < minFrameIntervalMs) return;
       lastFrameMs = nowMs;
+      commitPendingSpeakerWipers(wiperClock, nowMs);
       clock.set(nowMs);
       renderOnce();
     };
@@ -363,10 +375,18 @@ export default function SpeakerShaderOverlay() {
       }
     };
 
-    const startWiper = (index: number) => {
-      if (wiperStartedAtMs[index] != null) return;
-      wiperStartedAtMs[index] = performance.now();
-      if (reducedMotion.matches && visible) renderOnce();
+    const isImageReady = (index: number) => {
+      const image = images[index];
+      return Boolean(image?.complete && image.naturalWidth > 0);
+    };
+
+    const armWiper = (index: number) => {
+      const result = armSpeakerWiper(wiperClock, index, {
+        imageReady: isImageReady(index),
+        reducedMotion: reducedMotion.matches,
+        nowMs: performance.now(),
+      });
+      if (result === "rest" && visible) renderOnce();
     };
 
     const resizeObserver = new ResizeObserver(resize);
@@ -380,18 +400,27 @@ export default function SpeakerShaderOverlay() {
     const wiperObserver = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
-          if (!entry.isIntersecting) continue;
           const index = apertureElements.indexOf(entry.target as HTMLElement);
           if (index < 0) continue;
-          startWiper(index);
+          if (speakerWiperShouldEnter(entry.intersectionRatio)) {
+            intersectingWipers.add(index);
+            armWiper(index);
+            continue;
+          }
+          if (!entry.isIntersecting) {
+            intersectingWipers.delete(index);
+            resetSpeakerWiper(wiperClock, index);
+            if (visible && reducedMotion.matches) renderOnce();
+          }
         }
       },
-      { threshold: 0.28, rootMargin: "0px 0px -10% 0px" },
+      { threshold: [0, SPEAKER_WIPER_ENTER_RATIO], rootMargin: "0px 0px -10% 0px" },
     );
-    const imageLoadHandlers = images.map((image) => {
+    const imageLoadHandlers = images.map((image, index) => {
       if (!image) return null;
       const handler = () => {
         drawSource();
+        if (intersectingWipers.has(index)) armWiper(index);
         if (visible && reducedMotion.matches) renderOnce();
       };
       // Paired with the explicit imageLoadHandlers cleanup below.
