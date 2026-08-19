@@ -4,31 +4,41 @@ import Eyebrow from "@/components/Eyebrow";
 import { LOGIN_OVERLAY_COPY } from "./login-copy";
 ---
 
-<div class="relative z-10 flex w-full max-w-440 flex-col items-start">
+<div
+  class="relative z-10 flex w-full max-w-320 flex-col items-start text-text-inverse"
+>
   <Eyebrow
     client:visible
     direction="left"
+    style={{
+      "--eyebrow-color-badge": "var(--color-background-base)",
+      "--eyebrow-color-badge-text": "var(--color-text-base)",
+      "--eyebrow-color-line-big": "var(--color-text-inverse)",
+      "--eyebrow-color-line-small":
+        "color-mix(in srgb, var(--color-text-inverse) 55%, transparent)",
+    }}
     title={LOGIN_OVERLAY_COPY.eyebrow}
-    variant="faint"
   />
 
-  <h2 class="mt-24 text-heading-hero text-text-base">
+  <h2 class="mt-16 text-heading-h3 text-text-inverse">
     {LOGIN_OVERLAY_COPY.titleLines[0]}
     <br />
     {LOGIN_OVERLAY_COPY.titleLines[1]}
   </h2>
 
-  <p class="mt-24 text-body-large text-text-base">{LOGIN_OVERLAY_COPY.body}</p>
+  <p class="mt-16 text-body-medium text-text-inverse">
+    {LOGIN_OVERLAY_COPY.body}
+  </p>
 
-  <div class="mt-40">
+  <div class="mt-24">
     <Button
-      className="px-14"
       href={LOGIN_OVERLAY_COPY.registerHref}
       rel="noopener noreferrer"
       size="large"
       target="_blank"
+      variant="secondary"
     >
-      <span>{LOGIN_OVERLAY_COPY.register}</span>
+      <span class="text-text-base">{LOGIN_OVERLAY_COPY.register}</span>
     </Button>
   </div>
 </div>

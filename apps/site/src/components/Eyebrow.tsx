@@ -6,6 +6,7 @@ export default function Eyebrow({
   direction,
   title,
   variant,
+  className,
   ...attrs
 }: {
   direction: "center" | "left";
@@ -18,12 +19,12 @@ export default function Eyebrow({
     <div
       {...attrs}
       className={cn(
-        attrs.className,
         "flex w-max items-center",
         direction === "center" ? "mx-auto" : "mr-auto",
         isFaint
           ? "[--eyebrow-color-badge:var(--color-background-muted)] [--eyebrow-color-line-big:var(--color-background-faint)] [--eyebrow-color-line-small:var(--color-background-ghost)]"
-          : "[--eyebrow-color-badge:var(--color-orange-900)] [--eyebrow-color-line-big:var(--color-eyebrow-line-big)] [--eyebrow-color-line-small:var(--color-eyebrow-line-small)]"
+          : "[--eyebrow-color-badge:var(--color-orange-900)] [--eyebrow-color-line-big:var(--color-eyebrow-line-big)] [--eyebrow-color-line-small:var(--color-eyebrow-line-small)]",
+        className
       )}
     >
       {direction === "center" && (

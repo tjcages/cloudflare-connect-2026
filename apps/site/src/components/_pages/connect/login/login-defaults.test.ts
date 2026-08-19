@@ -113,14 +113,17 @@ describe("dashboard login shader", () => {
     expect(loginFormSource).not.toContain("There was a problem with verification");
   });
 
-  it("styles the promo overlay like the homepage hero", () => {
+  it("styles the promo overlay like a smaller inverted homepage hero", () => {
     expect(loginPromoSource).toContain('from "@/components/Eyebrow"');
     expect(loginPromoSource).toContain('from "@/components/Button"');
-    expect(loginPromoSource).toContain("text-heading-hero");
-    expect(loginPromoSource).toContain("text-body-large");
-    expect(loginPromoSource).toContain('size="large"');
-    expect(loginPromoSource).toContain('className="px-14"');
+    expect(loginPromoSource).toContain("text-heading-h3");
+    expect(loginPromoSource).toContain("text-body-medium");
+    expect(loginPromoSource).toContain("text-text-inverse");
+    expect(loginPromoSource).toContain('variant="secondary"');
     expect(loginPromoSource).toContain("LOGIN_OVERLAY_COPY.register");
+    expect(loginPageSource).toContain(
+      "flex h-full min-h-full items-center overflow-hidden"
+    );
   });
 
   it("uses Cookie Preferences like the live dash OneTrust control", () => {
