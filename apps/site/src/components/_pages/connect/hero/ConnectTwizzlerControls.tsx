@@ -2,6 +2,16 @@ import type { TwizzlerSettings } from "@tjcages/connect-twizzler";
 import { FloatingPanel, PanelHeaderSelect } from "@tjcages/panels/dev";
 import { useCallback, useState } from "react";
 import {
+  CTA_SHADER_PANEL_ID,
+  loadCtaShaderSettings,
+  publishCtaShaderSettings,
+} from "@/components/cta/cta-shader-controls";
+import {
+  FOOTER_SHADER_PANEL_ID,
+  loadFooterShaderSettings,
+  publishFooterShaderSettings,
+} from "@/components/footer/footer-shader-controls";
+import {
   AGENDA_RAIN_PANEL_ID,
   loadAgendaRainSettings,
   publishAgendaRainSettings,
@@ -11,12 +21,14 @@ import {
   buildAgendaRainSections,
   seedAgendaRainPanelValues,
 } from "../panel/agendaRainFields";
-import { PanelSections, type PanelValues } from "../panel/panelSections";
+import { buildCtaShaderSections, ctaShaderFromPanelValues, seedCtaShaderPanelValues } from "../panel/ctaShaderFields";
 import {
-  buildRainSections,
-  rainFromPanelValues,
-  seedRainPanelValues,
-} from "../panel/rainFields";
+  buildFooterShaderSections,
+  footerShaderFromPanelValues,
+  seedFooterShaderPanelValues,
+} from "../panel/footerShaderFields";
+import { PanelSections, type PanelValues } from "../panel/panelSections";
+import { buildRainSections, rainFromPanelValues, seedRainPanelValues } from "../panel/rainFields";
 import {
   buildSpeakerFramesSections,
   seedSpeakerFramesPanelValues,
@@ -51,10 +63,11 @@ interface Props {
   onRainChange: (rain: ConnectHeroRain) => void;
 }
 
-type ShaderTarget = "twizzler" | "rain" | "frames" | "agenda-rain";
+type ShaderTarget = "twizzler" | "rain" | "frames" | "agenda-rain" | "cta" | "footer";
 
 const TARGET_STORAGE_KEY = "connect:shader-controls-target";
 const FLOAT_STORAGE_KEY = "connect-shader-controls";
+const SHADER_TARGETS = new Set<string>(["twizzler", "rain", "frames", "agenda-rain", "cta", "footer"]);
 
 const persist = (id: string, values: unknown) => {
   try {
@@ -64,18 +77,40 @@ const persist = (id: string, values: unknown) => {
   }
 };
 
-const loadHeroControlSettings = () =>
-  loadConnectTwizzlerControlSettings() ?? CONNECT_TWIZZLER_CONTROL_DEFAULTS;
+const loadHeroControlSettings = () => loadConnectTwizzlerControlSettings() ?? CONNECT_TWIZZLER_CONTROL_DEFAULTS;
 
-export default function ConnectTwizzlerControls({
-  onClose,
-  onSettingsChange,
-  onRainChange,
-}: Props) {
+const scrollTargetIntoView = (target: ShaderTarget) => {
+  const behavior = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ? ("auto" as const)
+    : ("smooth" as const);
+  switch (target) {
+    case "twizzler":
+    case "rain":
+      window.scrollTo({ top: 0, behavior });
+      return;
+    case "frames":
+      document.querySelector("#speakers")?.scrollIntoView({ behavior, block: "start" });
+      return;
+    case "agenda-rain":
+      document.querySelector("#agenda")?.scrollIntoView({ behavior, block: "start" });
+      return;
+    case "cta":
+      document.querySelector("#register")?.scrollIntoView({ behavior, block: "start" });
+      return;
+    case "footer":
+      document.querySelector("#site-footer")?.scrollIntoView({ behavior, block: "start" });
+      return;
+    default: {
+      const _exhaustive: never = target;
+      return _exhaustive;
+    }
+  }
+};
+
+export default function ConnectTwizzlerControls({ onClose, onSettingsChange, onRainChange }: Props) {
   const [target, setTarget] = useState<ShaderTarget>(() => {
     const stored = localStorage.getItem(TARGET_STORAGE_KEY);
-    if (stored === "frames" || stored === "rain" || stored === "agenda-rain")
-      return stored;
+    if (stored && SHADER_TARGETS.has(stored)) return stored as ShaderTarget;
     // The retired per-day agenda Twizzler targets collapse into the shared rain.
     if (stored?.startsWith("agenda-")) return "agenda-rain";
     return "twizzler";
@@ -84,17 +119,17 @@ export default function ConnectTwizzlerControls({
   // One live value record per target, seeded from the persisted blobs. Every
   // edit persists in the target's own JSON shape and publishes to its shader,
   // so switching targets never resets the others.
-  const [heroValues, setHeroValues] = useState<PanelValues>(() =>
-    seedTwizzlerPanelValues(loadHeroControlSettings())
-  );
+  const [heroValues, setHeroValues] = useState<PanelValues>(() => seedTwizzlerPanelValues(loadHeroControlSettings()));
   const [heroRainValues, setHeroRainValues] = useState<PanelValues>(() =>
-    seedRainPanelValues(loadRainControlSettings())
+    seedRainPanelValues(loadRainControlSettings()),
   );
   const [frameValues, setFrameValues] = useState<PanelValues>(() =>
-    seedSpeakerFramesPanelValues(loadSpeakerFrameSettings())
+    seedSpeakerFramesPanelValues(loadSpeakerFrameSettings()),
   );
-  const [rainValues, setRainValues] = useState<PanelValues>(() =>
-    seedAgendaRainPanelValues(loadAgendaRainSettings())
+  const [rainValues, setRainValues] = useState<PanelValues>(() => seedAgendaRainPanelValues(loadAgendaRainSettings()));
+  const [ctaValues, setCtaValues] = useState<PanelValues>(() => seedCtaShaderPanelValues(loadCtaShaderSettings()));
+  const [footerValues, setFooterValues] = useState<PanelValues>(() =>
+    seedFooterShaderPanelValues(loadFooterShaderSettings()),
   );
 
   const handleHeroChange = useCallback(
@@ -104,7 +139,7 @@ export default function ConnectTwizzlerControls({
       persist(CONNECT_TWIZZLER_PANEL_ID, settings);
       onSettingsChange(resolveConnectTwizzlerSettings(settings));
     },
-    [onSettingsChange]
+    [onSettingsChange],
   );
 
   const handleHeroRainChange = useCallback(
@@ -114,7 +149,7 @@ export default function ConnectTwizzlerControls({
       persist(RAIN_PANEL_ID, settings);
       onRainChange(resolveConnectHeroRain(settings));
     },
-    [onRainChange]
+    [onRainChange],
   );
 
   const handleFramesChange = useCallback((next: PanelValues) => {
@@ -131,30 +166,64 @@ export default function ConnectTwizzlerControls({
     publishAgendaRainSettings(settings);
   }, []);
 
-  const active =
-    target === "agenda-rain"
-      ? {
+  const handleCtaChange = useCallback((next: PanelValues) => {
+    setCtaValues(next);
+    const settings = ctaShaderFromPanelValues(next);
+    persist(CTA_SHADER_PANEL_ID, settings);
+    publishCtaShaderSettings(settings);
+  }, []);
+
+  const handleFooterChange = useCallback((next: PanelValues) => {
+    setFooterValues(next);
+    const settings = footerShaderFromPanelValues(next);
+    persist(FOOTER_SHADER_PANEL_ID, settings);
+    publishFooterShaderSettings(settings);
+  }, []);
+
+  const active = (() => {
+    switch (target) {
+      case "agenda-rain":
+        return {
           sections: buildAgendaRainSections(),
           values: rainValues,
           onChange: handleRainChange,
-        }
-      : target === "rain"
-        ? {
-            sections: buildRainSections(),
-            values: heroRainValues,
-            onChange: handleHeroRainChange,
-          }
-        : target === "frames"
-          ? {
-              sections: buildSpeakerFramesSections(),
-              values: frameValues,
-              onChange: handleFramesChange,
-            }
-          : {
-              sections: buildTwizzlerSections(heroValues),
-              values: heroValues,
-              onChange: handleHeroChange,
-            };
+        };
+      case "rain":
+        return {
+          sections: buildRainSections(),
+          values: heroRainValues,
+          onChange: handleHeroRainChange,
+        };
+      case "frames":
+        return {
+          sections: buildSpeakerFramesSections(),
+          values: frameValues,
+          onChange: handleFramesChange,
+        };
+      case "cta":
+        return {
+          sections: buildCtaShaderSections(),
+          values: ctaValues,
+          onChange: handleCtaChange,
+        };
+      case "footer":
+        return {
+          sections: buildFooterShaderSections(),
+          values: footerValues,
+          onChange: handleFooterChange,
+        };
+      case "twizzler":
+        return {
+          sections: buildTwizzlerSections(heroValues),
+          values: heroValues,
+          onChange: handleHeroChange,
+        };
+      default: {
+        const _exhaustive: never = target;
+        throw new Error(`Unknown shader target: ${String(_exhaustive)}`);
+      }
+    }
+  })();
 
   const titleSelector = (
     <PanelHeaderSelect
@@ -163,24 +232,15 @@ export default function ConnectTwizzlerControls({
         const next = nextValue as ShaderTarget;
         setTarget(next);
         localStorage.setItem(TARGET_STORAGE_KEY, next);
-        // Bring the section that hosts the selected shader into view.
-        const behavior = window.matchMedia("(prefers-reduced-motion: reduce)")
-          .matches
-          ? ("auto" as const)
-          : ("smooth" as const);
-        if (next === "twizzler" || next === "rain") {
-          window.scrollTo({ top: 0, behavior });
-        } else {
-          document
-            .querySelector(next === "frames" ? "#speakers" : "#agenda")
-            ?.scrollIntoView({ behavior, block: "start" });
-        }
+        scrollTargetIntoView(next);
       }}
       options={[
         { value: "twizzler", label: "Connect Twizzler" },
         { value: "rain", label: "Hero Rain" },
         { value: "frames", label: "Speaker Frames" },
         { value: "agenda-rain", label: "Agenda Rain" },
+        { value: "cta", label: "CTA Shader" },
+        { value: "footer", label: "Footer Shader" },
       ]}
       value={target}
     />
@@ -198,11 +258,7 @@ export default function ConnectTwizzlerControls({
       title=""
       titleSlot={titleSelector}
     >
-      <PanelSections
-        onChange={active.onChange}
-        sections={active.sections}
-        values={active.values}
-      />
+      <PanelSections onChange={active.onChange} sections={active.sections} values={active.values} />
     </FloatingPanel>
   );
 }

@@ -29,7 +29,7 @@ export type ConfigToolsTarget<S extends object> = {
   seed: (config: S) => PanelValues;
 };
 
-/** The Config section's field — one builder consumed by all four targets. */
+/** The Config section's field — one builder consumed by every shader target. */
 export function configToolsField<S extends object>(
   target: ConfigToolsTarget<S>
 ): PanelCustomField {
