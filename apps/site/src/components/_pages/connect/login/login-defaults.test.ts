@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { REGISTER_URL } from "../data";
 import { CONNECT_HERO_RAIN_DEFAULT } from "../hero/rain-control-settings";
 import { CONNECT_HERO_TWIZZLER_DEFAULTS } from "../hero/twizzler-defaults";
 import { LOGIN_OVERLAY_COPY } from "./login-copy";
@@ -49,21 +50,27 @@ describe("dashboard login shader", () => {
     );
   });
 
-  it("starts from the homepage hero rain defaults", () => {
-    expect(LOGIN_RAIN_DEFAULT).toBe(CONNECT_HERO_RAIN_DEFAULT);
+  it("covers the tall promo pane with hero rain instead of width-fit", () => {
+    expect(LOGIN_RAIN_DEFAULT.config.transform).toEqual({
+      fit: "cover",
+      zoom: 1,
+      panX: 0,
+      panY: 0,
+    });
+    expect(CONNECT_HERO_RAIN_DEFAULT.config.transform?.fit).toBe("width");
   });
 
   it("exposes only the hero Twizzler + rain panel targets", () => {
     expect(LOGIN_PANEL_TARGETS).toEqual(["twizzler", "rain"]);
   });
 
-  it("uses the dash.cloudflare.com globe overlay copy and register CTA", () => {
+  it("uses homepage hero overlay type and register CTA", () => {
     expect(LOGIN_OVERLAY_COPY).toEqual({
-      eyebrow: "Cloudflare Connect 2026",
-      title: "Where the Internet’s builders connect.",
+      eyebrow: "Connect 2026",
+      titleLines: ["Where the Internet's", "builders connect"],
       body: "October 19–21, 2026 · Moscone West, San Francisco",
-      register: "Register now",
-      registerHref: "https://www.cloudflare.com/connect/",
+      register: "Register Now",
+      registerHref: REGISTER_URL,
     });
   });
 
@@ -79,11 +86,13 @@ describe("dashboard login shader", () => {
   });
 
   it("fills the promo pane with the homepage hero shader stack", () => {
-    expect(loginPageSource).toContain("absolute inset-0");
+    expect(loginPageSource).toContain("absolute inset-0 z-0 h-full w-full");
     expect(loginPageSource).toContain("defaults={LOGIN_TWIZZLER_DEFAULTS}");
+    expect(loginPageSource).toContain("rainDefaults={LOGIN_RAIN_DEFAULT}");
     expect(loginPageSource).not.toContain("aspect-square w-[42rem]");
     expect(loginPageSource).not.toContain("-right-[32%]");
     expect(loginPageSource).not.toContain("twizzler-poster");
+    expect(loginPageSource).not.toContain("from-[#d9470f]");
   });
 
   it("uses the official Cloudflare cloud mark in the overlay header", () => {
@@ -99,10 +108,18 @@ describe("dashboard login shader", () => {
     expect(loginFormSource).toContain("subscriptionagreement");
     expect(loginFormSource).toContain("dash-login-signin");
     expect(loginCssSource).toContain("#f6821f");
+    expect(loginCssSource).toContain(".dash-login-chrome");
+    expect(loginCssSource).not.toMatch(/(?:^|\n)\.dash-login,/);
     expect(loginFormSource).not.toContain("There was a problem with verification");
   });
 
-  it("keeps Register now on the promo pane", () => {
+  it("styles the promo overlay like the homepage hero", () => {
+    expect(loginPromoSource).toContain('from "@/components/Eyebrow"');
+    expect(loginPromoSource).toContain('from "@/components/Button"');
+    expect(loginPromoSource).toContain("text-heading-hero");
+    expect(loginPromoSource).toContain("text-body-large");
+    expect(loginPromoSource).toContain('size="large"');
+    expect(loginPromoSource).toContain('className="px-14"');
     expect(loginPromoSource).toContain("LOGIN_OVERLAY_COPY.register");
   });
 

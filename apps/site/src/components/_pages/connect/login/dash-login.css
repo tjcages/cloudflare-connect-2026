@@ -1,10 +1,15 @@
 /* Scoped dash.cloudflare.com/login chrome.
    Site Tailwind uses --spacing: 1px and resets `white`; this file pins
-   Kumo pixels/colors so the login page cannot inherit marketing type. */
+   Kumo pixels/colors on the form/header only. The promo pane keeps
+   homepage STK Bureau / Paper Mono / Button. */
 
 body:has(.dash-login) {
   background: #fff !important;
   color: #1d1d1d !important;
+}
+
+.dash-login-chrome,
+.dash-login-chrome *:not(svg):not(path) {
   font-family:
     Inter,
     ui-sans-serif,
@@ -16,37 +21,12 @@ body:has(.dash-login) {
     sans-serif !important;
 }
 
-.dash-login,
-.dash-login *:not(svg):not(path) {
-  font-family:
-    Inter,
-    ui-sans-serif,
-    system-ui,
-    -apple-system,
-    "Segoe UI",
-    Helvetica,
-    Arial,
-    sans-serif !important;
-}
-
-.dash-login .dash-login-mono,
-.dash-login .dash-login-mono * {
-  font-family:
-    var(--font-paper-mono),
-    ui-monospace,
-    SFMono-Regular,
-    Menlo,
-    Monaco,
-    Consolas,
-    monospace !important;
-}
-
-.dash-login a {
+.dash-login-chrome a {
   color: inherit;
   text-decoration: inherit;
 }
 
-.dash-login button {
+.dash-login-chrome button {
   text-align: center;
 }
 

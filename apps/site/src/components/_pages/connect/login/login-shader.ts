@@ -1,6 +1,10 @@
 import type { TwizzlerSettings } from "@tjcages/connect-twizzler";
 import { defaultTwizzlerGradientFieldStops } from "@tjcages/connect-twizzler/gradient";
-import { CONNECT_HERO_RAIN_DEFAULT } from "../hero/rain-control-settings";
+import { CONNECT_HERO_RAIN_CONFIG } from "../hero/hero-rain-config";
+import {
+  CONNECT_HERO_RAIN_DEFAULT,
+  type ConnectHeroRain,
+} from "../hero/rain-control-settings";
 import type { ShaderTarget } from "../hero/shader-targets";
 import { CONNECT_HERO_TWIZZLER_DEFAULTS } from "../hero/twizzler-defaults";
 
@@ -32,4 +36,11 @@ export const LOGIN_TWIZZLER_DEFAULTS: TwizzlerSettings = {
   ),
 };
 
-export const LOGIN_RAIN_DEFAULT = CONNECT_HERO_RAIN_DEFAULT;
+/** Tall promo pane: cover so rain fills height and width, not just width. */
+export const LOGIN_RAIN_DEFAULT: ConnectHeroRain = {
+  ...CONNECT_HERO_RAIN_DEFAULT,
+  config: {
+    ...CONNECT_HERO_RAIN_CONFIG,
+    transform: { fit: "cover", zoom: 1, panX: 0, panY: 0 },
+  },
+};

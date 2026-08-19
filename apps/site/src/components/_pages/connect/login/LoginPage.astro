@@ -2,7 +2,11 @@
 import ConnectHeroTwizzler from "../hero/ConnectHeroTwizzler";
 import DashboardLoginForm from "./DashboardLoginForm";
 import LoginPromo from "./LoginPromo.astro";
-import { LOGIN_PANEL_TARGETS, LOGIN_TWIZZLER_DEFAULTS } from "./login-shader";
+import {
+  LOGIN_PANEL_TARGETS,
+  LOGIN_RAIN_DEFAULT,
+  LOGIN_TWIZZLER_DEFAULTS,
+} from "./login-shader";
 
 const SIGN_UP_HREF = "https://dash.cloudflare.com/sign-up";
 ---
@@ -14,7 +18,7 @@ const SIGN_UP_HREF = "https://dash.cloudflare.com/sign-up";
 */}
 <div class="dash-login relative min-h-screen bg-[#ffffff] text-[#1d1d1d]">
   <header
-    class="absolute inset-x-0 top-20 z-10 flex items-center justify-between px-16"
+    class="dash-login-chrome absolute inset-x-0 top-20 z-10 flex items-center justify-between px-16"
   >
     <a
       aria-label="Cloudflare"
@@ -82,7 +86,7 @@ const SIGN_UP_HREF = "https://dash.cloudflare.com/sign-up";
 
   <div class="flex min-h-screen w-full overflow-x-hidden">
     <main
-      class="flex min-w-0 flex-1 items-start justify-center bg-[#ffffff]"
+      class="dash-login-chrome flex min-w-0 flex-1 items-start justify-center bg-[#ffffff]"
     >
       <DashboardLoginForm client:load />
     </main>
@@ -92,27 +96,23 @@ const SIGN_UP_HREF = "https://dash.cloudflare.com/sign-up";
       class="relative hidden min-w-0 max-w-[800px] flex-1 overflow-hidden border-l border-[#e8e8e8] min-[1024px]:sticky min-[1024px]:top-0 min-[1024px]:block min-[1024px]:h-screen min-[1024px]:self-start"
     >
       <div
-        class="relative flex h-full items-center overflow-hidden bg-[#f86a00] p-40 min-[1280px]:p-64"
+        class="relative h-full min-h-full overflow-hidden bg-[#f86a00] p-40 min-[1280px]:p-64"
       >
-        <div class="pointer-events-none absolute inset-0 z-0">
+        <div class="pointer-events-none absolute inset-0 z-0 h-full w-full">
           <ConnectHeroTwizzler
             client:load
             defaults={LOGIN_TWIZZLER_DEFAULTS}
             hideTopFade={true}
             panelTargets={LOGIN_PANEL_TARGETS}
+            rainDefaults={LOGIN_RAIN_DEFAULT}
           />
-        </div>
-        <div
-          aria-hidden="true"
-          class="pointer-events-none absolute inset-y-0 left-0 z-[1] w-[72%] bg-linear-to-r from-[#d9470f]/90 via-[#f86a00]/85 to-transparent"
-        >
         </div>
         <LoginPromo />
       </div>
     </aside>
   </div>
 
-  <div class="absolute bottom-8 left-8 z-10">
+  <div class="dash-login-chrome absolute bottom-8 left-8 z-10">
     <a
       class="inline-flex items-center gap-6 text-[13px] leading-[1.5] font-normal text-[#0051c3] no-underline hover:underline"
       href="https://www.cloudflare.com/privacypolicy/"

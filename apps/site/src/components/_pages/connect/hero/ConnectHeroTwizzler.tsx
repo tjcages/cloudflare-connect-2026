@@ -33,6 +33,8 @@ interface Props {
    * homepage panel persistence so that look is not overwritten.
    */
   defaults?: TwizzlerSettings;
+  /** Login rain uses cover-fit; homepage keeps stored hero rain. */
+  rainDefaults?: ConnectHeroRain;
 }
 
 const PANEL_STORAGE_KEY = "connect:twizzler-controls-visible";
@@ -43,10 +45,13 @@ export default function ConnectHeroTwizzler({
   panelTargets,
   hideTopFade = false,
   defaults,
+  rainDefaults,
 }: IslandProps<Props>) {
   const authored = defaults ?? CONNECT_HERO_TWIZZLER_DEFAULTS;
   const [settings, setSettings] = useState<TwizzlerSettings>(authored);
-  const [rain, setRain] = useState<ConnectHeroRain>(CONNECT_HERO_RAIN_DEFAULT);
+  const [rain, setRain] = useState<ConnectHeroRain>(
+    rainDefaults ?? CONNECT_HERO_RAIN_DEFAULT
+  );
   // Single source of truth for the dev panel's visibility; persisted both
   // ways so a refresh restores the last open/closed choice (closed on a
   // fresh browser). Client islands SSR, so localStorage reads live in
@@ -69,9 +74,11 @@ export default function ConnectHeroTwizzler({
       const stored = loadConnectTwizzlerControlSettings();
       if (stored) setSettings(resolveConnectTwizzlerSettings(stored));
     }
-    setRain(resolveConnectHeroRain(loadRainControlSettings()));
+    if (!rainDefaults) {
+      setRain(resolveConnectHeroRain(loadRainControlSettings()));
+    }
     setPanelOpen(localStorage.getItem(PANEL_STORAGE_KEY) === "true");
-  }, [defaults]);
+  }, [defaults, rainDefaults]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -91,7 +98,7 @@ export default function ConnectHeroTwizzler({
   }, [panelOpen, setPanelVisible]);
 
   return (
-    <>
+    <div className="absolute inset-0 h-full w-full">
       {panelOpen ? (
         <Suspense fallback={null}>
           <ConnectTwizzlerControls
@@ -107,7 +114,7 @@ export default function ConnectHeroTwizzler({
           "Fade height %" sets the band's length, so the fade translates
           instead of stretching from the top edge. */}
       <div
-        className="absolute inset-0"
+        className="absolute inset-0 h-full w-full"
         style={
           !hideTopFade && (rain.topFadePct > 0 || rain.topFadeOffsetPct > 0)
             ? {
@@ -117,8 +124,8 @@ export default function ConnectHeroTwizzler({
         }
       >
         <ConnectTwizzler
-          canvasClassName="size-full"
-          className="size-full"
+          canvasClassName="absolute inset-0 size-full"
+          className="absolute inset-0 size-full"
           maxDpr={1.5}
           maxFps={30}
           posterSrc={posterSrc}
@@ -128,7 +135,7 @@ export default function ConnectHeroTwizzler({
         {/* Rain sits above the ribbon with a transparent clear, matching the
             lab's Both stack (.lab-canvas-output over .lab-canvas-twizzler). */}
         <StripesShader
-          className="absolute inset-0 size-full"
+          className="absolute inset-0 block size-full"
           config={asThemedEngineConfig(rain.config)}
           label="hero-rain"
           maxDpr={1.5}
@@ -143,6 +150,6 @@ export default function ConnectHeroTwizzler({
           shaderSource={rain.shaderSource}
         />
       </div>
-    </>
+    </div>
   );
 }

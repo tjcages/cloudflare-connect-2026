@@ -1,11 +1,13 @@
+import { connectHero, REGISTER_URL } from "../data";
+
 /**
- * Copy from the live dash.cloudflare.com/login Connect promo pane
- * (indexed August 2026).
+ * Promo overlay uses homepage hero type + CTA, with the shorter dash
+ * date line so the pane does not wrap the full hero body.
  */
 export const LOGIN_OVERLAY_COPY = {
-  eyebrow: "Cloudflare Connect 2026",
-  title: "Where the Internet’s builders connect.",
+  eyebrow: connectHero.eyebrow,
+  titleLines: connectHero.titleLines,
   body: "October 19–21, 2026 · Moscone West, San Francisco",
-  register: "Register now",
-  registerHref: "https://www.cloudflare.com/connect/",
+  register: connectHero.primaryCta.text,
+  registerHref: REGISTER_URL,
 } as const;
