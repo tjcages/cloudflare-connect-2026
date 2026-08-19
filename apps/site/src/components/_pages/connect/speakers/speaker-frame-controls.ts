@@ -2,7 +2,7 @@ import type { EngineConfig } from "@necatikcl/stripes-engine";
 import { connectSpeakers } from "../data";
 import { SPEAKER_SHADER_CONFIG } from "./speaker-shader-config";
 
-export const SPEAKER_FRAME_VARIANT_IDS = ["grey", "orange", "white"] as const;
+export const SPEAKER_FRAME_VARIANT_IDS = ["grey", "orange", "dark"] as const;
 export type SpeakerFrameVariantId = (typeof SPEAKER_FRAME_VARIANT_IDS)[number];
 
 export type SpeakerStripeControl = {
@@ -46,7 +46,7 @@ export type SpeakerFrameVariantLook = {
   gamma: number;
   invert: boolean;
   bgColor: string;
-  /** When set, this look uses its own stripe grid instead of the shared overlay/orange geometry. */
+  /** When set, this look uses its own stripe grid instead of the shared overlay geometry. */
   grid?: SpeakerFrameGridLook;
 };
 
@@ -67,7 +67,7 @@ export type SpeakerFrameSettings = {
   stripesEnabled: boolean;
   fieldScale: number;
   orange: SpeakerFrameVariantLook;
-  white: SpeakerFrameVariantLook;
+  dark: SpeakerFrameVariantLook;
   grey: SpeakerFrameVariantLook;
   posterizeLevels: number;
   thresholdBias: number;
@@ -155,28 +155,32 @@ export const hexToColorNumber = (value: string, fallback: number) => {
   return Number.parseInt(normalized, 16);
 };
 
-export const SPEAKER_ORANGE_BG = "#ffbf14";
-export const SPEAKER_WHITE_BG = "#ffffff";
+export const SPEAKER_ORANGE_BG = "#f46021";
+export const SPEAKER_DARK_BG = "#141414";
 export const SPEAKER_OVERLAY_BG = "#d6d6d6";
 
-const defaultOrangeStripes = (): SpeakerStripeControl[] =>
-  SPEAKER_SHADER_CONFIG.stripes.map((stripe, index) => ({
-    id: `stripe-${index + 1}`,
-    color: toHex(stripe.color),
-    startFrom: stripe.startFrom,
-    width: stripe.width,
-    opacity: stripe.opacity,
-  }));
+type SpeakerLabStripeStop = {
+  color: number;
+  startFrom: number;
+  width: number;
+  opacity: number;
+};
 
-const defaultGreyStripes = (): SpeakerStripeControl[] =>
-  defaultOrangeStripes().map((stripe, index) => ({
-    ...stripe,
-    id: `grey-stripe-${index + 1}`,
-    color: GREY_STRIPE_COLORS[index % GREY_STRIPE_COLORS.length],
-  }));
+/** Lab-authored pane stripe shape (orange and dark share this geometry). */
+const SPEAKER_ORANGE_STRIPE_STOPS: readonly SpeakerLabStripeStop[] = [
+  { color: 16_541_739, startFrom: 0, width: 0.5, opacity: 1 },
+  { color: 16_738_304, startFrom: 0.0195, width: 0.5, opacity: 1 },
+  { color: 16_738_816, startFrom: 0.047, width: 1, opacity: 1 },
+  { color: 16_740_352, startFrom: 0.086, width: 1.5, opacity: 1 },
+  { color: 16_742_912, startFrom: 0.1408, width: 1.5, opacity: 1 },
+  { color: 16_746_240, startFrom: 0.2167, width: 2, opacity: 1 },
+  { color: 16_749_824, startFrom: 0.3191, width: 2.5, opacity: 1 },
+  { color: 16_753_664, startFrom: 0.4512, width: 3, opacity: 1 },
+  { color: 16_759_829, startFrom: 0.6129, width: 3.5, opacity: 1 },
+  { color: 16_764_259, startFrom: 0.8, width: 4, opacity: 1 },
+];
 
-/** Lab-authored white-pane stripe colors and widths (colors + shape only). */
-const SPEAKER_WHITE_STRIPE_STOPS = [
+const SPEAKER_DARK_STRIPE_STOPS: readonly SpeakerLabStripeStop[] = [
   { color: 2_494_726, startFrom: 0, width: 0.5, opacity: 1 },
   { color: 3_347_975, startFrom: 0.0195, width: 0.5, opacity: 1 },
   { color: 4_464_653, startFrom: 0.047, width: 1, opacity: 1 },
@@ -187,9 +191,9 @@ const SPEAKER_WHITE_STRIPE_STOPS = [
   { color: 16_280_064, startFrom: 0.4512, width: 3, opacity: 1 },
   { color: 16_746_553, startFrom: 0.6129, width: 3.5, opacity: 1 },
   { color: 16_752_731, startFrom: 0.8, width: 4, opacity: 1 },
-] as const;
+];
 
-export const SPEAKER_WHITE_GRID: SpeakerFrameGridLook = {
+export const SPEAKER_PANE_GRID: SpeakerFrameGridLook = {
   cellWidth: 7,
   cellHeight: 7,
   gapX: 0,
@@ -201,10 +205,23 @@ export const SPEAKER_WHITE_GRID: SpeakerFrameGridLook = {
   fieldScale: 1,
 };
 
-const defaultWhiteStripes = (): SpeakerStripeControl[] =>
-  SPEAKER_WHITE_STRIPE_STOPS.map((stripe, index) => ({
-    id: `white-stripe-${index + 1}`,
+const stripesFromStops = (stops: readonly SpeakerLabStripeStop[], idPrefix: string): SpeakerStripeControl[] =>
+  stops.map((stripe, index) => ({
+    id: `${idPrefix}-${index + 1}`,
     color: toHex(stripe.color),
+    startFrom: stripe.startFrom,
+    width: stripe.width,
+    opacity: stripe.opacity,
+  }));
+
+const defaultOrangeStripes = (): SpeakerStripeControl[] => stripesFromStops(SPEAKER_ORANGE_STRIPE_STOPS, "stripe");
+
+const defaultDarkStripes = (): SpeakerStripeControl[] => stripesFromStops(SPEAKER_DARK_STRIPE_STOPS, "dark-stripe");
+
+const defaultGreyStripes = (): SpeakerStripeControl[] =>
+  SPEAKER_SHADER_CONFIG.stripes.map((stripe, index) => ({
+    id: `grey-stripe-${index + 1}`,
+    color: GREY_STRIPE_COLORS[index % GREY_STRIPE_COLORS.length],
     startFrom: stripe.startFrom,
     width: stripe.width,
     opacity: stripe.opacity,
@@ -218,12 +235,13 @@ const defaultOrangeLook = (): SpeakerFrameVariantLook => ({
   blackPoint: SPEAKER_SHADER_CONFIG.adjustments.blackPoint,
   whitePoint: SPEAKER_SHADER_CONFIG.adjustments.whitePoint,
   gamma: SPEAKER_SHADER_CONFIG.adjustments.gamma,
-  invert: SPEAKER_SHADER_CONFIG.adjustments.invert,
+  invert: false,
   bgColor: SPEAKER_ORANGE_BG,
+  grid: { ...SPEAKER_PANE_GRID },
 });
 
-const defaultWhiteLook = (): SpeakerFrameVariantLook => ({
-  stripes: defaultWhiteStripes(),
+const defaultDarkLook = (): SpeakerFrameVariantLook => ({
+  stripes: defaultDarkStripes(),
   brightness: 0.55,
   exposure: 1.05,
   contrast: SPEAKER_SHADER_CONFIG.adjustments.contrast,
@@ -231,8 +249,8 @@ const defaultWhiteLook = (): SpeakerFrameVariantLook => ({
   whitePoint: SPEAKER_SHADER_CONFIG.adjustments.whitePoint,
   gamma: SPEAKER_SHADER_CONFIG.adjustments.gamma,
   invert: false,
-  bgColor: SPEAKER_WHITE_BG,
-  grid: { ...SPEAKER_WHITE_GRID },
+  bgColor: SPEAKER_DARK_BG,
+  grid: { ...SPEAKER_PANE_GRID },
 });
 
 const defaultGreyLook = (): SpeakerFrameVariantLook => ({
@@ -271,7 +289,7 @@ export const defaultSpeakerFramePlacements = (): SpeakerFramePlacement[] =>
   connectSpeakers.flatMap((_, imageIndex) => [
     placement(`${imageIndex}-overlay`, imageIndex, "grey", 0, 0, 0.8, 1),
     placement(`${imageIndex}-inverted`, imageIndex, "orange", 0.8, 0, 0.1, 1),
-    placement(`${imageIndex}-white`, imageIndex, "white", 0.9, 0, 0.1, 1),
+    placement(`${imageIndex}-dark`, imageIndex, "dark", 0.9, 0, 0.1, 1),
   ]);
 
 export const createSpeakerFramePlacement = (imageIndex = 0): SpeakerFramePlacement =>
@@ -285,8 +303,14 @@ export const createSpeakerFramePlacement = (imageIndex = 0): SpeakerFramePlaceme
     1,
   );
 
+const parseSpeakerFrameVariant = (value: unknown): SpeakerFrameVariantId | null => {
+  if (value === "orange" || value === "dark" || value === "grey") return value;
+  if (value === "white") return "dark";
+  return null;
+};
+
 export const isSpeakerFrameVariant = (value: unknown): value is SpeakerFrameVariantId =>
-  value === "orange" || value === "white" || value === "grey";
+  value === "orange" || value === "dark" || value === "grey";
 
 const unusedVariant = (value: never): never => {
   throw new Error(`Unhandled speaker frame variant: ${String(value)}`);
@@ -299,8 +323,8 @@ export const speakerVariantLook = (
   switch (variant) {
     case "orange":
       return settings.orange;
-    case "white":
-      return settings.white;
+    case "dark":
+      return settings.dark;
     case "grey":
       return settings.grey;
     default:
@@ -315,9 +339,9 @@ export const speakerVariantBgNumber = (
   const hex = speakerVariantLook(settings, variant).bgColor;
   switch (variant) {
     case "orange":
-      return hexToColorNumber(hex, 0xff_bf_14);
-    case "white":
-      return hexToColorNumber(hex, 0xff_ff_ff);
+      return hexToColorNumber(hex, 0xf4_60_21);
+    case "dark":
+      return hexToColorNumber(hex, 0x14_14_14);
     case "grey":
       return hexToColorNumber(hex, 0xd6_d6_d6);
     default:
@@ -342,7 +366,7 @@ export const SPEAKER_FRAME_DEFAULTS: SpeakerFrameSettings = {
   stripesEnabled: SPEAKER_SHADER_CONFIG.stripesEnabled,
   fieldScale: SPEAKER_SHADER_CONFIG.fieldScale,
   orange: defaultOrangeLook(),
-  white: defaultWhiteLook(),
+  dark: defaultDarkLook(),
   grey: defaultGreyLook(),
   posterizeLevels: SPEAKER_SHADER_CONFIG.adjustments.posterizeLevels,
   thresholdBias: SPEAKER_SHADER_CONFIG.adjustments.thresholdBias,
@@ -407,7 +431,7 @@ const cloneDefaults = (): SpeakerFrameSettings => ({
   ...SPEAKER_FRAME_DEFAULTS,
   placements: defaultSpeakerFramePlacements(),
   orange: cloneVariantLook(SPEAKER_FRAME_DEFAULTS.orange),
-  white: cloneVariantLook(SPEAKER_FRAME_DEFAULTS.white),
+  dark: cloneVariantLook(SPEAKER_FRAME_DEFAULTS.dark),
   grey: cloneVariantLook(SPEAKER_FRAME_DEFAULTS.grey),
 });
 
@@ -460,7 +484,7 @@ const sanitizeGridLook = (
     return fallback ? { ...fallback } : undefined;
   }
   const parsed = value as Partial<SpeakerFrameGridLook>;
-  const defaults = fallback ?? SPEAKER_WHITE_GRID;
+  const defaults = fallback ?? SPEAKER_PANE_GRID;
   return {
     cellWidth: sanitizeNumber(parsed.cellWidth, defaults.cellWidth),
     cellHeight: sanitizeNumber(parsed.cellHeight, defaults.cellHeight),
@@ -507,7 +531,8 @@ const sanitizePlacement = (value: unknown): SpeakerFramePlacement | null => {
   if (!value || typeof value !== "object") return null;
   const parsed = value as Partial<SpeakerFramePlacement>;
   if (typeof parsed.id !== "string" || parsed.id.length === 0) return null;
-  if (!isSpeakerFrameVariant(parsed.variant)) return null;
+  const variant = parseSpeakerFrameVariant(parsed.variant);
+  if (!variant) return null;
   const imageIndex = Math.round(sanitizeNumber(parsed.imageIndex, 0));
   if (imageIndex < 0 || imageIndex >= SPEAKER_IMAGE_COUNT) return null;
   const width = sanitizeNumber(parsed.width, 0);
@@ -516,7 +541,7 @@ const sanitizePlacement = (value: unknown): SpeakerFramePlacement | null => {
   return {
     id: parsed.id,
     imageIndex,
-    variant: parsed.variant,
+    variant,
     x: sanitizeNumber(parsed.x, 0),
     y: sanitizeNumber(parsed.y, 0),
     width,
@@ -541,12 +566,12 @@ const isFactoryTwoPaneWipers = (placements: SpeakerFramePlacement[]) => {
     const pair = placements.filter((placement) => placement.imageIndex === imageIndex);
     if (pair.length !== 2) return false;
     const orange = pair.find((placement) => placement.variant === "orange");
-    const white = pair.find((placement) => placement.variant === "white");
-    if (!orange || !white) return false;
+    const dark = pair.find((placement) => placement.variant === "dark");
+    if (!orange || !dark) return false;
     const isStrip = (placement: SpeakerFramePlacement) =>
       placement.y === 0 && placement.width === 0.1 && placement.height === 1 && placement.span === false;
-    if (!isStrip(orange) || !isStrip(white)) return false;
-    return (orange.x === 0 && white.x === 0.1) || (orange.x === 0.8 && white.x === 0.9);
+    if (!isStrip(orange) || !isStrip(dark)) return false;
+    return (orange.x === 0 && dark.x === 0.1) || (orange.x === 0.8 && dark.x === 0.9);
   });
 };
 
@@ -697,6 +722,7 @@ const mergeSharedSettings = (settings: SpeakerFrameSettings, parsed: Record<stri
   const skip = new Set([
     "placements",
     "orange",
+    "dark",
     "white",
     "grey",
     "stripes",
@@ -758,18 +784,19 @@ export const loadSpeakerFrameSettings = (): SpeakerFrameSettings => {
     if (factoryTwoPane) {
       settings.grey = cloneVariantLook(SPEAKER_FRAME_DEFAULTS.grey);
     }
-    if (record.white && typeof record.white === "object") {
-      settings.white = sanitizeVariantLook(record.white, settings.white);
+    const storedDark = [record.dark, record.white].find((value) => value && typeof value === "object");
+    if (storedDark) {
+      settings.dark = sanitizeVariantLook(storedDark, settings.dark);
     } else {
-      settings.white = sanitizeVariantLook(
+      settings.dark = sanitizeVariantLook(
         {
           stripes: settings.orange.stripes.map((stripe, index) => ({
             ...stripe,
-            id: `white-stripe-${index + 1}`,
+            id: `dark-stripe-${index + 1}`,
           })),
           invert: false,
         },
-        settings.white,
+        settings.dark,
       );
     }
     return settings;

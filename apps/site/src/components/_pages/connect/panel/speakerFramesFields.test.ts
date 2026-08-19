@@ -4,7 +4,7 @@ import type { EditableStripe } from "./stripeAdapter";
 import { seedSpeakerFramesPanelValues, speakerFramesFromPanelValues } from "./speakerFramesFields";
 
 describe("speaker frame panel mapping", () => {
-  it("round-trips independent orange and white stripe palettes", () => {
+  it("round-trips independent orange and dark stripe palettes", () => {
     const seeded = seedSpeakerFramesPanelValues({
       ...SPEAKER_FRAME_DEFAULTS,
       orange: {
@@ -14,43 +14,43 @@ describe("speaker frame panel mapping", () => {
           index === 0 ? { ...stripe, color: "#ff0000", width: 0.31 } : stripe,
         ),
       },
-      white: {
-        ...SPEAKER_FRAME_DEFAULTS.white,
+      dark: {
+        ...SPEAKER_FRAME_DEFAULTS.dark,
         invert: true,
         brightness: 0.12,
-        stripes: SPEAKER_FRAME_DEFAULTS.white.stripes.map((stripe, index) =>
+        stripes: SPEAKER_FRAME_DEFAULTS.dark.stripes.map((stripe, index) =>
           index === 0 ? { ...stripe, color: "#112233", width: 0.42 } : stripe,
         ),
       },
     });
     const orangeStripes = seeded.stripes as EditableStripe[];
-    const whiteStripes = seeded.whiteStripes as EditableStripe[];
+    const darkStripes = seeded.darkStripes as EditableStripe[];
 
     expect(orangeStripes[0]?.hex).toBe("#ff0000");
-    expect(whiteStripes[0]?.hex).toBe("#112233");
-    expect(seeded.whiteInvert).toBe(true);
+    expect(darkStripes[0]?.hex).toBe("#112233");
+    expect(seeded.darkInvert).toBe(true);
 
     const next = speakerFramesFromPanelValues({
       ...seeded,
-      whiteStripes: whiteStripes.map((stripe, index) =>
+      darkStripes: darkStripes.map((stripe, index) =>
         index === 0 ? { ...stripe, hex: "#abcdef", width: 0.5 } : stripe,
       ),
-      whiteBrightness: 0.08,
+      darkBrightness: 0.08,
     });
 
     expect(next.orange.stripes[0]?.color).toBe("#ff0000");
     expect(next.orange.brightness).toBe(0.21);
-    expect(next.white.stripes[0]?.color).toBe("#abcdef");
-    expect(next.white.stripes[0]?.width).toBe(0.5);
-    expect(next.white.brightness).toBe(0.08);
-    expect(next.white.invert).toBe(true);
+    expect(next.dark.stripes[0]?.color).toBe("#abcdef");
+    expect(next.dark.stripes[0]?.width).toBe(0.5);
+    expect(next.dark.brightness).toBe(0.08);
+    expect(next.dark.invert).toBe(true);
   });
 
-  it("round-trips the white pane's own grid geometry", () => {
+  it("round-trips the dark pane's own grid geometry", () => {
     const seeded = seedSpeakerFramesPanelValues({
       ...SPEAKER_FRAME_DEFAULTS,
-      white: {
-        ...SPEAKER_FRAME_DEFAULTS.white,
+      dark: {
+        ...SPEAKER_FRAME_DEFAULTS.dark,
         grid: {
           cellWidth: 11,
           cellHeight: 8,
@@ -65,18 +65,18 @@ describe("speaker frame panel mapping", () => {
       },
     });
 
-    expect(seeded.whiteGridCellWidth).toBe(11);
-    expect(seeded.whiteGridOrientation).toBe("horizontal");
-    expect(seeded.whiteFieldScale).toBe(1.4);
+    expect(seeded.darkGridCellWidth).toBe(11);
+    expect(seeded.darkGridOrientation).toBe("horizontal");
+    expect(seeded.darkFieldScale).toBe(1.4);
 
     const next = speakerFramesFromPanelValues({
       ...seeded,
-      whiteGridCellWidth: 6,
-      whiteGridAngle: -15,
-      whiteFieldScale: 0.9,
+      darkGridCellWidth: 6,
+      darkGridAngle: -15,
+      darkFieldScale: 0.9,
     });
 
-    expect(next.white.grid).toMatchObject({
+    expect(next.dark.grid).toMatchObject({
       cellWidth: 6,
       cellHeight: 8,
       angleDeg: -15,
@@ -84,27 +84,30 @@ describe("speaker frame panel mapping", () => {
       orientation: "horizontal",
     });
     expect(next.gridCellWidth).toBe(SPEAKER_FRAME_DEFAULTS.gridCellWidth);
-    expect(next.orange.grid).toBeUndefined();
+    expect(next.orange.grid).toMatchObject({
+      cellWidth: SPEAKER_FRAME_DEFAULTS.orange.grid?.cellWidth,
+      angleDeg: SPEAKER_FRAME_DEFAULTS.orange.grid?.angleDeg,
+    });
   });
 
-  it("round-trips orange and white frame background colors", () => {
+  it("round-trips orange and dark frame background colors", () => {
     const seeded = seedSpeakerFramesPanelValues({
       ...SPEAKER_FRAME_DEFAULTS,
       orange: { ...SPEAKER_FRAME_DEFAULTS.orange, bgColor: "#112233" },
-      white: { ...SPEAKER_FRAME_DEFAULTS.white, bgColor: "#abcdef" },
+      dark: { ...SPEAKER_FRAME_DEFAULTS.dark, bgColor: "#abcdef" },
     });
 
     expect(seeded.bgColor).toBe("#112233");
-    expect(seeded.whiteBgColor).toBe("#abcdef");
+    expect(seeded.darkBgColor).toBe("#abcdef");
 
     const next = speakerFramesFromPanelValues({
       ...seeded,
       bgColor: "#ff00aa",
-      whiteBgColor: "#00ffaa",
+      darkBgColor: "#00ffaa",
     });
 
     expect(next.orange.bgColor).toBe("#ff00aa");
-    expect(next.white.bgColor).toBe("#00ffaa");
+    expect(next.dark.bgColor).toBe("#00ffaa");
     expect(next.grey.bgColor).toBe(SPEAKER_FRAME_DEFAULTS.grey.bgColor);
   });
 });

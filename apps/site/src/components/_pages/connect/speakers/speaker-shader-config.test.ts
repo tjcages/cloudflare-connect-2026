@@ -27,27 +27,38 @@ describe("speaker shader production contract", () => {
   it("projects the authored grid and stripe palette into editable panel defaults", () => {
     expect(SPEAKER_FRAME_DEFAULTS.gridCellWidth).toBe(SPEAKER_SHADER_CONFIG.grid.cellWidth);
     expect(SPEAKER_FRAME_DEFAULTS.gridCellHeight).toBe(SPEAKER_SHADER_CONFIG.grid.cellHeight);
-    expect(SPEAKER_FRAME_DEFAULTS.orange.stripes).toHaveLength(SPEAKER_SHADER_CONFIG.stripes.length);
-    expect(SPEAKER_FRAME_DEFAULTS.orange.stripes[0]).toMatchObject({
-      // Agenda rain's authored palette, mirrored into the speaker stripes.
-      color: "#fafafa",
+    expect(SPEAKER_FRAME_DEFAULTS.grey.stripes).toHaveLength(SPEAKER_SHADER_CONFIG.stripes.length);
+    expect(SPEAKER_FRAME_DEFAULTS.grey.stripes[0]).toMatchObject({
       startFrom: SPEAKER_SHADER_CONFIG.stripes[0].startFrom,
       width: SPEAKER_SHADER_CONFIG.stripes[0].width,
       opacity: SPEAKER_SHADER_CONFIG.stripes[0].opacity,
     });
+    expect(SPEAKER_FRAME_DEFAULTS.orange.stripes[0]).toMatchObject({
+      color: "#fc682b",
+      startFrom: 0,
+      width: 0.5,
+      opacity: 1,
+    });
     expect(SPEAKER_SHADER_CONFIG.stripes[0].opacity).toBe(0.41);
     expect(SPEAKER_SHADER_CONFIG.grid.angleDeg).toBe(45);
-    expect(SPEAKER_FRAME_DEFAULTS.white.stripes[0]).toMatchObject({
+    expect(SPEAKER_FRAME_DEFAULTS.dark.stripes[0]).toMatchObject({
       color: "#261106",
       startFrom: 0,
       width: 0.5,
       opacity: 1,
     });
-    expect(SPEAKER_FRAME_DEFAULTS.white.grid).toMatchObject({
+    expect(SPEAKER_FRAME_DEFAULTS.dark.grid).toMatchObject({
       cellWidth: 7,
       cellHeight: 7,
       gapX: 0,
       gapY: 0,
+      angleDeg: 0,
+      overlapAmount: 1.2,
+      fieldScale: 1,
+    });
+    expect(SPEAKER_FRAME_DEFAULTS.orange.grid).toMatchObject({
+      cellWidth: 7,
+      cellHeight: 7,
       angleDeg: 0,
       overlapAmount: 1.2,
       fieldScale: 1,

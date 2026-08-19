@@ -7,7 +7,7 @@ import {
   sanitizeSpeakerFramePlacements,
   SPEAKER_FRAME_DEFAULTS,
   SPEAKER_FRAME_PANEL_ID,
-  SPEAKER_WHITE_GRID,
+  SPEAKER_PANE_GRID,
   type SpeakerFrameGridLook,
   type SpeakerFramePlacement,
   type SpeakerFrameSettings,
@@ -56,6 +56,15 @@ type SpeakerFramePanelValues = SpeakerFrameSettings & {
   whitePoint: number;
   gamma: number;
   bgColor: string;
+  orangeGridCellWidth: number;
+  orangeGridCellHeight: number;
+  orangeGridGapX: number;
+  orangeGridGapY: number;
+  orangeGridCornerRadius: number;
+  orangeGridOverlap: number;
+  orangeGridOrientation: SpeakerFrameGridLook["orientation"];
+  orangeGridAngle: number;
+  orangeFieldScale: number;
   greyStripes: EditableStripe[];
   greyInvert: boolean;
   greyBrightness: number;
@@ -65,24 +74,24 @@ type SpeakerFramePanelValues = SpeakerFrameSettings & {
   greyWhitePoint: number;
   greyGamma: number;
   greyBgColor: string;
-  whiteStripes: EditableStripe[];
-  whiteInvert: boolean;
-  whiteBrightness: number;
-  whiteExposure: number;
-  whiteContrast: number;
-  whiteBlackPoint: number;
-  whiteWhitePoint: number;
-  whiteGamma: number;
-  whiteBgColor: string;
-  whiteGridCellWidth: number;
-  whiteGridCellHeight: number;
-  whiteGridGapX: number;
-  whiteGridGapY: number;
-  whiteGridCornerRadius: number;
-  whiteGridOverlap: number;
-  whiteGridOrientation: SpeakerFrameGridLook["orientation"];
-  whiteGridAngle: number;
-  whiteFieldScale: number;
+  darkStripes: EditableStripe[];
+  darkInvert: boolean;
+  darkBrightness: number;
+  darkExposure: number;
+  darkContrast: number;
+  darkBlackPoint: number;
+  darkWhitePoint: number;
+  darkGamma: number;
+  darkBgColor: string;
+  darkGridCellWidth: number;
+  darkGridCellHeight: number;
+  darkGridGapX: number;
+  darkGridGapY: number;
+  darkGridCornerRadius: number;
+  darkGridOverlap: number;
+  darkGridOrientation: SpeakerFrameGridLook["orientation"];
+  darkGridAngle: number;
+  darkFieldScale: number;
 };
 
 const lookFromPanel = (
@@ -113,10 +122,10 @@ const lookFromPanel = (
   ...(grid ? { grid } : fallback.grid ? { grid: { ...fallback.grid } } : {}),
 });
 
-const whiteGridFromSettings = (look: SpeakerFrameVariantLook): SpeakerFrameGridLook =>
-  look.grid ?? SPEAKER_WHITE_GRID;
+const paneGridFromSettings = (look: SpeakerFrameVariantLook): SpeakerFrameGridLook =>
+  look.grid ?? SPEAKER_PANE_GRID;
 
-const whiteGridFromPanel = (
+const paneGridFromPanel = (
   cellWidth: unknown,
   cellHeight: unknown,
   gapX: unknown,
@@ -127,20 +136,21 @@ const whiteGridFromPanel = (
   angle: unknown,
   fieldScale: unknown,
 ): SpeakerFrameGridLook => ({
-  cellWidth: typeof cellWidth === "number" ? cellWidth : SPEAKER_WHITE_GRID.cellWidth,
-  cellHeight: typeof cellHeight === "number" ? cellHeight : SPEAKER_WHITE_GRID.cellHeight,
-  gapX: typeof gapX === "number" ? gapX : SPEAKER_WHITE_GRID.gapX,
-  gapY: typeof gapY === "number" ? gapY : SPEAKER_WHITE_GRID.gapY,
-  cornerRadius: typeof cornerRadius === "number" ? cornerRadius : SPEAKER_WHITE_GRID.cornerRadius,
-  overlapAmount: typeof overlap === "number" ? overlap : SPEAKER_WHITE_GRID.overlapAmount,
-  orientation: orientation === "horizontal" || orientation === "vertical" ? orientation : SPEAKER_WHITE_GRID.orientation,
-  angleDeg: typeof angle === "number" ? angle : SPEAKER_WHITE_GRID.angleDeg,
-  fieldScale: typeof fieldScale === "number" ? fieldScale : SPEAKER_WHITE_GRID.fieldScale,
+  cellWidth: typeof cellWidth === "number" ? cellWidth : SPEAKER_PANE_GRID.cellWidth,
+  cellHeight: typeof cellHeight === "number" ? cellHeight : SPEAKER_PANE_GRID.cellHeight,
+  gapX: typeof gapX === "number" ? gapX : SPEAKER_PANE_GRID.gapX,
+  gapY: typeof gapY === "number" ? gapY : SPEAKER_PANE_GRID.gapY,
+  cornerRadius: typeof cornerRadius === "number" ? cornerRadius : SPEAKER_PANE_GRID.cornerRadius,
+  overlapAmount: typeof overlap === "number" ? overlap : SPEAKER_PANE_GRID.overlapAmount,
+  orientation: orientation === "horizontal" || orientation === "vertical" ? orientation : SPEAKER_PANE_GRID.orientation,
+  angleDeg: typeof angle === "number" ? angle : SPEAKER_PANE_GRID.angleDeg,
+  fieldScale: typeof fieldScale === "number" ? fieldScale : SPEAKER_PANE_GRID.fieldScale,
 });
 
-/** Panel values: settings plus flattened orange/white/grey stripe tables. */
+/** Panel values: settings plus flattened orange/dark/grey stripe tables. */
 export function seedSpeakerFramesPanelValues(settings: SpeakerFrameSettings): PanelValues {
-  const whiteGrid = whiteGridFromSettings(settings.white);
+  const orangeGrid = paneGridFromSettings(settings.orange);
+  const darkGrid = paneGridFromSettings(settings.dark);
   return {
     ...settings,
     stripes: toEditableControls(settings.orange.stripes),
@@ -152,24 +162,33 @@ export function seedSpeakerFramesPanelValues(settings: SpeakerFrameSettings): Pa
     whitePoint: settings.orange.whitePoint,
     gamma: settings.orange.gamma,
     bgColor: settings.orange.bgColor,
-    whiteStripes: toEditableControls(settings.white.stripes),
-    whiteInvert: settings.white.invert,
-    whiteBrightness: settings.white.brightness,
-    whiteExposure: settings.white.exposure,
-    whiteContrast: settings.white.contrast,
-    whiteBlackPoint: settings.white.blackPoint,
-    whiteWhitePoint: settings.white.whitePoint,
-    whiteGamma: settings.white.gamma,
-    whiteBgColor: settings.white.bgColor,
-    whiteGridCellWidth: whiteGrid.cellWidth,
-    whiteGridCellHeight: whiteGrid.cellHeight,
-    whiteGridGapX: whiteGrid.gapX,
-    whiteGridGapY: whiteGrid.gapY,
-    whiteGridCornerRadius: whiteGrid.cornerRadius,
-    whiteGridOverlap: whiteGrid.overlapAmount,
-    whiteGridOrientation: whiteGrid.orientation,
-    whiteGridAngle: whiteGrid.angleDeg,
-    whiteFieldScale: whiteGrid.fieldScale,
+    orangeGridCellWidth: orangeGrid.cellWidth,
+    orangeGridCellHeight: orangeGrid.cellHeight,
+    orangeGridGapX: orangeGrid.gapX,
+    orangeGridGapY: orangeGrid.gapY,
+    orangeGridCornerRadius: orangeGrid.cornerRadius,
+    orangeGridOverlap: orangeGrid.overlapAmount,
+    orangeGridOrientation: orangeGrid.orientation,
+    orangeGridAngle: orangeGrid.angleDeg,
+    orangeFieldScale: orangeGrid.fieldScale,
+    darkStripes: toEditableControls(settings.dark.stripes),
+    darkInvert: settings.dark.invert,
+    darkBrightness: settings.dark.brightness,
+    darkExposure: settings.dark.exposure,
+    darkContrast: settings.dark.contrast,
+    darkBlackPoint: settings.dark.blackPoint,
+    darkWhitePoint: settings.dark.whitePoint,
+    darkGamma: settings.dark.gamma,
+    darkBgColor: settings.dark.bgColor,
+    darkGridCellWidth: darkGrid.cellWidth,
+    darkGridCellHeight: darkGrid.cellHeight,
+    darkGridGapX: darkGrid.gapX,
+    darkGridGapY: darkGrid.gapY,
+    darkGridCornerRadius: darkGrid.cornerRadius,
+    darkGridOverlap: darkGrid.overlapAmount,
+    darkGridOrientation: darkGrid.orientation,
+    darkGridAngle: darkGrid.angleDeg,
+    darkFieldScale: darkGrid.fieldScale,
     greyStripes: toEditableControls(settings.grey.stripes),
     greyInvert: settings.grey.invert,
     greyBrightness: settings.grey.brightness,
@@ -193,6 +212,15 @@ export function speakerFramesFromPanelValues(values: PanelValues): SpeakerFrameS
     whitePoint,
     gamma,
     bgColor,
+    orangeGridCellWidth,
+    orangeGridCellHeight,
+    orangeGridGapX,
+    orangeGridGapY,
+    orangeGridCornerRadius,
+    orangeGridOverlap,
+    orangeGridOrientation,
+    orangeGridAngle,
+    orangeFieldScale,
     greyStripes,
     greyInvert,
     greyBrightness,
@@ -202,25 +230,26 @@ export function speakerFramesFromPanelValues(values: PanelValues): SpeakerFrameS
     greyWhitePoint,
     greyGamma,
     greyBgColor,
-    whiteStripes,
-    whiteInvert,
-    whiteBrightness,
-    whiteExposure,
-    whiteContrast,
-    whiteBlackPoint,
-    whiteWhitePoint,
-    whiteGamma,
-    whiteBgColor,
-    whiteGridCellWidth,
-    whiteGridCellHeight,
-    whiteGridGapX,
-    whiteGridGapY,
-    whiteGridCornerRadius,
-    whiteGridOverlap,
-    whiteGridOrientation,
-    whiteGridAngle,
-    whiteFieldScale,
+    darkStripes,
+    darkInvert,
+    darkBrightness,
+    darkExposure,
+    darkContrast,
+    darkBlackPoint,
+    darkWhitePoint,
+    darkGamma,
+    darkBgColor,
+    darkGridCellWidth,
+    darkGridCellHeight,
+    darkGridGapX,
+    darkGridGapY,
+    darkGridCornerRadius,
+    darkGridOverlap,
+    darkGridOrientation,
+    darkGridAngle,
+    darkFieldScale,
     orange: _orange,
+    dark: _dark,
     white: _white,
     grey: _grey,
     placements,
@@ -240,28 +269,39 @@ export function speakerFramesFromPanelValues(values: PanelValues): SpeakerFrameS
       gamma,
       bgColor,
       SPEAKER_FRAME_DEFAULTS.orange,
+      paneGridFromPanel(
+        orangeGridCellWidth,
+        orangeGridCellHeight,
+        orangeGridGapX,
+        orangeGridGapY,
+        orangeGridCornerRadius,
+        orangeGridOverlap,
+        orangeGridOrientation,
+        orangeGridAngle,
+        orangeFieldScale,
+      ),
     ),
-    white: lookFromPanel(
-      whiteStripes,
-      whiteInvert,
-      whiteBrightness,
-      whiteExposure,
-      whiteContrast,
-      whiteBlackPoint,
-      whiteWhitePoint,
-      whiteGamma,
-      whiteBgColor,
-      SPEAKER_FRAME_DEFAULTS.white,
-      whiteGridFromPanel(
-        whiteGridCellWidth,
-        whiteGridCellHeight,
-        whiteGridGapX,
-        whiteGridGapY,
-        whiteGridCornerRadius,
-        whiteGridOverlap,
-        whiteGridOrientation,
-        whiteGridAngle,
-        whiteFieldScale,
+    dark: lookFromPanel(
+      darkStripes,
+      darkInvert,
+      darkBrightness,
+      darkExposure,
+      darkContrast,
+      darkBlackPoint,
+      darkWhitePoint,
+      darkGamma,
+      darkBgColor,
+      SPEAKER_FRAME_DEFAULTS.dark,
+      paneGridFromPanel(
+        darkGridCellWidth,
+        darkGridCellHeight,
+        darkGridGapX,
+        darkGridGapY,
+        darkGridCornerRadius,
+        darkGridOverlap,
+        darkGridOrientation,
+        darkGridAngle,
+        darkFieldScale,
       ),
     ),
     grey: lookFromPanel(
@@ -297,7 +337,7 @@ const speakerFrameItemFields: PanelField<SpeakerFramePlacement>[] = [
     options: [
       { value: "grey", label: "Overlay" },
       { value: "orange", label: "Orange" },
-      { value: "white", label: "White" },
+      { value: "dark", label: "Dark" },
     ],
   },
   { type: "toggle", key: "span", label: "Span neighboring images" },
@@ -342,8 +382,8 @@ export function buildSpeakerFramesSections(): PanelSectionDef[] {
               switch (placement.variant) {
                 case "orange":
                   return "Orange";
-                case "white":
-                  return "White";
+                case "dark":
+                  return "Dark";
                 case "grey":
                   return "Overlay";
                 default: {
@@ -378,7 +418,7 @@ export function buildSpeakerFramesSections(): PanelSectionDef[] {
     },
     {
       id: "Grid geometry",
-      title: "Grid geometry (overlay + orange)",
+      title: "Grid geometry (overlay)",
       fields: [
         num("gridCellWidth", "Cell width", 2, 48, 1),
         num("gridCellHeight", "Cell height", 2, 48, 1),
@@ -399,7 +439,7 @@ export function buildSpeakerFramesSections(): PanelSectionDef[] {
       defaultOpen: true,
       fields: [
         toggle("stripesEnabled", "Stripes enabled"),
-        num("fieldScale", "Field scale (overlay + orange)", 0.1, 4, 0.01),
+        num("fieldScale", "Field scale (overlay)", 0.1, 4, 0.01),
       ],
     },
     {
@@ -421,6 +461,18 @@ export function buildSpeakerFramesSections(): PanelSectionDef[] {
           label: "Orange stripe palette",
           library: COLOR_LIBRARY,
         },
+        num("orangeGridCellWidth", "Cell width", 2, 48, 1),
+        num("orangeGridCellHeight", "Cell height", 2, 48, 1),
+        num("orangeGridGapX", "Horizontal gap", 0, 24, 0.25),
+        num("orangeGridGapY", "Vertical gap", 0, 24, 0.25),
+        num("orangeGridCornerRadius", "Corner radius", 0, 16, 0.25),
+        num("orangeGridOverlap", "Stripe overlap", 0, 4, 0.01),
+        select("orangeGridOrientation", "Orientation", {
+          Vertical: "vertical",
+          Horizontal: "horizontal",
+        }),
+        num("orangeGridAngle", "Grid angle", -180, 180, 1),
+        num("orangeFieldScale", "Field scale", 0.1, 4, 0.01),
         num("posterizeLevels", "Posterize levels", 0, 32, 1),
         num("thresholdBias", "Threshold bias", -1, 1, 0.01),
         num("noiseAmount", "Noise", 0, 1, 0.01),
@@ -429,36 +481,36 @@ export function buildSpeakerFramesSections(): PanelSectionDef[] {
       ],
     },
     {
-      id: "White variant",
-      title: "White variant",
+      id: "Dark variant",
+      title: "Dark variant",
       defaultOpen: true,
       fields: [
-        color("whiteBgColor", "Background"),
-        toggle("whiteInvert", "Invert"),
-        num("whiteBrightness", "Brightness", -1, 1, 0.01),
-        num("whiteExposure", "Exposure", -2, 2, 0.01),
-        num("whiteContrast", "Contrast", 0, 3, 0.01),
-        num("whiteBlackPoint", "Black point", 0, 1, 0.01),
-        num("whiteWhitePoint", "White point", 0, 1, 0.01),
-        num("whiteGamma", "Gamma", 0.1, 4, 0.01),
+        color("darkBgColor", "Background"),
+        toggle("darkInvert", "Invert"),
+        num("darkBrightness", "Brightness", -1, 1, 0.01),
+        num("darkExposure", "Exposure", -2, 2, 0.01),
+        num("darkContrast", "Contrast", 0, 3, 0.01),
+        num("darkBlackPoint", "Black point", 0, 1, 0.01),
+        num("darkWhitePoint", "White point", 0, 1, 0.01),
+        num("darkGamma", "Gamma", 0.1, 4, 0.01),
         {
           type: "stripe-table",
-          key: "whiteStripes",
-          label: "White stripe palette",
+          key: "darkStripes",
+          label: "Dark stripe palette",
           library: COLOR_LIBRARY,
         },
-        num("whiteGridCellWidth", "Cell width", 2, 48, 1),
-        num("whiteGridCellHeight", "Cell height", 2, 48, 1),
-        num("whiteGridGapX", "Horizontal gap", 0, 24, 0.25),
-        num("whiteGridGapY", "Vertical gap", 0, 24, 0.25),
-        num("whiteGridCornerRadius", "Corner radius", 0, 16, 0.25),
-        num("whiteGridOverlap", "Stripe overlap", 0, 4, 0.01),
-        select("whiteGridOrientation", "Orientation", {
+        num("darkGridCellWidth", "Cell width", 2, 48, 1),
+        num("darkGridCellHeight", "Cell height", 2, 48, 1),
+        num("darkGridGapX", "Horizontal gap", 0, 24, 0.25),
+        num("darkGridGapY", "Vertical gap", 0, 24, 0.25),
+        num("darkGridCornerRadius", "Corner radius", 0, 16, 0.25),
+        num("darkGridOverlap", "Stripe overlap", 0, 4, 0.01),
+        select("darkGridOrientation", "Orientation", {
           Vertical: "vertical",
           Horizontal: "horizontal",
         }),
-        num("whiteGridAngle", "Grid angle", -180, 180, 1),
-        num("whiteFieldScale", "Field scale", 0.1, 4, 0.01),
+        num("darkGridAngle", "Grid angle", -180, 180, 1),
+        num("darkFieldScale", "Field scale", 0.1, 4, 0.01),
       ],
     },
     {

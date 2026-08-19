@@ -268,7 +268,7 @@ export default function SpeakerShaderOverlay() {
               paintOverlayLayer(variantFrames, config);
               break;
             case "orange":
-            case "white":
+            case "dark":
               paintLayer(variantFrames, config);
               break;
             default: {

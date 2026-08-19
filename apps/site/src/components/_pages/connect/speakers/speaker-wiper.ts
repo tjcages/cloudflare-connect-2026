@@ -120,7 +120,7 @@ export const speakerFramePaintConfig = (
   };
   switch (variant) {
     case "orange":
-    case "white":
+    case "dark":
       return { ...base, background };
     case "grey":
       return { ...base, background: { ...background, transparent: true } };

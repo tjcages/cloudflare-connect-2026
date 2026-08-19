@@ -63,7 +63,7 @@ describe("speaker frame wipers", () => {
       expect(frames).toHaveLength(3);
       expect(frames[0]?.variant).toBe("grey");
       expect(frames[1]?.variant).toBe("orange");
-      expect(frames[2]?.variant).toBe("white");
+      expect(frames[2]?.variant).toBe("dark");
       expect(frames[0]?.x).toBe(0);
       expect(frames[0]?.width).toBe(SPEAKER_OVERLAY_REST_WIDTH);
       expect(frames[1]?.width).toBe(SPEAKER_WIPER_REST_WIDTH);
@@ -77,7 +77,7 @@ describe("speaker frame wipers", () => {
     const authored = resolveAuthoredFrames(
       [
         { imageIndex: 0, x: 0, y: 0, width: 0.1, height: 1, span: false, variant: "orange" as const },
-        { imageIndex: 0, x: 0.1, y: 0, width: 0.1, height: 1, span: false, variant: "white" as const },
+        { imageIndex: 0, x: 0.1, y: 0, width: 0.1, height: 1, span: false, variant: "dark" as const },
       ],
       [aperture],
     );
@@ -85,7 +85,7 @@ describe("speaker frame wipers", () => {
     expect(resolveWipingFrames(authored, [aperture], [null], 1_000)).toEqual([]);
 
     const playing = resolveWipingFrames(authored, [aperture], [0], 10_000);
-    expect(playing.map((frame) => frame.variant)).toEqual(["orange", "white"]);
+    expect(playing.map((frame) => frame.variant)).toEqual(["orange", "dark"]);
     expect(playing[0]?.rect).toEqual({ x: 40, y: 10, width: 20, height: 180 });
     expect(playing[1]?.rect).toEqual({ x: 60, y: 10, width: 20, height: 180 });
   });
@@ -99,46 +99,49 @@ describe("speaker frame wipers", () => {
     expect(frames[0]?.rect.width).toBe(20);
   });
 
-  it("paints orange inverted and white uninverted, with independent stripe palettes", () => {
-    const inverted = speakerFramePaintConfig(SPEAKER_FRAME_DEFAULTS, "orange");
-    const white = speakerFramePaintConfig(SPEAKER_FRAME_DEFAULTS, "white");
+  it("paints orange and dark uninverted, with independent stripe palettes", () => {
+    const orange = speakerFramePaintConfig(SPEAKER_FRAME_DEFAULTS, "orange");
+    const dark = speakerFramePaintConfig(SPEAKER_FRAME_DEFAULTS, "dark");
 
-    expect(inverted.adjustments?.invert).toBe(true);
-    expect(white.adjustments?.invert).toBe(false);
-    expect(inverted.background?.color).toBe(0xff_bf_14);
-    expect(white.background?.color).toBe(0xff_ff_ff);
+    expect(orange.adjustments?.invert).toBe(false);
+    expect(dark.adjustments?.invert).toBe(false);
+    expect(orange.background?.color).toBe(0xf4_60_21);
+    expect(dark.background?.color).toBe(0x14_14_14);
 
-    const customWhite = {
+    const customDark = {
       ...SPEAKER_FRAME_DEFAULTS,
-      white: {
-        ...SPEAKER_FRAME_DEFAULTS.white,
+      dark: {
+        ...SPEAKER_FRAME_DEFAULTS.dark,
         invert: true,
         brightness: 0.12,
-        stripes: SPEAKER_FRAME_DEFAULTS.white.stripes.map((stripe, index) =>
+        stripes: SPEAKER_FRAME_DEFAULTS.dark.stripes.map((stripe, index) =>
           index === 0 ? { ...stripe, color: "#112233", width: 0.42 } : stripe,
         ),
       },
     };
-    const painted = speakerFramePaintConfig(customWhite, "white");
+    const painted = speakerFramePaintConfig(customDark, "dark");
     expect(painted.adjustments?.invert).toBe(true);
     expect(painted.adjustments?.brightness).toBe(0.12);
     expect(painted.stripes?.[0]?.color).toBe(0x11_22_33);
-    expect(speakerFramePaintConfig(customWhite, "orange").stripes?.[0]?.color).not.toBe(0x11_22_33);
+    expect(speakerFramePaintConfig(customDark, "orange").stripes?.[0]?.color).not.toBe(0x11_22_33);
   });
 
-  it("paints the white pane with the lab grid without changing orange geometry", () => {
-    const white = speakerFramePaintConfig(SPEAKER_FRAME_DEFAULTS, "white");
+  it("paints orange and dark panes on the lab 7×7 grid", () => {
+    const dark = speakerFramePaintConfig(SPEAKER_FRAME_DEFAULTS, "dark");
     const orange = speakerFramePaintConfig(SPEAKER_FRAME_DEFAULTS, "orange");
+    const overlay = speakerFramePaintConfig(SPEAKER_FRAME_DEFAULTS, "grey");
 
-    expect(white.grid).toMatchObject({ cellWidth: 7, cellHeight: 7, angleDeg: 0, overlapAmount: 1.2 });
-    expect(white.fieldScale).toBe(1);
-    expect(white.stripes?.[0]).toMatchObject({ color: 0x26_11_06, startFrom: 0, width: 0.5 });
-    expect(orange.grid).toMatchObject({
+    expect(dark.grid).toMatchObject({ cellWidth: 7, cellHeight: 7, angleDeg: 0, overlapAmount: 1.2 });
+    expect(dark.fieldScale).toBe(1);
+    expect(dark.stripes?.[0]).toMatchObject({ color: 0x26_11_06, startFrom: 0, width: 0.5 });
+    expect(orange.grid).toMatchObject({ cellWidth: 7, cellHeight: 7, angleDeg: 0, overlapAmount: 1.2 });
+    expect(orange.fieldScale).toBe(1);
+    expect(orange.stripes?.[0]).toMatchObject({ color: 0xfc_68_2b, startFrom: 0, width: 0.5 });
+    expect(overlay.grid).toMatchObject({
       cellWidth: SPEAKER_FRAME_DEFAULTS.gridCellWidth,
       cellHeight: SPEAKER_FRAME_DEFAULTS.gridCellHeight,
       angleDeg: 45,
     });
-    expect(orange.fieldScale).toBe(SPEAKER_FRAME_DEFAULTS.fieldScale);
   });
 
   it("paints the overlay frame with a transparent background so the photo shows through", () => {
@@ -147,17 +150,17 @@ describe("speaker frame wipers", () => {
     expect(overlay.background?.stars?.enabled).toBe(false);
     expect(overlay.adjustments?.invert).toBe(false);
     expect(speakerFramePaintConfig(SPEAKER_FRAME_DEFAULTS, "orange").background?.stars?.enabled).toBe(false);
-    expect(speakerFramePaintConfig(SPEAKER_FRAME_DEFAULTS, "white").background?.stars?.enabled).toBe(false);
+    expect(speakerFramePaintConfig(SPEAKER_FRAME_DEFAULTS, "dark").background?.stars?.enabled).toBe(false);
   });
 
-  it("paints orange and white fields from each look's background color", () => {
+  it("paints orange and dark fields from each look's background color", () => {
     const settings = {
       ...SPEAKER_FRAME_DEFAULTS,
       orange: { ...SPEAKER_FRAME_DEFAULTS.orange, bgColor: "#00ffaa" },
-      white: { ...SPEAKER_FRAME_DEFAULTS.white, bgColor: "#aa00ff" },
+      dark: { ...SPEAKER_FRAME_DEFAULTS.dark, bgColor: "#aa00ff" },
     };
     expect(speakerFramePaintConfig(settings, "orange").background?.color).toBe(0x00_ff_aa);
-    expect(speakerFramePaintConfig(settings, "white").background?.color).toBe(0xaa_00_ff);
+    expect(speakerFramePaintConfig(settings, "dark").background?.color).toBe(0xaa_00_ff);
     expect(speakerFrameOutlineColor("#00ffaa", 1)).toBe("rgba(0, 255, 170, 1)");
   });
 
