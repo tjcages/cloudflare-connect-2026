@@ -90,10 +90,10 @@ export const resolveSpeakerWipers = (
 
     for (let paneIndex = 0; paneIndex < SPEAKER_WIPER_PANE_IDS.length; paneIndex += 1) {
       const pane = SPEAKER_WIPER_PANE_IDS[paneIndex];
-      const progress = options.reducedMotion
-        ? 1
-        : hasOverride
-          ? speakerWiperProgress(override * (SPEAKER_WIPER_DURATION_MS + SPEAKER_WIPER_STAGGER_MS), paneIndex)
+      const progress = hasOverride
+        ? speakerWiperProgress(override * (SPEAKER_WIPER_DURATION_MS + SPEAKER_WIPER_STAGGER_MS), paneIndex)
+        : options.reducedMotion
+          ? 1
           : speakerWiperProgress(nowMs - (startedAt ?? nowMs), paneIndex);
       const rect = speakerWiperRect(aperture, paneIndex, progress);
       if (rect.width < 0.5) continue;

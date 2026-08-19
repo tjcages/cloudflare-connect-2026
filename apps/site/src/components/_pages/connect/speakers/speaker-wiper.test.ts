@@ -76,6 +76,12 @@ describe("speaker wiper intro", () => {
     expect(frames[1]?.rect.width).toBe(20);
   });
 
+  it("lets a preview override play even when reduced motion is on", () => {
+    const mid = resolveSpeakerWipers([aperture], [null], 0, { reducedMotion: true, progressOverride: 0.35 });
+    expect(mid[0]?.rect.width).toBeGreaterThan(20);
+    expect(mid[0]?.rect.width).toBeLessThan(200);
+  });
+
   it("keeps the same stripe colors on both panes, with invert only on the first", () => {
     const inverted = speakerWiperEngineConfig(SPEAKER_FRAME_DEFAULTS, "inverted");
     const white = speakerWiperEngineConfig(SPEAKER_FRAME_DEFAULTS, "white");
