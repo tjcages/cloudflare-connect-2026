@@ -56,10 +56,11 @@ const CARD_OVERLAP = 0.006;
 const CARD_LOCAL_Y = -(CARD_H / 2) + CARD_OVERLAP;
 const HANG_Y = -CARD_LOCAL_Y * MODEL_SCALE;
 
-const METAL = "#e07038";
+const ACCENT = "#f46021";
+const METAL = ACCENT;
 const PLASTIC = "#2b2b2b";
-const CORD = "#f46021";
-const WEBBING = "#e45618";
+const CORD = ACCENT;
+const WEBBING = ACCENT;
 
 const Y_UP = new Vector3(0, 1, 0);
 
@@ -258,9 +259,9 @@ function findClipAnchor(geometry: BufferGeometry): { x: number; y: number } {
 }
 
 function classifyPart(y: number): LanyardPart {
-  if (y < 0.018) return "metal";
-  if (y < 0.032) return "plastic";
-  if (y < 0.055) return "webbing";
+  if (y < 0.02) return "metal";
+  if (y < 0.045) return "plastic";
+  if (y < 0.062) return "webbing";
   return "cord";
 }
 
@@ -333,7 +334,8 @@ function makePartMaterial(
   color: string,
   metalness: number,
   roughness: number,
-  keepNormal: boolean
+  keepNormal: boolean,
+  emissive = 0
 ) {
   const material = source.clone();
   material.map = null;
@@ -344,6 +346,8 @@ function makePartMaterial(
   material.color = new Color(color);
   material.metalness = metalness;
   material.roughness = roughness;
+  material.emissive = new Color(emissive > 0 ? color : "#000000");
+  material.emissiveIntensity = emissive;
   material.side = DoubleSide;
   material.vertexColors = false;
   return material;
@@ -451,9 +455,7 @@ function buildLanyardRig(source: Mesh, texture: Texture): LanyardRig {
   geometry.translate(-anchor.x, -anchor.y, 0);
   filterTriangles(geometry, (ax, ay, bx, by, cx, cy) => {
     const x = (ax + bx + cx) / 3;
-    const y = (ay + by + cy) / 3;
-    if (x < LEFT_TASSEL_X && y > 0.12) return false;
-    return true;
+    return x >= LEFT_TASSEL_X;
   });
   const cordLength = Math.max(length - anchor.y, 0.08);
 
@@ -461,10 +463,10 @@ function buildLanyardRig(source: Mesh, texture: Texture): LanyardRig {
   const parts = splitByPart(geometry);
   const sourceMaterial = source.material as MeshStandardMaterial;
   const materials: Record<LanyardPart, MeshStandardMaterial> = {
-    metal: makePartMaterial(sourceMaterial, METAL, 0.9, 0.2, true),
+    metal: makePartMaterial(sourceMaterial, METAL, 0.48, 0.28, true, 0.22),
     plastic: makePartMaterial(sourceMaterial, PLASTIC, 0.08, 0.5, true),
-    webbing: makePartMaterial(sourceMaterial, WEBBING, 0.78, 0.24, true),
-    cord: makePartMaterial(sourceMaterial, CORD, 0.72, 0.26, true),
+    webbing: makePartMaterial(sourceMaterial, WEBBING, 0.4, 0.32, true, 0.16),
+    cord: makePartMaterial(sourceMaterial, CORD, 0.36, 0.34, true, 0.14),
   };
 
   const segment = cordLength / CHAIN_BONES;
@@ -844,7 +846,7 @@ function BadgeScene({
       <hemisphereLight args={["#fff1e4", "#1a1a1a", 0.5]} />
       <directionalLight intensity={1.45} position={[5, 7, 8]} />
       <directionalLight intensity={0.7} position={[-6, 3, 5]} />
-      <directionalLight color="#ffb57a" intensity={0.55} position={[2, -1, 6]} />
+      <directionalLight color="#f46021" intensity={0.7} position={[2, -1, 6]} />
       <LanyardBadge
         identity={identity}
         rainCanvas={rainCanvas}
