@@ -5,6 +5,7 @@ import {
   armSpeakerWiper,
   commitPendingSpeakerWipers,
   parseSpeakerWiperOverride,
+  replaySpeakerWiper,
   resetSpeakerWiper,
   resolveWipingFrames,
   speakerFrameOutlineColor,
@@ -249,8 +250,24 @@ describe("speaker frame wipers", () => {
     expect(clock.startedAtMs[0]).toBe(400);
   });
 
-  it("enters a wipe at 28% visibility and resets only when fully off-screen", () => {
+  it("replays the same left-edge wipe from the start", () => {
+    const clock = { startedAtMs: [0], pending: new Set<number>() };
+    expect(
+      replaySpeakerWiper(clock, 0, { imageReady: true, reducedMotion: false, nowMs: 800 }),
+    ).toBe("armed");
+    expect(clock.startedAtMs[0]).toBeNull();
+    expect(clock.pending.has(0)).toBe(true);
+    commitPendingSpeakerWipers(clock, 840);
+    expect(clock.startedAtMs[0]).toBe(840);
+  });
+
+  it("enters a wipe at 28% visibility and resets when it drops back below that", () => {
     expect(speakerWiperShouldEnter(0.27)).toBe(false);
     expect(speakerWiperShouldEnter(0.28)).toBe(true);
+  });
+
+  it("runs the intro wipe slower than a one-second clip", () => {
+    expect(SPEAKER_WIPER_DURATION_MS).toBe(1800);
+    expect(speakerWiperProgress(900, 0)).toBe(0.5);
   });
 });

@@ -35,6 +35,7 @@ import {
   armSpeakerWiper,
   commitPendingSpeakerWipers,
   parseSpeakerWiperOverride,
+  replaySpeakerWiper,
   resetSpeakerWiper,
   resolveWipingFrames,
   speakerFrameOutlineColor,
@@ -338,11 +339,13 @@ export default function SpeakerShaderOverlay() {
       if (!engine) return;
       engine.setRevealGate(true);
       if (reducedMotion.matches) {
+        for (const index of intersectingWipers) replayWiper(index);
         clock.set(performance.now());
         renderOnce();
         return;
       }
       if (animationFrame) return;
+      for (const index of intersectingWipers) replayWiper(index);
       lastFrameMs = performance.now();
       clock.set(lastFrameMs);
       animationFrame = requestAnimationFrame(tick);
@@ -460,6 +463,15 @@ export default function SpeakerShaderOverlay() {
       if (result === "rest" && visible) renderOnce();
     };
 
+    const replayWiper = (index: number) => {
+      const result = replaySpeakerWiper(wiperClock, index, {
+        imageReady: isImageReady(index),
+        reducedMotion: reducedMotion.matches,
+        nowMs: performance.now(),
+      });
+      if (result === "rest" && visible) renderOnce();
+    };
+
     const resizeObserver = new ResizeObserver(resize);
     const intersectionObserver = new IntersectionObserver((entries) => {
       const nextVisible = entries.some((entry) => entry.isIntersecting);
@@ -478,11 +490,10 @@ export default function SpeakerShaderOverlay() {
             armWiper(index);
             continue;
           }
-          if (!entry.isIntersecting) {
-            intersectingWipers.delete(index);
-            resetSpeakerWiper(wiperClock, index);
-            if (visible && reducedMotion.matches) renderOnce();
-          }
+          const wasTracking = intersectingWipers.delete(index);
+          if (!wasTracking) continue;
+          resetSpeakerWiper(wiperClock, index);
+          if (visible && reducedMotion.matches) renderOnce();
         }
       },
       { threshold: [0, SPEAKER_WIPER_ENTER_RATIO], rootMargin: "0px 0px -10% 0px" },

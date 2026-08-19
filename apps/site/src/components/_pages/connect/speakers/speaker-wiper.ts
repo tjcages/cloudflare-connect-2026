@@ -12,7 +12,8 @@ import type { Rect } from "./speaker-shader-geometry";
 /** Rest width of each default pane, as a fraction of the portrait. */
 export const SPEAKER_WIPER_REST_WIDTH = 0.1;
 export const SPEAKER_OVERLAY_REST_WIDTH = 0.8;
-export const SPEAKER_WIPER_DURATION_MS = 1200;
+/** Left-edge intro swipe for each portrait. Slow enough to read on phone. */
+export const SPEAKER_WIPER_DURATION_MS = 1800;
 export const SPEAKER_WIPER_STAGGER_MS = 180;
 /** Dark used to wait a second stagger (pane index 2). It now starts almost with the overlay. */
 export const SPEAKER_WIPER_DARK_STAGGER_MS = 70;
@@ -281,4 +282,14 @@ export const commitPendingSpeakerWipers = (clock: SpeakerWiperClock, nowMs: numb
 export const resetSpeakerWiper = (clock: SpeakerWiperClock, index: number) => {
   clock.startedAtMs[index] = null;
   clock.pending.delete(index);
+};
+
+/** Drop the current clip and arm the same left-edge wipe again. */
+export const replaySpeakerWiper = (
+  clock: SpeakerWiperClock,
+  index: number,
+  options: { imageReady: boolean; reducedMotion: boolean; nowMs: number },
+) => {
+  resetSpeakerWiper(clock, index);
+  return armSpeakerWiper(clock, index, options);
 };
