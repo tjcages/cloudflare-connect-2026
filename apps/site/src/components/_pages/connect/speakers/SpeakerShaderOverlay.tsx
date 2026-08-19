@@ -2,6 +2,7 @@ import {
   createManualClock,
   createStripesEngine,
   paintFramesOverlay,
+  type EngineConfig,
   type StripesEngine,
 } from "@necatikcl/stripes-engine";
 import { useEffect, useRef } from "react";
@@ -30,6 +31,12 @@ import {
   type Rect,
 } from "./speaker-shader-geometry";
 import { SPEAKER_SHADER_CONFIG, SPEAKER_SHADER_MAX_DPR } from "./speaker-shader-config";
+import {
+  parseSpeakerWiperOverride,
+  resolveSpeakerWipers,
+  speakerWiperEngineConfig,
+  speakerWiperOutlineColor,
+} from "./speaker-wiper";
 
 type Aperture = {
   image: HTMLImageElement;
@@ -55,7 +62,7 @@ const variantOutlineColor = (variant: SpeakerFrameVariantId, opacity: number) =>
 const paintPartialFrameOutline = (
   context: CanvasRenderingContext2D,
   frame: Rect,
-  variant: SpeakerFrameVariantId,
+  stroke: (opacity: number) => string,
   opacity = 1,
 ) => {
   const { x, y, width, height } = frame;
@@ -63,7 +70,7 @@ const paintPartialFrameOutline = (
   const bottom = y + height;
   const corner = Math.min(12, width / 4, height / 4);
 
-  context.strokeStyle = variantOutlineColor(variant, 0.42 * opacity);
+  context.strokeStyle = stroke(0.42 * opacity);
   context.lineWidth = 1;
   context.strokeRect(x + 0.5, y + 0.5, width - 1, height - 1);
 
@@ -80,7 +87,7 @@ const paintPartialFrameOutline = (
   context.moveTo(x + corner, bottom);
   context.lineTo(x, bottom);
   context.lineTo(x, bottom - corner);
-  context.strokeStyle = variantOutlineColor(variant, 0.95 * opacity);
+  context.strokeStyle = stroke(0.95 * opacity);
   context.stroke();
 };
 
@@ -124,6 +131,8 @@ export default function SpeakerShaderOverlay() {
     let lastClientY = Number.NaN;
     let cursorFrame: CursorFrameSeed | null = null;
     let cursorTarget: Point | null = null;
+    const wiperStartedAtMs: (number | null)[] = apertureElements.map(() => null);
+    const wiperProgressOverride = parseSpeakerWiperOverride(window.location.search);
 
     const readGeometry = () => {
       const rootRect = root.getBoundingClientRect();
@@ -166,10 +175,45 @@ export default function SpeakerShaderOverlay() {
       engine?.setSource(sourceCanvas);
     };
 
+    const paintLayer = (frames: Rect[], config: Partial<EngineConfig>, fill?: string) => {
+      if (!engine || frames.length === 0) return;
+      engine.setConfig(config);
+      engine.renderFrame();
+      const plan = buildPartialFramePlan(
+        frames,
+        apertures.map(({ rect }) => rect),
+      );
+      if (plan.renderPasses === 0) return;
+
+      outputContext.save();
+      outputContext.beginPath();
+      for (const { rect } of plan.maskFragments) {
+        outputContext.rect(rect.x, rect.y, rect.width, rect.height);
+      }
+      outputContext.clip();
+      if (fill) {
+        outputContext.globalAlpha = 1;
+        outputContext.fillStyle = fill;
+        outputContext.fillRect(0, 0, width, height);
+      }
+      outputContext.globalAlpha = settingsRef.current.shaderOpacity;
+      outputContext.drawImage(renderCanvas, 0, 0, width, height);
+
+      const decorativeFrames = engine.readFramesOverlay();
+      if (decorativeFrames) {
+        paintFramesOverlay(outputContext, decorativeFrames);
+      }
+      outputContext.restore();
+    };
+
     const paint = () => {
       const settings = settingsRef.current;
       const apertureRects = apertures.map(({ rect }) => rect);
       const authored = resolveAuthoredFrames(settings.placements, apertureRects);
+      const wipers = resolveSpeakerWipers(apertureRects, wiperStartedAtMs, performance.now(), {
+        reducedMotion: reducedMotion.matches,
+        progressOverride: wiperProgressOverride,
+      });
       if (cursorFrame && cursorTarget) {
         cursorFrame = moveCursorFrame(cursorFrame, cursorTarget, portraitBands, {
           widthScale: settings.cursorWidth,
@@ -188,28 +232,21 @@ export default function SpeakerShaderOverlay() {
           if (variant === "orange" && pointerFrameRect) {
             frames.push(pointerFrameRect);
           }
-          if (frames.length === 0) continue;
-
-          engine.setConfig(speakerVariantEngineConfig(settings, variant));
-          engine.renderFrame();
-          const plan = buildPartialFramePlan(frames, apertureRects);
-          if (plan.renderPasses === 0) continue;
-
-          outputContext.save();
-          outputContext.beginPath();
-          for (const { rect } of plan.maskFragments) {
-            outputContext.rect(rect.x, rect.y, rect.width, rect.height);
-          }
-          outputContext.clip();
-          outputContext.globalAlpha = settings.shaderOpacity;
-          outputContext.drawImage(renderCanvas, 0, 0, width, height);
-
-          const decorativeFrames = engine.readFramesOverlay();
-          if (decorativeFrames) {
-            paintFramesOverlay(outputContext, decorativeFrames);
-          }
-          outputContext.restore();
+          paintLayer(frames, {
+            ...speakerVariantEngineConfig(settings, variant),
+            background: SPEAKER_SHADER_CONFIG.background,
+          });
         }
+        paintLayer(
+          wipers.filter((frame) => frame.pane === "inverted").map((frame) => frame.rect),
+          speakerWiperEngineConfig(settings, "inverted"),
+          "#ffbf14",
+        );
+        paintLayer(
+          wipers.filter((frame) => frame.pane === "white").map((frame) => frame.rect),
+          speakerWiperEngineConfig(settings, "white"),
+          "#ffffff",
+        );
       }
 
       outputContext.save();
@@ -219,10 +256,13 @@ export default function SpeakerShaderOverlay() {
       }
       outputContext.clip();
       for (const frame of authored) {
-        paintPartialFrameOutline(outputContext, frame.rect, frame.variant);
+        paintPartialFrameOutline(outputContext, frame.rect, (opacity) => variantOutlineColor(frame.variant, opacity));
+      }
+      for (const frame of wipers) {
+        paintPartialFrameOutline(outputContext, frame.rect, (opacity) => speakerWiperOutlineColor(frame.pane, opacity));
       }
       if (pointerFrameRect) {
-        paintPartialFrameOutline(outputContext, pointerFrameRect, "orange");
+        paintPartialFrameOutline(outputContext, pointerFrameRect, (opacity) => variantOutlineColor("orange", opacity));
       }
       outputContext.restore();
     };
@@ -355,6 +395,12 @@ export default function SpeakerShaderOverlay() {
       }
     };
 
+    const startWiper = (index: number) => {
+      if (wiperStartedAtMs[index] != null) return;
+      wiperStartedAtMs[index] = performance.now();
+      if (reducedMotion.matches && visible) renderOnce();
+    };
+
     const resizeObserver = new ResizeObserver(resize);
     const intersectionObserver = new IntersectionObserver((entries) => {
       const nextVisible = entries.some((entry) => entry.isIntersecting);
@@ -363,6 +409,17 @@ export default function SpeakerShaderOverlay() {
       if (visible) start();
       else stop();
     });
+    const wiperObserver = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          const index = apertureElements.indexOf(entry.target as HTMLElement);
+          if (index < 0) continue;
+          startWiper(index);
+        }
+      },
+      { threshold: 0.28, rootMargin: "0px 0px -10% 0px" },
+    );
     const imageLoadHandlers = images.map((image) => {
       if (!image) return null;
       const handler = () => {
@@ -396,7 +453,10 @@ export default function SpeakerShaderOverlay() {
       engine.triggerReveal();
 
       resizeObserver.observe(root);
-      for (const element of apertureElements) resizeObserver.observe(element);
+      for (const element of apertureElements) {
+        resizeObserver.observe(element);
+        wiperObserver.observe(element);
+      }
       intersectionObserver.observe(root);
       root.addEventListener("pointermove", onPointerMove);
       root.addEventListener("pointerleave", onPointerLeave);
@@ -412,6 +472,7 @@ export default function SpeakerShaderOverlay() {
       stop();
       resizeObserver.disconnect();
       intersectionObserver.disconnect();
+      wiperObserver.disconnect();
       for (const listener of imageLoadHandlers) {
         if (!listener) continue;
         listener.image.removeEventListener("load", listener.handler);
