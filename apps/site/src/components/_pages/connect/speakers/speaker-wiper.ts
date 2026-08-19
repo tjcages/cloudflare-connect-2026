@@ -12,13 +12,11 @@ import type { Rect } from "./speaker-shader-geometry";
 /** Rest width of each default pane, as a fraction of the portrait. */
 export const SPEAKER_WIPER_REST_WIDTH = 0.1;
 export const SPEAKER_OVERLAY_REST_WIDTH = 0.8;
-/** Left-edge intro swipe for each portrait. Slow enough to read on phone. */
-export const SPEAKER_WIPER_DURATION_MS = 1800;
+/** Collapse from full-width coverage into the rest rect. */
+export const SPEAKER_WIPER_DURATION_MS = 900;
 export const SPEAKER_WIPER_STAGGER_MS = 180;
 /** Dark used to wait a second stagger (pane index 2). It now starts almost with the overlay. */
 export const SPEAKER_WIPER_DARK_STAGGER_MS = 70;
-/** Expand (left-edge wipe across the portrait) occupies this share of the clip. */
-export const SPEAKER_WIPER_EXPAND_END = 0.6;
 /** After both edge panes rest, they trade width for this long, then settle. */
 export const SPEAKER_PANE_WIGGLE_DURATION_MS = 9_000;
 export const SPEAKER_PANE_WIGGLE_PERIOD_MS = 2_400;
@@ -28,8 +26,6 @@ export const SPEAKER_PANE_WIGGLE_AMPLITUDE = 0.34;
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
 
 const lerp = (from: number, to: number, t: number) => from + (to - from) * t;
-
-const easeOutCubic = (t: number) => 1 - (1 - t) ** 3;
 
 const easeInOutCubic = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
 
@@ -89,25 +85,19 @@ const panesAreAdjacent = (a: Rect, b: Rect) => {
 };
 
 /**
- * The authored frame itself is the wiper: it grows from the portrait's left
- * edge across the image, then settles into its rest rect.
+ * The authored frame itself is the wiper: it starts covering the portrait at
+ * full width, then settles into its rest rect (orange/dark on the right edge).
  */
 export const speakerFrameWiperRect = (aperture: Rect, rest: Rect, progress: number): Rect => {
-  if (progress <= 0 || aperture.width <= 0 || rest.height <= 0) {
+  if (aperture.width <= 0 || rest.height <= 0) {
     return { x: aperture.x, y: rest.y, width: 0, height: rest.height };
   }
 
-  if (progress < SPEAKER_WIPER_EXPAND_END) {
-    const u = easeOutCubic(progress / SPEAKER_WIPER_EXPAND_END);
-    return {
-      x: aperture.x,
-      y: rest.y,
-      width: aperture.width * u,
-      height: rest.height,
-    };
+  if (progress <= 0) {
+    return { x: aperture.x, y: rest.y, width: aperture.width, height: rest.height };
   }
 
-  const u = easeInOutCubic((progress - SPEAKER_WIPER_EXPAND_END) / (1 - SPEAKER_WIPER_EXPAND_END));
+  const u = easeInOutCubic(Math.min(1, progress));
   return {
     x: lerp(aperture.x, rest.x, u),
     y: rest.y,
@@ -147,7 +137,7 @@ type WipingFrame = {
   variant: SpeakerFrameVariantId;
 };
 
-/** Animates each authored frame from a left-edge wipe to its rest rect. */
+/** Animates each authored frame from full-width coverage to its rest rect. */
 export const resolveWipingFrames = <T extends WipingFrame>(
   authored: readonly T[],
   apertures: readonly Rect[],
@@ -284,7 +274,7 @@ export const resetSpeakerWiper = (clock: SpeakerWiperClock, index: number) => {
   clock.pending.delete(index);
 };
 
-/** Drop the current clip and arm the same left-edge wipe again. */
+/** Drop the current clip and arm the same full-width settle again. */
 export const replaySpeakerWiper = (
   clock: SpeakerWiperClock,
   index: number,

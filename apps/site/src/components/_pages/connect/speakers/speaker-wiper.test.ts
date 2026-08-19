@@ -28,22 +28,23 @@ const aperture = { x: 40, y: 10, width: 200, height: 180 };
 const rest = { x: 40, y: 10, width: 20, height: 180 };
 
 describe("speaker frame wipers", () => {
-  it("starts on the left edge with no coverage", () => {
+  it("starts covering the portrait at full width", () => {
     expect(speakerFrameWiperRect(aperture, rest, 0)).toEqual({
       x: 40,
       y: 10,
-      width: 0,
+      width: 200,
       height: 180,
     });
     expect(speakerWiperProgress(0, 0)).toBe(0);
   });
 
-  it("wipes the authored frame across the portrait from the left", () => {
-    const mid = speakerFrameWiperRect(aperture, rest, 0.3);
-    expect(mid.x).toBe(40);
+  it("collapses the authored frame from full width into its rest rect", () => {
+    const mid = speakerFrameWiperRect(aperture, { x: 220, y: 10, width: 20, height: 180 }, 0.5);
     expect(mid.y).toBe(rest.y);
     expect(mid.height).toBe(rest.height);
-    expect(mid.width).toBeGreaterThan(40);
+    expect(mid.x).toBeGreaterThan(40);
+    expect(mid.x).toBeLessThan(220);
+    expect(mid.width).toBeGreaterThan(20);
     expect(mid.width).toBeLessThan(200);
   });
 
@@ -250,7 +251,7 @@ describe("speaker frame wipers", () => {
     expect(clock.startedAtMs[0]).toBe(400);
   });
 
-  it("replays the same left-edge wipe from the start", () => {
+  it("replays the same full-width settle from the start", () => {
     const clock = { startedAtMs: [0], pending: new Set<number>() };
     expect(
       replaySpeakerWiper(clock, 0, { imageReady: true, reducedMotion: false, nowMs: 800 }),
@@ -266,8 +267,8 @@ describe("speaker frame wipers", () => {
     expect(speakerWiperShouldEnter(0.28)).toBe(true);
   });
 
-  it("runs the intro wipe slower than a one-second clip", () => {
-    expect(SPEAKER_WIPER_DURATION_MS).toBe(1800);
-    expect(speakerWiperProgress(900, 0)).toBe(0.5);
+  it("runs the settle clip in 900ms", () => {
+    expect(SPEAKER_WIPER_DURATION_MS).toBe(900);
+    expect(speakerWiperProgress(450, 0)).toBe(0.5);
   });
 });

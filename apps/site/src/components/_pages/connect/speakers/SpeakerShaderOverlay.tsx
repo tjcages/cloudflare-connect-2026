@@ -307,11 +307,6 @@ export default function SpeakerShaderOverlay() {
           speakerFrameOutlineColor(speakerVariantLook(settings, frame.variant).bgColor, opacity),
         );
       }
-      if (pointerFrameRect) {
-        paintPartialFrameOutline(outputContext, pointerFrameRect, (opacity) =>
-          speakerFrameOutlineColor(settings.grey.bgColor, opacity),
-        );
-      }
       outputContext.restore();
     };
 
