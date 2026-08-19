@@ -1,25 +1,23 @@
 "use no memo";
 
-import { PerspectiveCamera, RoundedBox, useGLTF } from "@react-three/drei";
+import { PerspectiveCamera, useGLTF } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useLayoutEffect, useMemo, useRef, type RefObject } from "react";
-import type {
-  BufferGeometry,
-  Camera,
-  Group,
-  Mesh,
-  MeshStandardMaterial,
-  Texture,
-} from "three";
+import type { BufferGeometry, Camera, MeshStandardMaterial, Texture } from "three";
 import {
   Bone,
   CanvasTexture,
   Color,
   DoubleSide,
+  ExtrudeGeometry,
   Float32BufferAttribute,
+  Group,
   MathUtils,
+  Mesh,
+  MeshBasicMaterial,
+  MeshStandardMaterial as StandardMaterial,
+  PlaneGeometry,
   Shape,
-  ShapeGeometry,
   Skeleton,
   SkinnedMesh,
   SRGBColorSpace,
@@ -30,25 +28,23 @@ import { WiggleBone } from "wiggle";
 
 const LANYARD_ORANGE = "#f46021";
 const LANYARD_URL = "/connect/badge-lanyard.glb";
-const LANYARD_BONES = 8;
-const MODEL_SCALE = 20;
+const LANYARD_BONES = 4;
+const MODEL_SCALE = 11;
 const TEXTURE_W = 1024;
 const TEXTURE_H = 1536;
-/** Clip / buckle stay rigid on the root bone. */
-const STRING_START_Y = 0.12;
-/** Cut the landscape ID holder off below the clip. */
+const STRING_START_Y = 0.165;
 const TAG_CUT_Y = 0.105;
-const DRAG_LIMIT_X = 0.085;
-const DRAG_LIMIT_UP = 0.06;
-const DRAG_LIMIT_DOWN = 0.05;
-const WIGGLE_VELOCITY = 0.11;
+const DRAG_LIMIT_X = 0.09;
+const DRAG_LIMIT_UP = 0.07;
+const DRAG_LIMIT_DOWN = 0.055;
+const WIGGLE_VELOCITY = 0.22;
 
-const CARD_W = 0.092;
-const CARD_H = 0.148;
-const CARD_D = 0.01;
+const CARD_W = 0.1;
+const CARD_H = 0.158;
+const CARD_D = 0.012;
 const CLIP_Y = 0.11;
-const CARD_Y = CLIP_Y - CARD_H / 2 - 0.004;
-const SHADER_INSET = 0.0035;
+const CARD_Y = CLIP_Y - CARD_H / 2 + 0.004;
+const SHADER_INSET = 0.003;
 const CARD_RADIUS = 0.007;
 
 export type BadgeCardIdentity = {
@@ -58,7 +54,7 @@ export type BadgeCardIdentity = {
   serial: string;
 };
 
-function createRoundedPlane(width: number, height: number, radius: number) {
+function roundedRect(width: number, height: number, radius: number) {
   const shape = new Shape();
   const x = -width / 2;
   const y = -height / 2;
@@ -72,9 +68,7 @@ function createRoundedPlane(width: number, height: number, radius: number) {
   shape.quadraticCurveTo(x, y + height, x, y + height - r);
   shape.lineTo(x, y + r);
   shape.quadraticCurveTo(x, y, x + r, y);
-  const geometry = new ShapeGeometry(shape);
-  geometry.computeBoundingBox();
-  return geometry;
+  return shape;
 }
 
 function drawCover(
@@ -110,14 +104,13 @@ function drawIdentity(
   width: number,
   height: number
 ) {
-  const footer = Math.round(height * 0.16);
+  const footer = Math.round(height * 0.2);
   const top = height - footer;
-  const fade = ctx.createLinearGradient(0, top - footer * 0.35, 0, top);
+  const fade = ctx.createLinearGradient(0, top, 0, height);
   fade.addColorStop(0, "rgba(255,255,255,0)");
-  fade.addColorStop(1, "rgba(255,255,255,0.94)");
+  fade.addColorStop(0.35, "rgba(255,255,255,0.82)");
+  fade.addColorStop(1, "rgba(255,255,255,0.96)");
   ctx.fillStyle = fade;
-  ctx.fillRect(0, top - footer * 0.35, width, footer * 0.35);
-  ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, top, width, footer);
 
   const pad = width * 0.08;
@@ -168,7 +161,7 @@ function useHeroShaderTexture(
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     const twizzler = twizzlerCanvas.current;
     const rain = rainCanvas.current;
-    const artH = Math.round(canvas.height * 0.84);
+    const artH = canvas.height;
     if (twizzler) drawCover(ctx, twizzler, 0, 0, canvas.width, artH);
     if (rain) drawCover(ctx, rain, 0, 0, canvas.width, artH);
     drawIdentity(ctx, identity, canvas.width, canvas.height);
@@ -198,10 +191,63 @@ function stripTagBody(geometry: BufferGeometry) {
   geometry.setIndex(next);
 }
 
+function centerClipOnX(geometry: BufferGeometry) {
+  const position = geometry.attributes.position;
+  const index = geometry.getIndex();
+  if (!position || !index) return;
+  const vertex = new Vector3();
+  let sum = 0;
+  let count = 0;
+  const seen = new Set<number>();
+  for (let i = 0; i < index.count; i += 1) {
+    const vertIndex = index.getX(i);
+    if (seen.has(vertIndex)) continue;
+    seen.add(vertIndex);
+    vertex.fromBufferAttribute(position, vertIndex);
+    if (vertex.y < TAG_CUT_Y || vertex.y > TAG_CUT_Y + 0.04) continue;
+    sum += vertex.x;
+    count += 1;
+  }
+  if (count === 0) return;
+  geometry.translate(-sum / count, 0, 0);
+}
+
+function createBadgeCard(texture: Texture): Group {
+  const card = new Group();
+  card.position.set(0, CARD_Y, 0);
+
+  const bodyGeometry = new ExtrudeGeometry(roundedRect(CARD_W, CARD_H, CARD_RADIUS), {
+    depth: CARD_D,
+    bevelEnabled: false,
+    steps: 1,
+  });
+  bodyGeometry.translate(0, 0, -CARD_D / 2);
+  const body = new Mesh(
+    bodyGeometry,
+    new StandardMaterial({
+      color: "#f4f1ea",
+      metalness: 0.04,
+      roughness: 0.32,
+    })
+  );
+  const face = new Mesh(
+    new PlaneGeometry(CARD_W - SHADER_INSET * 2, CARD_H - SHADER_INSET * 2),
+    new MeshBasicMaterial({
+      map: texture,
+      toneMapped: false,
+    })
+  );
+  face.position.z = CARD_D / 2 + 0.0008;
+  card.add(body);
+  card.add(face);
+  return card;
+}
+
 type LanyardRig = {
   skinned: SkinnedMesh;
   root: Bone;
   bones: Bone[];
+  card: Group;
 };
 
 /**
@@ -211,7 +257,7 @@ type LanyardRig = {
  * bone; the badge card is parented to the rigid root so only the string lags
  * when that root is pulled.
  */
-function buildLanyardRig(source: Mesh): LanyardRig {
+function buildLanyardRig(source: Mesh, texture: Texture): LanyardRig {
   const geometry = (source.geometry as BufferGeometry).clone();
   source.updateWorldMatrix(true, false);
   geometry.applyMatrix4(source.matrixWorld);
@@ -226,6 +272,7 @@ function buildLanyardRig(source: Mesh): LanyardRig {
     -(box.min.z + box.max.z) / 2
   );
   stripTagBody(geometry);
+  centerClipOnX(geometry);
 
   const segment = length / LANYARD_BONES;
   const bones: Bone[] = [];
@@ -267,12 +314,10 @@ function buildLanyardRig(source: Mesh): LanyardRig {
   const material = (source.material as MeshStandardMaterial).clone();
   material.map = null;
   material.aoMap = null;
-  material.roughnessMap = null;
   material.metalnessMap = null;
-  material.normalMap = null;
   material.color = new Color(LANYARD_ORANGE);
-  material.roughness = 0.4;
-  material.metalness = 0.08;
+  material.roughness = 0.42;
+  material.metalness = 0.06;
   material.side = DoubleSide;
 
   const skinned = new SkinnedMesh(geometry, material);
@@ -280,7 +325,10 @@ function buildLanyardRig(source: Mesh): LanyardRig {
   skinned.add(root);
   skinned.bind(new Skeleton(bones));
 
-  return { skinned, root, bones };
+  const card = createBadgeCard(texture);
+  root.add(card);
+
+  return { skinned, root, bones, card };
 }
 
 function pointerToWorld(
@@ -313,7 +361,6 @@ function LanyardBadge({
   const { gl, camera } = useThree();
   const { scene } = useGLTF(LANYARD_URL);
   const groupRef = useRef<Group>(null);
-  const cardRef = useRef<Group>(null);
   const dragging = useRef(false);
   const dragOffset = useRef(new Vector3());
   const dragTarget = useRef(new Vector3());
@@ -326,28 +373,17 @@ function LanyardBadge({
       if (!source && (child as Mesh).isMesh) source = child as Mesh;
     });
     if (!source) return null;
-    return buildLanyardRig(source);
-  }, [scene]);
-
-  const stickerGeometry = useMemo(
-    () =>
-      createRoundedPlane(
-        CARD_W - SHADER_INSET * 2,
-        CARD_H - SHADER_INSET * 2,
-        CARD_RADIUS - 0.001
-      ),
-    []
-  );
+    return buildLanyardRig(source, texture);
+  }, [scene, texture]);
 
   useLayoutEffect(() => {
-    const card = cardRef.current;
-    if (!rig || !card) return;
-    rig.root.add(card);
+    if (!rig) return;
+    rig.skinned.updateMatrixWorld(true);
     wiggleBones.current = rig.bones
       .slice(1)
       .map((bone) => new WiggleBone(bone, { velocity: WIGGLE_VELOCITY }));
+    for (const wiggleBone of wiggleBones.current) wiggleBone.reset();
     return () => {
-      rig.root.remove(card);
       for (const wiggleBone of wiggleBones.current) wiggleBone.dispose();
       wiggleBones.current = [];
     };
@@ -358,9 +394,18 @@ function LanyardBadge({
     return () => {
       rig.skinned.geometry.dispose();
       (rig.skinned.material as MeshStandardMaterial).dispose();
-      stickerGeometry.dispose();
+      rig.card.traverse((child) => {
+        if (!(child instanceof Mesh)) return;
+        child.geometry.dispose();
+        const material = child.material;
+        if (Array.isArray(material)) {
+          for (const entry of material) entry.dispose();
+        } else {
+          material.dispose();
+        }
+      });
     };
-  }, [rig, stickerGeometry]);
+  }, [rig]);
 
   useEffect(() => {
     const canvas = gl.domElement;
@@ -416,7 +461,7 @@ function LanyardBadge({
     const idleX =
       dragging.current || reducedMotion
         ? 0
-        : Math.sin(clock.elapsedTime * 0.85) * 0.012;
+        : Math.sin(clock.elapsedTime * 0.85) * 0.014;
     const goalX = dragging.current ? dragTarget.current.x : idleX;
     const goalY = dragging.current ? dragTarget.current.y : 0;
     const ease = 1 - Math.exp(-(dragging.current ? 18 : 4.2) * delta);
@@ -452,31 +497,11 @@ function LanyardBadge({
         gl.domElement.style.cursor = "grabbing";
         gl.domElement.setPointerCapture(event.pointerId);
       }}
-      position={[0, -1.15, 0]}
+      position={[0, -0.85, 0]}
       ref={groupRef}
       scale={MODEL_SCALE}
     >
       <primitive object={rig.skinned} />
-      <group position={[0, CARD_Y, 0]} ref={cardRef}>
-        <RoundedBox
-          args={[CARD_W, CARD_H, CARD_D]}
-          castShadow
-          radius={CARD_RADIUS}
-          smoothness={6}
-        >
-          <meshStandardMaterial
-            color="#f6f3ee"
-            metalness={0.04}
-            roughness={0.28}
-          />
-        </RoundedBox>
-        <mesh
-          geometry={stickerGeometry}
-          position={[0, 0, CARD_D / 2 + 0.0006]}
-        >
-          <meshBasicMaterial map={texture as Texture} toneMapped={false} />
-        </mesh>
-      </group>
     </group>
   );
 }
@@ -494,14 +519,14 @@ function BadgeScene({
 }) {
   return (
     <>
-      <PerspectiveCamera makeDefault fov={30} position={[0, 0.15, 6.6]} />
-      <ambientLight intensity={0.7} />
+      <PerspectiveCamera makeDefault fov={32} position={[0, 0.2, 7.2]} />
+      <ambientLight intensity={0.75} />
       <hemisphereLight args={["#fff7ee", "#2a1a10", 0.7]} />
       <directionalLight intensity={1.45} position={[4.5, 6, 8]} />
-      <directionalLight intensity={0.45} position={[-5, 2, 4]} />
+      <directionalLight intensity={0.5} position={[-5, 2, 4]} />
       <directionalLight
         color={LANYARD_ORANGE}
-        intensity={0.28}
+        intensity={0.25}
         position={[-3, 1, 5]}
       />
       <LanyardBadge
@@ -529,7 +554,7 @@ export default function BadgeLanyard({
 }) {
   return (
     <Canvas
-      camera={{ fov: 30, position: [0, 0.15, 6.6] }}
+      camera={{ fov: 32, position: [0, 0.2, 7.2] }}
       dpr={[1, 1.5]}
       gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}
       style={{ height: "100%", touchAction: "none", width: "100%" }}

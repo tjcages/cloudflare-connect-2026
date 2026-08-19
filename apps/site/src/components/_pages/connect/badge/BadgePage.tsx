@@ -95,8 +95,7 @@ export default function BadgePage(_props: IslandProps) {
         <div className="relative h-640 w-480 self-start max-lg:h-520 max-lg:w-full">
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute top-0 left-0 z-0 opacity-0"
-            style={{ height: 900, width: 640 }}
+            className="pointer-events-none fixed top-0 left-[-2000px] z-0 h-[900px] w-[640px]"
           >
             <ConnectTwizzler
               canvasClassName="size-full"
