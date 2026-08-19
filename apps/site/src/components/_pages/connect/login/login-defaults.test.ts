@@ -13,6 +13,11 @@ import {
 
 const loginDir = dirname(fileURLToPath(import.meta.url));
 const loginPageSource = readFileSync(resolve(loginDir, "LoginPage.astro"), "utf8");
+const loginFormSource = readFileSync(
+  resolve(loginDir, "DashboardLoginForm.tsx"),
+  "utf8"
+);
+const loginPromoSource = readFileSync(resolve(loginDir, "LoginPromo.astro"), "utf8");
 
 describe("dashboard login shader", () => {
   it("starts from the homepage hero Twizzler defaults", () => {
@@ -27,11 +32,13 @@ describe("dashboard login shader", () => {
     expect(LOGIN_PANEL_TARGETS).toEqual(["twizzler", "rain"]);
   });
 
-  it("uses the dash.cloudflare.com globe overlay copy", () => {
+  it("uses the dash.cloudflare.com globe overlay copy and register CTA", () => {
     expect(LOGIN_OVERLAY_COPY).toEqual({
       eyebrow: "Cloudflare Connect 2026",
       title: "Where the Internet’s builders connect.",
       body: "October 19–21, 2026 · Moscone West, San Francisco",
+      register: "Register now",
+      registerHref: "https://www.cloudflare.com/connect/",
     });
   });
 
@@ -39,9 +46,34 @@ describe("dashboard login shader", () => {
     expect(loginPageSource).toContain("hideTopFade={true}");
   });
 
-  it("uses a full-bleed shader background and a floating callout on mobile", () => {
-    expect(loginPageSource).toContain("max-lg:h-[42svh]");
-    expect(loginPageSource).toContain('size="callout"');
-    expect(loginPageSource).toContain("lg:hidden");
+  it("hides the promo pane below the dash lg breakpoint", () => {
+    expect(loginPageSource).toContain("hidden");
+    expect(loginPageSource).toContain("min-[1024px]:block");
+    expect(loginPageSource).not.toContain("max-lg:h-[42svh]");
+    expect(loginPromoSource).not.toContain('size="callout"');
+  });
+
+  it("puts the hero shader in the dash globe canvas slot", () => {
+    expect(loginPageSource).toContain("aspect-square w-[42rem]");
+    expect(loginPageSource).toContain("-right-[32%]");
+  });
+
+  it("uses the official Cloudflare cloud mark in the overlay header", () => {
+    expect(loginPageSource).toContain('viewBox="0 0 460 271.2"');
+    expect(loginPageSource).toContain("English");
+    expect(loginPageSource).toContain("Sign up");
+  });
+
+  it("matches dash form chrome: SSO lock, split forgot links, orange sign-in", () => {
+    expect(loginFormSource).toContain("Continue with SSO");
+    expect(loginFormSource).toContain("forgot-email");
+    expect(loginFormSource).toContain("forgot-password");
+    expect(loginFormSource).toContain("subscriptionagreement");
+    expect(loginFormSource).toContain("#f6821f");
+    expect(loginFormSource).not.toContain("There was a problem with verification");
+  });
+
+  it("keeps Register now on the promo pane", () => {
+    expect(loginPromoSource).toContain("LOGIN_OVERLAY_COPY.register");
   });
 });

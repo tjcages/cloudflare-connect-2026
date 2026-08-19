@@ -1,53 +1,40 @@
 ---
-import Eyebrow from "@/components/Eyebrow";
 import { LOGIN_OVERLAY_COPY } from "./login-copy";
-
-interface Props {
-  size: "pane" | "callout";
-}
-
-const { size } = Astro.props;
-const isCallout = size === "callout";
 ---
 
 <div
-  class:list={[
-    "flex w-full flex-col items-center text-center",
-    isCallout ? "max-w-full" : "max-w-560",
-  ]}
+  class="relative z-10 flex w-[58%] max-w-384 flex-col items-start gap-16 text-white"
 >
-  {
-    isCallout ? (
-      <p class="text-decorative-tiny tracking-[0.04em] text-text-muted uppercase">
-        {LOGIN_OVERLAY_COPY.eyebrow}
-      </p>
-    ) : (
-      <Eyebrow
-        client:visible
-        direction="center"
-        title={LOGIN_OVERLAY_COPY.eyebrow}
-        variant="faint"
-      />
-    )
-  }
-
-  <h2
-    class:list={[
-      "text-text-base",
-      isCallout
-        ? "mt-6 text-heading-h5"
-        : "mt-16 text-heading-h2 xl:text-heading-h1",
-    ]}
+  <span
+    class="text-[14px] leading-20 font-medium tracking-wide"
+    style="font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"
   >
+    {LOGIN_OVERLAY_COPY.eyebrow}
+  </span>
+  <h2 class="text-[30px] leading-[38px] font-semibold text-balance">
     {LOGIN_OVERLAY_COPY.title}
   </h2>
-
-  <p
-    class:list={[
-      "text-text-base",
-      isCallout ? "mt-6 text-body-x-small" : "mt-12 text-body-large",
-    ]}
-  >
+  <p class="text-[16px] leading-24">
     {LOGIN_OVERLAY_COPY.body}
   </p>
+  <a
+    class="inline-flex h-36 w-max shrink-0 items-center gap-6 rounded-[8px] bg-white px-12 text-[16px] leading-24 font-medium text-[#1d1d1d] no-underline shadow-[0_1px_2px_rgb(0_0_0_/_0.05)] ring-1 ring-[#d6d6d6] hover:bg-[#f4f4f4]"
+    href={LOGIN_OVERLAY_COPY.registerHref}
+    rel="noopener noreferrer"
+    target="_blank"
+  >
+    <svg
+      aria-hidden="true"
+      fill="currentColor"
+      height="16"
+      viewBox="0 0 256 256"
+      width="16"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M224,104a8,8,0,0,1-16,0V59.32l-66.33,66.34a8,8,0,0,1-11.32-11.32L196.68,48H152a8,8,0,0,1,0-16h64a8,8,0,0,1,8,8Zm-40,24a8,8,0,0,0-8,8v72H48V80h72a8,8,0,0,0,0-16H48A16,16,0,0,0,32,80V208a16,16,0,0,0,16,16H176a16,16,0,0,0,16-16V136A8,8,0,0,0,184,128Z"
+      ></path>
+    </svg>
+    {LOGIN_OVERLAY_COPY.register}
+  </a>
 </div>
