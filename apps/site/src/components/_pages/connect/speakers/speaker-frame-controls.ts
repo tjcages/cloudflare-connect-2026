@@ -2,7 +2,7 @@ import type { EngineConfig } from "@necatikcl/stripes-engine";
 import { connectSpeakers } from "../data";
 import { SPEAKER_SHADER_CONFIG } from "./speaker-shader-config";
 
-export const SPEAKER_FRAME_VARIANT_IDS = ["orange", "white", "grey"] as const;
+export const SPEAKER_FRAME_VARIANT_IDS = ["grey", "orange", "white"] as const;
 export type SpeakerFrameVariantId = (typeof SPEAKER_FRAME_VARIANT_IDS)[number];
 
 export type SpeakerStripeControl = {
@@ -109,8 +109,9 @@ export type SpeakerFrameSettings = {
 
 export const SPEAKER_IMAGE_COUNT = connectSpeakers.length;
 export const MAX_SPEAKER_FRAME_PLACEMENTS = 48;
-export const SPEAKER_FRAME_PANEL_ID = "connect-speaker-frames-v5";
+export const SPEAKER_FRAME_PANEL_ID = "connect-speaker-frames-v6";
 export const LEGACY_SPEAKER_FRAME_PANEL_IDS = [
+  "connect-speaker-frames-v5",
   "connect-speaker-frames-v4",
   "connect-speaker-frames-v3",
   "connect-speaker-frames-v2",
@@ -179,13 +180,13 @@ const defaultWhiteLook = (): SpeakerFrameVariantLook => ({
 
 const defaultGreyLook = (): SpeakerFrameVariantLook => ({
   stripes: defaultGreyStripes(),
-  brightness: 0.18,
-  exposure: 0.72,
-  contrast: 1.22,
+  brightness: 0.42,
+  exposure: 0.95,
+  contrast: 1.12,
   blackPoint: SPEAKER_SHADER_CONFIG.adjustments.blackPoint,
   whitePoint: SPEAKER_SHADER_CONFIG.adjustments.whitePoint,
-  gamma: 0.82,
-  invert: true,
+  gamma: 0.88,
+  invert: false,
 });
 
 const placement = (
@@ -210,6 +211,7 @@ const placement = (
 
 export const defaultSpeakerFramePlacements = (): SpeakerFramePlacement[] =>
   connectSpeakers.flatMap((_, imageIndex) => [
+    placement(`${imageIndex}-overlay`, imageIndex, "grey", 0, 0, 0.8, 1),
     placement(`${imageIndex}-inverted`, imageIndex, "orange", 0.8, 0, 0.1, 1),
     placement(`${imageIndex}-white`, imageIndex, "white", 0.9, 0, 0.1, 1),
   ]);
@@ -399,22 +401,21 @@ export const sanitizeSpeakerFramePlacements = (value: unknown): SpeakerFramePlac
   return placements.length > 0 ? placements : defaultSpeakerFramePlacements();
 };
 
-/** Old factory rest: orange 0–10%, white 10–20% on the left. */
-const isLegacyLeftEdgeWiperPlacements = (placements: SpeakerFramePlacement[]) =>
-  placements.length === SPEAKER_IMAGE_COUNT * 2 &&
-  placements.every((placement, index) => {
-    const imageIndex = Math.floor(index / 2);
-    const isOrange = index % 2 === 0;
-    return (
-      placement.imageIndex === imageIndex &&
-      placement.variant === (isOrange ? "orange" : "white") &&
-      placement.x === (isOrange ? 0 : 0.1) &&
-      placement.y === 0 &&
-      placement.width === 0.1 &&
-      placement.height === 1 &&
-      placement.span === false
-    );
+/** Factory two-pane wipers (left or right rest) before the 80% image overlay existed. */
+const isFactoryTwoPaneWipers = (placements: SpeakerFramePlacement[]) => {
+  if (placements.length !== SPEAKER_IMAGE_COUNT * 2) return false;
+  return connectSpeakers.every((_, imageIndex) => {
+    const pair = placements.filter((placement) => placement.imageIndex === imageIndex);
+    if (pair.length !== 2) return false;
+    const orange = pair.find((placement) => placement.variant === "orange");
+    const white = pair.find((placement) => placement.variant === "white");
+    if (!orange || !white) return false;
+    const isStrip = (placement: SpeakerFramePlacement) =>
+      placement.y === 0 && placement.width === 0.1 && placement.height === 1 && placement.span === false;
+    if (!isStrip(orange) || !isStrip(white)) return false;
+    return (orange.x === 0 && white.x === 0.1) || (orange.x === 0.8 && white.x === 0.9);
   });
+};
 
 const hexToColorNumber = (value: string, fallback: number) => {
   const normalized = value.trim().replace(/^#/, "");
@@ -585,7 +586,8 @@ export const loadSpeakerFrameSettings = (): SpeakerFrameSettings => {
     const record = parsed as Record<string, unknown>;
     mergeSharedSettings(settings, record);
     settings.placements = sanitizeSpeakerFramePlacements(record.placements);
-    if (isLegacyLeftEdgeWiperPlacements(settings.placements)) {
+    const factoryTwoPane = isFactoryTwoPaneWipers(settings.placements);
+    if (factoryTwoPane) {
       settings.placements = defaultSpeakerFramePlacements();
     }
     if (record.orange && typeof record.orange === "object") {
@@ -607,6 +609,9 @@ export const loadSpeakerFrameSettings = (): SpeakerFrameSettings => {
     }
     if (record.grey && typeof record.grey === "object") {
       settings.grey = sanitizeVariantLook(record.grey, settings.grey);
+    }
+    if (factoryTwoPane) {
+      settings.grey = cloneVariantLook(SPEAKER_FRAME_DEFAULTS.grey);
     }
     if (record.white && typeof record.white === "object") {
       settings.white = sanitizeVariantLook(record.white, settings.white);

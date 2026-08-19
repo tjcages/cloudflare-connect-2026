@@ -11,6 +11,7 @@ import {
   speakerFrameWiperRect,
   speakerWiperProgress,
   speakerWiperShouldEnter,
+  SPEAKER_OVERLAY_REST_WIDTH,
   SPEAKER_WIPER_REST_WIDTH,
 } from "./speaker-wiper";
 
@@ -47,7 +48,7 @@ describe("speaker frame wipers", () => {
     });
   });
 
-  it("defaults to two 10% frames per image, resting on the right edge", () => {
+  it("defaults to an 80% image overlay plus two 10% frames on the right edge", () => {
     const placements = defaultSpeakerFramePlacements();
     const byImage = new Map<number, typeof placements>();
     for (const placement of placements) {
@@ -58,14 +59,16 @@ describe("speaker frame wipers", () => {
 
     expect(byImage.size).toBe(6);
     for (const frames of byImage.values()) {
-      expect(frames).toHaveLength(2);
-      expect(frames[0]?.variant).toBe("orange");
-      expect(frames[1]?.variant).toBe("white");
-      expect(frames[0]?.width).toBe(SPEAKER_WIPER_REST_WIDTH);
+      expect(frames).toHaveLength(3);
+      expect(frames[0]?.variant).toBe("grey");
+      expect(frames[1]?.variant).toBe("orange");
+      expect(frames[2]?.variant).toBe("white");
+      expect(frames[0]?.x).toBe(0);
+      expect(frames[0]?.width).toBe(SPEAKER_OVERLAY_REST_WIDTH);
       expect(frames[1]?.width).toBe(SPEAKER_WIPER_REST_WIDTH);
-      expect(frames[0]?.height).toBe(1);
-      expect(frames[0]?.x).toBe(0.8);
-      expect(frames[1]?.x).toBe(0.9);
+      expect(frames[2]?.width).toBe(SPEAKER_WIPER_REST_WIDTH);
+      expect(frames[1]?.x).toBe(0.8);
+      expect(frames[2]?.x).toBe(0.9);
     }
   });
 
@@ -120,6 +123,13 @@ describe("speaker frame wipers", () => {
     expect(painted.adjustments?.brightness).toBe(0.12);
     expect(painted.stripes?.[0]?.color).toBe(0x11_22_33);
     expect(speakerFramePaintConfig(customWhite, "orange").stripes?.[0]?.color).not.toBe(0x11_22_33);
+  });
+
+  it("paints the overlay frame with a transparent background so the photo shows through", () => {
+    const overlay = speakerFramePaintConfig(SPEAKER_FRAME_DEFAULTS, "grey");
+    expect(overlay.background?.transparent).toBe(true);
+    expect(overlay.background?.stars?.enabled).toBe(false);
+    expect(overlay.adjustments?.invert).toBe(false);
   });
 
   it("reads a preview override from the query string", () => {

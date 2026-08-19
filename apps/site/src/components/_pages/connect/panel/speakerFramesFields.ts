@@ -213,9 +213,9 @@ const speakerFrameItemFields: PanelField<SpeakerFramePlacement>[] = [
     key: "variant",
     label: "Variant",
     options: [
+      { value: "grey", label: "Overlay" },
       { value: "orange", label: "Orange" },
       { value: "white", label: "White" },
-      { value: "grey", label: "Grey" },
     ],
   },
   { type: "toggle", key: "span", label: "Span neighboring images" },
@@ -263,7 +263,7 @@ export function buildSpeakerFramesSections(): PanelSectionDef[] {
                 case "white":
                   return "White";
                 case "grey":
-                  return "Grey";
+                  return "Overlay";
                 default: {
                   const unused: never = placement.variant;
                   return unused;
@@ -366,8 +366,8 @@ export function buildSpeakerFramesSections(): PanelSectionDef[] {
       ],
     },
     {
-      id: "Grey variant",
-      title: "Grey variant",
+      id: "Overlay",
+      title: "Overlay",
       defaultOpen: true,
       fields: [
         toggle("greyInvert", "Invert"),
@@ -380,7 +380,7 @@ export function buildSpeakerFramesSections(): PanelSectionDef[] {
         {
           type: "stripe-table",
           key: "greyStripes",
-          label: "Grey stripe palette",
+          label: "Overlay stripe palette",
           library: COLOR_LIBRARY,
         },
       ],

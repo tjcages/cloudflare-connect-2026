@@ -30,18 +30,20 @@ describe("speaker frame controls", () => {
     memory.clear();
   });
 
-  it("authors two 10% frames per image, resting on the right edge", () => {
+  it("authors an 80% image overlay plus two 10% frames on the right edge", () => {
     const placements = defaultSpeakerFramePlacements();
     const byImage = new Map<number, number>();
     for (const placement of placements) {
       byImage.set(placement.imageIndex, (byImage.get(placement.imageIndex) ?? 0) + 1);
     }
 
+    expect(placements.some((placement) => placement.variant === "grey")).toBe(true);
     expect(placements.some((placement) => placement.variant === "orange")).toBe(true);
     expect(placements.some((placement) => placement.variant === "white")).toBe(true);
-    expect([...byImage.values()].every((count) => count === 2)).toBe(true);
-    expect(placements[0]).toMatchObject({ variant: "orange", x: 0.8, width: 0.1, y: 0, height: 1 });
-    expect(placements[1]).toMatchObject({ variant: "white", x: 0.9, width: 0.1, y: 0, height: 1 });
+    expect([...byImage.values()].every((count) => count === 3)).toBe(true);
+    expect(placements[0]).toMatchObject({ variant: "grey", x: 0, width: 0.8, y: 0, height: 1 });
+    expect(placements[1]).toMatchObject({ variant: "orange", x: 0.8, width: 0.1, y: 0, height: 1 });
+    expect(placements[2]).toMatchObject({ variant: "white", x: 0.9, width: 0.1, y: 0, height: 1 });
   });
 
   it("keeps the grey palette distinct from the orange production stripes", () => {
@@ -176,7 +178,8 @@ describe("speaker frame controls", () => {
     );
 
     const loaded = loadSpeakerFrameSettings();
-    expect(loaded.placements[0]).toMatchObject({ variant: "orange", x: 0.8 });
-    expect(loaded.placements[1]).toMatchObject({ variant: "white", x: 0.9 });
+    expect(loaded.placements[0]).toMatchObject({ variant: "grey", x: 0, width: 0.8 });
+    expect(loaded.placements[1]).toMatchObject({ variant: "orange", x: 0.8 });
+    expect(loaded.placements[2]).toMatchObject({ variant: "white", x: 0.9 });
   });
 });

@@ -9,6 +9,7 @@ import type { Rect } from "./speaker-shader-geometry";
 
 /** Rest width of each default pane, as a fraction of the portrait. */
 export const SPEAKER_WIPER_REST_WIDTH = 0.1;
+export const SPEAKER_OVERLAY_REST_WIDTH = 0.8;
 export const SPEAKER_WIPER_DURATION_MS = 1200;
 export const SPEAKER_WIPER_STAGGER_MS = 180;
 /** Expand (left-edge wipe across the portrait) occupies this share of the clip. */
@@ -131,7 +132,12 @@ export const speakerFramePaintConfig = (
     case "grey":
       return {
         ...base,
-        background: SPEAKER_SHADER_CONFIG.background,
+        background: {
+          ...SPEAKER_SHADER_CONFIG.background,
+          transparent: true,
+          stars: { ...SPEAKER_SHADER_CONFIG.background.stars, enabled: false },
+          meteors: { ...SPEAKER_SHADER_CONFIG.background.meteors, enabled: false },
+        },
       };
     default:
       return unusedVariant(variant);
