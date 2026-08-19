@@ -27,18 +27,22 @@ import {
 } from "three";
 
 const LANYARD_URL = "/connect/badge-lanyard.glb";
-const MODEL_SCALE = 16;
+const MODEL_SCALE = 14;
 const TEXTURE_W = 1024;
 const TEXTURE_H = 1536;
 const TAG_CUT_Y = 0.105;
 const CLIP_CLUSTER_Y0 = 0.118;
 const CLIP_CLUSTER_Y1 = 0.135;
 const WING_CUT_X = 0.02;
+const LEFT_TASSEL_X = -0.02;
 const CHAIN_BONES = 8;
-const GRAVITY = -2.8;
-const DAMPING = 0.96;
-const CONSTRAINT_ITERS = 10;
-const REST_SPRING = 0.16;
+const GRAVITY = -3.6;
+const DAMPING = 0.86;
+const SETTLE_DAMPING = 0.78;
+const CONSTRAINT_ITERS = 12;
+const REST_SPRING = 0.28;
+const SETTLE_SPRING = 0.42;
+const SLEEP_EPS = 0.0002;
 const DRAG_LIMIT_X = 0.11;
 const DRAG_LIMIT_UP = 0.05;
 const DRAG_LIMIT_DOWN = 0.09;
@@ -49,11 +53,13 @@ const CARD_D = 0.012;
 const CARD_RADIUS = 0.007;
 const SHADER_INSET = 0.003;
 const CARD_OVERLAP = 0.006;
+const CARD_LOCAL_Y = -(CARD_H / 2) + CARD_OVERLAP;
+const HANG_Y = -CARD_LOCAL_Y * MODEL_SCALE;
 
-const METAL = "#c5cad1";
+const METAL = "#e07038";
 const PLASTIC = "#2b2b2b";
 const CORD = "#f46021";
-const WEBBING = "#d4521a";
+const WEBBING = "#e45618";
 
 const Y_UP = new Vector3(0, 1, 0);
 
@@ -252,9 +258,9 @@ function findClipAnchor(geometry: BufferGeometry): { x: number; y: number } {
 }
 
 function classifyPart(y: number): LanyardPart {
-  if (y < 0.02) return "metal";
-  if (y < 0.05) return "plastic";
-  if (y < 0.068) return "webbing";
+  if (y < 0.018) return "metal";
+  if (y < 0.032) return "plastic";
+  if (y < 0.055) return "webbing";
   return "cord";
 }
 
@@ -374,7 +380,7 @@ function hookXFromMetal(geometry: BufferGeometry): number {
 
 function createBadgeCard(texture: Texture, hookX: number): Group {
   const card = new Group();
-  card.position.set(hookX, -(CARD_H / 2) + CARD_OVERLAP, 0);
+  card.position.set(hookX, CARD_LOCAL_Y, 0);
 
   const bodyGeometry = new ExtrudeGeometry(roundedRect(CARD_W, CARD_H, CARD_RADIUS), {
     depth: CARD_D,
@@ -443,16 +449,22 @@ function buildLanyardRig(source: Mesh, texture: Texture): LanyardRig {
   });
   const anchor = findClipAnchor(geometry);
   geometry.translate(-anchor.x, -anchor.y, 0);
+  filterTriangles(geometry, (ax, ay, bx, by, cx, cy) => {
+    const x = (ax + bx + cx) / 3;
+    const y = (ay + by + cy) / 3;
+    if (x < LEFT_TASSEL_X && y > 0.12) return false;
+    return true;
+  });
   const cordLength = Math.max(length - anchor.y, 0.08);
 
   skinAlongY(geometry, cordLength);
   const parts = splitByPart(geometry);
   const sourceMaterial = source.material as MeshStandardMaterial;
   const materials: Record<LanyardPart, MeshStandardMaterial> = {
-    metal: makePartMaterial(sourceMaterial, METAL, 0.82, 0.28, true),
-    plastic: makePartMaterial(sourceMaterial, PLASTIC, 0.08, 0.48, true),
-    webbing: makePartMaterial(sourceMaterial, WEBBING, 0.04, 0.7, false),
-    cord: makePartMaterial(sourceMaterial, CORD, 0.03, 0.74, false),
+    metal: makePartMaterial(sourceMaterial, METAL, 0.9, 0.2, true),
+    plastic: makePartMaterial(sourceMaterial, PLASTIC, 0.08, 0.5, true),
+    webbing: makePartMaterial(sourceMaterial, WEBBING, 0.78, 0.24, true),
+    cord: makePartMaterial(sourceMaterial, CORD, 0.72, 0.26, true),
   };
 
   const segment = cordLength / CHAIN_BONES;
@@ -508,6 +520,28 @@ function buildLanyardRig(source: Mesh, texture: Texture): LanyardRig {
   };
 }
 
+function snapRopeToRest(rope: RopeState) {
+  for (let index = 0; index < rope.now.length; index += 1) {
+    rope.now[index]!.copy(rope.restPoints[index]!);
+    rope.prev[index]!.copy(rope.restPoints[index]!);
+  }
+}
+
+function ropeIsAsleep(rope: RopeState) {
+  let maxOff = 0;
+  for (let index = 0; index < rope.now.length; index += 1) {
+    const now = rope.now[index]!;
+    const rest = rope.restPoints[index]!;
+    const prev = rope.prev[index]!;
+    maxOff = Math.max(
+      maxOff,
+      Math.hypot(now.x - rest.x, now.y - rest.y),
+      Math.hypot(now.x - prev.x, now.y - prev.y)
+    );
+  }
+  return maxOff < SLEEP_EPS;
+}
+
 function solveDistance(
   a: Vector3,
   b: Vector3,
@@ -531,37 +565,8 @@ function solveDistance(
   }
 }
 
-function stepRope(
-  rope: RopeState,
-  drag: Vector3 | null,
-  dt: number,
-  reducedMotion: boolean
-) {
+function constrainRope(rope: RopeState, drag: Vector3 | null) {
   const last = rope.now.length - 1;
-  if (reducedMotion) {
-    for (let index = 0; index <= last; index += 1) {
-      rope.now[index]!.copy(rope.restPoints[index]!);
-      rope.prev[index]!.copy(rope.restPoints[index]!);
-    }
-    return;
-  }
-
-  const gravity = GRAVITY * dt * dt;
-  for (let index = 0; index < last; index += 1) {
-    const point = rope.now[index]!;
-    const previous = rope.prev[index]!;
-    const vx = (point.x - previous.x) * DAMPING;
-    const vy = (point.y - previous.y) * DAMPING;
-    previous.copy(point);
-    point.x += vx;
-    point.y += vy + gravity;
-    point.z = 0;
-  }
-  if (drag) {
-    rope.now[0]!.copy(drag);
-    rope.prev[0]!.copy(drag);
-  }
-
   for (let iter = 0; iter < CONSTRAINT_ITERS; iter += 1) {
     for (let index = 0; index < last; index += 1) {
       solveDistance(
@@ -577,14 +582,51 @@ function stepRope(
     rope.now[last]!.copy(rope.pin);
     if (drag) rope.now[0]!.copy(drag);
   }
+}
 
-  const hold = drag ? REST_SPRING * 0.35 : REST_SPRING;
+function stepRope(
+  rope: RopeState,
+  drag: Vector3 | null,
+  dt: number,
+  reducedMotion: boolean
+) {
+  const last = rope.now.length - 1;
+  if (reducedMotion) {
+    snapRopeToRest(rope);
+    return;
+  }
+
+  if (!drag && ropeIsAsleep(rope)) {
+    snapRopeToRest(rope);
+    return;
+  }
+
+  const damping = drag ? DAMPING : SETTLE_DAMPING;
+  const gravity = drag ? GRAVITY * dt * dt : 0;
+  for (let index = 0; index < last; index += 1) {
+    const point = rope.now[index]!;
+    const previous = rope.prev[index]!;
+    const vx = (point.x - previous.x) * damping;
+    const vy = (point.y - previous.y) * damping;
+    previous.copy(point);
+    point.x += vx;
+    point.y += vy + gravity;
+    point.z = 0;
+  }
+  if (drag) {
+    rope.now[0]!.copy(drag);
+    rope.prev[0]!.copy(drag);
+  }
+
+  constrainRope(rope, drag);
+
+  const hold = drag ? REST_SPRING * 0.48 : SETTLE_SPRING;
   for (let index = 1; index < last; index += 1) {
     rope.now[index]!.lerp(rope.restPoints[index]!, hold);
     rope.now[index]!.z = 0;
   }
   if (!drag) {
-    rope.now[0]!.lerp(rope.restPoints[0]!, REST_SPRING * 0.45);
+    rope.now[0]!.lerp(rope.restPoints[0]!, SETTLE_SPRING);
     rope.now[0]!.z = 0;
   }
   rope.now[last]!.copy(rope.pin);
@@ -745,7 +787,7 @@ function LanyardBadge({
     const hang = groupRef.current;
     if (hang) {
       hang.position.x = rightColumnWorldX(size.width, viewport.width);
-      hang.position.y = 0.32;
+      hang.position.y = HANG_Y;
     }
   });
 
@@ -774,7 +816,7 @@ function LanyardBadge({
         gl.domElement.style.cursor = "grabbing";
         gl.domElement.setPointerCapture(event.pointerId);
       }}
-      position={[0, 0.32, 0]}
+      position={[0, HANG_Y, 0]}
       ref={groupRef}
     >
       <group scale={MODEL_SCALE}>
@@ -798,11 +840,11 @@ function BadgeScene({
   return (
     <>
       <PerspectiveCamera makeDefault fov={30} position={[0, 0.15, 8]} />
-      <ambientLight intensity={0.62} />
-      <hemisphereLight args={["#fff7ee", "#1a1a1a", 0.55]} />
-      <directionalLight intensity={1.55} position={[5, 7, 8]} />
-      <directionalLight intensity={0.55} position={[-6, 3, 5]} />
-      <directionalLight color="#dfe4ea" intensity={0.4} position={[2, -1, 6]} />
+      <ambientLight intensity={0.58} />
+      <hemisphereLight args={["#fff1e4", "#1a1a1a", 0.5]} />
+      <directionalLight intensity={1.45} position={[5, 7, 8]} />
+      <directionalLight intensity={0.7} position={[-6, 3, 5]} />
+      <directionalLight color="#ffb57a" intensity={0.55} position={[2, -1, 6]} />
       <LanyardBadge
         identity={identity}
         rainCanvas={rainCanvas}
