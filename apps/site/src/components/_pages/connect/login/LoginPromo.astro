@@ -1,6 +1,6 @@
 ---
-import DottedLink from "@/components/DottedLink";
 import Eyebrow from "@/components/Eyebrow";
+import HoverArrow from "@/components/HoverArrow";
 import { LOGIN_OVERLAY_COPY } from "./login-copy";
 ---
 
@@ -28,12 +28,14 @@ import { LOGIN_OVERLAY_COPY } from "./login-copy";
 
   <p class="mt-16 text-body-medium text-text-inverse">
     {LOGIN_OVERLAY_COPY.body}.{" "}
-    <DottedLink
-      canvasFromBottom={-6}
-      client:visible={{ rootMargin: "200px" }}
+    <a
+      class="group inline-flex items-center text-body-medium text-text-inverse transition-colors duration-150 hover:text-orange-900"
       href={LOGIN_OVERLAY_COPY.registerHref}
+      rel="noopener noreferrer"
+      target="_blank"
     >
       {LOGIN_OVERLAY_COPY.register}
-    </DottedLink>
+      <HoverArrow className="-ml-4" />
+    </a>
   </p>
 </div>

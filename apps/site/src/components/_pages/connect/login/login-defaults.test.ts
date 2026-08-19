@@ -115,7 +115,8 @@ describe("dashboard login shader", () => {
 
   it("styles the promo overlay like a smaller inverted homepage hero", () => {
     expect(loginPromoSource).toContain('from "@/components/Eyebrow"');
-    expect(loginPromoSource).toContain('from "@/components/DottedLink"');
+    expect(loginPromoSource).toContain('from "@/components/HoverArrow"');
+    expect(loginPromoSource).not.toContain('from "@/components/DottedLink"');
     expect(loginPromoSource).not.toContain('from "@/components/Button"');
     expect(loginPromoSource).toContain("text-heading-h3");
     expect(loginPromoSource).toContain("text-body-medium");
