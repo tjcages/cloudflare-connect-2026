@@ -115,15 +115,16 @@ describe("dashboard login shader", () => {
 
   it("styles the promo overlay like a smaller inverted homepage hero", () => {
     expect(loginPromoSource).toContain('from "@/components/Eyebrow"');
-    expect(loginPromoSource).toContain('from "@/components/Button"');
+    expect(loginPromoSource).toContain('from "@/components/DottedLink"');
+    expect(loginPromoSource).not.toContain('from "@/components/Button"');
     expect(loginPromoSource).toContain("text-heading-h3");
     expect(loginPromoSource).toContain("text-body-medium");
     expect(loginPromoSource).toContain("text-text-inverse");
-    expect(loginPromoSource).toContain('variant="secondary"');
     expect(loginPromoSource).toContain("LOGIN_OVERLAY_COPY.register");
     expect(loginPageSource).toContain(
-      "flex h-full min-h-full items-center overflow-hidden"
+      "flex h-full min-h-full items-start overflow-hidden"
     );
+    expect(loginPageSource).toContain("pt-20");
   });
 
   it("uses Cookie Preferences like the live dash OneTrust control", () => {

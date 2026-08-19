@@ -1,5 +1,5 @@
 ---
-import Button from "@/components/Button";
+import DottedLink from "@/components/DottedLink";
 import Eyebrow from "@/components/Eyebrow";
 import { LOGIN_OVERLAY_COPY } from "./login-copy";
 ---
@@ -27,18 +27,13 @@ import { LOGIN_OVERLAY_COPY } from "./login-copy";
   </h2>
 
   <p class="mt-16 text-body-medium text-text-inverse">
-    {LOGIN_OVERLAY_COPY.body}
-  </p>
-
-  <div class="mt-24">
-    <Button
+    {LOGIN_OVERLAY_COPY.body}.{" "}
+    <DottedLink
+      canvasFromBottom={-6}
+      client:visible={{ rootMargin: "200px" }}
       href={LOGIN_OVERLAY_COPY.registerHref}
-      rel="noopener noreferrer"
-      size="large"
-      target="_blank"
-      variant="secondary"
     >
-      <span class="text-text-base">{LOGIN_OVERLAY_COPY.register}</span>
-    </Button>
-  </div>
+      {LOGIN_OVERLAY_COPY.register}
+    </DottedLink>
+  </p>
 </div>
