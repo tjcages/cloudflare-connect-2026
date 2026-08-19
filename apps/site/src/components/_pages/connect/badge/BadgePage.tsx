@@ -67,40 +67,32 @@ export default function BadgePage(_props: IslandProps) {
   );
 
   return (
-    <div className="relative isolate mx-auto min-h-[calc(100svh-88px)] overflow-hidden before:inside-border-b before:border-border-default">
+    <div className="relative mx-auto max-w-1200 before:inside-border-b before:border-border-default">
       <CornerDots count={4} faintClassName="z-30" />
 
-      <div className="relative z-10 flex min-h-[calc(100svh-88px)] flex-col md:flex-row">
-        <div className="flex w-full shrink-0 items-center px-24 py-32 md:w-420 md:px-64 md:py-0">
-          <div className="flex w-full flex-col items-start">
-            <Eyebrow direction="left" title="Badge" variant="faint" />
-            <h1 className="mt-20 text-heading-h3 text-text-base">
-              Your Connect
-              <br />
-              2026 badge
-            </h1>
-            <p className="mt-16 text-body-small text-text-default">
-              The hero Twizzler and rain, printed straight onto the badge.
-              Drag it to spin — the lanyard wiggles back.
-            </p>
-            <div className="mt-28 text-label-x-small text-text-muted">
-              Color scheme
-            </div>
-            <div className="mt-12">
-              <BadgeCustomizer onChange={setParams} params={params} />
-            </div>
-            <Button className="mt-28" onClick={copy} size="large" type="button">
-              <CopyFeedbackIcon copied={copied} />
-              <span>{copied ? "Copied" : "Copy badge link"}</span>
-            </Button>
+      <div className="flex justify-between px-80 pt-80 pb-160 max-lg:flex-col max-lg:gap-40 max-lg:px-24 max-lg:pt-48 max-lg:pb-80">
+        <div className="flex w-440 shrink-0 flex-col items-start max-lg:w-full">
+          <Eyebrow direction="left" title="Badge" variant="faint" />
+          <h1 className="mt-24 text-heading-hero text-text-base">
+            Your Connect 2026 badge
+          </h1>
+          <p className="mt-20 text-body-large text-text-base">
+            The hero Twizzler and rain, printed on the badge. Grab it and pull
+            — the lanyard wiggles back.
+          </p>
+          <div className="mt-40 text-label-x-small text-text-muted">
+            Color scheme
           </div>
+          <div className="mt-12">
+            <BadgeCustomizer onChange={setParams} params={params} />
+          </div>
+          <Button className="mt-40" onClick={copy} size="large" type="button">
+            <CopyFeedbackIcon copied={copied} />
+            <span>{copied ? "Copied" : "Copy badge link"}</span>
+          </Button>
         </div>
 
-        <div className="relative min-h-520 w-full flex-1 md:min-h-0">
-          {/* Offscreen hero stack rendered at the badge's portrait aspect so
-              the ribbon composes for the card instead of being cropped from a
-              wide canvas. Kept invisible; each frame is copied onto the 3D
-              badge face. */}
+        <div className="relative h-640 w-480 self-start max-lg:h-520 max-lg:w-full">
           <div
             aria-hidden="true"
             className="pointer-events-none absolute top-0 left-0 z-0 opacity-0"
@@ -133,6 +125,12 @@ export default function BadgePage(_props: IslandProps) {
             <Suspense fallback={null}>
               {hydrated ? (
                 <BadgeLanyard
+                  identity={{
+                    company: view.company,
+                    name: view.name,
+                    role: view.role.label,
+                    serial: view.serial,
+                  }}
                   rainCanvas={rainRef}
                   reducedMotion={reducedMotion}
                   twizzlerCanvas={twizzlerRef}
@@ -142,6 +140,7 @@ export default function BadgePage(_props: IslandProps) {
           </div>
         </div>
       </div>
+      <div className="h-80" />
     </div>
   );
 }

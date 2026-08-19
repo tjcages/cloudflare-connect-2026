@@ -12,7 +12,7 @@ export default function BadgeCustomizer({
   return (
     <div
       aria-label="Color"
-      className="grid grid-cols-3 gap-12"
+      className="flex flex-wrap gap-8"
       role="radiogroup"
     >
       {BADGE_THEMES.map((theme) => {
@@ -22,7 +22,7 @@ export default function BadgeCustomizer({
             aria-checked={selected}
             aria-label={theme.label}
             className={cn(
-              "flex size-48 items-center justify-center rounded-full transition-transform",
+              "flex size-40 items-center justify-center rounded-full transition-transform",
               selected
                 ? "shadow-[inset_0_0_0_2px_var(--color-orange-900)]"
                 : "hover:scale-105"
@@ -33,7 +33,7 @@ export default function BadgeCustomizer({
             type="button"
           >
             <span
-              className="size-32 rounded-full"
+              className="size-28 rounded-full"
               style={{
                 background: `linear-gradient(135deg, ${theme.accent} 0%, ${theme.pair} 55%, ${theme.deep} 100%)`,
               }}
