@@ -1,18 +1,21 @@
+import type { PanelField } from "@tjcages/panels/dev";
+import { connectSpeakers } from "../data";
 import {
-  LEGACY_SPEAKER_FRAME_PANEL_ID,
+  createSpeakerFramePlacement,
+  LEGACY_SPEAKER_FRAME_PANEL_IDS,
+  MAX_SPEAKER_FRAME_PLACEMENTS,
+  sanitizeSpeakerFramePlacements,
   SPEAKER_FRAME_DEFAULTS,
   SPEAKER_FRAME_PANEL_ID,
+  type SpeakerFramePlacement,
   type SpeakerFrameSettings,
+  type SpeakerFrameVariantLook,
 } from "../speakers/speaker-frame-controls";
 import { COLOR_LIBRARY } from "./colorLibrary";
 import { configToolsField } from "./configTools";
 import { color, num, optionsFrom, select, toggle } from "./fieldHelpers";
 import type { PanelSectionDef, PanelValues } from "./panelSections";
-import {
-  fromEditableControls,
-  toEditableControls,
-  type EditableStripe,
-} from "./stripeAdapter";
+import { fromEditableControls, toEditableControls, type EditableStripe } from "./stripeAdapter";
 
 /**
  * The speaker-frame surface of the lab's Leva panel, translated 1:1 into
@@ -39,32 +42,165 @@ export const RENDER_MODES = [
   "gummy",
 ];
 
-export const BLEND_MODES = [
-  "normal",
-  "multiply",
-  "screen",
-  "overlay",
-  "darken",
-  "lighten",
-  "difference",
-  "exclusion",
-];
+export const BLEND_MODES = ["normal", "multiply", "screen", "overlay", "darken", "lighten", "difference", "exclusion"];
 
-/** Panel values: the settings record with stripes in the table's row shape. */
-export function seedSpeakerFramesPanelValues(
-  settings: SpeakerFrameSettings
-): PanelValues {
-  return { ...settings, stripes: toEditableControls(settings.stripes) };
+type SpeakerFramePanelValues = SpeakerFrameSettings & {
+  stripes: EditableStripe[];
+  invert: boolean;
+  brightness: number;
+  exposure: number;
+  contrast: number;
+  blackPoint: number;
+  whitePoint: number;
+  gamma: number;
+  greyStripes: EditableStripe[];
+  greyInvert: boolean;
+  greyBrightness: number;
+  greyExposure: number;
+  greyContrast: number;
+  greyBlackPoint: number;
+  greyWhitePoint: number;
+  greyGamma: number;
+};
+
+const lookFromPanel = (
+  stripes: unknown,
+  invert: unknown,
+  brightness: unknown,
+  exposure: unknown,
+  contrast: unknown,
+  blackPoint: unknown,
+  whitePoint: unknown,
+  gamma: unknown,
+  fallback: SpeakerFrameVariantLook,
+): SpeakerFrameVariantLook => ({
+  stripes: (() => {
+    const next = fromEditableControls(Array.isArray(stripes) ? (stripes as EditableStripe[]) : []);
+    return next.length > 0 ? next : fallback.stripes.map((stripe) => ({ ...stripe }));
+  })(),
+  invert: typeof invert === "boolean" ? invert : fallback.invert,
+  brightness: typeof brightness === "number" ? brightness : fallback.brightness,
+  exposure: typeof exposure === "number" ? exposure : fallback.exposure,
+  contrast: typeof contrast === "number" ? contrast : fallback.contrast,
+  blackPoint: typeof blackPoint === "number" ? blackPoint : fallback.blackPoint,
+  whitePoint: typeof whitePoint === "number" ? whitePoint : fallback.whitePoint,
+  gamma: typeof gamma === "number" ? gamma : fallback.gamma,
+});
+
+/** Panel values: settings plus flattened orange/grey stripe tables. */
+export function seedSpeakerFramesPanelValues(settings: SpeakerFrameSettings): PanelValues {
+  return {
+    ...settings,
+    stripes: toEditableControls(settings.orange.stripes),
+    invert: settings.orange.invert,
+    brightness: settings.orange.brightness,
+    exposure: settings.orange.exposure,
+    contrast: settings.orange.contrast,
+    blackPoint: settings.orange.blackPoint,
+    whitePoint: settings.orange.whitePoint,
+    gamma: settings.orange.gamma,
+    greyStripes: toEditableControls(settings.grey.stripes),
+    greyInvert: settings.grey.invert,
+    greyBrightness: settings.grey.brightness,
+    greyExposure: settings.grey.exposure,
+    greyContrast: settings.grey.contrast,
+    greyBlackPoint: settings.grey.blackPoint,
+    greyWhitePoint: settings.grey.whitePoint,
+    greyGamma: settings.grey.gamma,
+  } satisfies SpeakerFramePanelValues;
 }
 
-export function speakerFramesFromPanelValues(
-  values: PanelValues
-): SpeakerFrameSettings {
+export function speakerFramesFromPanelValues(values: PanelValues): SpeakerFrameSettings {
+  const {
+    stripes,
+    invert,
+    brightness,
+    exposure,
+    contrast,
+    blackPoint,
+    whitePoint,
+    gamma,
+    greyStripes,
+    greyInvert,
+    greyBrightness,
+    greyExposure,
+    greyContrast,
+    greyBlackPoint,
+    greyWhitePoint,
+    greyGamma,
+    orange: _orange,
+    grey: _grey,
+    placements,
+    ...shared
+  } = values;
   return {
-    ...(values as unknown as SpeakerFrameSettings),
-    stripes: fromEditableControls(values.stripes as EditableStripe[]),
+    ...(shared as unknown as SpeakerFrameSettings),
+    placements: sanitizeSpeakerFramePlacements(placements),
+    orange: lookFromPanel(
+      stripes,
+      invert,
+      brightness,
+      exposure,
+      contrast,
+      blackPoint,
+      whitePoint,
+      gamma,
+      SPEAKER_FRAME_DEFAULTS.orange,
+    ),
+    grey: lookFromPanel(
+      greyStripes,
+      greyInvert,
+      greyBrightness,
+      greyExposure,
+      greyContrast,
+      greyBlackPoint,
+      greyWhitePoint,
+      greyGamma,
+      SPEAKER_FRAME_DEFAULTS.grey,
+    ),
   };
 }
+
+const speakerFrameItemFields: PanelField<SpeakerFramePlacement>[] = [
+  {
+    type: "select",
+    key: "imageIndex",
+    label: "Image",
+    description: "Position is a fraction of this portrait, so it stays put when the grid reflows.",
+    options: connectSpeakers.map((speaker, index) => ({
+      label: speaker.name,
+      value: index,
+    })),
+  },
+  {
+    type: "toggle-group",
+    key: "variant",
+    label: "Variant",
+    options: [
+      { value: "orange", label: "Orange" },
+      { value: "grey", label: "Grey" },
+    ],
+  },
+  { type: "toggle", key: "span", label: "Span neighboring images" },
+  { type: "slider", key: "x", label: "X", min: -0.5, max: 1.5, step: 0.01 },
+  { type: "slider", key: "y", label: "Y", min: -0.5, max: 1.5, step: 0.01 },
+  {
+    type: "slider",
+    key: "width",
+    label: "Width",
+    min: 0.05,
+    max: 2,
+    step: 0.01,
+  },
+  {
+    type: "slider",
+    key: "height",
+    label: "Height",
+    min: 0.05,
+    max: 2,
+    step: 0.01,
+  },
+];
 
 export function buildSpeakerFramesSections(): PanelSectionDef[] {
   return [
@@ -73,11 +209,21 @@ export function buildSpeakerFramesSections(): PanelSectionDef[] {
       title: "Frames",
       defaultOpen: true,
       fields: [
-        num("frameCount", "Frame count", 0, 6, 1),
-        num("frameWidth", "Frame width", 0.35, 2, 0.01),
-        num("frameHeight", "Frame height", 0.35, 2, 0.01),
-        num("horizontalSpeed", "Horizontal speed", 0, 4, 0.01),
-        num("verticalSpeed", "Vertical speed", 0, 4, 0.01),
+        {
+          type: "collection",
+          key: "placements",
+          label: "Frames",
+          addLabel: "Add frame",
+          max: MAX_SPEAKER_FRAME_PLACEMENTS,
+          newItem: () => createSpeakerFramePlacement(),
+          itemLabel: (item, index) => {
+            const placement = item as SpeakerFramePlacement;
+            const speaker = connectSpeakers[placement.imageIndex]?.name ?? `Speaker ${placement.imageIndex + 1}`;
+            const variant = placement.variant === "grey" ? "Grey" : "Orange";
+            return `${index + 1}. ${speaker} · ${variant}`;
+          },
+          itemFields: speakerFrameItemFields,
+        } as PanelField<PanelValues>,
         num("cursorWidth", "Pointer width", 0.35, 2, 0.01),
         num("cursorHeight", "Pointer height", 0.35, 2, 0.01),
         num("cursorFollow", "Follow", 0.01, 1, 0.01),
@@ -125,7 +271,7 @@ export function buildSpeakerFramesSections(): PanelSectionDef[] {
         {
           type: "stripe-table",
           key: "stripes",
-          label: "Stripe palette",
+          label: "Orange stripe palette",
           library: COLOR_LIBRARY,
         },
       ],
@@ -146,6 +292,26 @@ export function buildSpeakerFramesSections(): PanelSectionDef[] {
         num("noiseAmount", "Noise", 0, 1, 0.01),
         num("blurRadius", "Blur", 0, 24, 0.25),
         num("sharpenAmount", "Sharpen", 0, 4, 0.01),
+      ],
+    },
+    {
+      id: "Grey variant",
+      title: "Grey variant",
+      defaultOpen: true,
+      fields: [
+        toggle("greyInvert", "Invert"),
+        num("greyBrightness", "Brightness", -1, 1, 0.01),
+        num("greyExposure", "Exposure", -2, 2, 0.01),
+        num("greyContrast", "Contrast", 0, 3, 0.01),
+        num("greyBlackPoint", "Black point", 0, 1, 0.01),
+        num("greyWhitePoint", "White point", 0, 1, 0.01),
+        num("greyGamma", "Gamma", 0.1, 4, 0.01),
+        {
+          type: "stripe-table",
+          key: "greyStripes",
+          label: "Grey stripe palette",
+          library: COLOR_LIBRARY,
+        },
       ],
     },
     {
@@ -230,7 +396,7 @@ export function buildSpeakerFramesSections(): PanelSectionDef[] {
           label: "speaker frames",
           defaults: SPEAKER_FRAME_DEFAULTS,
           // Clear the legacy blob too — load falls back to it.
-          storageIds: [SPEAKER_FRAME_PANEL_ID, LEGACY_SPEAKER_FRAME_PANEL_ID],
+          storageIds: [SPEAKER_FRAME_PANEL_ID, ...LEGACY_SPEAKER_FRAME_PANEL_IDS],
           toConfig: speakerFramesFromPanelValues,
           seed: seedSpeakerFramesPanelValues,
         }),

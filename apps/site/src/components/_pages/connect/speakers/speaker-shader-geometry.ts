@@ -21,14 +21,6 @@ export type CursorFrameSeed = {
   height: number;
 };
 
-export type FloatingFrameSettings = {
-  count?: number;
-  widthScale?: number;
-  heightScale?: number;
-  horizontalSpeed?: number;
-  verticalSpeed?: number;
-};
-
 export type CursorFrameSettings = {
   widthScale?: number;
   heightScale?: number;
@@ -47,159 +39,41 @@ export type PartialFramePlan = {
   renderPasses: 0 | 1;
 };
 
-type FloatingFrameSpec = {
-  row: number;
+/** Image-relative frame; `x`/`y`/`width`/`height` are fractions of the anchor. */
+export type ImageRelativeFrame = {
+  imageIndex: number;
+  x: number;
+  y: number;
   width: number;
   height: number;
-  fromX: number;
-  toX: number;
-  fromY: number;
-  toY: number;
-  durationXSec: number;
-  durationYSec: number;
-  phaseX: number;
-  phaseY: number;
+  span: boolean;
 };
 
-const FLOATING_FRAME_SPECS: readonly FloatingFrameSpec[] = [
-  {
-    row: 0,
-    width: 0.27,
-    height: 0.44,
-    fromX: 0.02,
-    toX: 0.71,
-    fromY: 0.08,
-    toY: 0.48,
-    durationXSec: 18,
-    durationYSec: 13,
-    phaseX: 0.04,
-    phaseY: 0.28,
-  },
-  {
-    row: 0,
-    width: 0.16,
-    height: 0.62,
-    fromX: 0.8,
-    toX: 0.14,
-    fromY: 0.3,
-    toY: 0.02,
-    durationXSec: 23,
-    durationYSec: 17,
-    phaseX: 0.37,
-    phaseY: 0.08,
-  },
-  {
-    row: 0,
-    width: 0.19,
-    height: 0.3,
-    fromX: 0.18,
-    toX: 0.68,
-    fromY: 0.62,
-    toY: 0.12,
-    durationXSec: 15,
-    durationYSec: 11,
-    phaseX: 0.71,
-    phaseY: 0.46,
-  },
-  {
-    row: 1,
-    width: 0.23,
-    height: 0.5,
-    fromX: 0.08,
-    toX: 0.74,
-    fromY: 0.14,
-    toY: 0.5,
-    durationXSec: 21,
-    durationYSec: 14,
-    phaseX: 0.66,
-    phaseY: 0.16,
-  },
-  {
-    row: 1,
-    width: 0.15,
-    height: 0.58,
-    fromX: 0.8,
-    toX: 0.2,
-    fromY: 0.04,
-    toY: 0.34,
-    durationXSec: 25,
-    durationYSec: 19,
-    phaseX: 0.22,
-    phaseY: 0.64,
-  },
-  {
-    row: 1,
-    width: 0.12,
-    height: 0.3,
-    fromX: 0.34,
-    toX: 0.7,
-    fromY: 0.6,
-    toY: 0.16,
-    durationXSec: 16,
-    durationYSec: 12,
-    phaseX: 0.84,
-    phaseY: 0.38,
-  },
-] as const;
-
-export const FLOATING_FRAME_COUNT = FLOATING_FRAME_SPECS.length;
-
-/** A stable authored pose used instead of time-based movement in reduced motion. */
-export const REDUCED_MOTION_POSE_SEC = 7.25;
-
-const clamp = (value: number, min: number, max: number) =>
-  Math.min(max, Math.max(min, value));
-
-const smoothPingPong = (
-  timeSec: number,
-  durationSec: number,
-  phase: number
-) => {
-  const cycle = (((timeSec / durationSec + phase) % 1) + 1) % 1;
-  return 0.5 - 0.5 * Math.cos(cycle * Math.PI * 2);
+export type ResolvedAuthoredFrame<T extends ImageRelativeFrame> = T & {
+  rect: Rect;
 };
 
-export const measureRelativeRect = (
-  root: DOMRect,
-  aperture: DOMRect,
-  zoom = 1
-): Rect => ({
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
+export const measureRelativeRect = (root: DOMRect, aperture: DOMRect, zoom = 1): Rect => ({
   x: (aperture.left - root.left) / zoom,
   y: (aperture.top - root.top) / zoom,
   width: aperture.width / zoom,
   height: aperture.height / zoom,
 });
 
-export const mapClientPointToRoot = (
-  clientX: number,
-  clientY: number,
-  root: DOMRect,
-  zoom = 1
-) => ({
+export const mapClientPointToRoot = (clientX: number, clientY: number, root: DOMRect, zoom = 1) => ({
   x: (clientX - root.left) / zoom,
   y: (clientY - root.top) / zoom,
 });
 
 /** Source crop for CSS `object-fit: cover; object-position: 50% 0%`. */
-export const objectCoverSourceRect = (
-  source: Size,
-  destination: Size,
-  positionX = 0.5,
-  positionY = 0
-): Rect => {
-  if (
-    source.width <= 0 ||
-    source.height <= 0 ||
-    destination.width <= 0 ||
-    destination.height <= 0
-  ) {
+export const objectCoverSourceRect = (source: Size, destination: Size, positionX = 0.5, positionY = 0): Rect => {
+  if (source.width <= 0 || source.height <= 0 || destination.width <= 0 || destination.height <= 0) {
     return { x: 0, y: 0, width: 0, height: 0 };
   }
 
-  const scale = Math.max(
-    destination.width / source.width,
-    destination.height / source.height
-  );
+  const scale = Math.max(destination.width / source.width, destination.height / source.height);
   const width = destination.width / scale;
   const height = destination.height / scale;
 
@@ -224,16 +98,10 @@ export const intersectRects = (a: Rect, b: Rect): Rect | null => {
  * Converts portrait apertures into full-width visual bands. Frame outlines may
  * cross the horizontal gutters in these bands without ever entering metadata.
  */
-export const resolvePortraitBands = (
-  apertures: readonly Rect[],
-  stageWidth: number,
-  rowTolerancePx = 2
-): Rect[] => {
+export const resolvePortraitBands = (apertures: readonly Rect[], stageWidth: number, rowTolerancePx = 2): Rect[] => {
   const rows: Rect[][] = [];
   for (const aperture of [...apertures].sort((a, b) => a.y - b.y)) {
-    const row = rows.find(
-      (candidate) => Math.abs(candidate[0].y - aperture.y) <= rowTolerancePx
-    );
+    const row = rows.find((candidate) => Math.abs(candidate[0].y - aperture.y) <= rowTolerancePx);
     if (row) row.push(aperture);
     else rows.push([aperture]);
   }
@@ -245,79 +113,56 @@ export const resolvePortraitBands = (
   });
 };
 
-export const resolveFloatingFrames = (
-  timeSec: number,
-  portraitBands: readonly Rect[],
-  reducedMotion = false,
-  settings: FloatingFrameSettings = {}
-): Rect[] => {
-  if (portraitBands.length === 0) return [];
-  const resolvedTime = reducedMotion ? REDUCED_MOTION_POSE_SEC : timeSec;
-  const count = clamp(
-    Math.round(settings.count ?? FLOATING_FRAME_COUNT),
-    0,
-    FLOATING_FRAME_COUNT
-  );
-  const widthScale = clamp(settings.widthScale ?? 1, 0.35, 2);
-  const heightScale = clamp(settings.heightScale ?? 1, 0.35, 2);
-  const horizontalSpeed = clamp(settings.horizontalSpeed ?? 1, 0, 4);
-  const verticalSpeed = clamp(settings.verticalSpeed ?? 1, 0, 4);
+const imageRelativeRect = (placement: ImageRelativeFrame, aperture: Rect): Rect => ({
+  x: aperture.x + placement.x * aperture.width,
+  y: aperture.y + placement.y * aperture.height,
+  width: placement.width * aperture.width,
+  height: placement.height * aperture.height,
+});
 
-  return FLOATING_FRAME_SPECS.slice(0, count).map((spec) => {
-    const band = portraitBands[spec.row % portraitBands.length];
-    const width = clamp(band.width * spec.width * widthScale, 48, band.width);
-    const height = clamp(
-      band.height * spec.height * heightScale,
-      40,
-      band.height
-    );
-    const travel = Math.max(0, band.width - width);
-    const progressX = smoothPingPong(
-      resolvedTime * horizontalSpeed,
-      spec.durationXSec,
-      spec.phaseX
-    );
-    const progressY = smoothPingPong(
-      resolvedTime * verticalSpeed,
-      spec.durationYSec,
-      spec.phaseY
-    );
-    const normalizedX = spec.fromX + (spec.toX - spec.fromX) * progressX;
-    const normalizedY = spec.fromY + (spec.toY - spec.fromY) * progressY;
-
-    return {
-      x: band.x + clamp(normalizedX, 0, 1) * travel,
-      y: band.y + clamp(normalizedY, 0, 1) * Math.max(0, band.height - height),
-      width,
-      height,
-    };
-  });
+/**
+ * Resolves authored frames against the live portrait boxes. Coordinates stay
+ * locked to each image, so desktop / tablet / mobile reflow keeps the same
+ * crop. `span` lets overflow paint neighboring portraits; otherwise overflow
+ * clips back to the anchor.
+ */
+export const resolveAuthoredFrames = <T extends ImageRelativeFrame>(
+  placements: readonly T[],
+  apertures: readonly Rect[],
+): ResolvedAuthoredFrame<T>[] => {
+  const resolved: ResolvedAuthoredFrame<T>[] = [];
+  for (const placement of placements) {
+    const aperture = apertures[placement.imageIndex];
+    if (!aperture || aperture.width <= 0 || aperture.height <= 0) continue;
+    const rect = imageRelativeRect(placement, aperture);
+    if (placement.span) {
+      if (rect.width > 0 && rect.height > 0) {
+        resolved.push({ ...placement, rect });
+      }
+      continue;
+    }
+    const clipped = intersectRects(rect, aperture);
+    if (clipped) resolved.push({ ...placement, rect: clipped });
+  }
+  return resolved;
 };
 
 export const createCursorFrame = (
   point: Point,
   portraitBands: readonly Rect[],
-  settings: CursorFrameSettings = {}
+  settings: CursorFrameSettings = {},
 ): CursorFrameSeed | null => {
   const band = portraitBands.find(
     (candidate) =>
       point.x >= candidate.x &&
       point.x <= candidate.x + candidate.width &&
       point.y >= candidate.y &&
-      point.y <= candidate.y + candidate.height
+      point.y <= candidate.y + candidate.height,
   );
   if (!band) return null;
 
-  const width = clamp(
-    band.width * 0.15 * (settings.widthScale ?? 1),
-    48,
-    band.width
-  );
-  const height = clamp(
-    band.height * 0.34 * (settings.heightScale ?? 1),
-    40,
-    band.height
-  );
+  const width = clamp(band.width * 0.15 * (settings.widthScale ?? 1), 48, band.width);
+  const height = clamp(band.height * 0.34 * (settings.heightScale ?? 1), 40, band.height);
   const center = {
     x: clamp(point.x, band.x + width / 2, band.x + band.width - width / 2),
     y: clamp(point.y, band.y + height / 2, band.y + band.height - height / 2),
@@ -330,7 +175,7 @@ export const moveCursorFrame = (
   seed: CursorFrameSeed,
   point: Point,
   portraitBands: readonly Rect[],
-  settings: CursorFrameSettings = {}
+  settings: CursorFrameSettings = {},
 ): CursorFrameSeed => {
   const target = createCursorFrame(point, portraitBands, settings);
   if (!target) return seed;
@@ -354,10 +199,7 @@ export const cursorFrameRect = (seed: CursorFrameSeed): Rect => ({
 });
 
 /** One shader render is reused for every frame/aperture intersection. */
-export const buildPartialFramePlan = (
-  frames: readonly Rect[],
-  apertures: readonly Rect[]
-): PartialFramePlan => {
+export const buildPartialFramePlan = (frames: readonly Rect[], apertures: readonly Rect[]): PartialFramePlan => {
   const maskFragments: MaskFragment[] = [];
   frames.forEach((frame, frameIndex) => {
     apertures.forEach((aperture, apertureIndex) => {

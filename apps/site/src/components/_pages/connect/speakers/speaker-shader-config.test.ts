@@ -1,10 +1,7 @@
 import { createStripesEngine } from "@necatikcl/stripes-engine";
 import { describe, expect, it } from "vitest";
 import { SPEAKER_FRAME_DEFAULTS } from "./speaker-frame-controls";
-import {
-  SPEAKER_SHADER_CONFIG,
-  SPEAKER_SHADER_MAX_DPR,
-} from "./speaker-shader-config";
+import { SPEAKER_SHADER_CONFIG, SPEAKER_SHADER_MAX_DPR } from "./speaker-shader-config";
 
 describe("speaker shader production contract", () => {
   it("uses the single imperative engine API", () => {
@@ -28,16 +25,10 @@ describe("speaker shader production contract", () => {
   });
 
   it("projects the authored grid and stripe palette into editable panel defaults", () => {
-    expect(SPEAKER_FRAME_DEFAULTS.gridCellWidth).toBe(
-      SPEAKER_SHADER_CONFIG.grid.cellWidth
-    );
-    expect(SPEAKER_FRAME_DEFAULTS.gridCellHeight).toBe(
-      SPEAKER_SHADER_CONFIG.grid.cellHeight
-    );
-    expect(SPEAKER_FRAME_DEFAULTS.stripes).toHaveLength(
-      SPEAKER_SHADER_CONFIG.stripes.length
-    );
-    expect(SPEAKER_FRAME_DEFAULTS.stripes[0]).toMatchObject({
+    expect(SPEAKER_FRAME_DEFAULTS.gridCellWidth).toBe(SPEAKER_SHADER_CONFIG.grid.cellWidth);
+    expect(SPEAKER_FRAME_DEFAULTS.gridCellHeight).toBe(SPEAKER_SHADER_CONFIG.grid.cellHeight);
+    expect(SPEAKER_FRAME_DEFAULTS.orange.stripes).toHaveLength(SPEAKER_SHADER_CONFIG.stripes.length);
+    expect(SPEAKER_FRAME_DEFAULTS.orange.stripes[0]).toMatchObject({
       // Agenda rain's authored palette, mirrored into the speaker stripes.
       color: "#fafafa",
       startFrom: SPEAKER_SHADER_CONFIG.stripes[0].startFrom,
@@ -49,20 +40,10 @@ describe("speaker shader production contract", () => {
   });
 
   it("keeps render, tone, and stripe-detail controls aligned with the production config", () => {
-    expect(SPEAKER_FRAME_DEFAULTS.renderMode).toBe(
-      SPEAKER_SHADER_CONFIG.renderMode
-    );
-    expect(SPEAKER_FRAME_DEFAULTS.brightness).toBe(
-      SPEAKER_SHADER_CONFIG.adjustments.brightness
-    );
-    expect(SPEAKER_FRAME_DEFAULTS.sparkleStripeCoverage).toBe(
-      SPEAKER_SHADER_CONFIG.sparkle.stripe.coverage
-    );
-    expect(SPEAKER_FRAME_DEFAULTS.dotsDensity).toBe(
-      SPEAKER_SHADER_CONFIG.stripeDots.density
-    );
-    expect(SPEAKER_FRAME_DEFAULTS.stripeBlendMode).toBe(
-      SPEAKER_SHADER_CONFIG.colors.stripeBlendMode
-    );
+    expect(SPEAKER_FRAME_DEFAULTS.renderMode).toBe(SPEAKER_SHADER_CONFIG.renderMode);
+    expect(SPEAKER_FRAME_DEFAULTS.orange.brightness).toBe(SPEAKER_SHADER_CONFIG.adjustments.brightness);
+    expect(SPEAKER_FRAME_DEFAULTS.sparkleStripeCoverage).toBe(SPEAKER_SHADER_CONFIG.sparkle.stripe.coverage);
+    expect(SPEAKER_FRAME_DEFAULTS.dotsDensity).toBe(SPEAKER_SHADER_CONFIG.stripeDots.density);
+    expect(SPEAKER_FRAME_DEFAULTS.stripeBlendMode).toBe(SPEAKER_SHADER_CONFIG.colors.stripeBlendMode);
   });
 });

@@ -1,4 +1,9 @@
+import type { EngineConfig } from "@necatikcl/stripes-engine";
+import { connectSpeakers } from "../data";
 import { SPEAKER_SHADER_CONFIG } from "./speaker-shader-config";
+
+export const SPEAKER_FRAME_VARIANT_IDS = ["orange", "grey"] as const;
+export type SpeakerFrameVariantId = (typeof SPEAKER_FRAME_VARIANT_IDS)[number];
 
 export type SpeakerStripeControl = {
   id: string;
@@ -8,12 +13,30 @@ export type SpeakerStripeControl = {
   opacity: number;
 };
 
+export type SpeakerFramePlacement = {
+  id: string;
+  imageIndex: number;
+  variant: SpeakerFrameVariantId;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  span: boolean;
+};
+
+export type SpeakerFrameVariantLook = {
+  stripes: SpeakerStripeControl[];
+  brightness: number;
+  exposure: number;
+  contrast: number;
+  blackPoint: number;
+  whitePoint: number;
+  gamma: number;
+  invert: boolean;
+};
+
 export type SpeakerFrameSettings = {
-  frameCount: number;
-  frameWidth: number;
-  frameHeight: number;
-  horizontalSpeed: number;
-  verticalSpeed: number;
+  placements: SpeakerFramePlacement[];
   cursorWidth: number;
   cursorHeight: number;
   cursorFollow: number;
@@ -28,14 +51,8 @@ export type SpeakerFrameSettings = {
   gridAngle: number;
   stripesEnabled: boolean;
   fieldScale: number;
-  stripes: SpeakerStripeControl[];
-  brightness: number;
-  exposure: number;
-  contrast: number;
-  blackPoint: number;
-  whitePoint: number;
-  gamma: number;
-  invert: boolean;
+  orange: SpeakerFrameVariantLook;
+  grey: SpeakerFrameVariantLook;
   posterizeLevels: number;
   thresholdBias: number;
   noiseAmount: number;
@@ -89,9 +106,28 @@ export type SpeakerFrameSettings = {
   renderColorB: string;
 };
 
+export const SPEAKER_IMAGE_COUNT = connectSpeakers.length;
+export const MAX_SPEAKER_FRAME_PLACEMENTS = 48;
+export const SPEAKER_FRAME_PANEL_ID = "connect-speaker-frames-v3";
+export const LEGACY_SPEAKER_FRAME_PANEL_IDS = ["connect-speaker-frames-v2", "connect-speaker-frames-v1"] as const;
+export const SPEAKER_FRAME_SETTINGS_EVENT = "connect:speaker-frame-settings";
+
+const GREY_STRIPE_COLORS = [
+  "#f5f5f5",
+  "#e6e6e6",
+  "#cfcfcf",
+  "#b3b3b3",
+  "#7a7a7a",
+  "#3d3d3d",
+  "#2a2a2a",
+  "#d0d0d0",
+  "#d0d0d0",
+  "#b8b8b8",
+] as const;
+
 const toHex = (color: number) => `#${color.toString(16).padStart(6, "0")}`;
 
-const defaultStripes = (): SpeakerStripeControl[] =>
+const defaultOrangeStripes = (): SpeakerStripeControl[] =>
   SPEAKER_SHADER_CONFIG.stripes.map((stripe, index) => ({
     id: `stripe-${index + 1}`,
     color: toHex(stripe.color),
@@ -100,12 +136,105 @@ const defaultStripes = (): SpeakerStripeControl[] =>
     opacity: stripe.opacity,
   }));
 
+const defaultGreyStripes = (): SpeakerStripeControl[] =>
+  defaultOrangeStripes().map((stripe, index) => ({
+    ...stripe,
+    id: `grey-stripe-${index + 1}`,
+    color: GREY_STRIPE_COLORS[index % GREY_STRIPE_COLORS.length],
+  }));
+
+const defaultOrangeLook = (): SpeakerFrameVariantLook => ({
+  stripes: defaultOrangeStripes(),
+  brightness: SPEAKER_SHADER_CONFIG.adjustments.brightness,
+  exposure: SPEAKER_SHADER_CONFIG.adjustments.exposure,
+  contrast: SPEAKER_SHADER_CONFIG.adjustments.contrast,
+  blackPoint: SPEAKER_SHADER_CONFIG.adjustments.blackPoint,
+  whitePoint: SPEAKER_SHADER_CONFIG.adjustments.whitePoint,
+  gamma: SPEAKER_SHADER_CONFIG.adjustments.gamma,
+  invert: SPEAKER_SHADER_CONFIG.adjustments.invert,
+});
+
+const defaultGreyLook = (): SpeakerFrameVariantLook => ({
+  stripes: defaultGreyStripes(),
+  brightness: 0.18,
+  exposure: 0.72,
+  contrast: 1.22,
+  blackPoint: SPEAKER_SHADER_CONFIG.adjustments.blackPoint,
+  whitePoint: SPEAKER_SHADER_CONFIG.adjustments.whitePoint,
+  gamma: 0.82,
+  invert: true,
+});
+
+const placement = (
+  id: string,
+  imageIndex: number,
+  variant: SpeakerFrameVariantId,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  span = false,
+): SpeakerFramePlacement => ({
+  id,
+  imageIndex,
+  variant,
+  x,
+  y,
+  width,
+  height,
+  span,
+});
+
+export const defaultSpeakerFramePlacements = (): SpeakerFramePlacement[] => [
+  placement("matthew-orange", 0, "orange", 0.48, 0.42, 0.46, 0.48),
+  placement("matthew-grey", 0, "grey", 0.06, 0.08, 0.32, 0.36),
+  placement("matthew-span", 0, "orange", 0.82, 0.18, 0.46, 0.32, true),
+  placement("michelle-orange", 1, "orange", 0.58, 0.08, 0.36, 0.62),
+  placement("michelle-span", 1, "grey", 0.78, 0.28, 0.48, 0.4, true),
+  placement("rene-grey", 2, "grey", 0.04, 0.5, 0.38, 0.44),
+  placement("rene-orange", 2, "orange", 0.62, 0.06, 0.32, 0.34),
+  placement("sarah-orange", 3, "orange", 0.02, 0.14, 0.34, 0.5),
+  placement("sarah-grey", 3, "grey", 0.52, 0.58, 0.42, 0.36),
+  placement("evan-grey", 4, "grey", 0.12, 0.58, 0.52, 0.36),
+  placement("evan-orange", 4, "orange", 0.56, 0.08, 0.38, 0.44),
+  placement("peter-orange", 5, "orange", 0, 0.5, 0.42, 0.44),
+  placement("peter-grey", 5, "grey", 0.64, 0.02, 0.32, 0.38),
+];
+
+export const createSpeakerFramePlacement = (imageIndex = 0): SpeakerFramePlacement =>
+  placement(
+    `frame-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+    imageIndex,
+    "orange",
+    0.18,
+    0.18,
+    0.42,
+    0.42,
+  );
+
+export const isSpeakerFrameVariant = (value: unknown): value is SpeakerFrameVariantId =>
+  value === "orange" || value === "grey";
+
+const unusedVariant = (value: never): never => {
+  throw new Error(`Unhandled speaker frame variant: ${String(value)}`);
+};
+
+export const speakerVariantLook = (
+  settings: SpeakerFrameSettings,
+  variant: SpeakerFrameVariantId,
+): SpeakerFrameVariantLook => {
+  switch (variant) {
+    case "orange":
+      return settings.orange;
+    case "grey":
+      return settings.grey;
+    default:
+      return unusedVariant(variant);
+  }
+};
+
 export const SPEAKER_FRAME_DEFAULTS: SpeakerFrameSettings = {
-  frameCount: 6,
-  frameWidth: 1,
-  frameHeight: 1,
-  horizontalSpeed: 1,
-  verticalSpeed: 1,
+  placements: defaultSpeakerFramePlacements(),
   cursorWidth: 1,
   cursorHeight: 1,
   cursorFollow: 0.22,
@@ -120,14 +249,8 @@ export const SPEAKER_FRAME_DEFAULTS: SpeakerFrameSettings = {
   gridAngle: SPEAKER_SHADER_CONFIG.grid.angleDeg,
   stripesEnabled: SPEAKER_SHADER_CONFIG.stripesEnabled,
   fieldScale: SPEAKER_SHADER_CONFIG.fieldScale,
-  stripes: defaultStripes(),
-  brightness: SPEAKER_SHADER_CONFIG.adjustments.brightness,
-  exposure: SPEAKER_SHADER_CONFIG.adjustments.exposure,
-  contrast: SPEAKER_SHADER_CONFIG.adjustments.contrast,
-  blackPoint: SPEAKER_SHADER_CONFIG.adjustments.blackPoint,
-  whitePoint: SPEAKER_SHADER_CONFIG.adjustments.whitePoint,
-  gamma: SPEAKER_SHADER_CONFIG.adjustments.gamma,
-  invert: SPEAKER_SHADER_CONFIG.adjustments.invert,
+  orange: defaultOrangeLook(),
+  grey: defaultGreyLook(),
   posterizeLevels: SPEAKER_SHADER_CONFIG.adjustments.posterizeLevels,
   thresholdBias: SPEAKER_SHADER_CONFIG.adjustments.thresholdBias,
   noiseAmount: SPEAKER_SHADER_CONFIG.adjustments.noiseAmount,
@@ -181,13 +304,16 @@ export const SPEAKER_FRAME_DEFAULTS: SpeakerFrameSettings = {
   renderColorB: toHex(SPEAKER_SHADER_CONFIG.renderColorB),
 };
 
-export const SPEAKER_FRAME_PANEL_ID = "connect-speaker-frames-v2";
-export const LEGACY_SPEAKER_FRAME_PANEL_ID = "connect-speaker-frames-v1";
-export const SPEAKER_FRAME_SETTINGS_EVENT = "connect:speaker-frame-settings";
+const cloneVariantLook = (look: SpeakerFrameVariantLook): SpeakerFrameVariantLook => ({
+  ...look,
+  stripes: look.stripes.map((stripe) => ({ ...stripe })),
+});
 
 const cloneDefaults = (): SpeakerFrameSettings => ({
   ...SPEAKER_FRAME_DEFAULTS,
-  stripes: defaultStripes(),
+  placements: defaultSpeakerFramePlacements(),
+  orange: cloneVariantLook(SPEAKER_FRAME_DEFAULTS.orange),
+  grey: cloneVariantLook(SPEAKER_FRAME_DEFAULTS.grey),
 });
 
 const isStripe = (value: unknown): value is SpeakerStripeControl => {
@@ -202,27 +328,251 @@ const isStripe = (value: unknown): value is SpeakerStripeControl => {
   );
 };
 
+const sanitizeStripes = (value: unknown, fallback: SpeakerStripeControl[]): SpeakerStripeControl[] => {
+  if (!Array.isArray(value)) return fallback.map((stripe) => ({ ...stripe }));
+  const stripes = value.filter(isStripe).slice(0, 24);
+  return stripes.length > 0 ? stripes.map((stripe) => ({ ...stripe })) : fallback.map((stripe) => ({ ...stripe }));
+};
+
+const sanitizeNumber = (value: unknown, fallback: number) =>
+  typeof value === "number" && Number.isFinite(value) ? value : fallback;
+
+const sanitizeVariantLook = (value: unknown, fallback: SpeakerFrameVariantLook): SpeakerFrameVariantLook => {
+  const parsed = value && typeof value === "object" ? (value as Partial<SpeakerFrameVariantLook>) : {};
+  return {
+    stripes: sanitizeStripes(parsed.stripes, fallback.stripes),
+    brightness: sanitizeNumber(parsed.brightness, fallback.brightness),
+    exposure: sanitizeNumber(parsed.exposure, fallback.exposure),
+    contrast: sanitizeNumber(parsed.contrast, fallback.contrast),
+    blackPoint: sanitizeNumber(parsed.blackPoint, fallback.blackPoint),
+    whitePoint: sanitizeNumber(parsed.whitePoint, fallback.whitePoint),
+    gamma: sanitizeNumber(parsed.gamma, fallback.gamma),
+    invert: typeof parsed.invert === "boolean" ? parsed.invert : fallback.invert,
+  };
+};
+
+const sanitizePlacement = (value: unknown): SpeakerFramePlacement | null => {
+  if (!value || typeof value !== "object") return null;
+  const parsed = value as Partial<SpeakerFramePlacement>;
+  if (typeof parsed.id !== "string" || parsed.id.length === 0) return null;
+  if (!isSpeakerFrameVariant(parsed.variant)) return null;
+  const imageIndex = Math.round(sanitizeNumber(parsed.imageIndex, 0));
+  if (imageIndex < 0 || imageIndex >= SPEAKER_IMAGE_COUNT) return null;
+  const width = sanitizeNumber(parsed.width, 0);
+  const height = sanitizeNumber(parsed.height, 0);
+  if (width <= 0 || height <= 0) return null;
+  return {
+    id: parsed.id,
+    imageIndex,
+    variant: parsed.variant,
+    x: sanitizeNumber(parsed.x, 0),
+    y: sanitizeNumber(parsed.y, 0),
+    width,
+    height,
+    span: parsed.span === true,
+  };
+};
+
+export const sanitizeSpeakerFramePlacements = (value: unknown): SpeakerFramePlacement[] => {
+  if (!Array.isArray(value)) return defaultSpeakerFramePlacements();
+  const placements = value
+    .map(sanitizePlacement)
+    .filter((placement): placement is SpeakerFramePlacement => placement !== null)
+    .slice(0, MAX_SPEAKER_FRAME_PLACEMENTS);
+  return placements.length > 0 ? placements : defaultSpeakerFramePlacements();
+};
+
+const hexToColorNumber = (value: string, fallback: number) => {
+  const normalized = value.trim().replace(/^#/, "");
+  if (!/^[\da-f]{6}$/i.test(normalized)) return fallback;
+  return Number.parseInt(normalized, 16);
+};
+
+export const speakerSharedEngineConfig = (settings: SpeakerFrameSettings): Partial<EngineConfig> => ({
+  grid: {
+    ...SPEAKER_SHADER_CONFIG.grid,
+    cellWidth: settings.gridCellWidth,
+    cellHeight: settings.gridCellHeight,
+    gapX: settings.gridGapX,
+    gapY: settings.gridGapY,
+    cornerRadius: settings.gridCornerRadius,
+    overlapAmount: settings.gridOverlap,
+    orientation: settings.gridOrientation,
+    angleDeg: settings.gridAngle,
+  },
+  stripesEnabled: settings.stripesEnabled,
+  fieldScale: settings.fieldScale,
+  sparkle: {
+    ...SPEAKER_SHADER_CONFIG.sparkle,
+    width: {
+      ...SPEAKER_SHADER_CONFIG.sparkle.width,
+      enabled: settings.sparkleWidthEnabled,
+      coverage: settings.sparkleWidthCoverage,
+      swingPx: settings.sparkleSwing,
+    },
+    stripe: {
+      ...SPEAKER_SHADER_CONFIG.sparkle.stripe,
+      enabled: settings.sparkleStripeEnabled,
+      coverage: settings.sparkleStripeCoverage,
+      maxBrightness: settings.sparkleBrightness,
+      speed: settings.sparkleSpeed,
+      hueDriftDeg: settings.sparkleHueDrift,
+      saturationBoost: settings.sparkleSaturation,
+    },
+  },
+  stripeDots: {
+    ...SPEAKER_SHADER_CONFIG.stripeDots,
+    enabled: settings.dotsEnabled,
+    density: settings.dotsDensity,
+    randomVisibility: settings.dotsVisibility,
+    sizePx: settings.dotsSize,
+    brightness: settings.dotsBrightness,
+    hueDriftDeg: settings.dotsHueDrift,
+    saturationBoost: settings.dotsSaturation,
+  },
+  stripeBorder: {
+    ...SPEAKER_SHADER_CONFIG.stripeBorder,
+    enabled: settings.borderEnabled,
+    minWidthPx: settings.borderMinWidth,
+    density: settings.borderDensity,
+  },
+  gridLines: {
+    ...SPEAKER_SHADER_CONFIG.gridLines,
+    enabled: settings.gridLinesEnabled,
+    brightness: settings.gridLinesBrightness,
+    density: settings.gridLinesDensity,
+  },
+  frames: {
+    ...SPEAKER_SHADER_CONFIG.frames,
+    enabled: settings.engineFramesEnabled,
+    luminanceThreshold: settings.engineFrameThreshold,
+    highlightedStripeCount: settings.engineFrameStripeCount,
+    groupDistanceCells: settings.engineFrameDistance,
+    color: hexToColorNumber(settings.engineFrameColor, SPEAKER_SHADER_CONFIG.frames.color),
+  },
+  cursorTrail: {
+    ...SPEAKER_SHADER_CONFIG.cursorTrail,
+    enabled: settings.trailEnabled,
+    particleRadius: settings.trailRadius,
+    particleAlpha: settings.trailAlpha,
+    particleLifeMs: settings.trailLife,
+    pushStrengthPx: settings.trailPush,
+  },
+  colors: {
+    ...SPEAKER_SHADER_CONFIG.colors,
+    mode: settings.colorMode,
+    stripeBlendMode: settings.stripeBlendMode as EngineConfig["colors"]["stripeBlendMode"],
+    imageColorLightness: settings.imageColorLightness,
+    imageColorDensity: settings.imageColorDensity,
+    imageColorRemoveThin: settings.imageColorRemoveThin,
+    imageColorBoostThick: settings.imageColorBoostThick,
+  },
+  renderMode: settings.renderMode as EngineConfig["renderMode"],
+  renderIntensity: settings.renderIntensity,
+  renderParams: [settings.renderParamA, settings.renderParamB, settings.renderParamC, settings.renderParamD],
+  renderColorA: hexToColorNumber(settings.renderColorA, SPEAKER_SHADER_CONFIG.renderColorA),
+  renderColorB: hexToColorNumber(settings.renderColorB, SPEAKER_SHADER_CONFIG.renderColorB),
+});
+
+export const speakerVariantEngineConfig = (
+  settings: SpeakerFrameSettings,
+  variant: SpeakerFrameVariantId,
+): Partial<EngineConfig> => {
+  const look = speakerVariantLook(settings, variant);
+  return {
+    stripes: look.stripes.map((stripe) => ({
+      color: hexToColorNumber(stripe.color, SPEAKER_SHADER_CONFIG.stripes[0].color),
+      startFrom: stripe.startFrom,
+      width: stripe.width,
+      opacity: stripe.opacity,
+    })),
+    adjustments: {
+      ...SPEAKER_SHADER_CONFIG.adjustments,
+      brightness: look.brightness,
+      exposure: look.exposure,
+      contrast: look.contrast,
+      blackPoint: look.blackPoint,
+      whitePoint: look.whitePoint,
+      gamma: look.gamma,
+      invert: look.invert,
+      posterizeLevels: settings.posterizeLevels,
+      thresholdBias: settings.thresholdBias,
+      noiseAmount: settings.noiseAmount,
+      blurRadius: settings.blurRadius,
+      sharpenAmount: settings.sharpenAmount,
+    },
+  };
+};
+
+const readStoredSettings = (): unknown => {
+  const keys = [`panels:${SPEAKER_FRAME_PANEL_ID}`, ...LEGACY_SPEAKER_FRAME_PANEL_IDS.map((id) => `panels:${id}`)];
+  for (const key of keys) {
+    const raw = localStorage.getItem(key);
+    if (raw) return JSON.parse(raw);
+  }
+  return null;
+};
+
+const mergeSharedSettings = (settings: SpeakerFrameSettings, parsed: Record<string, unknown>) => {
+  const skip = new Set([
+    "placements",
+    "orange",
+    "grey",
+    "stripes",
+    "brightness",
+    "exposure",
+    "contrast",
+    "blackPoint",
+    "whitePoint",
+    "gamma",
+    "invert",
+    "frameCount",
+    "frameWidth",
+    "frameHeight",
+    "horizontalSpeed",
+    "verticalSpeed",
+  ]);
+  for (const key of Object.keys(settings) as (keyof SpeakerFrameSettings)[]) {
+    if (skip.has(key)) continue;
+    const value = parsed[key];
+    const fallback = settings[key];
+    if (typeof value === typeof fallback) {
+      (settings as Record<string, unknown>)[key] = value;
+    }
+  }
+};
+
 export const loadSpeakerFrameSettings = (): SpeakerFrameSettings => {
   const settings = cloneDefaults();
   try {
-    const raw =
-      localStorage.getItem(`panels:${SPEAKER_FRAME_PANEL_ID}`) ??
-      localStorage.getItem(`panels:${LEGACY_SPEAKER_FRAME_PANEL_ID}`);
-    if (!raw) return settings;
-    const parsed = JSON.parse(raw) as Partial<SpeakerFrameSettings>;
-    for (const key of Object.keys(settings) as (keyof SpeakerFrameSettings)[]) {
-      const value = parsed[key];
-      const fallback = settings[key];
-      if (key === "stripes" && Array.isArray(value)) {
-        const stripes = value.filter(isStripe).slice(0, 24);
-        if (stripes.length > 0) settings.stripes = stripes;
-      } else if (typeof value === typeof fallback) {
-        (settings as Record<string, unknown>)[key] = value;
-      }
+    const parsed = readStoredSettings();
+    if (!parsed || typeof parsed !== "object") return settings;
+    const record = parsed as Record<string, unknown>;
+    mergeSharedSettings(settings, record);
+    settings.placements = sanitizeSpeakerFramePlacements(record.placements);
+    if (record.orange && typeof record.orange === "object") {
+      settings.orange = sanitizeVariantLook(record.orange, settings.orange);
+    } else {
+      settings.orange = sanitizeVariantLook(
+        {
+          stripes: record.stripes,
+          brightness: record.brightness,
+          exposure: record.exposure,
+          contrast: record.contrast,
+          blackPoint: record.blackPoint,
+          whitePoint: record.whitePoint,
+          gamma: record.gamma,
+          invert: record.invert,
+        },
+        settings.orange,
+      );
+    }
+    if (record.grey && typeof record.grey === "object") {
+      settings.grey = sanitizeVariantLook(record.grey, settings.grey);
     }
     return settings;
   } catch {
-    return settings;
+    return cloneDefaults();
   }
 };
 
@@ -230,6 +580,6 @@ export const publishSpeakerFrameSettings = (settings: SpeakerFrameSettings) => {
   window.dispatchEvent(
     new CustomEvent<SpeakerFrameSettings>(SPEAKER_FRAME_SETTINGS_EVENT, {
       detail: settings,
-    })
+    }),
   );
 };
