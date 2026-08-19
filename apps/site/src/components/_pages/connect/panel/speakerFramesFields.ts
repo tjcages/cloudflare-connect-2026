@@ -7,6 +7,8 @@ import {
   sanitizeSpeakerFramePlacements,
   SPEAKER_FRAME_DEFAULTS,
   SPEAKER_FRAME_PANEL_ID,
+  SPEAKER_WHITE_GRID,
+  type SpeakerFrameGridLook,
   type SpeakerFramePlacement,
   type SpeakerFrameSettings,
   type SpeakerFrameVariantLook,
@@ -72,6 +74,15 @@ type SpeakerFramePanelValues = SpeakerFrameSettings & {
   whiteWhitePoint: number;
   whiteGamma: number;
   whiteBgColor: string;
+  whiteGridCellWidth: number;
+  whiteGridCellHeight: number;
+  whiteGridGapX: number;
+  whiteGridGapY: number;
+  whiteGridCornerRadius: number;
+  whiteGridOverlap: number;
+  whiteGridOrientation: SpeakerFrameGridLook["orientation"];
+  whiteGridAngle: number;
+  whiteFieldScale: number;
 };
 
 const lookFromPanel = (
@@ -85,6 +96,7 @@ const lookFromPanel = (
   gamma: unknown,
   bgColor: unknown,
   fallback: SpeakerFrameVariantLook,
+  grid?: SpeakerFrameGridLook,
 ): SpeakerFrameVariantLook => ({
   stripes: (() => {
     const next = fromEditableControls(Array.isArray(stripes) ? (stripes as EditableStripe[]) : []);
@@ -98,10 +110,37 @@ const lookFromPanel = (
   whitePoint: typeof whitePoint === "number" ? whitePoint : fallback.whitePoint,
   gamma: typeof gamma === "number" ? gamma : fallback.gamma,
   bgColor: typeof bgColor === "string" ? bgColor : fallback.bgColor,
+  ...(grid ? { grid } : fallback.grid ? { grid: { ...fallback.grid } } : {}),
+});
+
+const whiteGridFromSettings = (look: SpeakerFrameVariantLook): SpeakerFrameGridLook =>
+  look.grid ?? SPEAKER_WHITE_GRID;
+
+const whiteGridFromPanel = (
+  cellWidth: unknown,
+  cellHeight: unknown,
+  gapX: unknown,
+  gapY: unknown,
+  cornerRadius: unknown,
+  overlap: unknown,
+  orientation: unknown,
+  angle: unknown,
+  fieldScale: unknown,
+): SpeakerFrameGridLook => ({
+  cellWidth: typeof cellWidth === "number" ? cellWidth : SPEAKER_WHITE_GRID.cellWidth,
+  cellHeight: typeof cellHeight === "number" ? cellHeight : SPEAKER_WHITE_GRID.cellHeight,
+  gapX: typeof gapX === "number" ? gapX : SPEAKER_WHITE_GRID.gapX,
+  gapY: typeof gapY === "number" ? gapY : SPEAKER_WHITE_GRID.gapY,
+  cornerRadius: typeof cornerRadius === "number" ? cornerRadius : SPEAKER_WHITE_GRID.cornerRadius,
+  overlapAmount: typeof overlap === "number" ? overlap : SPEAKER_WHITE_GRID.overlapAmount,
+  orientation: orientation === "horizontal" || orientation === "vertical" ? orientation : SPEAKER_WHITE_GRID.orientation,
+  angleDeg: typeof angle === "number" ? angle : SPEAKER_WHITE_GRID.angleDeg,
+  fieldScale: typeof fieldScale === "number" ? fieldScale : SPEAKER_WHITE_GRID.fieldScale,
 });
 
 /** Panel values: settings plus flattened orange/white/grey stripe tables. */
 export function seedSpeakerFramesPanelValues(settings: SpeakerFrameSettings): PanelValues {
+  const whiteGrid = whiteGridFromSettings(settings.white);
   return {
     ...settings,
     stripes: toEditableControls(settings.orange.stripes),
@@ -122,6 +161,15 @@ export function seedSpeakerFramesPanelValues(settings: SpeakerFrameSettings): Pa
     whiteWhitePoint: settings.white.whitePoint,
     whiteGamma: settings.white.gamma,
     whiteBgColor: settings.white.bgColor,
+    whiteGridCellWidth: whiteGrid.cellWidth,
+    whiteGridCellHeight: whiteGrid.cellHeight,
+    whiteGridGapX: whiteGrid.gapX,
+    whiteGridGapY: whiteGrid.gapY,
+    whiteGridCornerRadius: whiteGrid.cornerRadius,
+    whiteGridOverlap: whiteGrid.overlapAmount,
+    whiteGridOrientation: whiteGrid.orientation,
+    whiteGridAngle: whiteGrid.angleDeg,
+    whiteFieldScale: whiteGrid.fieldScale,
     greyStripes: toEditableControls(settings.grey.stripes),
     greyInvert: settings.grey.invert,
     greyBrightness: settings.grey.brightness,
@@ -163,6 +211,15 @@ export function speakerFramesFromPanelValues(values: PanelValues): SpeakerFrameS
     whiteWhitePoint,
     whiteGamma,
     whiteBgColor,
+    whiteGridCellWidth,
+    whiteGridCellHeight,
+    whiteGridGapX,
+    whiteGridGapY,
+    whiteGridCornerRadius,
+    whiteGridOverlap,
+    whiteGridOrientation,
+    whiteGridAngle,
+    whiteFieldScale,
     orange: _orange,
     white: _white,
     grey: _grey,
@@ -195,6 +252,17 @@ export function speakerFramesFromPanelValues(values: PanelValues): SpeakerFrameS
       whiteGamma,
       whiteBgColor,
       SPEAKER_FRAME_DEFAULTS.white,
+      whiteGridFromPanel(
+        whiteGridCellWidth,
+        whiteGridCellHeight,
+        whiteGridGapX,
+        whiteGridGapY,
+        whiteGridCornerRadius,
+        whiteGridOverlap,
+        whiteGridOrientation,
+        whiteGridAngle,
+        whiteFieldScale,
+      ),
     ),
     grey: lookFromPanel(
       greyStripes,
@@ -310,7 +378,7 @@ export function buildSpeakerFramesSections(): PanelSectionDef[] {
     },
     {
       id: "Grid geometry",
-      title: "Grid geometry",
+      title: "Grid geometry (overlay + orange)",
       fields: [
         num("gridCellWidth", "Cell width", 2, 48, 1),
         num("gridCellHeight", "Cell height", 2, 48, 1),
@@ -331,7 +399,7 @@ export function buildSpeakerFramesSections(): PanelSectionDef[] {
       defaultOpen: true,
       fields: [
         toggle("stripesEnabled", "Stripes enabled"),
-        num("fieldScale", "Field scale", 0.1, 4, 0.01),
+        num("fieldScale", "Field scale (overlay + orange)", 0.1, 4, 0.01),
       ],
     },
     {
@@ -379,6 +447,18 @@ export function buildSpeakerFramesSections(): PanelSectionDef[] {
           label: "White stripe palette",
           library: COLOR_LIBRARY,
         },
+        num("whiteGridCellWidth", "Cell width", 2, 48, 1),
+        num("whiteGridCellHeight", "Cell height", 2, 48, 1),
+        num("whiteGridGapX", "Horizontal gap", 0, 24, 0.25),
+        num("whiteGridGapY", "Vertical gap", 0, 24, 0.25),
+        num("whiteGridCornerRadius", "Corner radius", 0, 16, 0.25),
+        num("whiteGridOverlap", "Stripe overlap", 0, 4, 0.01),
+        select("whiteGridOrientation", "Orientation", {
+          Vertical: "vertical",
+          Horizontal: "horizontal",
+        }),
+        num("whiteGridAngle", "Grid angle", -180, 180, 1),
+        num("whiteFieldScale", "Field scale", 0.1, 4, 0.01),
       ],
     },
     {

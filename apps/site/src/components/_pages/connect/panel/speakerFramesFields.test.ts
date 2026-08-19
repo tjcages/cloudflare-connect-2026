@@ -46,6 +46,47 @@ describe("speaker frame panel mapping", () => {
     expect(next.white.invert).toBe(true);
   });
 
+  it("round-trips the white pane's own grid geometry", () => {
+    const seeded = seedSpeakerFramesPanelValues({
+      ...SPEAKER_FRAME_DEFAULTS,
+      white: {
+        ...SPEAKER_FRAME_DEFAULTS.white,
+        grid: {
+          cellWidth: 11,
+          cellHeight: 8,
+          gapX: 1,
+          gapY: 2,
+          cornerRadius: 0.5,
+          overlapAmount: 0.4,
+          orientation: "horizontal",
+          angleDeg: 12,
+          fieldScale: 1.4,
+        },
+      },
+    });
+
+    expect(seeded.whiteGridCellWidth).toBe(11);
+    expect(seeded.whiteGridOrientation).toBe("horizontal");
+    expect(seeded.whiteFieldScale).toBe(1.4);
+
+    const next = speakerFramesFromPanelValues({
+      ...seeded,
+      whiteGridCellWidth: 6,
+      whiteGridAngle: -15,
+      whiteFieldScale: 0.9,
+    });
+
+    expect(next.white.grid).toMatchObject({
+      cellWidth: 6,
+      cellHeight: 8,
+      angleDeg: -15,
+      fieldScale: 0.9,
+      orientation: "horizontal",
+    });
+    expect(next.gridCellWidth).toBe(SPEAKER_FRAME_DEFAULTS.gridCellWidth);
+    expect(next.orange.grid).toBeUndefined();
+  });
+
   it("round-trips orange and white frame background colors", () => {
     const seeded = seedSpeakerFramesPanelValues({
       ...SPEAKER_FRAME_DEFAULTS,

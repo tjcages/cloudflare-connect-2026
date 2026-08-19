@@ -37,6 +37,21 @@ describe("speaker shader production contract", () => {
     });
     expect(SPEAKER_SHADER_CONFIG.stripes[0].opacity).toBe(0.41);
     expect(SPEAKER_SHADER_CONFIG.grid.angleDeg).toBe(45);
+    expect(SPEAKER_FRAME_DEFAULTS.white.stripes[0]).toMatchObject({
+      color: "#261106",
+      startFrom: 0,
+      width: 0.5,
+      opacity: 1,
+    });
+    expect(SPEAKER_FRAME_DEFAULTS.white.grid).toMatchObject({
+      cellWidth: 7,
+      cellHeight: 7,
+      gapX: 0,
+      gapY: 0,
+      angleDeg: 0,
+      overlapAmount: 1.2,
+      fieldScale: 1,
+    });
   });
 
   it("keeps render, tone, and stripe-detail controls aligned with the production config", () => {

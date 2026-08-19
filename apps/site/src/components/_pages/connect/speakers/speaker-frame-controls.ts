@@ -24,6 +24,18 @@ export type SpeakerFramePlacement = {
   span: boolean;
 };
 
+export type SpeakerFrameGridLook = {
+  cellWidth: number;
+  cellHeight: number;
+  gapX: number;
+  gapY: number;
+  cornerRadius: number;
+  overlapAmount: number;
+  orientation: "vertical" | "horizontal";
+  angleDeg: number;
+  fieldScale: number;
+};
+
 export type SpeakerFrameVariantLook = {
   stripes: SpeakerStripeControl[];
   brightness: number;
@@ -34,6 +46,8 @@ export type SpeakerFrameVariantLook = {
   gamma: number;
   invert: boolean;
   bgColor: string;
+  /** When set, this look uses its own stripe grid instead of the shared overlay/orange geometry. */
+  grid?: SpeakerFrameGridLook;
 };
 
 export type SpeakerFrameSettings = {
@@ -161,10 +175,39 @@ const defaultGreyStripes = (): SpeakerStripeControl[] =>
     color: GREY_STRIPE_COLORS[index % GREY_STRIPE_COLORS.length],
   }));
 
+/** Lab-authored white-pane stripe colors and widths (colors + shape only). */
+const SPEAKER_WHITE_STRIPE_STOPS = [
+  { color: 2_494_726, startFrom: 0, width: 0.5, opacity: 1 },
+  { color: 3_347_975, startFrom: 0.0195, width: 0.5, opacity: 1 },
+  { color: 4_464_653, startFrom: 0.047, width: 1, opacity: 1 },
+  { color: 5_973_518, startFrom: 0.086, width: 1.5, opacity: 1 },
+  { color: 9_054_977, startFrom: 0.1408, width: 1.5, opacity: 1 },
+  { color: 11_745_286, startFrom: 0.2167, width: 2, opacity: 1 },
+  { color: 16_015_393, startFrom: 0.3191, width: 2.5, opacity: 1 },
+  { color: 16_280_064, startFrom: 0.4512, width: 3, opacity: 1 },
+  { color: 16_746_553, startFrom: 0.6129, width: 3.5, opacity: 1 },
+  { color: 16_752_731, startFrom: 0.8, width: 4, opacity: 1 },
+] as const;
+
+export const SPEAKER_WHITE_GRID: SpeakerFrameGridLook = {
+  cellWidth: 7,
+  cellHeight: 7,
+  gapX: 0,
+  gapY: 0,
+  cornerRadius: 0,
+  overlapAmount: 1.2,
+  orientation: "vertical",
+  angleDeg: 0,
+  fieldScale: 1,
+};
+
 const defaultWhiteStripes = (): SpeakerStripeControl[] =>
-  defaultOrangeStripes().map((stripe, index) => ({
-    ...stripe,
+  SPEAKER_WHITE_STRIPE_STOPS.map((stripe, index) => ({
     id: `white-stripe-${index + 1}`,
+    color: toHex(stripe.color),
+    startFrom: stripe.startFrom,
+    width: stripe.width,
+    opacity: stripe.opacity,
   }));
 
 const defaultOrangeLook = (): SpeakerFrameVariantLook => ({
@@ -189,6 +232,7 @@ const defaultWhiteLook = (): SpeakerFrameVariantLook => ({
   gamma: SPEAKER_SHADER_CONFIG.adjustments.gamma,
   invert: false,
   bgColor: SPEAKER_WHITE_BG,
+  grid: { ...SPEAKER_WHITE_GRID },
 });
 
 const defaultGreyLook = (): SpeakerFrameVariantLook => ({
@@ -356,6 +400,7 @@ export const SPEAKER_FRAME_DEFAULTS: SpeakerFrameSettings = {
 const cloneVariantLook = (look: SpeakerFrameVariantLook): SpeakerFrameVariantLook => ({
   ...look,
   stripes: look.stripes.map((stripe) => ({ ...stripe })),
+  grid: look.grid ? { ...look.grid } : undefined,
 });
 
 const cloneDefaults = (): SpeakerFrameSettings => ({
@@ -387,6 +432,53 @@ const sanitizeStripes = (value: unknown, fallback: SpeakerStripeControl[]): Spea
 const sanitizeNumber = (value: unknown, fallback: number) =>
   typeof value === "number" && Number.isFinite(value) ? value : fallback;
 
+const sanitizeOrientation = (
+  value: unknown,
+  fallback: SpeakerFrameGridLook["orientation"],
+): SpeakerFrameGridLook["orientation"] => {
+  if (value === "vertical" || value === "horizontal") return value;
+  return fallback;
+};
+
+const sharedGridLook = (settings: SpeakerFrameSettings): SpeakerFrameGridLook => ({
+  cellWidth: settings.gridCellWidth,
+  cellHeight: settings.gridCellHeight,
+  gapX: settings.gridGapX,
+  gapY: settings.gridGapY,
+  cornerRadius: settings.gridCornerRadius,
+  overlapAmount: settings.gridOverlap,
+  orientation: settings.gridOrientation,
+  angleDeg: settings.gridAngle,
+  fieldScale: settings.fieldScale,
+});
+
+const sanitizeGridLook = (
+  value: unknown,
+  fallback: SpeakerFrameGridLook | undefined,
+): SpeakerFrameGridLook | undefined => {
+  if (!value || typeof value !== "object") {
+    return fallback ? { ...fallback } : undefined;
+  }
+  const parsed = value as Partial<SpeakerFrameGridLook>;
+  const defaults = fallback ?? SPEAKER_WHITE_GRID;
+  return {
+    cellWidth: sanitizeNumber(parsed.cellWidth, defaults.cellWidth),
+    cellHeight: sanitizeNumber(parsed.cellHeight, defaults.cellHeight),
+    gapX: sanitizeNumber(parsed.gapX, defaults.gapX),
+    gapY: sanitizeNumber(parsed.gapY, defaults.gapY),
+    cornerRadius: sanitizeNumber(parsed.cornerRadius, defaults.cornerRadius),
+    overlapAmount: sanitizeNumber(parsed.overlapAmount, defaults.overlapAmount),
+    orientation: sanitizeOrientation(parsed.orientation, defaults.orientation),
+    angleDeg: sanitizeNumber(parsed.angleDeg, defaults.angleDeg),
+    fieldScale: sanitizeNumber(parsed.fieldScale, defaults.fieldScale),
+  };
+};
+
+export const speakerVariantGridLook = (
+  settings: SpeakerFrameSettings,
+  look: SpeakerFrameVariantLook,
+): SpeakerFrameGridLook => look.grid ?? sharedGridLook(settings);
+
 const sanitizeHex = (value: unknown, fallback: string) => {
   if (typeof value !== "string") return fallback;
   const normalized = value.trim().replace(/^#/, "");
@@ -396,6 +488,7 @@ const sanitizeHex = (value: unknown, fallback: string) => {
 
 const sanitizeVariantLook = (value: unknown, fallback: SpeakerFrameVariantLook): SpeakerFrameVariantLook => {
   const parsed = value && typeof value === "object" ? (value as Partial<SpeakerFrameVariantLook>) : {};
+  const grid = sanitizeGridLook(parsed.grid, fallback.grid);
   return {
     stripes: sanitizeStripes(parsed.stripes, fallback.stripes),
     brightness: sanitizeNumber(parsed.brightness, fallback.brightness),
@@ -406,6 +499,7 @@ const sanitizeVariantLook = (value: unknown, fallback: SpeakerFrameVariantLook):
     gamma: sanitizeNumber(parsed.gamma, fallback.gamma),
     invert: typeof parsed.invert === "boolean" ? parsed.invert : fallback.invert,
     bgColor: sanitizeHex(parsed.bgColor, fallback.bgColor),
+    ...(grid ? { grid } : {}),
   };
 };
 
@@ -552,6 +646,7 @@ export const speakerVariantEngineConfig = (
   variant: SpeakerFrameVariantId,
 ): Partial<EngineConfig> => {
   const look = speakerVariantLook(settings, variant);
+  const grid = speakerVariantGridLook(settings, look);
   return {
     stripes: look.stripes.map((stripe) => ({
       color: hexToColorNumber(stripe.color, SPEAKER_SHADER_CONFIG.stripes[0].color),
@@ -559,6 +654,18 @@ export const speakerVariantEngineConfig = (
       width: stripe.width,
       opacity: stripe.opacity,
     })),
+    grid: {
+      ...SPEAKER_SHADER_CONFIG.grid,
+      cellWidth: grid.cellWidth,
+      cellHeight: grid.cellHeight,
+      gapX: grid.gapX,
+      gapY: grid.gapY,
+      cornerRadius: grid.cornerRadius,
+      overlapAmount: grid.overlapAmount,
+      orientation: grid.orientation,
+      angleDeg: grid.angleDeg,
+    },
+    fieldScale: grid.fieldScale,
     adjustments: {
       ...SPEAKER_SHADER_CONFIG.adjustments,
       brightness: look.brightness,

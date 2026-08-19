@@ -53,6 +53,44 @@ describe("speaker frame controls", () => {
     );
   });
 
+  it("authors the white pane with the lab stripe ramp and a 7×7 vertical grid", () => {
+    expect(SPEAKER_FRAME_DEFAULTS.white.stripes.map((stripe) => stripe.color)).toEqual([
+      "#261106",
+      "#331607",
+      "#44200d",
+      "#5b260e",
+      "#8a2b01",
+      "#b33806",
+      "#f46021",
+      "#f86a00",
+      "#ff8839",
+      "#ffa05b",
+    ]);
+    expect(SPEAKER_FRAME_DEFAULTS.white.stripes[0]).toMatchObject({ startFrom: 0, width: 0.5, opacity: 1 });
+    expect(SPEAKER_FRAME_DEFAULTS.white.stripes[9]).toMatchObject({ startFrom: 0.8, width: 4, opacity: 1 });
+
+    const white = speakerVariantEngineConfig(SPEAKER_FRAME_DEFAULTS, "white");
+    const orange = speakerVariantEngineConfig(SPEAKER_FRAME_DEFAULTS, "orange");
+    expect(white.grid).toMatchObject({
+      cellWidth: 7,
+      cellHeight: 7,
+      gapX: 0,
+      gapY: 0,
+      orientation: "vertical",
+      angleDeg: 0,
+      overlapAmount: 1.2,
+    });
+    expect(white.fieldScale).toBe(1);
+    expect(orange.grid).toMatchObject({
+      cellWidth: SPEAKER_FRAME_DEFAULTS.gridCellWidth,
+      cellHeight: SPEAKER_FRAME_DEFAULTS.gridCellHeight,
+      angleDeg: SPEAKER_FRAME_DEFAULTS.gridAngle,
+      overlapAmount: SPEAKER_FRAME_DEFAULTS.gridOverlap,
+    });
+    expect(orange.fieldScale).toBe(SPEAKER_FRAME_DEFAULTS.fieldScale);
+    expect(white.stripes).not.toEqual(orange.stripes);
+  });
+
   it("drops invalid placements and restores defaults when the list is empty", () => {
     expect(
       sanitizeSpeakerFramePlacements([

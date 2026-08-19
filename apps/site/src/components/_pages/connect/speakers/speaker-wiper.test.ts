@@ -126,6 +126,21 @@ describe("speaker frame wipers", () => {
     expect(speakerFramePaintConfig(customWhite, "orange").stripes?.[0]?.color).not.toBe(0x11_22_33);
   });
 
+  it("paints the white pane with the lab grid without changing orange geometry", () => {
+    const white = speakerFramePaintConfig(SPEAKER_FRAME_DEFAULTS, "white");
+    const orange = speakerFramePaintConfig(SPEAKER_FRAME_DEFAULTS, "orange");
+
+    expect(white.grid).toMatchObject({ cellWidth: 7, cellHeight: 7, angleDeg: 0, overlapAmount: 1.2 });
+    expect(white.fieldScale).toBe(1);
+    expect(white.stripes?.[0]).toMatchObject({ color: 0x26_11_06, startFrom: 0, width: 0.5 });
+    expect(orange.grid).toMatchObject({
+      cellWidth: SPEAKER_FRAME_DEFAULTS.gridCellWidth,
+      cellHeight: SPEAKER_FRAME_DEFAULTS.gridCellHeight,
+      angleDeg: 45,
+    });
+    expect(orange.fieldScale).toBe(SPEAKER_FRAME_DEFAULTS.fieldScale);
+  });
+
   it("paints the overlay frame with a transparent background so the photo shows through", () => {
     const overlay = speakerFramePaintConfig(SPEAKER_FRAME_DEFAULTS, "grey");
     expect(overlay.background?.transparent).toBe(true);
