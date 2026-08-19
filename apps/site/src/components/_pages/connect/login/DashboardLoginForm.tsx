@@ -29,7 +29,7 @@ export default function DashboardLoginForm() {
   };
 
   return (
-    <div className="flex min-h-screen w-full max-w-[28rem] flex-col items-stretch pt-64 min-[1024px]:pt-96">
+    <div className="flex min-h-screen w-full max-w-[28rem] flex-col items-stretch pt-16 min-[1024px]:pt-96">
       <div className="w-full px-16 pt-32 min-[640px]:px-48 min-[640px]:py-24">
         <div className="mb-24">
           <h1

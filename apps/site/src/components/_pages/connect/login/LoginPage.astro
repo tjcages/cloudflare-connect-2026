@@ -14,26 +14,10 @@ const SIGN_UP_HREF = "https://dash.cloudflare.com/sign-up";
 {/*
   1:1 dash.cloudflare.com/login chrome (Kumo). The globe is the only
   substitution: homepage hero Twizzler + rain, Dark Appearance (cream
-  ribbon on deep orange). Below lg the same overlay sits in a compact
-  banner above the form so login shifts down instead of overlaying.
+  ribbon on deep orange). Below lg a contained Connect card sits under
+  the nav and above “Sign in to Cloudflare”.
 */}
 <div class="dash-login relative min-h-screen bg-[#ffffff] text-[#1d1d1d]">
-  <section
-    aria-label="Cloudflare Connect 2026"
-    class="relative isolate overflow-hidden bg-[#f86a00] px-16 py-24 min-[1024px]:hidden"
-  >
-    <div class="pointer-events-none absolute inset-0 z-0 h-full w-full">
-      <ConnectHeroTwizzler
-        client:media="(max-width: 1023px)"
-        defaults={LOGIN_TWIZZLER_DEFAULTS}
-        hideTopFade={true}
-        panelTargets={LOGIN_PANEL_TARGETS}
-        rainDefaults={LOGIN_RAIN_DEFAULT}
-      />
-    </div>
-    <LoginPromo layout="banner" />
-  </section>
-
   <div class="relative">
     <header
       class="dash-login-chrome absolute inset-x-0 top-20 z-10 flex items-center justify-between px-16"
@@ -104,9 +88,32 @@ const SIGN_UP_HREF = "https://dash.cloudflare.com/sign-up";
 
   <div class="flex min-h-screen w-full overflow-x-hidden">
     <main
-      class="dash-login-chrome flex min-w-0 flex-1 items-start justify-center bg-[#ffffff]"
+      class="flex min-w-0 flex-1 flex-col items-center bg-[#ffffff]"
     >
-      <DashboardLoginForm client:load />
+      <div
+        class="w-full max-w-[28rem] px-16 pt-88 min-[1024px]:hidden"
+      >
+        <section
+          aria-label="Cloudflare Connect 2026"
+          class="relative isolate overflow-hidden rounded-[12px] bg-[#f86a00] px-16 py-20 shadow-[0_1px_2px_rgb(0_0_0_/_0.05)] ring-1 ring-[#d6d6d6]"
+        >
+          <div class="pointer-events-none absolute inset-0 z-0 h-full w-full">
+            <ConnectHeroTwizzler
+              client:media="(max-width: 1023px)"
+              defaults={LOGIN_TWIZZLER_DEFAULTS}
+              hideTopFade={true}
+              panelTargets={LOGIN_PANEL_TARGETS}
+              rainDefaults={LOGIN_RAIN_DEFAULT}
+            />
+          </div>
+          <LoginPromo layout="banner" />
+        </section>
+      </div>
+      <div
+        class="dash-login-chrome flex w-full min-w-0 flex-1 items-start justify-center"
+      >
+        <DashboardLoginForm client:load />
+      </div>
     </main>
 
     <aside

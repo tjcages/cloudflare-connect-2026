@@ -92,11 +92,15 @@ describe("dashboard login shader", () => {
     expect(loginPromoSource).not.toContain('size="callout"');
   });
 
-  it("shows a compact Connect banner above the form below lg", () => {
+  it("shows a contained Connect card under the nav below lg", () => {
     expect(loginPageSource).toContain('layout="banner"');
     expect(loginPageSource).toContain("min-[1024px]:hidden");
+    expect(loginPageSource).toContain("rounded-[12px]");
+    expect(loginPageSource).toContain("ring-1 ring-[#d6d6d6]");
+    expect(loginPageSource).toContain("px-16 pt-88 min-[1024px]:hidden");
     expect(loginPageSource).toContain('client:media="(max-width: 1023px)"');
     expect(loginPageSource).toContain('client:media="(min-width: 1024px)"');
+    expect(loginFormSource).toContain("pt-16 min-[1024px]:pt-96");
     expect(loginPromoSource).toContain("text-heading-h5");
     expect(loginPromoSource).toContain("text-body-small");
   });
