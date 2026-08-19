@@ -11,6 +11,7 @@ import {
   resolveConnectHeroRain,
   type ConnectHeroRain,
 } from "./rain-control-settings";
+import type { ShaderTarget } from "./shader-targets";
 import { CONNECT_HERO_TWIZZLER_DEFAULTS } from "./twizzler-defaults";
 import {
   loadConnectTwizzlerControlSettings,
@@ -19,12 +20,17 @@ import {
 
 interface Props {
   posterSrc?: string;
+  /** Homepage exposes every shader; login only tunes Twizzler + rain. */
+  panelTargets?: readonly ShaderTarget[];
 }
 
 const PANEL_STORAGE_KEY = "connect:twizzler-controls-visible";
 const ConnectTwizzlerControls = lazy(() => import("./ConnectTwizzlerControls"));
 
-export default function ConnectHeroTwizzler({ posterSrc }: IslandProps<Props>) {
+export default function ConnectHeroTwizzler({
+  posterSrc,
+  panelTargets,
+}: IslandProps<Props>) {
   const [settings, setSettings] = useState<TwizzlerSettings>(
     CONNECT_HERO_TWIZZLER_DEFAULTS
   );
@@ -78,6 +84,7 @@ export default function ConnectHeroTwizzler({ posterSrc }: IslandProps<Props>) {
             onClose={() => setPanelVisible(false)}
             onRainChange={setRain}
             onSettingsChange={setSettings}
+            targets={panelTargets}
           />
         </Suspense>
       ) : null}

@@ -38,6 +38,7 @@ import {
   resolveConnectHeroRain,
   type ConnectHeroRain,
 } from "./rain-control-settings";
+import type { ShaderTarget } from "./shader-targets";
 import {
   CONNECT_TWIZZLER_CONTROL_DEFAULTS,
   CONNECT_TWIZZLER_PANEL_ID,
@@ -45,16 +46,74 @@ import {
   resolveConnectTwizzlerSettings,
 } from "./twizzler-control-settings";
 
+export type { ShaderTarget };
+
+const SHADER_TARGET_OPTIONS: {
+  value: ShaderTarget;
+  label: string;
+}[] = [
+  { value: "twizzler", label: "Connect Twizzler" },
+  { value: "rain", label: "Hero Rain" },
+  { value: "frames", label: "Speaker Frames" },
+  { value: "agenda-rain", label: "Agenda Rain" },
+];
+
+const TARGET_STORAGE_KEY = "connect:shader-controls-target";
+const FLOAT_STORAGE_KEY = "connect-shader-controls";
+const DEFAULT_TARGETS: readonly ShaderTarget[] = SHADER_TARGET_OPTIONS.map(
+  (option) => option.value
+);
+
+const isShaderTarget = (value: string): value is ShaderTarget =>
+  SHADER_TARGET_OPTIONS.some((option) => option.value === value);
+
+const readStoredTarget = (): ShaderTarget => {
+  const stored = localStorage.getItem(TARGET_STORAGE_KEY);
+  if (stored && isShaderTarget(stored)) return stored;
+  // The retired per-day agenda Twizzler targets collapse into the shared rain.
+  if (stored?.startsWith("agenda-")) return "agenda-rain";
+  return "twizzler";
+};
+
+const resolveTarget = (
+  stored: ShaderTarget,
+  allowed: readonly ShaderTarget[]
+): ShaderTarget =>
+  allowed.includes(stored) ? stored : (allowed[0] ?? "twizzler");
+
+const scrollToTarget = (next: ShaderTarget) => {
+  const behavior = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ? ("auto" as const)
+    : ("smooth" as const);
+  switch (next) {
+    case "twizzler":
+    case "rain":
+      window.scrollTo({ top: 0, behavior });
+      return;
+    case "frames":
+      document
+        .querySelector("#speakers")
+        ?.scrollIntoView({ behavior, block: "start" });
+      return;
+    case "agenda-rain":
+      document
+        .querySelector("#agenda")
+        ?.scrollIntoView({ behavior, block: "start" });
+      return;
+    default: {
+      const _exhaustive: never = next;
+      void _exhaustive;
+    }
+  }
+};
+
 interface Props {
   onClose: () => void;
   onSettingsChange: (settings: TwizzlerSettings) => void;
   onRainChange: (rain: ConnectHeroRain) => void;
+  /** Homepage exposes every shader; login only tunes the hero stack. */
+  targets?: readonly ShaderTarget[];
 }
-
-type ShaderTarget = "twizzler" | "rain" | "frames" | "agenda-rain";
-
-const TARGET_STORAGE_KEY = "connect:shader-controls-target";
-const FLOAT_STORAGE_KEY = "connect-shader-controls";
 
 const persist = (id: string, values: unknown) => {
   try {
@@ -71,15 +130,12 @@ export default function ConnectTwizzlerControls({
   onClose,
   onSettingsChange,
   onRainChange,
+  targets = DEFAULT_TARGETS,
 }: Props) {
-  const [target, setTarget] = useState<ShaderTarget>(() => {
-    const stored = localStorage.getItem(TARGET_STORAGE_KEY);
-    if (stored === "frames" || stored === "rain" || stored === "agenda-rain")
-      return stored;
-    // The retired per-day agenda Twizzler targets collapse into the shared rain.
-    if (stored?.startsWith("agenda-")) return "agenda-rain";
-    return "twizzler";
-  });
+  const allowed = targets.length > 0 ? targets : DEFAULT_TARGETS;
+  const [target, setTarget] = useState<ShaderTarget>(() =>
+    resolveTarget(readStoredTarget(), allowed)
+  );
 
   // One live value record per target, seeded from the persisted blobs. Every
   // edit persists in the target's own JSON shape and publishes to its shader,
@@ -131,57 +187,51 @@ export default function ConnectTwizzlerControls({
     publishAgendaRainSettings(settings);
   }, []);
 
-  const active =
-    target === "agenda-rain"
-      ? {
+  const active = (() => {
+    switch (target) {
+      case "agenda-rain":
+        return {
           sections: buildAgendaRainSections(),
           values: rainValues,
           onChange: handleRainChange,
-        }
-      : target === "rain"
-        ? {
-            sections: buildRainSections(),
-            values: heroRainValues,
-            onChange: handleHeroRainChange,
-          }
-        : target === "frames"
-          ? {
-              sections: buildSpeakerFramesSections(),
-              values: frameValues,
-              onChange: handleFramesChange,
-            }
-          : {
-              sections: buildTwizzlerSections(heroValues),
-              values: heroValues,
-              onChange: handleHeroChange,
-            };
+        };
+      case "rain":
+        return {
+          sections: buildRainSections(),
+          values: heroRainValues,
+          onChange: handleHeroRainChange,
+        };
+      case "frames":
+        return {
+          sections: buildSpeakerFramesSections(),
+          values: frameValues,
+          onChange: handleFramesChange,
+        };
+      case "twizzler":
+        return {
+          sections: buildTwizzlerSections(heroValues),
+          values: heroValues,
+          onChange: handleHeroChange,
+        };
+      default: {
+        const _exhaustive: never = target;
+        throw new Error(`Unhandled shader target: ${_exhaustive}`);
+      }
+    }
+  })();
 
   const titleSelector = (
     <PanelHeaderSelect
       ariaLabel="Shader controls"
       onChange={(nextValue) => {
-        const next = nextValue as ShaderTarget;
-        setTarget(next);
-        localStorage.setItem(TARGET_STORAGE_KEY, next);
-        // Bring the section that hosts the selected shader into view.
-        const behavior = window.matchMedia("(prefers-reduced-motion: reduce)")
-          .matches
-          ? ("auto" as const)
-          : ("smooth" as const);
-        if (next === "twizzler" || next === "rain") {
-          window.scrollTo({ top: 0, behavior });
-        } else {
-          document
-            .querySelector(next === "frames" ? "#speakers" : "#agenda")
-            ?.scrollIntoView({ behavior, block: "start" });
-        }
+        if (!isShaderTarget(nextValue) || !allowed.includes(nextValue)) return;
+        setTarget(nextValue);
+        localStorage.setItem(TARGET_STORAGE_KEY, nextValue);
+        scrollToTarget(nextValue);
       }}
-      options={[
-        { value: "twizzler", label: "Connect Twizzler" },
-        { value: "rain", label: "Hero Rain" },
-        { value: "frames", label: "Speaker Frames" },
-        { value: "agenda-rain", label: "Agenda Rain" },
-      ]}
+      options={SHADER_TARGET_OPTIONS.filter((option) =>
+        allowed.includes(option.value)
+      )}
       value={target}
     />
   );
