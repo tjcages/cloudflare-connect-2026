@@ -64,3 +64,32 @@ ends up underneath the page. This applies to any overlay the panel opens.
 - Preserve user changes and avoid destructive git commands.
 - Do not edit `.cursor/plans` unless explicitly requested.
 - If repeated attempts fail, stop and explain observations plus options.
+
+## Cursor Cloud specific instructions
+
+The VM is pre-provisioned with Node 22 and pnpm 10.33.3, and the startup update
+script runs `pnpm install`. `pi`/`pir` are personal shell aliases that do not
+exist on the VM — use `pnpm install` and `pnpm run <script>` directly (script
+names in root `package.json`).
+
+- **No `NODE_AUTH_TOKEN` needed for install.** `apps/site/README.md` warns that a
+  GitHub `read:packages` token is required, but that only applies to pulling the
+  published `@necatikcl/stripes-engine`. Both `@necatikcl/stripes-engine` and
+  `@tjcages/connect-twizzler` are `workspace:*` deps here, so `pnpm install`
+  resolves them locally without any token.
+- **Dev server ports:** `pnpm run dev:shader` (lab) serves on **5174** (pinned by
+  `apps/lab` Vite config + `playwright.config.ts`, not the Vite default 5173).
+  `pnpm run dev:site` serves on **4321**; the Connect homepage is at `/connect/`.
+- **E2E visual goldens are macOS-only in git.** On this Linux VM `pnpm run test:e2e`
+  fails every screenshot spec until Linux baselines exist — run
+  `pnpm run test:e2e:update` first (see `tests/README.md`). Do not commit the
+  generated `*-linux.png` baselines as part of unrelated work.
+- **Expected E2E failures on this VM even with baselines:** `perf.spec.ts` (asserts a
+  4K 60fps GPU budget; the VM uses software SwiftShader), `comet-parity.spec.ts`,
+  and `uploaded-textures.spec.ts` (localStorage upload timeout). These are
+  hardware/timeout limits, not code regressions.
+- **`pnpm run lint` and `format:check` currently report pre-existing errors** in the
+  checked-in code and exit non-zero; they are not part of the `verify` gate. Judge
+  your own changes against these tools rather than expecting a clean baseline.
+- Unit tests (`pnpm run test`, `pnpm run test:site`), `pnpm run typecheck`, and
+  `pnpm run build:all` all pass cleanly and need no running services or external DB.
