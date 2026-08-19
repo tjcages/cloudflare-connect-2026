@@ -96,6 +96,7 @@ describe("badge lab color schemes", () => {
   it("ships the lab Color preset ids", () => {
     expect(BADGE_THEMES.map((theme) => theme.id)).toEqual([
       "coral-classic",
+      "brand",
       "red",
       "green",
       "blue",
@@ -104,6 +105,13 @@ describe("badge lab color schemes", () => {
       "deep-ember",
       "light",
     ]);
+    expect(BADGE_THEMES).toHaveLength(9);
+  });
+
+  it("ships Brand as the ninth Orange 700 swatch", () => {
+    const theme = findBadgeTheme("brand");
+    expect(theme.twizzler.colorNear).toBe("#f77720");
+    expect(applyThemeToTwizzler(theme).color).toBe("#f77720");
   });
 
   it("applies Blue Pair/Accent/Deep ink to the Twizzler", () => {

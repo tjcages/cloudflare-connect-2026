@@ -11,6 +11,7 @@ import { CONNECT_HERO_TWIZZLER_DEFAULTS } from "@/components/_pages/connect/hero
 /** Lab Color presets (`CLIENT_COLOR_PRESETS`) — a handful, not the full editor. */
 export const BADGE_THEME_IDS = [
   "coral-classic",
+  "brand",
   "red",
   "green",
   "blue",
@@ -35,7 +36,7 @@ export type BadgeTheme = {
   label: string;
   stripePalette: BadgeStripePaletteName;
   twizzler: BadgeTwizzlerInk;
-  /** Front-of-badge header / lanyard / clip. */
+  /** Swatch + fallback fill while the hero shaders copy onto the badge. */
   accent: string;
   pair: string;
   deep: string;
@@ -178,6 +179,20 @@ export const BADGE_THEMES: readonly BadgeTheme[] = [
     "Default",
     defaultInk,
     LIBRARY_COLOR.orangeAccent,
+    LIBRARY_COLOR.orangePair,
+    LIBRARY_COLOR.orangeDeep
+  ),
+  theme(
+    "brand",
+    "Brand",
+    "Orange",
+    {
+      color: LIBRARY_COLOR.orangeBrand,
+      colorFar: LIBRARY_COLOR.orangePair,
+      colorNear: LIBRARY_COLOR.orangeBrand,
+      colorEdge: LIBRARY_COLOR.orangeAccent,
+    },
+    LIBRARY_COLOR.orangeBrand,
     LIBRARY_COLOR.orangePair,
     LIBRARY_COLOR.orangeDeep
   ),
