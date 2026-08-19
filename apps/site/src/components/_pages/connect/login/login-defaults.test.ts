@@ -74,8 +74,14 @@ describe("dashboard login shader", () => {
     });
   });
 
-  it("keeps rain visible by disabling the hero top-fade mask", () => {
-    expect(loginPageSource).toContain("hideTopFade={true}");
+  it("mask-blends the shader top like the homepage hero", () => {
+    expect(loginPageSource).not.toContain("hideTopFade");
+    expect(LOGIN_RAIN_DEFAULT.topFadePct).toBe(
+      CONNECT_HERO_RAIN_DEFAULT.topFadePct
+    );
+    expect(LOGIN_RAIN_DEFAULT.topFadeOffsetPct).toBe(
+      CONNECT_HERO_RAIN_DEFAULT.topFadeOffsetPct
+    );
   });
 
   it("hides the promo pane below the dash lg breakpoint", () => {

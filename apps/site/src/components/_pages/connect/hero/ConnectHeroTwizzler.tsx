@@ -23,8 +23,8 @@ interface Props {
   /** Homepage exposes every shader; login only tunes Twizzler + rain. */
   panelTargets?: readonly ShaderTarget[];
   /**
-   * Homepage fades the stack under overlay type. Login sets this so rain
-   * stays visible across the pane (Astro omits `={false}` boolean props).
+   * Homepage fades the stack under overlay type. Login omits this so the
+   * same hero mask blend applies (Astro omits `={false}` boolean props).
    */
   hideTopFade?: boolean;
   /**
