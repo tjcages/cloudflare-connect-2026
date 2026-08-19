@@ -1,6 +1,5 @@
 import type { CometLogoSettings } from "@necatikcl/stripes-engine";
 import type { StripesTextureConfig } from "@/components/stripes-texture/config";
-import { LOWER_PAGE_RAIN_NUDGE } from "@/components/stripes-texture/rain-nudge";
 import { CTA_COMET_LOGO_SETTINGS, CTA_TEXTURE_CONFIG } from "./texture-config";
 
 export type CtaShaderStripeControl = {
@@ -120,6 +119,10 @@ const authoredNum = (value: number | undefined, fallback: number) =>
 
 const CTA_STRIPES = CTA_TEXTURE_CONFIG.stripes ?? [];
 const CTA_SPARKLE = CTA_TEXTURE_CONFIG.sparkle;
+const CTA_GAPS = CTA_SPARKLE?.gaps;
+const CTA_GRID = CTA_TEXTURE_CONFIG.grid;
+const CTA_WAVE = CTA_GRID?.streamGapWave;
+const CTA_TONE = CTA_TEXTURE_CONFIG.adjustments;
 const CTA_DOTS = CTA_TEXTURE_CONFIG.stripeDots;
 const CTA_BORDER = CTA_TEXTURE_CONFIG.stripeBorder;
 const CTA_EDGE = CTA_TEXTURE_CONFIG.edgeMask;
@@ -136,47 +139,46 @@ const defaultStripes = (): CtaShaderStripeControl[] =>
 const comet = CTA_COMET_LOGO_SETTINGS;
 
 /**
- * Shipped comet CTA look — Reset and the values in `texture-config.ts`.
- * Grid numbers are the engine defaults the CTA currently inherits (no grid
- * block in `CTA_TEXTURE_CONFIG`).
+ * Shipped comet CTA look — Reset and empty storage. Mirrors
+ * `CTA_TEXTURE_CONFIG` so panel Copy/Reset stay in step with production.
  */
 export const CTA_SHADER_DEFAULTS: CtaShaderSettings = {
-  rainEnabled: false,
-  gapsCoverage: 0.22,
-  gapsSpeed: 1,
-  waveEnabled: false,
-  waveSqueeze: 0,
-  waveWavelengthCells: 16,
-  waveSpeed: 0,
-  wavePhaseDeg: 0,
-  gridCellWidth: 7,
-  gridCellHeight: 7,
-  gridGapX: 0,
-  gridGapY: 0,
-  gridCornerRadius: 0,
-  gridOverlap: 1,
-  gridOrientation: "vertical",
-  gridAngle: 0,
-  stripesEnabled: true,
-  fieldScale: 1,
+  rainEnabled: CTA_GAPS?.enabled ?? true,
+  gapsCoverage: authoredNum(CTA_GAPS?.coverage, 0),
+  gapsSpeed: authoredNum(CTA_GAPS?.speed, 1),
+  waveEnabled: CTA_WAVE?.enabled ?? false,
+  waveSqueeze: authoredNum(CTA_WAVE?.squeeze, 0),
+  waveWavelengthCells: authoredNum(CTA_WAVE?.wavelengthCells, 16),
+  waveSpeed: authoredNum(CTA_WAVE?.speed, 0),
+  wavePhaseDeg: authoredNum(CTA_WAVE?.phaseDeg, 0),
+  gridCellWidth: authoredNum(CTA_GRID?.cellWidth, 7),
+  gridCellHeight: authoredNum(CTA_GRID?.cellHeight, 6),
+  gridGapX: authoredNum(CTA_GRID?.gapX, 0),
+  gridGapY: authoredNum(CTA_GRID?.gapY, 0),
+  gridCornerRadius: authoredNum(CTA_GRID?.cornerRadius, 0),
+  gridOverlap: authoredNum(CTA_GRID?.overlapAmount, 1.2),
+  gridOrientation: CTA_GRID?.orientation ?? "vertical",
+  gridAngle: authoredNum(CTA_GRID?.angleDeg, 45),
+  stripesEnabled: CTA_TEXTURE_CONFIG.stripesEnabled ?? true,
+  fieldScale: authoredNum(CTA_TEXTURE_CONFIG.fieldScale, 0.25),
   stripes: defaultStripes(),
-  brightness: 0,
-  exposure: 0,
-  contrast: 1,
-  blackPoint: 0,
-  whitePoint: 1,
-  gamma: 1,
-  invert: false,
-  posterizeLevels: 0,
-  thresholdBias: 0,
-  noiseAmount: 0,
-  blurRadius: 0,
-  sharpenAmount: 0,
-  sparkleWidthEnabled: true,
-  sparkleWidthCoverage: authoredNum(CTA_SPARKLE?.width?.coverage, 0.5),
+  brightness: authoredNum(CTA_TONE?.brightness, 0.03),
+  exposure: authoredNum(CTA_TONE?.exposure, 0),
+  contrast: authoredNum(CTA_TONE?.contrast, 1),
+  blackPoint: authoredNum(CTA_TONE?.blackPoint, 0),
+  whitePoint: authoredNum(CTA_TONE?.whitePoint, 1),
+  gamma: authoredNum(CTA_TONE?.gamma, 1),
+  invert: CTA_TONE?.invert ?? false,
+  posterizeLevels: authoredNum(CTA_TONE?.posterizeLevels, 0),
+  thresholdBias: authoredNum(CTA_TONE?.thresholdBias, 0),
+  noiseAmount: authoredNum(CTA_TONE?.noiseAmount, 0),
+  blurRadius: authoredNum(CTA_TONE?.blurRadius, 0),
+  sharpenAmount: authoredNum(CTA_TONE?.sharpenAmount, 0),
+  sparkleWidthEnabled: CTA_SPARKLE?.width?.enabled ?? true,
+  sparkleWidthCoverage: authoredNum(CTA_SPARKLE?.width?.coverage, 0.22),
   sparkleSwing: authoredNum(CTA_SPARKLE?.width?.swingPx, 2),
-  sparkleStripeEnabled: true,
-  sparkleStripeCoverage: authoredNum(CTA_SPARKLE?.stripe?.coverage, 0.2),
+  sparkleStripeEnabled: CTA_SPARKLE?.stripe?.enabled ?? true,
+  sparkleStripeCoverage: authoredNum(CTA_SPARKLE?.stripe?.coverage, 0.12),
   sparkleBrightness: authoredNum(CTA_SPARKLE?.stripe?.maxBrightness, 0.1),
   sparkleSpeed: authoredNum(CTA_SPARKLE?.stripe?.speed, 0.2),
   sparkleHueDrift: authoredNum(CTA_SPARKLE?.stripe?.hueDriftDeg, 20),
@@ -241,11 +243,10 @@ export const CTA_SHADER_DEFAULTS: CtaShaderSettings = {
   coronaMist: comet.coronaMist ?? 0.46,
 };
 
-/** First-load / empty-storage config — rain-nudged, still comet-sourced. */
+/** First-load / empty-storage config — same as Reset after the authored bake. */
 export const CTA_SHADER_CURRENT: CtaShaderSettings = {
   ...CTA_SHADER_DEFAULTS,
   stripes: defaultStripes(),
-  ...LOWER_PAGE_RAIN_NUDGE,
 };
 
 export const CTA_SHADER_PANEL_ID = "connect-cta-shader-v1";

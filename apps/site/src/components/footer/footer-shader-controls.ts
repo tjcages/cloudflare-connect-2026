@@ -1,4 +1,3 @@
-import { LOWER_PAGE_RAIN_NUDGE } from "@/components/stripes-texture/rain-nudge";
 import type { StripesTextureConfig } from "@/components/stripes-texture/config";
 import { FOOTER_TEXTURE_CONFIG } from "./texture-config";
 
@@ -89,6 +88,10 @@ const authoredNum = (value: number | undefined, fallback: number) =>
 
 const FOOTER_STRIPES = FOOTER_TEXTURE_CONFIG.stripes ?? [];
 const FOOTER_SPARKLE = FOOTER_TEXTURE_CONFIG.sparkle;
+const FOOTER_GAPS = FOOTER_SPARKLE?.gaps;
+const FOOTER_GRID = FOOTER_TEXTURE_CONFIG.grid;
+const FOOTER_WAVE = FOOTER_GRID?.streamGapWave;
+const FOOTER_TONE = FOOTER_TEXTURE_CONFIG.adjustments;
 const FOOTER_DOTS = FOOTER_TEXTURE_CONFIG.stripeDots;
 const FOOTER_FRAMES = FOOTER_TEXTURE_CONFIG.frames;
 const FOOTER_TRAIL = FOOTER_TEXTURE_CONFIG.cursorTrail;
@@ -103,46 +106,46 @@ const defaultStripes = (): FooterShaderStripeControl[] =>
   }));
 
 /**
- * Shipped footer texture look — Reset. Overlap 1.2 is already authored;
- * cell size / angle are engine defaults the footer currently inherits.
+ * Shipped footer texture look — Reset and empty storage. Mirrors
+ * `FOOTER_TEXTURE_CONFIG` so panel Copy/Reset stay in step with production.
  */
 export const FOOTER_SHADER_DEFAULTS: FooterShaderSettings = {
-  rainEnabled: false,
-  gapsCoverage: 0.22,
-  gapsSpeed: 1,
-  waveEnabled: false,
-  waveSqueeze: 0,
-  waveWavelengthCells: 16,
-  waveSpeed: 0,
-  wavePhaseDeg: 0,
-  gridCellWidth: 7,
-  gridCellHeight: 7,
-  gridGapX: 0,
-  gridGapY: 0,
-  gridCornerRadius: 0,
-  gridOverlap: authoredNum(FOOTER_TEXTURE_CONFIG.grid?.overlapAmount, 1.2),
-  gridOrientation: "vertical",
-  gridAngle: 0,
-  stripesEnabled: true,
-  fieldScale: 1,
+  rainEnabled: FOOTER_GAPS?.enabled ?? true,
+  gapsCoverage: authoredNum(FOOTER_GAPS?.coverage, 0),
+  gapsSpeed: authoredNum(FOOTER_GAPS?.speed, 1),
+  waveEnabled: FOOTER_WAVE?.enabled ?? false,
+  waveSqueeze: authoredNum(FOOTER_WAVE?.squeeze, 0),
+  waveWavelengthCells: authoredNum(FOOTER_WAVE?.wavelengthCells, 16),
+  waveSpeed: authoredNum(FOOTER_WAVE?.speed, 0),
+  wavePhaseDeg: authoredNum(FOOTER_WAVE?.phaseDeg, 0),
+  gridCellWidth: authoredNum(FOOTER_GRID?.cellWidth, 7),
+  gridCellHeight: authoredNum(FOOTER_GRID?.cellHeight, 5),
+  gridGapX: authoredNum(FOOTER_GRID?.gapX, 0),
+  gridGapY: authoredNum(FOOTER_GRID?.gapY, 0),
+  gridCornerRadius: authoredNum(FOOTER_GRID?.cornerRadius, 0),
+  gridOverlap: authoredNum(FOOTER_GRID?.overlapAmount, 1.2),
+  gridOrientation: FOOTER_GRID?.orientation ?? "vertical",
+  gridAngle: authoredNum(FOOTER_GRID?.angleDeg, 45),
+  stripesEnabled: FOOTER_TEXTURE_CONFIG.stripesEnabled ?? true,
+  fieldScale: authoredNum(FOOTER_TEXTURE_CONFIG.fieldScale, 0.25),
   stripes: defaultStripes(),
-  brightness: 0,
-  exposure: 0,
-  contrast: 1,
-  blackPoint: 0,
-  whitePoint: 1,
-  gamma: 1,
-  invert: false,
-  posterizeLevels: 0,
-  thresholdBias: 0,
-  noiseAmount: 0,
-  blurRadius: 0,
-  sharpenAmount: 0,
-  sparkleWidthEnabled: true,
-  sparkleWidthCoverage: authoredNum(FOOTER_SPARKLE?.width?.coverage, 0.5),
+  brightness: authoredNum(FOOTER_TONE?.brightness, 0),
+  exposure: authoredNum(FOOTER_TONE?.exposure, 0),
+  contrast: authoredNum(FOOTER_TONE?.contrast, 1),
+  blackPoint: authoredNum(FOOTER_TONE?.blackPoint, 0),
+  whitePoint: authoredNum(FOOTER_TONE?.whitePoint, 1),
+  gamma: authoredNum(FOOTER_TONE?.gamma, 1),
+  invert: FOOTER_TONE?.invert ?? false,
+  posterizeLevels: authoredNum(FOOTER_TONE?.posterizeLevels, 0),
+  thresholdBias: authoredNum(FOOTER_TONE?.thresholdBias, 0),
+  noiseAmount: authoredNum(FOOTER_TONE?.noiseAmount, 0),
+  blurRadius: authoredNum(FOOTER_TONE?.blurRadius, 0),
+  sharpenAmount: authoredNum(FOOTER_TONE?.sharpenAmount, 0),
+  sparkleWidthEnabled: FOOTER_SPARKLE?.width?.enabled ?? true,
+  sparkleWidthCoverage: authoredNum(FOOTER_SPARKLE?.width?.coverage, 0.22),
   sparkleSwing: authoredNum(FOOTER_SPARKLE?.width?.swingPx, 2),
-  sparkleStripeEnabled: true,
-  sparkleStripeCoverage: authoredNum(FOOTER_SPARKLE?.stripe?.coverage, 0.2),
+  sparkleStripeEnabled: FOOTER_SPARKLE?.stripe?.enabled ?? true,
+  sparkleStripeCoverage: authoredNum(FOOTER_SPARKLE?.stripe?.coverage, 0.12),
   sparkleBrightness: authoredNum(FOOTER_SPARKLE?.stripe?.maxBrightness, 0.1),
   sparkleSpeed: authoredNum(FOOTER_SPARKLE?.stripe?.speed, 0.2),
   sparkleHueDrift: 0,
@@ -181,7 +184,6 @@ export const FOOTER_SHADER_DEFAULTS: FooterShaderSettings = {
 export const FOOTER_SHADER_CURRENT: FooterShaderSettings = {
   ...FOOTER_SHADER_DEFAULTS,
   stripes: defaultStripes(),
-  ...LOWER_PAGE_RAIN_NUDGE,
 };
 
 export const FOOTER_SHADER_PANEL_ID = "connect-footer-shader-v1";
