@@ -2,31 +2,53 @@
 import DottedLink from "@/components/DottedLink";
 import Eyebrow from "@/components/Eyebrow";
 import { LOGIN_OVERLAY_COPY } from "./login-copy";
+
+interface Props {
+  layout?: "pane" | "banner";
+}
+
+const { layout = "pane" } = Astro.props;
+const isBanner = layout === "banner";
+
+const eyebrowStyle = {
+  "--eyebrow-color-badge": "var(--color-background-base)",
+  "--eyebrow-color-badge-text": "var(--color-text-base)",
+  "--eyebrow-color-line-big": "var(--color-text-inverse)",
+  "--eyebrow-color-line-small":
+    "color-mix(in srgb, var(--color-text-inverse) 55%, transparent)",
+};
 ---
 
 <div
-  class="relative z-10 flex w-full max-w-320 flex-col items-start pt-24 text-text-inverse"
+  class:list={[
+    "relative z-10 flex w-full flex-col items-start text-text-inverse",
+    isBanner ? null : "max-w-320 pt-24",
+  ]}
 >
   <Eyebrow
     client:visible
     direction="left"
-    style={{
-      "--eyebrow-color-badge": "var(--color-background-base)",
-      "--eyebrow-color-badge-text": "var(--color-text-base)",
-      "--eyebrow-color-line-big": "var(--color-text-inverse)",
-      "--eyebrow-color-line-small":
-        "color-mix(in srgb, var(--color-text-inverse) 55%, transparent)",
-    }}
+    style={eyebrowStyle}
     title={LOGIN_OVERLAY_COPY.eyebrow}
   />
 
-  <h2 class="mt-16 text-heading-h3 text-text-inverse">
+  <h2
+    class:list={[
+      "text-text-inverse",
+      isBanner ? "mt-12 text-heading-h5" : "mt-16 text-heading-h3",
+    ]}
+  >
     {LOGIN_OVERLAY_COPY.titleLines[0]}
     <br />
     {LOGIN_OVERLAY_COPY.titleLines[1]}
   </h2>
 
-  <p class="mt-16 text-body-medium text-text-inverse">
+  <p
+    class:list={[
+      "text-text-inverse",
+      isBanner ? "mt-12 text-body-small" : "mt-16 text-body-medium",
+    ]}
+  >
     {LOGIN_OVERLAY_COPY.body}.{" "}
     <DottedLink
       canvasFromBottom={-6}

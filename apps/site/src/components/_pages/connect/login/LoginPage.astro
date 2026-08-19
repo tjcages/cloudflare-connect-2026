@@ -12,14 +12,32 @@ const SIGN_UP_HREF = "https://dash.cloudflare.com/sign-up";
 ---
 
 {/*
-  1:1 dash.cloudflare.com/login chrome (Kumo). The right pane's globe
-  canvas is the only substitution: homepage hero Twizzler + rain, Dark
-  Appearance (cream ribbon on deep orange).
+  1:1 dash.cloudflare.com/login chrome (Kumo). The globe is the only
+  substitution: homepage hero Twizzler + rain, Dark Appearance (cream
+  ribbon on deep orange). Below lg the same overlay sits in a compact
+  banner above the form so login shifts down instead of overlaying.
 */}
 <div class="dash-login relative min-h-screen bg-[#ffffff] text-[#1d1d1d]">
-  <header
-    class="dash-login-chrome absolute inset-x-0 top-20 z-10 flex items-center justify-between px-16"
+  <section
+    aria-label="Cloudflare Connect 2026"
+    class="relative isolate overflow-hidden bg-[#f86a00] px-16 py-24 min-[1024px]:hidden"
   >
+    <div class="pointer-events-none absolute inset-0 z-0 h-full w-full">
+      <ConnectHeroTwizzler
+        client:media="(max-width: 1023px)"
+        defaults={LOGIN_TWIZZLER_DEFAULTS}
+        hideTopFade={true}
+        panelTargets={LOGIN_PANEL_TARGETS}
+        rainDefaults={LOGIN_RAIN_DEFAULT}
+      />
+    </div>
+    <LoginPromo layout="banner" />
+  </section>
+
+  <div class="relative">
+    <header
+      class="dash-login-chrome absolute inset-x-0 top-20 z-10 flex items-center justify-between px-16"
+    >
     <a
       aria-label="Cloudflare"
       href="https://www.cloudflare.com/"
@@ -101,7 +119,7 @@ const SIGN_UP_HREF = "https://dash.cloudflare.com/sign-up";
       >
         <div class="pointer-events-none absolute inset-0 z-0 h-full w-full">
           <ConnectHeroTwizzler
-            client:load
+            client:media="(min-width: 1024px)"
             defaults={LOGIN_TWIZZLER_DEFAULTS}
             panelTargets={LOGIN_PANEL_TARGETS}
             rainDefaults={LOGIN_RAIN_DEFAULT}
@@ -128,5 +146,6 @@ const SIGN_UP_HREF = "https://dash.cloudflare.com/sign-up";
       />
       Cookie Preferences
     </a>
+  </div>
   </div>
 </div>

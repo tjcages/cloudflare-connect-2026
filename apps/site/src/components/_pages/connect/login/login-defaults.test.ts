@@ -74,8 +74,9 @@ describe("dashboard login shader", () => {
     });
   });
 
-  it("mask-blends the shader top like the homepage hero", () => {
-    expect(loginPageSource).not.toContain("hideTopFade");
+  it("mask-blends the desktop shader top like the homepage hero", () => {
+    expect(loginPageSource).toContain("hideTopFade={true}");
+    expect(loginPageSource.match(/hideTopFade/g)?.length).toBe(1);
     expect(LOGIN_RAIN_DEFAULT.topFadePct).toBe(
       CONNECT_HERO_RAIN_DEFAULT.topFadePct
     );
@@ -89,6 +90,15 @@ describe("dashboard login shader", () => {
     expect(loginPageSource).toContain("min-[1024px]:block");
     expect(loginPageSource).not.toContain("max-lg:h-[42svh]");
     expect(loginPromoSource).not.toContain('size="callout"');
+  });
+
+  it("shows a compact Connect banner above the form below lg", () => {
+    expect(loginPageSource).toContain('layout="banner"');
+    expect(loginPageSource).toContain("min-[1024px]:hidden");
+    expect(loginPageSource).toContain('client:media="(max-width: 1023px)"');
+    expect(loginPageSource).toContain('client:media="(min-width: 1024px)"');
+    expect(loginPromoSource).toContain("text-heading-h5");
+    expect(loginPromoSource).toContain("text-body-small");
   });
 
   it("fills the promo pane with the homepage hero shader stack", () => {
@@ -128,7 +138,9 @@ describe("dashboard login shader", () => {
     expect(loginPromoSource).toContain('restColorVar="--color-text-inverse"');
     expect(loginPromoSource).toContain('hoverColorVar="--color-orange-300"');
     expect(loginPromoSource).toContain("text-heading-h3");
+    expect(loginPromoSource).toContain("text-heading-h5");
     expect(loginPromoSource).toContain("text-body-medium");
+    expect(loginPromoSource).toContain("text-body-small");
     expect(loginPromoSource).toContain("text-text-inverse");
     expect(loginPromoSource).toContain("LOGIN_OVERLAY_COPY.register");
     expect(loginPageSource).toContain(
