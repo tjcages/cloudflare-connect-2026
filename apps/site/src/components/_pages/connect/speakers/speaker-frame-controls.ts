@@ -52,6 +52,7 @@ export type SpeakerFrameSettings = {
   stripesEnabled: boolean;
   fieldScale: number;
   orange: SpeakerFrameVariantLook;
+  white: SpeakerFrameVariantLook;
   grey: SpeakerFrameVariantLook;
   posterizeLevels: number;
   thresholdBias: number;
@@ -108,8 +109,9 @@ export type SpeakerFrameSettings = {
 
 export const SPEAKER_IMAGE_COUNT = connectSpeakers.length;
 export const MAX_SPEAKER_FRAME_PLACEMENTS = 48;
-export const SPEAKER_FRAME_PANEL_ID = "connect-speaker-frames-v4";
+export const SPEAKER_FRAME_PANEL_ID = "connect-speaker-frames-v5";
 export const LEGACY_SPEAKER_FRAME_PANEL_IDS = [
+  "connect-speaker-frames-v4",
   "connect-speaker-frames-v3",
   "connect-speaker-frames-v2",
   "connect-speaker-frames-v1",
@@ -147,6 +149,12 @@ const defaultGreyStripes = (): SpeakerStripeControl[] =>
     color: GREY_STRIPE_COLORS[index % GREY_STRIPE_COLORS.length],
   }));
 
+const defaultWhiteStripes = (): SpeakerStripeControl[] =>
+  defaultOrangeStripes().map((stripe, index) => ({
+    ...stripe,
+    id: `white-stripe-${index + 1}`,
+  }));
+
 const defaultOrangeLook = (): SpeakerFrameVariantLook => ({
   stripes: defaultOrangeStripes(),
   brightness: SPEAKER_SHADER_CONFIG.adjustments.brightness,
@@ -156,6 +164,17 @@ const defaultOrangeLook = (): SpeakerFrameVariantLook => ({
   whitePoint: SPEAKER_SHADER_CONFIG.adjustments.whitePoint,
   gamma: SPEAKER_SHADER_CONFIG.adjustments.gamma,
   invert: SPEAKER_SHADER_CONFIG.adjustments.invert,
+});
+
+const defaultWhiteLook = (): SpeakerFrameVariantLook => ({
+  stripes: defaultWhiteStripes(),
+  brightness: 0.55,
+  exposure: 1.05,
+  contrast: SPEAKER_SHADER_CONFIG.adjustments.contrast,
+  blackPoint: SPEAKER_SHADER_CONFIG.adjustments.blackPoint,
+  whitePoint: SPEAKER_SHADER_CONFIG.adjustments.whitePoint,
+  gamma: SPEAKER_SHADER_CONFIG.adjustments.gamma,
+  invert: false,
 });
 
 const defaultGreyLook = (): SpeakerFrameVariantLook => ({
@@ -191,8 +210,8 @@ const placement = (
 
 export const defaultSpeakerFramePlacements = (): SpeakerFramePlacement[] =>
   connectSpeakers.flatMap((_, imageIndex) => [
-    placement(`${imageIndex}-inverted`, imageIndex, "orange", 0, 0, 0.1, 1),
-    placement(`${imageIndex}-white`, imageIndex, "white", 0.1, 0, 0.1, 1),
+    placement(`${imageIndex}-inverted`, imageIndex, "orange", 0.8, 0, 0.1, 1),
+    placement(`${imageIndex}-white`, imageIndex, "white", 0.9, 0, 0.1, 1),
   ]);
 
 export const createSpeakerFramePlacement = (imageIndex = 0): SpeakerFramePlacement =>
@@ -200,7 +219,7 @@ export const createSpeakerFramePlacement = (imageIndex = 0): SpeakerFramePlaceme
     `frame-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
     imageIndex,
     "orange",
-    0,
+    0.8,
     0,
     0.1,
     1,
@@ -221,7 +240,7 @@ export const speakerVariantLook = (
     case "orange":
       return settings.orange;
     case "white":
-      return settings.orange;
+      return settings.white;
     case "grey":
       return settings.grey;
     default:
@@ -246,6 +265,7 @@ export const SPEAKER_FRAME_DEFAULTS: SpeakerFrameSettings = {
   stripesEnabled: SPEAKER_SHADER_CONFIG.stripesEnabled,
   fieldScale: SPEAKER_SHADER_CONFIG.fieldScale,
   orange: defaultOrangeLook(),
+  white: defaultWhiteLook(),
   grey: defaultGreyLook(),
   posterizeLevels: SPEAKER_SHADER_CONFIG.adjustments.posterizeLevels,
   thresholdBias: SPEAKER_SHADER_CONFIG.adjustments.thresholdBias,
@@ -309,6 +329,7 @@ const cloneDefaults = (): SpeakerFrameSettings => ({
   ...SPEAKER_FRAME_DEFAULTS,
   placements: defaultSpeakerFramePlacements(),
   orange: cloneVariantLook(SPEAKER_FRAME_DEFAULTS.orange),
+  white: cloneVariantLook(SPEAKER_FRAME_DEFAULTS.white),
   grey: cloneVariantLook(SPEAKER_FRAME_DEFAULTS.grey),
 });
 
@@ -377,6 +398,23 @@ export const sanitizeSpeakerFramePlacements = (value: unknown): SpeakerFramePlac
     .slice(0, MAX_SPEAKER_FRAME_PLACEMENTS);
   return placements.length > 0 ? placements : defaultSpeakerFramePlacements();
 };
+
+/** Old factory rest: orange 0–10%, white 10–20% on the left. */
+const isLegacyLeftEdgeWiperPlacements = (placements: SpeakerFramePlacement[]) =>
+  placements.length === SPEAKER_IMAGE_COUNT * 2 &&
+  placements.every((placement, index) => {
+    const imageIndex = Math.floor(index / 2);
+    const isOrange = index % 2 === 0;
+    return (
+      placement.imageIndex === imageIndex &&
+      placement.variant === (isOrange ? "orange" : "white") &&
+      placement.x === (isOrange ? 0 : 0.1) &&
+      placement.y === 0 &&
+      placement.width === 0.1 &&
+      placement.height === 1 &&
+      placement.span === false
+    );
+  });
 
 const hexToColorNumber = (value: string, fallback: number) => {
   const normalized = value.trim().replace(/^#/, "");
@@ -513,6 +551,7 @@ const mergeSharedSettings = (settings: SpeakerFrameSettings, parsed: Record<stri
   const skip = new Set([
     "placements",
     "orange",
+    "white",
     "grey",
     "stripes",
     "brightness",
@@ -546,6 +585,9 @@ export const loadSpeakerFrameSettings = (): SpeakerFrameSettings => {
     const record = parsed as Record<string, unknown>;
     mergeSharedSettings(settings, record);
     settings.placements = sanitizeSpeakerFramePlacements(record.placements);
+    if (isLegacyLeftEdgeWiperPlacements(settings.placements)) {
+      settings.placements = defaultSpeakerFramePlacements();
+    }
     if (record.orange && typeof record.orange === "object") {
       settings.orange = sanitizeVariantLook(record.orange, settings.orange);
     } else {
@@ -565,6 +607,20 @@ export const loadSpeakerFrameSettings = (): SpeakerFrameSettings => {
     }
     if (record.grey && typeof record.grey === "object") {
       settings.grey = sanitizeVariantLook(record.grey, settings.grey);
+    }
+    if (record.white && typeof record.white === "object") {
+      settings.white = sanitizeVariantLook(record.white, settings.white);
+    } else {
+      settings.white = sanitizeVariantLook(
+        {
+          stripes: settings.orange.stripes.map((stripe, index) => ({
+            ...stripe,
+            id: `white-stripe-${index + 1}`,
+          })),
+          invert: false,
+        },
+        settings.white,
+      );
     }
     return settings;
   } catch {

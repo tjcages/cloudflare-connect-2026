@@ -43,7 +43,7 @@ describe("speaker frame wipers", () => {
     });
   });
 
-  it("defaults to two 10% frames per image, orange then white", () => {
+  it("defaults to two 10% frames per image, resting on the right edge", () => {
     const placements = defaultSpeakerFramePlacements();
     const byImage = new Map<number, typeof placements>();
     for (const placement of placements) {
@@ -60,7 +60,8 @@ describe("speaker frame wipers", () => {
       expect(frames[0]?.width).toBe(SPEAKER_WIPER_REST_WIDTH);
       expect(frames[1]?.width).toBe(SPEAKER_WIPER_REST_WIDTH);
       expect(frames[0]?.height).toBe(1);
-      expect(frames[1]?.x).toBe(SPEAKER_WIPER_REST_WIDTH);
+      expect(frames[0]?.x).toBe(0.8);
+      expect(frames[1]?.x).toBe(0.9);
     }
   });
 
@@ -90,15 +91,31 @@ describe("speaker frame wipers", () => {
     expect(frames[0]?.rect.width).toBe(20);
   });
 
-  it("paints orange inverted and white with the same stripe colors", () => {
+  it("paints orange inverted and white uninverted, with independent stripe palettes", () => {
     const inverted = speakerFramePaintConfig(SPEAKER_FRAME_DEFAULTS, "orange");
     const white = speakerFramePaintConfig(SPEAKER_FRAME_DEFAULTS, "white");
 
-    expect(inverted.stripes).toEqual(white.stripes);
     expect(inverted.adjustments?.invert).toBe(true);
     expect(white.adjustments?.invert).toBe(false);
     expect(inverted.background?.color).toBe(0xff_bf_14);
     expect(white.background?.color).toBe(0xff_ff_ff);
+
+    const customWhite = {
+      ...SPEAKER_FRAME_DEFAULTS,
+      white: {
+        ...SPEAKER_FRAME_DEFAULTS.white,
+        invert: true,
+        brightness: 0.12,
+        stripes: SPEAKER_FRAME_DEFAULTS.white.stripes.map((stripe, index) =>
+          index === 0 ? { ...stripe, color: "#112233", width: 0.42 } : stripe,
+        ),
+      },
+    };
+    const painted = speakerFramePaintConfig(customWhite, "white");
+    expect(painted.adjustments?.invert).toBe(true);
+    expect(painted.adjustments?.brightness).toBe(0.12);
+    expect(painted.stripes?.[0]?.color).toBe(0x11_22_33);
+    expect(speakerFramePaintConfig(customWhite, "orange").stripes?.[0]?.color).not.toBe(0x11_22_33);
   });
 
   it("reads a preview override from the query string", () => {

@@ -115,11 +115,6 @@ export const speakerFramePaintConfig = (
     case "orange":
       return {
         ...base,
-        adjustments: {
-          ...SPEAKER_SHADER_CONFIG.adjustments,
-          ...base.adjustments,
-          invert: true,
-        },
         background: {
           ...SPEAKER_SHADER_CONFIG.background,
           color: CONNECT_ORANGE,
@@ -128,13 +123,6 @@ export const speakerFramePaintConfig = (
     case "white":
       return {
         ...base,
-        adjustments: {
-          ...SPEAKER_SHADER_CONFIG.adjustments,
-          ...base.adjustments,
-          invert: false,
-          brightness: Math.max(base.adjustments?.brightness ?? 0.33, 0.55),
-          exposure: Math.max(base.adjustments?.exposure ?? 0.87, 1.05),
-        },
         background: {
           ...SPEAKER_SHADER_CONFIG.background,
           color: WHITE,

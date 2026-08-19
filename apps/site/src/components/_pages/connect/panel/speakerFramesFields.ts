@@ -61,6 +61,14 @@ type SpeakerFramePanelValues = SpeakerFrameSettings & {
   greyBlackPoint: number;
   greyWhitePoint: number;
   greyGamma: number;
+  whiteStripes: EditableStripe[];
+  whiteInvert: boolean;
+  whiteBrightness: number;
+  whiteExposure: number;
+  whiteContrast: number;
+  whiteBlackPoint: number;
+  whiteWhitePoint: number;
+  whiteGamma: number;
 };
 
 const lookFromPanel = (
@@ -87,7 +95,7 @@ const lookFromPanel = (
   gamma: typeof gamma === "number" ? gamma : fallback.gamma,
 });
 
-/** Panel values: settings plus flattened orange/grey stripe tables. */
+/** Panel values: settings plus flattened orange/white/grey stripe tables. */
 export function seedSpeakerFramesPanelValues(settings: SpeakerFrameSettings): PanelValues {
   return {
     ...settings,
@@ -99,6 +107,14 @@ export function seedSpeakerFramesPanelValues(settings: SpeakerFrameSettings): Pa
     blackPoint: settings.orange.blackPoint,
     whitePoint: settings.orange.whitePoint,
     gamma: settings.orange.gamma,
+    whiteStripes: toEditableControls(settings.white.stripes),
+    whiteInvert: settings.white.invert,
+    whiteBrightness: settings.white.brightness,
+    whiteExposure: settings.white.exposure,
+    whiteContrast: settings.white.contrast,
+    whiteBlackPoint: settings.white.blackPoint,
+    whiteWhitePoint: settings.white.whitePoint,
+    whiteGamma: settings.white.gamma,
     greyStripes: toEditableControls(settings.grey.stripes),
     greyInvert: settings.grey.invert,
     greyBrightness: settings.grey.brightness,
@@ -128,7 +144,16 @@ export function speakerFramesFromPanelValues(values: PanelValues): SpeakerFrameS
     greyBlackPoint,
     greyWhitePoint,
     greyGamma,
+    whiteStripes,
+    whiteInvert,
+    whiteBrightness,
+    whiteExposure,
+    whiteContrast,
+    whiteBlackPoint,
+    whiteWhitePoint,
+    whiteGamma,
     orange: _orange,
+    white: _white,
     grey: _grey,
     placements,
     ...shared
@@ -146,6 +171,17 @@ export function speakerFramesFromPanelValues(values: PanelValues): SpeakerFrameS
       whitePoint,
       gamma,
       SPEAKER_FRAME_DEFAULTS.orange,
+    ),
+    white: lookFromPanel(
+      whiteStripes,
+      whiteInvert,
+      whiteBrightness,
+      whiteExposure,
+      whiteContrast,
+      whiteBlackPoint,
+      whiteWhitePoint,
+      whiteGamma,
+      SPEAKER_FRAME_DEFAULTS.white,
     ),
     grey: lookFromPanel(
       greyStripes,
@@ -282,30 +318,51 @@ export function buildSpeakerFramesSections(): PanelSectionDef[] {
       fields: [
         toggle("stripesEnabled", "Stripes enabled"),
         num("fieldScale", "Field scale", 0.1, 4, 0.01),
-        {
-          type: "stripe-table",
-          key: "stripes",
-          label: "Orange stripe palette",
-          library: COLOR_LIBRARY,
-        },
       ],
     },
     {
-      id: "Tone",
-      title: "Tone",
+      id: "Orange variant",
+      title: "Orange variant",
+      defaultOpen: true,
       fields: [
+        toggle("invert", "Invert"),
         num("brightness", "Brightness", -1, 1, 0.01),
         num("exposure", "Exposure", -2, 2, 0.01),
         num("contrast", "Contrast", 0, 3, 0.01),
         num("blackPoint", "Black point", 0, 1, 0.01),
         num("whitePoint", "White point", 0, 1, 0.01),
         num("gamma", "Gamma", 0.1, 4, 0.01),
-        toggle("invert", "Invert"),
+        {
+          type: "stripe-table",
+          key: "stripes",
+          label: "Orange stripe palette",
+          library: COLOR_LIBRARY,
+        },
         num("posterizeLevels", "Posterize levels", 0, 32, 1),
         num("thresholdBias", "Threshold bias", -1, 1, 0.01),
         num("noiseAmount", "Noise", 0, 1, 0.01),
         num("blurRadius", "Blur", 0, 24, 0.25),
         num("sharpenAmount", "Sharpen", 0, 4, 0.01),
+      ],
+    },
+    {
+      id: "White variant",
+      title: "White variant",
+      defaultOpen: true,
+      fields: [
+        toggle("whiteInvert", "Invert"),
+        num("whiteBrightness", "Brightness", -1, 1, 0.01),
+        num("whiteExposure", "Exposure", -2, 2, 0.01),
+        num("whiteContrast", "Contrast", 0, 3, 0.01),
+        num("whiteBlackPoint", "Black point", 0, 1, 0.01),
+        num("whiteWhitePoint", "White point", 0, 1, 0.01),
+        num("whiteGamma", "Gamma", 0.1, 4, 0.01),
+        {
+          type: "stripe-table",
+          key: "whiteStripes",
+          label: "White stripe palette",
+          library: COLOR_LIBRARY,
+        },
       ],
     },
     {
