@@ -27,7 +27,7 @@ import {
 } from "three";
 
 const LANYARD_URL = "/connect/badge-lanyard.glb";
-const MODEL_SCALE = 17;
+const MODEL_SCALE = 16;
 const TEXTURE_W = 1024;
 const TEXTURE_H = 1536;
 const TAG_CUT_Y = 0.105;
@@ -35,9 +35,10 @@ const CLIP_CLUSTER_Y0 = 0.118;
 const CLIP_CLUSTER_Y1 = 0.135;
 const WING_CUT_X = 0.02;
 const CHAIN_BONES = 8;
-const GRAVITY = -6.4;
-const DAMPING = 0.978;
-const CONSTRAINT_ITERS = 14;
+const GRAVITY = -2.8;
+const DAMPING = 0.96;
+const CONSTRAINT_ITERS = 10;
+const REST_SPRING = 0.16;
 const DRAG_LIMIT_X = 0.11;
 const DRAG_LIMIT_UP = 0.05;
 const DRAG_LIMIT_DOWN = 0.09;
@@ -251,9 +252,9 @@ function findClipAnchor(geometry: BufferGeometry): { x: number; y: number } {
 }
 
 function classifyPart(y: number): LanyardPart {
-  if (y < 0.028) return "metal";
-  if (y < 0.068) return "plastic";
-  if (y < 0.09) return "webbing";
+  if (y < 0.02) return "metal";
+  if (y < 0.05) return "plastic";
+  if (y < 0.068) return "webbing";
   return "cord";
 }
 
@@ -325,13 +326,15 @@ function makePartMaterial(
   source: MeshStandardMaterial,
   color: string,
   metalness: number,
-  roughness: number
+  roughness: number,
+  keepNormal: boolean
 ) {
   const material = source.clone();
   material.map = null;
   material.aoMap = null;
   material.metalnessMap = null;
   material.roughnessMap = null;
+  if (!keepNormal) material.normalMap = null;
   material.color = new Color(color);
   material.metalness = metalness;
   material.roughness = roughness;
@@ -340,9 +343,38 @@ function makePartMaterial(
   return material;
 }
 
-function createBadgeCard(texture: Texture): Group {
+function hookXFromMetal(geometry: BufferGeometry): number {
+  const position = geometry.attributes.position;
+  const index = geometry.getIndex();
+  if (!position || !index || index.count === 0) return 0;
+  const vertex = new Vector3();
+  let minY = Number.POSITIVE_INFINITY;
+  const seen = new Set<number>();
+  for (let i = 0; i < index.count; i += 1) {
+    const vertIndex = index.getX(i);
+    if (seen.has(vertIndex)) continue;
+    seen.add(vertIndex);
+    vertex.fromBufferAttribute(position, vertIndex);
+    minY = Math.min(minY, vertex.y);
+  }
+  let sum = 0;
+  let count = 0;
+  seen.clear();
+  for (let i = 0; i < index.count; i += 1) {
+    const vertIndex = index.getX(i);
+    if (seen.has(vertIndex)) continue;
+    seen.add(vertIndex);
+    vertex.fromBufferAttribute(position, vertIndex);
+    if (vertex.y > minY + 0.008) continue;
+    sum += vertex.x;
+    count += 1;
+  }
+  return count === 0 ? 0 : sum / count;
+}
+
+function createBadgeCard(texture: Texture, hookX: number): Group {
   const card = new Group();
-  card.position.set(0, -(CARD_H / 2) + CARD_OVERLAP, 0);
+  card.position.set(hookX, -(CARD_H / 2) + CARD_OVERLAP, 0);
 
   const bodyGeometry = new ExtrudeGeometry(roundedRect(CARD_W, CARD_H, CARD_RADIUS), {
     depth: CARD_D,
@@ -374,6 +406,7 @@ function createBadgeCard(texture: Texture): Group {
 type RopeState = {
   now: Vector3[];
   prev: Vector3[];
+  restPoints: Vector3[];
   rest: number;
   pin: Vector3;
 };
@@ -416,10 +449,10 @@ function buildLanyardRig(source: Mesh, texture: Texture): LanyardRig {
   const parts = splitByPart(geometry);
   const sourceMaterial = source.material as MeshStandardMaterial;
   const materials: Record<LanyardPart, MeshStandardMaterial> = {
-    metal: makePartMaterial(sourceMaterial, METAL, 0.82, 0.28),
-    plastic: makePartMaterial(sourceMaterial, PLASTIC, 0.08, 0.48),
-    webbing: makePartMaterial(sourceMaterial, WEBBING, 0.04, 0.62),
-    cord: makePartMaterial(sourceMaterial, CORD, 0.03, 0.72),
+    metal: makePartMaterial(sourceMaterial, METAL, 0.82, 0.28, true),
+    plastic: makePartMaterial(sourceMaterial, PLASTIC, 0.08, 0.48, true),
+    webbing: makePartMaterial(sourceMaterial, WEBBING, 0.04, 0.7, false),
+    cord: makePartMaterial(sourceMaterial, CORD, 0.03, 0.74, false),
   };
 
   const segment = cordLength / CHAIN_BONES;
@@ -445,14 +478,17 @@ function buildLanyardRig(source: Mesh, texture: Texture): LanyardRig {
     meshes.push(mesh);
   }
 
-  const card = createBadgeCard(texture);
+  const hookX = hookXFromMetal(parts.metal);
+  const card = createBadgeCard(texture, hookX);
   root.add(card);
 
   const now: Vector3[] = [];
   const prev: Vector3[] = [];
+  const restPoints: Vector3[] = [];
   for (let index = 0; index <= CHAIN_BONES; index += 1) {
     const point = new Vector3(0, index * segment, 0);
-    now.push(point);
+    restPoints.push(point.clone());
+    now.push(point.clone());
     prev.push(point.clone());
   }
 
@@ -465,8 +501,9 @@ function buildLanyardRig(source: Mesh, texture: Texture): LanyardRig {
     rope: {
       now,
       prev,
+      restPoints,
       rest: segment,
-      pin: new Vector3(0, cordLength, 0),
+      pin: restPoints[restPoints.length - 1]!.clone(),
     },
   };
 }
@@ -503,8 +540,8 @@ function stepRope(
   const last = rope.now.length - 1;
   if (reducedMotion) {
     for (let index = 0; index <= last; index += 1) {
-      rope.now[index]!.set(0, index * rope.rest, 0);
-      rope.prev[index]!.copy(rope.now[index]!);
+      rope.now[index]!.copy(rope.restPoints[index]!);
+      rope.prev[index]!.copy(rope.restPoints[index]!);
     }
     return;
   }
@@ -520,8 +557,6 @@ function stepRope(
     point.y += vy + gravity;
     point.z = 0;
   }
-  rope.now[last]!.copy(rope.pin);
-  rope.prev[last]!.copy(rope.pin);
   if (drag) {
     rope.now[0]!.copy(drag);
     rope.prev[0]!.copy(drag);
@@ -542,6 +577,17 @@ function stepRope(
     rope.now[last]!.copy(rope.pin);
     if (drag) rope.now[0]!.copy(drag);
   }
+
+  const hold = drag ? REST_SPRING * 0.35 : REST_SPRING;
+  for (let index = 1; index < last; index += 1) {
+    rope.now[index]!.lerp(rope.restPoints[index]!, hold);
+    rope.now[index]!.z = 0;
+  }
+  if (!drag) {
+    rope.now[0]!.lerp(rope.restPoints[0]!, REST_SPRING * 0.45);
+    rope.now[0]!.z = 0;
+  }
+  rope.now[last]!.copy(rope.pin);
 }
 
 function applyRopeToBones(bones: Bone[], rope: RopeState) {
@@ -699,7 +745,7 @@ function LanyardBadge({
     const hang = groupRef.current;
     if (hang) {
       hang.position.x = rightColumnWorldX(size.width, viewport.width);
-      hang.position.y = 0.45;
+      hang.position.y = 0.32;
     }
   });
 
@@ -728,7 +774,7 @@ function LanyardBadge({
         gl.domElement.style.cursor = "grabbing";
         gl.domElement.setPointerCapture(event.pointerId);
       }}
-      position={[0, 0.45, 0]}
+      position={[0, 0.32, 0]}
       ref={groupRef}
     >
       <group scale={MODEL_SCALE}>
