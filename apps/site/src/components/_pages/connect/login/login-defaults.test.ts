@@ -124,7 +124,10 @@ describe("dashboard login shader", () => {
     expect(loginPageSource).toContain(
       "flex h-full min-h-full items-start overflow-hidden"
     );
-    expect(loginPageSource).toContain("pt-20");
+    expect(loginPageSource).toContain("pt-96");
+    expect(loginPromoSource).toContain("pt-24");
+    expect(loginFormSource).toContain("min-[1024px]:pt-96");
+    expect(loginFormSource).toContain("min-[640px]:py-24");
   });
 
   it("uses Cookie Preferences like the live dash OneTrust control", () => {
