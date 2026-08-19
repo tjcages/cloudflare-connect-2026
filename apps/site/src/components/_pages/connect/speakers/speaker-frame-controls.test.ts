@@ -30,7 +30,7 @@ describe("speaker frame controls", () => {
     memory.clear();
   });
 
-  it("authors multiple frames per image across both variants", () => {
+  it("authors two wiper frames per image, orange then white", () => {
     const placements = defaultSpeakerFramePlacements();
     const byImage = new Map<number, number>();
     for (const placement of placements) {
@@ -38,9 +38,8 @@ describe("speaker frame controls", () => {
     }
 
     expect(placements.some((placement) => placement.variant === "orange")).toBe(true);
-    expect(placements.some((placement) => placement.variant === "grey")).toBe(true);
-    expect(placements.some((placement) => placement.span)).toBe(true);
-    expect([...byImage.values()].some((count) => count > 1)).toBe(true);
+    expect(placements.some((placement) => placement.variant === "white")).toBe(true);
+    expect([...byImage.values()].every((count) => count === 2)).toBe(true);
   });
 
   it("keeps the grey palette distinct from the orange production stripes", () => {

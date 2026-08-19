@@ -178,6 +178,7 @@ const speakerFrameItemFields: PanelField<SpeakerFramePlacement>[] = [
     label: "Variant",
     options: [
       { value: "orange", label: "Orange" },
+      { value: "white", label: "White" },
       { value: "grey", label: "Grey" },
     ],
   },
@@ -219,8 +220,21 @@ export function buildSpeakerFramesSections(): PanelSectionDef[] {
           itemLabel: (item, index) => {
             const placement = item as SpeakerFramePlacement;
             const speaker = connectSpeakers[placement.imageIndex]?.name ?? `Speaker ${placement.imageIndex + 1}`;
-            const variant = placement.variant === "grey" ? "Grey" : "Orange";
-            return `${index + 1}. ${speaker} · ${variant}`;
+            const variantLabel = (() => {
+              switch (placement.variant) {
+                case "orange":
+                  return "Orange";
+                case "white":
+                  return "White";
+                case "grey":
+                  return "Grey";
+                default: {
+                  const unused: never = placement.variant;
+                  return unused;
+                }
+              }
+            })();
+            return `${index + 1}. ${speaker} · ${variantLabel}`;
           },
           itemFields: speakerFrameItemFields,
         } as PanelField<PanelValues>,

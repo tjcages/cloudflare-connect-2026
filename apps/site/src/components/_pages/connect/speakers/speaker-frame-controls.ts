@@ -2,7 +2,7 @@ import type { EngineConfig } from "@necatikcl/stripes-engine";
 import { connectSpeakers } from "../data";
 import { SPEAKER_SHADER_CONFIG } from "./speaker-shader-config";
 
-export const SPEAKER_FRAME_VARIANT_IDS = ["orange", "grey"] as const;
+export const SPEAKER_FRAME_VARIANT_IDS = ["orange", "white", "grey"] as const;
 export type SpeakerFrameVariantId = (typeof SPEAKER_FRAME_VARIANT_IDS)[number];
 
 export type SpeakerStripeControl = {
@@ -108,8 +108,12 @@ export type SpeakerFrameSettings = {
 
 export const SPEAKER_IMAGE_COUNT = connectSpeakers.length;
 export const MAX_SPEAKER_FRAME_PLACEMENTS = 48;
-export const SPEAKER_FRAME_PANEL_ID = "connect-speaker-frames-v3";
-export const LEGACY_SPEAKER_FRAME_PANEL_IDS = ["connect-speaker-frames-v2", "connect-speaker-frames-v1"] as const;
+export const SPEAKER_FRAME_PANEL_ID = "connect-speaker-frames-v4";
+export const LEGACY_SPEAKER_FRAME_PANEL_IDS = [
+  "connect-speaker-frames-v3",
+  "connect-speaker-frames-v2",
+  "connect-speaker-frames-v1",
+] as const;
 export const SPEAKER_FRAME_SETTINGS_EVENT = "connect:speaker-frame-settings";
 
 const GREY_STRIPE_COLORS = [
@@ -185,35 +189,25 @@ const placement = (
   span,
 });
 
-export const defaultSpeakerFramePlacements = (): SpeakerFramePlacement[] => [
-  placement("matthew-orange", 0, "orange", 0.48, 0.42, 0.46, 0.48),
-  placement("matthew-grey", 0, "grey", 0.06, 0.08, 0.32, 0.36),
-  placement("matthew-span", 0, "orange", 0.82, 0.18, 0.46, 0.32, true),
-  placement("michelle-orange", 1, "orange", 0.58, 0.08, 0.36, 0.62),
-  placement("michelle-span", 1, "grey", 0.78, 0.28, 0.48, 0.4, true),
-  placement("rene-grey", 2, "grey", 0.04, 0.5, 0.38, 0.44),
-  placement("rene-orange", 2, "orange", 0.62, 0.06, 0.32, 0.34),
-  placement("sarah-orange", 3, "orange", 0.02, 0.14, 0.34, 0.5),
-  placement("sarah-grey", 3, "grey", 0.52, 0.58, 0.42, 0.36),
-  placement("evan-grey", 4, "grey", 0.12, 0.58, 0.52, 0.36),
-  placement("evan-orange", 4, "orange", 0.56, 0.08, 0.38, 0.44),
-  placement("peter-orange", 5, "orange", 0, 0.5, 0.42, 0.44),
-  placement("peter-grey", 5, "grey", 0.64, 0.02, 0.32, 0.38),
-];
+export const defaultSpeakerFramePlacements = (): SpeakerFramePlacement[] =>
+  connectSpeakers.flatMap((_, imageIndex) => [
+    placement(`${imageIndex}-inverted`, imageIndex, "orange", 0, 0, 0.1, 1),
+    placement(`${imageIndex}-white`, imageIndex, "white", 0.1, 0, 0.1, 1),
+  ]);
 
 export const createSpeakerFramePlacement = (imageIndex = 0): SpeakerFramePlacement =>
   placement(
     `frame-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
     imageIndex,
     "orange",
-    0.18,
-    0.18,
-    0.42,
-    0.42,
+    0,
+    0,
+    0.1,
+    1,
   );
 
 export const isSpeakerFrameVariant = (value: unknown): value is SpeakerFrameVariantId =>
-  value === "orange" || value === "grey";
+  value === "orange" || value === "white" || value === "grey";
 
 const unusedVariant = (value: never): never => {
   throw new Error(`Unhandled speaker frame variant: ${String(value)}`);
@@ -225,6 +219,8 @@ export const speakerVariantLook = (
 ): SpeakerFrameVariantLook => {
   switch (variant) {
     case "orange":
+      return settings.orange;
+    case "white":
       return settings.orange;
     case "grey":
       return settings.grey;

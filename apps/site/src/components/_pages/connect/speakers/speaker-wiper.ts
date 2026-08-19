@@ -2,20 +2,12 @@ import type { EngineConfig } from "@necatikcl/stripes-engine";
 import {
   speakerVariantEngineConfig,
   type SpeakerFrameSettings,
+  type SpeakerFrameVariantId,
 } from "./speaker-frame-controls";
 import { SPEAKER_SHADER_CONFIG } from "./speaker-shader-config";
 import type { Rect } from "./speaker-shader-geometry";
 
-export const SPEAKER_WIPER_PANE_IDS = ["inverted", "white"] as const;
-export type SpeakerWiperPaneId = (typeof SPEAKER_WIPER_PANE_IDS)[number];
-
-export type SpeakerWiperFrame = {
-  imageIndex: number;
-  pane: SpeakerWiperPaneId;
-  rect: Rect;
-};
-
-/** Rest width of each pane, as a fraction of the portrait. */
+/** Rest width of each default pane, as a fraction of the portrait. */
 export const SPEAKER_WIPER_REST_WIDTH = 0.1;
 export const SPEAKER_WIPER_DURATION_MS = 1200;
 export const SPEAKER_WIPER_STAGGER_MS = 180;
@@ -33,8 +25,8 @@ const easeOutCubic = (t: number) => 1 - (1 - t) ** 3;
 
 const easeInOutCubic = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
 
-const unusedPane = (value: never): never => {
-  throw new Error(`Unhandled speaker wiper pane: ${String(value)}`);
+const unusedVariant = (value: never): never => {
+  throw new Error(`Unhandled speaker frame variant: ${String(value)}`);
 };
 
 export const speakerWiperProgress = (elapsedMs: number, paneIndex: number): number => {
@@ -43,79 +35,89 @@ export const speakerWiperProgress = (elapsedMs: number, paneIndex: number): numb
 };
 
 /**
- * Left-edge wipe that covers the portrait, then settles into a 10% strip.
- * Pane 0 rests at 0–10%; pane 1 rests at 10–20%.
+ * The authored frame itself is the wiper: it grows from the portrait's left
+ * edge across the image, then settles into its rest rect.
  */
-export const speakerWiperRect = (aperture: Rect, paneIndex: number, progress: number): Rect => {
-  const restWidth = aperture.width * SPEAKER_WIPER_REST_WIDTH;
-  const restX = aperture.x + paneIndex * restWidth;
-  if (progress <= 0 || aperture.width <= 0 || aperture.height <= 0) {
-    return { x: aperture.x, y: aperture.y, width: 0, height: aperture.height };
+export const speakerFrameWiperRect = (aperture: Rect, rest: Rect, progress: number): Rect => {
+  if (progress <= 0 || aperture.width <= 0 || rest.height <= 0) {
+    return { x: aperture.x, y: rest.y, width: 0, height: rest.height };
   }
 
   if (progress < SPEAKER_WIPER_EXPAND_END) {
     const u = easeOutCubic(progress / SPEAKER_WIPER_EXPAND_END);
     return {
       x: aperture.x,
-      y: aperture.y,
+      y: rest.y,
       width: aperture.width * u,
-      height: aperture.height,
+      height: rest.height,
     };
   }
 
   const u = easeInOutCubic((progress - SPEAKER_WIPER_EXPAND_END) / (1 - SPEAKER_WIPER_EXPAND_END));
   return {
-    x: lerp(aperture.x, restX, u),
-    y: aperture.y,
-    width: lerp(aperture.width, restWidth, u),
-    height: aperture.height,
+    x: lerp(aperture.x, rest.x, u),
+    y: rest.y,
+    width: lerp(aperture.width, rest.width, u),
+    height: rest.height,
   };
 };
 
-export const resolveSpeakerWipers = (
+const frameProgress = (
+  imageIndex: number,
+  paneIndex: number,
+  startedAtMs: readonly (number | null)[],
+  nowMs: number,
+  options: { reducedMotion?: boolean; progressOverride?: number },
+): number | null => {
+  const override = options.progressOverride;
+  const hasOverride = typeof override === "number" && Number.isFinite(override);
+  if (hasOverride) {
+    return speakerWiperProgress(override * (SPEAKER_WIPER_DURATION_MS + SPEAKER_WIPER_STAGGER_MS), paneIndex);
+  }
+  const startedAt = startedAtMs[imageIndex];
+  if (startedAt == null) return null;
+  if (options.reducedMotion) return 1;
+  return speakerWiperProgress(nowMs - startedAt, paneIndex);
+};
+
+/** Animates each authored frame from a left-edge wipe to its rest rect. */
+export const resolveWipingFrames = <T extends { imageIndex: number; rect: Rect }>(
+  authored: readonly T[],
   apertures: readonly Rect[],
   startedAtMs: readonly (number | null)[],
   nowMs: number,
   options: { reducedMotion?: boolean; progressOverride?: number } = {},
-): SpeakerWiperFrame[] => {
-  const frames: SpeakerWiperFrame[] = [];
-  const override = options.progressOverride;
-  const hasOverride = typeof override === "number" && Number.isFinite(override);
+): T[] => {
+  const paneIndexByImage = new Map<number, number>();
+  const frames: T[] = [];
 
-  for (let imageIndex = 0; imageIndex < apertures.length; imageIndex += 1) {
-    const aperture = apertures[imageIndex];
-    const startedAt = startedAtMs[imageIndex];
+  for (const frame of authored) {
+    const aperture = apertures[frame.imageIndex];
     if (!aperture) continue;
-    if (!hasOverride && startedAt == null) continue;
-
-    for (let paneIndex = 0; paneIndex < SPEAKER_WIPER_PANE_IDS.length; paneIndex += 1) {
-      const pane = SPEAKER_WIPER_PANE_IDS[paneIndex];
-      const progress = hasOverride
-        ? speakerWiperProgress(override * (SPEAKER_WIPER_DURATION_MS + SPEAKER_WIPER_STAGGER_MS), paneIndex)
-        : options.reducedMotion
-          ? 1
-          : speakerWiperProgress(nowMs - (startedAt ?? nowMs), paneIndex);
-      const rect = speakerWiperRect(aperture, paneIndex, progress);
-      if (rect.width < 0.5) continue;
-      frames.push({ imageIndex, pane, rect });
-    }
+    const paneIndex = paneIndexByImage.get(frame.imageIndex) ?? 0;
+    paneIndexByImage.set(frame.imageIndex, paneIndex + 1);
+    const progress = frameProgress(frame.imageIndex, paneIndex, startedAtMs, nowMs, options);
+    if (progress == null) continue;
+    const rect = speakerFrameWiperRect(aperture, frame.rect, progress);
+    if (rect.width < 0.5) continue;
+    frames.push({ ...frame, rect });
   }
 
   return frames;
 };
 
-export const speakerWiperEngineConfig = (
+export const speakerFramePaintConfig = (
   settings: SpeakerFrameSettings,
-  pane: SpeakerWiperPaneId,
+  variant: SpeakerFrameVariantId,
 ): Partial<EngineConfig> => {
-  const orange = speakerVariantEngineConfig(settings, "orange");
-  switch (pane) {
-    case "inverted":
+  const base = speakerVariantEngineConfig(settings, variant);
+  switch (variant) {
+    case "orange":
       return {
-        ...orange,
+        ...base,
         adjustments: {
           ...SPEAKER_SHADER_CONFIG.adjustments,
-          ...orange.adjustments,
+          ...base.adjustments,
           invert: true,
         },
         background: {
@@ -125,32 +127,39 @@ export const speakerWiperEngineConfig = (
       };
     case "white":
       return {
-        ...orange,
+        ...base,
         adjustments: {
           ...SPEAKER_SHADER_CONFIG.adjustments,
-          ...orange.adjustments,
+          ...base.adjustments,
           invert: false,
-          brightness: Math.max(orange.adjustments?.brightness ?? 0.33, 0.55),
-          exposure: Math.max(orange.adjustments?.exposure ?? 0.87, 1.05),
+          brightness: Math.max(base.adjustments?.brightness ?? 0.33, 0.55),
+          exposure: Math.max(base.adjustments?.exposure ?? 0.87, 1.05),
         },
         background: {
           ...SPEAKER_SHADER_CONFIG.background,
           color: WHITE,
         },
       };
+    case "grey":
+      return {
+        ...base,
+        background: SPEAKER_SHADER_CONFIG.background,
+      };
     default:
-      return unusedPane(pane);
+      return unusedVariant(variant);
   }
 };
 
-export const speakerWiperOutlineColor = (pane: SpeakerWiperPaneId, opacity: number) => {
-  switch (pane) {
-    case "inverted":
+export const speakerFrameOutlineColor = (variant: SpeakerFrameVariantId, opacity: number) => {
+  switch (variant) {
+    case "orange":
       return `rgba(255, 191, 20, ${opacity})`;
     case "white":
       return `rgba(255, 255, 255, ${opacity})`;
+    case "grey":
+      return `rgba(214, 214, 214, ${opacity})`;
     default:
-      return unusedPane(pane);
+      return unusedVariant(variant);
   }
 };
 

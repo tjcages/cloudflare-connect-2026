@@ -12,9 +12,7 @@ import {
   SPEAKER_FRAME_SETTINGS_EVENT,
   SPEAKER_FRAME_VARIANT_IDS,
   speakerSharedEngineConfig,
-  speakerVariantEngineConfig,
   type SpeakerFrameSettings,
-  type SpeakerFrameVariantId,
 } from "./speaker-frame-controls";
 import {
   buildPartialFramePlan,
@@ -33,9 +31,9 @@ import {
 import { SPEAKER_SHADER_CONFIG, SPEAKER_SHADER_MAX_DPR } from "./speaker-shader-config";
 import {
   parseSpeakerWiperOverride,
-  resolveSpeakerWipers,
-  speakerWiperEngineConfig,
-  speakerWiperOutlineColor,
+  resolveWipingFrames,
+  speakerFrameOutlineColor,
+  speakerFramePaintConfig,
 } from "./speaker-wiper";
 
 type Aperture = {
@@ -45,19 +43,6 @@ type Aperture = {
 
 const isInside = (clientX: number, clientY: number, rect: DOMRect) =>
   clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom;
-
-const variantOutlineColor = (variant: SpeakerFrameVariantId, opacity: number) => {
-  switch (variant) {
-    case "orange":
-      return `rgba(255, 191, 20, ${opacity})`;
-    case "grey":
-      return `rgba(214, 214, 214, ${opacity})`;
-    default: {
-      const unused: never = variant;
-      return unused;
-    }
-  }
-};
 
 const paintPartialFrameOutline = (
   context: CanvasRenderingContext2D,
@@ -175,7 +160,7 @@ export default function SpeakerShaderOverlay() {
       engine?.setSource(sourceCanvas);
     };
 
-    const paintLayer = (frames: Rect[], config: Partial<EngineConfig>, fill?: string) => {
+    const paintLayer = (frames: Rect[], config: Partial<EngineConfig>) => {
       if (!engine || frames.length === 0) return;
       engine.setConfig(config);
       engine.renderFrame();
@@ -191,11 +176,6 @@ export default function SpeakerShaderOverlay() {
         outputContext.rect(rect.x, rect.y, rect.width, rect.height);
       }
       outputContext.clip();
-      if (fill) {
-        outputContext.globalAlpha = 1;
-        outputContext.fillStyle = fill;
-        outputContext.fillRect(0, 0, width, height);
-      }
       outputContext.globalAlpha = settingsRef.current.shaderOpacity;
       outputContext.drawImage(renderCanvas, 0, 0, width, height);
 
@@ -210,7 +190,7 @@ export default function SpeakerShaderOverlay() {
       const settings = settingsRef.current;
       const apertureRects = apertures.map(({ rect }) => rect);
       const authored = resolveAuthoredFrames(settings.placements, apertureRects);
-      const wipers = resolveSpeakerWipers(apertureRects, wiperStartedAtMs, performance.now(), {
+      const frames = resolveWipingFrames(authored, apertureRects, wiperStartedAtMs, performance.now(), {
         reducedMotion: reducedMotion.matches,
         progressOverride: wiperProgressOverride,
       });
@@ -228,25 +208,12 @@ export default function SpeakerShaderOverlay() {
 
       if (engine) {
         for (const variant of SPEAKER_FRAME_VARIANT_IDS) {
-          const frames = authored.filter((frame) => frame.variant === variant).map((frame) => frame.rect);
+          const variantFrames = frames.filter((frame) => frame.variant === variant).map((frame) => frame.rect);
           if (variant === "orange" && pointerFrameRect) {
-            frames.push(pointerFrameRect);
+            variantFrames.push(pointerFrameRect);
           }
-          paintLayer(frames, {
-            ...speakerVariantEngineConfig(settings, variant),
-            background: SPEAKER_SHADER_CONFIG.background,
-          });
+          paintLayer(variantFrames, speakerFramePaintConfig(settings, variant));
         }
-        paintLayer(
-          wipers.filter((frame) => frame.pane === "inverted").map((frame) => frame.rect),
-          speakerWiperEngineConfig(settings, "inverted"),
-          "#ffbf14",
-        );
-        paintLayer(
-          wipers.filter((frame) => frame.pane === "white").map((frame) => frame.rect),
-          speakerWiperEngineConfig(settings, "white"),
-          "#ffffff",
-        );
       }
 
       outputContext.save();
@@ -255,14 +222,15 @@ export default function SpeakerShaderOverlay() {
         outputContext.rect(band.x, band.y, band.width, band.height);
       }
       outputContext.clip();
-      for (const frame of authored) {
-        paintPartialFrameOutline(outputContext, frame.rect, (opacity) => variantOutlineColor(frame.variant, opacity));
-      }
-      for (const frame of wipers) {
-        paintPartialFrameOutline(outputContext, frame.rect, (opacity) => speakerWiperOutlineColor(frame.pane, opacity));
+      for (const frame of frames) {
+        paintPartialFrameOutline(outputContext, frame.rect, (opacity) =>
+          speakerFrameOutlineColor(frame.variant, opacity),
+        );
       }
       if (pointerFrameRect) {
-        paintPartialFrameOutline(outputContext, pointerFrameRect, (opacity) => variantOutlineColor("orange", opacity));
+        paintPartialFrameOutline(outputContext, pointerFrameRect, (opacity) =>
+          speakerFrameOutlineColor("orange", opacity),
+        );
       }
       outputContext.restore();
     };

@@ -1,21 +1,21 @@
 import { describe, expect, it } from "vitest";
-import { SPEAKER_FRAME_DEFAULTS } from "./speaker-frame-controls";
+import { defaultSpeakerFramePlacements, SPEAKER_FRAME_DEFAULTS } from "./speaker-frame-controls";
+import { resolveAuthoredFrames } from "./speaker-shader-geometry";
 import {
   parseSpeakerWiperOverride,
-  resolveSpeakerWipers,
-  speakerWiperEngineConfig,
+  resolveWipingFrames,
+  speakerFramePaintConfig,
+  speakerFrameWiperRect,
   speakerWiperProgress,
-  speakerWiperRect,
-  SPEAKER_WIPER_DURATION_MS,
   SPEAKER_WIPER_REST_WIDTH,
-  SPEAKER_WIPER_STAGGER_MS,
 } from "./speaker-wiper";
 
 const aperture = { x: 40, y: 10, width: 200, height: 180 };
+const rest = { x: 40, y: 10, width: 20, height: 180 };
 
-describe("speaker wiper intro", () => {
+describe("speaker frame wipers", () => {
   it("starts on the left edge with no coverage", () => {
-    expect(speakerWiperRect(aperture, 0, 0)).toEqual({
+    expect(speakerFrameWiperRect(aperture, rest, 0)).toEqual({
       x: 40,
       y: 10,
       width: 0,
@@ -24,67 +24,75 @@ describe("speaker wiper intro", () => {
     expect(speakerWiperProgress(0, 0)).toBe(0);
   });
 
-  it("wipes across the portrait from the left before settling", () => {
-    const mid = speakerWiperRect(aperture, 0, 0.3);
+  it("wipes the authored frame across the portrait from the left", () => {
+    const mid = speakerFrameWiperRect(aperture, rest, 0.3);
     expect(mid.x).toBe(40);
-    expect(mid.y).toBe(10);
-    expect(mid.height).toBe(180);
+    expect(mid.y).toBe(rest.y);
+    expect(mid.height).toBe(rest.height);
     expect(mid.width).toBeGreaterThan(40);
     expect(mid.width).toBeLessThan(200);
   });
 
-  it("settles each pane at 10% width, stacked from the left", () => {
-    const inverted = speakerWiperRect(aperture, 0, 1);
-    const white = speakerWiperRect(aperture, 1, 1);
-
-    expect(inverted).toEqual({
-      x: 40,
-      y: 10,
-      width: 20,
-      height: 180,
-    });
-    expect(white).toEqual({
+  it("settles into the authored rest rect", () => {
+    expect(speakerFrameWiperRect(aperture, rest, 1)).toEqual(rest);
+    expect(speakerFrameWiperRect(aperture, { x: 60, y: 10, width: 20, height: 180 }, 1)).toEqual({
       x: 60,
       y: 10,
       width: 20,
       height: 180,
     });
-    expect(inverted.width / aperture.width).toBe(SPEAKER_WIPER_REST_WIDTH);
-    expect(white.x).toBe(inverted.x + inverted.width);
   });
 
-  it("staggers the second pane so it starts later", () => {
-    expect(speakerWiperProgress(0, 1)).toBe(0);
-    expect(speakerWiperProgress(180, 1)).toBe(0);
-    expect(speakerWiperProgress(180, 0)).toBeGreaterThan(0);
-    expect(speakerWiperProgress(10_000, 1)).toBe(1);
+  it("defaults to two 10% frames per image, orange then white", () => {
+    const placements = defaultSpeakerFramePlacements();
+    const byImage = new Map<number, typeof placements>();
+    for (const placement of placements) {
+      const list = byImage.get(placement.imageIndex) ?? [];
+      list.push(placement);
+      byImage.set(placement.imageIndex, list);
+    }
+
+    expect(byImage.size).toBe(6);
+    for (const frames of byImage.values()) {
+      expect(frames).toHaveLength(2);
+      expect(frames[0]?.variant).toBe("orange");
+      expect(frames[1]?.variant).toBe("white");
+      expect(frames[0]?.width).toBe(SPEAKER_WIPER_REST_WIDTH);
+      expect(frames[1]?.width).toBe(SPEAKER_WIPER_REST_WIDTH);
+      expect(frames[0]?.height).toBe(1);
+      expect(frames[1]?.x).toBe(SPEAKER_WIPER_REST_WIDTH);
+    }
   });
 
-  it("resolves inverted then white panes only after an image has started", () => {
-    const idle = resolveSpeakerWipers([aperture], [null], 1_000);
-    expect(idle).toEqual([]);
+  it("animates authored frames only after that image has started", () => {
+    const authored = resolveAuthoredFrames(
+      [
+        { imageIndex: 0, x: 0, y: 0, width: 0.1, height: 1, span: false, variant: "orange" as const },
+        { imageIndex: 0, x: 0.1, y: 0, width: 0.1, height: 1, span: false, variant: "white" as const },
+      ],
+      [aperture],
+    );
 
-    const playing = resolveSpeakerWipers([aperture], [0], 10_000);
-    expect(playing.map((frame) => frame.pane)).toEqual(["inverted", "white"]);
-    expect(playing[0]?.rect.width).toBe(20);
-    expect(playing[1]?.rect.x).toBe(60);
+    expect(resolveWipingFrames(authored, [aperture], [null], 1_000)).toEqual([]);
+
+    const playing = resolveWipingFrames(authored, [aperture], [0], 10_000);
+    expect(playing.map((frame) => frame.variant)).toEqual(["orange", "white"]);
+    expect(playing[0]?.rect).toEqual({ x: 40, y: 10, width: 20, height: 180 });
+    expect(playing[1]?.rect).toEqual({ x: 60, y: 10, width: 20, height: 180 });
   });
 
-  it("jumps to rest strips when reduced motion is on", () => {
-    const frames = resolveSpeakerWipers([aperture], [9_000], 9_010, { reducedMotion: true });
+  it("jumps authored frames to rest when reduced motion is on", () => {
+    const authored = resolveAuthoredFrames(
+      [{ imageIndex: 0, x: 0, y: 0, width: 0.1, height: 1, span: false, variant: "orange" as const }],
+      [aperture],
+    );
+    const frames = resolveWipingFrames(authored, [aperture], [9_000], 9_010, { reducedMotion: true });
     expect(frames[0]?.rect.width).toBe(20);
-    expect(frames[1]?.rect.width).toBe(20);
   });
 
-  it("lets a preview override play even when reduced motion is on", () => {
-    const mid = resolveSpeakerWipers([aperture], [null], 0, { reducedMotion: true, progressOverride: 0.35 });
-    expect(mid[0]?.rect.width).toBeGreaterThan(20);
-    expect(mid[0]?.rect.width).toBeLessThan(200);
-  });
-
-  it("keeps the same stripe colors on both panes, with invert only on the first", () => {
-    const inverted = speakerWiperEngineConfig(SPEAKER_FRAME_DEFAULTS, "inverted");
-    const white = speakerWiperEngineConfig(SPEAKER_FRAME_DEFAULTS, "white");
+  it("paints orange inverted and white with the same stripe colors", () => {
+    const inverted = speakerFramePaintConfig(SPEAKER_FRAME_DEFAULTS, "orange");
+    const white = speakerFramePaintConfig(SPEAKER_FRAME_DEFAULTS, "white");
 
     expect(inverted.stripes).toEqual(white.stripes);
     expect(inverted.adjustments?.invert).toBe(true);
@@ -97,18 +105,5 @@ describe("speaker wiper intro", () => {
     expect(parseSpeakerWiperOverride("?speakerWiper=0.35")).toBe(0.35);
     expect(parseSpeakerWiperOverride("?speakerWiper=2")).toBe(1);
     expect(parseSpeakerWiperOverride("")).toBeUndefined();
-  });
-
-  it("maps a preview override onto elapsed time so the second pane stays staggered", () => {
-    const mid = resolveSpeakerWipers([aperture], [null], 0, { progressOverride: 0.35 });
-    expect(mid).toHaveLength(2);
-    expect(mid[0]?.rect.width).toBeGreaterThan(mid[1]?.rect.width ?? 0);
-    expect(mid[0]?.rect.x).toBe(40);
-    expect(mid[1]?.rect.x).toBe(40);
-
-    const done = resolveSpeakerWipers([aperture], [null], 0, { progressOverride: 1 });
-    expect(done[0]?.rect.width).toBe(20);
-    expect(done[1]?.rect.x).toBe(60);
-    expect(0.35 * (SPEAKER_WIPER_DURATION_MS + SPEAKER_WIPER_STAGGER_MS)).toBeGreaterThan(SPEAKER_WIPER_STAGGER_MS);
   });
 });
