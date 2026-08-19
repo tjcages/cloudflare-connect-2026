@@ -1,0 +1,53 @@
+---
+import Eyebrow from "@/components/Eyebrow";
+import { LOGIN_OVERLAY_COPY } from "./login-copy";
+
+interface Props {
+  size: "pane" | "callout";
+}
+
+const { size } = Astro.props;
+const isCallout = size === "callout";
+---
+
+<div
+  class:list={[
+    "flex w-full flex-col items-center text-center",
+    isCallout ? "max-w-full" : "max-w-560",
+  ]}
+>
+  {
+    isCallout ? (
+      <p class="text-decorative-tiny tracking-[0.04em] text-text-muted uppercase">
+        {LOGIN_OVERLAY_COPY.eyebrow}
+      </p>
+    ) : (
+      <Eyebrow
+        client:visible
+        direction="center"
+        title={LOGIN_OVERLAY_COPY.eyebrow}
+        variant="faint"
+      />
+    )
+  }
+
+  <h2
+    class:list={[
+      "text-text-base",
+      isCallout
+        ? "mt-6 text-heading-h5"
+        : "mt-16 text-heading-h2 xl:text-heading-h1",
+    ]}
+  >
+    {LOGIN_OVERLAY_COPY.title}
+  </h2>
+
+  <p
+    class:list={[
+      "text-text-base",
+      isCallout ? "mt-6 text-body-x-small" : "mt-12 text-body-large",
+    ]}
+  >
+    {LOGIN_OVERLAY_COPY.body}
+  </p>
+</div>

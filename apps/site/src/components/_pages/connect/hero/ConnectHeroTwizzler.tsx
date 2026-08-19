@@ -22,6 +22,11 @@ interface Props {
   posterSrc?: string;
   /** Homepage exposes every shader; login only tunes Twizzler + rain. */
   panelTargets?: readonly ShaderTarget[];
+  /**
+   * Homepage fades the stack under overlay type. Login sets this so rain
+   * stays visible across the pane (Astro omits `={false}` boolean props).
+   */
+  hideTopFade?: boolean;
 }
 
 const PANEL_STORAGE_KEY = "connect:twizzler-controls-visible";
@@ -30,6 +35,7 @@ const ConnectTwizzlerControls = lazy(() => import("./ConnectTwizzlerControls"));
 export default function ConnectHeroTwizzler({
   posterSrc,
   panelTargets,
+  hideTopFade = false,
 }: IslandProps<Props>) {
   const [settings, setSettings] = useState<TwizzlerSettings>(
     CONNECT_HERO_TWIZZLER_DEFAULTS
@@ -95,7 +101,7 @@ export default function ConnectHeroTwizzler({
       <div
         className="absolute inset-0"
         style={
-          rain.topFadePct > 0 || rain.topFadeOffsetPct > 0
+          !hideTopFade && (rain.topFadePct > 0 || rain.topFadeOffsetPct > 0)
             ? {
                 maskImage: `linear-gradient(to bottom, transparent ${rain.topFadeOffsetPct}%, black ${Math.min(100, rain.topFadeOffsetPct + rain.topFadePct)}%)`,
               }

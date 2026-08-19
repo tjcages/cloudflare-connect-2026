@@ -1,78 +1,52 @@
 ---
-import Button from "@/components/Button";
-import Eyebrow from "@/components/Eyebrow";
-import { connectHero } from "../data";
 import ConnectHeroTwizzler from "../hero/ConnectHeroTwizzler";
 import DashboardLoginForm from "./DashboardLoginForm";
+import LoginPromo from "./LoginPromo.astro";
 import { LOGIN_PANEL_TARGETS } from "./login-shader";
 ---
 
 {/*
-    Desktop: dash split (form | globe).
-    Mobile: dash stacks the globe first as a large full-width panel, then the
-    form. Shader replaces that globe block at ~half the viewport.
-  */}
-<div class="bg-white flex min-h-svh max-lg:flex-col" data-theme="light">
-  <main
-    class="w-full shrink-0 border-border-default max-lg:order-2 lg:w-480 lg:border-r xl:w-520"
-  >
-    <DashboardLoginForm client:load />
-  </main>
+    Desktop: dash split (form | visual). Promo is top-centered over the
+    shader, using the dash.cloudflare.com overlay copy.
 
+    Mobile: shader is a bounded visual panel (the moth/ribbon) with a
+    compact callout floating at its top. The form sits below as an
+    opaque white sheet so the canvas cannot paint over it.
+  */}
+<div class="relative min-h-svh bg-white lg:flex" data-theme="light">
   <aside
-    class="relative isolate flex flex-1 overflow-hidden bg-background-base max-lg:order-1 max-lg:h-[52svh] max-lg:min-h-320 max-lg:flex-none lg:min-h-svh"
+    class="relative isolate overflow-hidden max-lg:h-[42svh] max-lg:min-h-280 lg:order-2 lg:h-svh lg:flex-1"
     aria-label="Cloudflare Connect 2026"
   >
     <div class="pointer-events-none absolute inset-0" aria-hidden="true">
       <ConnectHeroTwizzler
         client:load
+        hideTopFade={true}
         panelTargets={LOGIN_PANEL_TARGETS}
         posterSrc="/connect/twizzler-poster.png"
       />
     </div>
 
     <div
-      class="relative z-10 flex h-full w-full flex-col justify-end px-20 py-24 md:px-40 lg:justify-start lg:px-80 lg:py-80"
+      class="pointer-events-none absolute inset-x-16 top-16 z-20 lg:hidden"
     >
-      <div class="flex w-full max-w-440 flex-col items-start">
-        <Eyebrow
-          client:visible
-          direction="left"
-          title={connectHero.eyebrow}
-          variant="faint"
-        />
-
-        <h2
-          class="mt-16 text-heading-h3 text-text-base lg:mt-24 lg:text-heading-hero"
-        >
-          {connectHero.titleLines[0]}
-          <br />
-          {connectHero.titleLines[1]}
-        </h2>
-
-        <p
-          class="mt-16 text-body-small text-text-base lg:mt-24 lg:text-body-large"
-        >
-          {connectHero.body}
-        </p>
-
-        <div class="mt-24 flex flex-wrap items-center gap-12 lg:mt-40">
-          <Button
-            className="px-14"
-            href={connectHero.primaryCta.href}
-            size="large"
-          >
-            <span>{connectHero.primaryCta.text}</span>
-          </Button>
-          <Button
-            href={connectHero.secondaryCta.href}
-            size="large"
-            variant="secondary"
-          >
-            <span>{connectHero.secondaryCta.text}</span>
-          </Button>
-        </div>
+      <div
+        class="transform-gpu rounded-12 bg-white px-16 py-12 shadow-elevation-default"
+      >
+        <LoginPromo size="callout" />
       </div>
     </div>
+
+    <div
+      class="pointer-events-none absolute inset-x-0 top-0 z-10 hidden px-40 pt-24 lg:flex lg:justify-center xl:pt-32"
+    >
+      <LoginPromo size="pane" />
+    </div>
   </aside>
+
+  <main
+    class="relative z-20 bg-white max-lg:min-h-0 lg:order-1 lg:h-svh lg:w-480 lg:border-r lg:border-border-default xl:w-520"
+  >
+    <DashboardLoginForm client:load />
+  </main>
 </div>

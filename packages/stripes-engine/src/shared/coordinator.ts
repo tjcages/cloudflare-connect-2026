@@ -438,7 +438,15 @@ export function registerSharedShader(opts: RegisterSharedShaderOptions): SharedS
   const renderObserver = new IntersectionObserver(
     (entries) => {
       for (const entry of entries) {
-        const visible = entry.isIntersecting;
+        const rect = canvas.getBoundingClientRect();
+        const visible =
+          entry.isIntersecting ||
+          (rect.width > 0 &&
+            rect.height > 0 &&
+            rect.bottom > 0 &&
+            rect.right > 0 &&
+            rect.top < window.innerHeight &&
+            rect.left < window.innerWidth);
         if (visible === instance.visible) continue;
         instance.visible = visible;
         visibleCount += visible ? 1 : -1;
@@ -509,6 +517,40 @@ export function registerSharedShader(opts: RegisterSharedShaderOptions): SharedS
     post({ type: "resize", id, cssWidth: size.cssWidth, cssHeight: size.cssHeight, dpr: readDpr(canvas, opts.maxDpr) });
   });
 
+  const syncSize = () => {
+    if (instance.disposed) return;
+    const size = readSize(canvas);
+    post({
+      type: "resize",
+      id,
+      cssWidth: size.cssWidth,
+      cssHeight: size.cssHeight,
+      dpr: readDpr(canvas, opts.maxDpr),
+    });
+  };
+
+  const syncVisibilityFromRect = () => {
+    if (instance.disposed) return;
+    const rect = canvas.getBoundingClientRect();
+    const inView =
+      rect.width > 0 &&
+      rect.height > 0 &&
+      rect.bottom > 0 &&
+      rect.right > 0 &&
+      rect.top < window.innerHeight &&
+      rect.left < window.innerWidth;
+    if (inView === instance.visible) return;
+    instance.visible = inView;
+    visibleCount += inView ? 1 : -1;
+    post({ type: "visibility", id, visible: inView });
+    if (inView) {
+      startClock();
+      startMedia(instance, src);
+    } else {
+      stopMedia(instance);
+    }
+  };
+
   let pointerInside = false;
   let lastClientX = Number.NaN;
   let lastClientY = Number.NaN;
@@ -561,6 +603,18 @@ export function registerSharedShader(opts: RegisterSharedShaderOptions): SharedS
   revealViewportObserver.observe(canvas);
   preloadObserver?.observe(canvas);
   resizeObserver.observe(canvas);
+  // Absolute / flex children can miss the first ResizeObserver and
+  // IntersectionObserver callbacks; push the laid-out size and viewport
+  // intersection once after this frame so the blit canvas is not stuck at
+  // the HTML default 300×150 with nothing presenting.
+  syncSize();
+  syncVisibilityFromRect();
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      syncSize();
+      syncVisibilityFromRect();
+    });
+  });
   window.addEventListener("pointermove", onPointerMove);
   document.addEventListener("pointerleave", onDocumentLeave);
   window.addEventListener("pointerdown", onPointerDown);
