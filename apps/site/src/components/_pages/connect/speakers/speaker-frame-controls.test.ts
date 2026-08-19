@@ -5,6 +5,7 @@ import {
   sanitizeSpeakerFramePlacements,
   SPEAKER_FRAME_DEFAULTS,
   SPEAKER_FRAME_PANEL_ID,
+  SPEAKER_POINTER_VARIANT,
   speakerVariantEngineConfig,
 } from "./speaker-frame-controls";
 
@@ -44,6 +45,10 @@ describe("speaker frame controls", () => {
     expect(placements[0]).toMatchObject({ variant: "grey", x: 0, width: 0.8, y: 0, height: 1 });
     expect(placements[1]).toMatchObject({ variant: "orange", x: 0.8, width: 0.1, y: 0, height: 1 });
     expect(placements[2]).toMatchObject({ variant: "dark", x: 0.9, width: 0.1, y: 0, height: 1 });
+  });
+
+  it("routes the pointer viewfinder through the overlay look", () => {
+    expect(SPEAKER_POINTER_VARIANT).toBe("grey");
   });
 
   it("keeps the grey palette distinct from the orange production stripes", () => {

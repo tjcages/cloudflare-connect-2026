@@ -4,6 +4,8 @@ import { SPEAKER_SHADER_CONFIG } from "./speaker-shader-config";
 
 export const SPEAKER_FRAME_VARIANT_IDS = ["grey", "orange", "dark"] as const;
 export type SpeakerFrameVariantId = (typeof SPEAKER_FRAME_VARIANT_IDS)[number];
+/** The pointer-owned viewfinder clips and distorts this look only. */
+export const SPEAKER_POINTER_VARIANT: SpeakerFrameVariantId = "grey";
 
 export type SpeakerStripeControl = {
   id: string;

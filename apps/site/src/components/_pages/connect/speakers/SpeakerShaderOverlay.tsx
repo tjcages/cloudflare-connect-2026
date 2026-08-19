@@ -11,6 +11,7 @@ import {
   SPEAKER_FRAME_DEFAULTS,
   SPEAKER_FRAME_SETTINGS_EVENT,
   SPEAKER_FRAME_VARIANT_IDS,
+  SPEAKER_POINTER_VARIANT,
   speakerSharedEngineConfig,
   speakerVariantLook,
   type SpeakerFrameSettings,
@@ -257,15 +258,30 @@ export default function SpeakerShaderOverlay() {
       outputContext.clearRect(0, 0, width, height);
 
       if (engine) {
+        const trailEnabled = settings.trailEnabled && !reducedMotion.matches;
+        const overlayTrail = {
+          ...SPEAKER_SHADER_CONFIG.cursorTrail,
+          enabled: trailEnabled,
+          particleRadius: settings.trailRadius,
+          particleAlpha: settings.trailAlpha,
+          particleLifeMs: settings.trailLife,
+          pushStrengthPx: settings.trailPush,
+        };
+        const idleTrail = { ...overlayTrail, particleAlpha: 0, pushStrengthPx: 0 };
         for (const variant of SPEAKER_FRAME_VARIANT_IDS) {
           const variantFrames = frames.filter((frame) => frame.variant === variant).map((frame) => frame.rect);
-          if (variant === "orange" && pointerFrameRect) {
+          if (variant === SPEAKER_POINTER_VARIANT && pointerFrameRect) {
             variantFrames.push(pointerFrameRect);
           }
-          const config = speakerFramePaintConfig(settings, variant);
+          const config = {
+            ...speakerFramePaintConfig(settings, variant),
+            cursorTrail: variant === SPEAKER_POINTER_VARIANT ? overlayTrail : idleTrail,
+          };
+          const liveOverlay = pointerInside && variant === SPEAKER_POINTER_VARIANT && !reducedMotion.matches;
           switch (variant) {
             case "grey":
-              paintOverlayLayer(variantFrames, config);
+              if (liveOverlay) paintLayer(variantFrames, config);
+              else paintOverlayLayer(variantFrames, config);
               break;
             case "orange":
             case "dark":
@@ -292,7 +308,7 @@ export default function SpeakerShaderOverlay() {
       }
       if (pointerFrameRect) {
         paintPartialFrameOutline(outputContext, pointerFrameRect, (opacity) =>
-          speakerFrameOutlineColor(settings.orange.bgColor, opacity),
+          speakerFrameOutlineColor(settings.grey.bgColor, opacity),
         );
       }
       outputContext.restore();
