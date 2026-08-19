@@ -110,6 +110,12 @@ export default defineConfig({
       icons(),
       lottieSvg(),
     ],
+    optimizeDeps: {
+      include: ["three", "@react-three/fiber", "@react-three/drei"],
+    },
+    ssr: {
+      noExternal: ["three", "@react-three/fiber", "@react-three/drei"],
+    },
   },
 
   devToolbar: {

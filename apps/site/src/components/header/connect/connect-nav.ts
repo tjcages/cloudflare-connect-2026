@@ -3,9 +3,10 @@ import { connectResourcesMenu } from "./resources-menu";
 
 /** Client-side Connect nav — menus must be built here (functions don't serialize via Astro props). */
 export const connectNavItems: IHeaderNavItem[] = [
-  { label: "Agenda", href: "#agenda" },
-  { label: "Speakers", href: "#speakers" },
-  { label: "Sessions", href: "#agenda" },
+  { label: "Agenda", href: "/connect#agenda" },
+  { label: "Speakers", href: "/connect#speakers" },
+  { label: "Badge", href: "/connect/badge" },
+  { label: "Sessions", href: "/connect#agenda" },
   {
     label: "Resources",
     dropdown: { menu: connectResourcesMenu },
