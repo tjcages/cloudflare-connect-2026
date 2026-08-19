@@ -1,9 +1,15 @@
 "use no memo";
 
-import { PerspectiveCamera, RoundedBox, useGLTF } from "@react-three/drei";
+import { PerspectiveCamera, useGLTF } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, type RefObject } from "react";
-import type { BufferGeometry, Group, Mesh, MeshStandardMaterial } from "three";
+import type {
+  BufferGeometry,
+  Group,
+  Mesh,
+  MeshStandardMaterial,
+  Texture,
+} from "three";
 import {
   Bone,
   CanvasTexture,
@@ -16,19 +22,30 @@ import {
   SkinnedMesh,
   SRGBColorSpace,
   Uint16BufferAttribute,
+  Vector3,
 } from "three";
 import { WiggleBone } from "wiggle";
 
-const BADGE_W = 2;
-const BADGE_H = 3.2;
-const BADGE_D = 0.1;
-const SHADER_INSET = 0.06;
-const SHADER_RADIUS = 0.14;
 const LANYARD_ORANGE = "#f46021";
 const LANYARD_URL = "/connect/badge-lanyard.glb";
 const LANYARD_BONES = 6;
-const TEXTURE_W = 880;
-const TEXTURE_H = 1240;
+const MODEL_SCALE = 26;
+const MODEL_Y = -2.6;
+const TEXTURE_W = 1024;
+const TEXTURE_H = 1024;
+
+/**
+ * Measured bounds of the scan's ID tag in rig space (strap stood up along
+ * +Y, tag at the bottom): ~0.042 wide x 0.062 tall around x 0.009, ~8mm
+ * thick. The geometry is shifted so the tag face is centered at x=0 and the
+ * sticker plane sits on it.
+ */
+const TAG_CENTER_X = 0.003;
+const TAG_TOP_Y = 0.09;
+const STICKER_W = 0.04;
+const STICKER_H = 0.058;
+const STICKER_Y = 0.045;
+const STICKER_Z = 0.005;
 
 function createRoundedPlane(width: number, height: number, radius: number) {
   const shape = new Shape();
@@ -118,10 +135,10 @@ type LanyardRig = {
 
 /**
  * The uploaded GLB is a single static mesh with no skeleton, so the rig is
- * built at runtime: the geometry's longest axis (the strap) is stood up
- * along +Y, a bone chain is laid along it, and vertices are skinned by their
- * position on the strap. The root bone (the end attached to the badge) stays
- * rigid; every child bone becomes a WiggleBone so only the string wiggles.
+ * built at runtime: the strap is stood up along +Y with the ID tag at the
+ * bottom, a bone chain is laid along it, and vertices are skinned by their
+ * position on the strap. The root bone (the tag end) stays rigid; every
+ * child bone becomes a WiggleBone so only the string wiggles.
  */
 function buildLanyardRig(source: Mesh): LanyardRig {
   const geometry = (source.geometry as BufferGeometry).clone();
@@ -134,9 +151,10 @@ function buildLanyardRig(source: Mesh): LanyardRig {
   geometry.computeBoundingBox();
   const box = geometry.boundingBox!;
   const length = box.max.y - box.min.y;
-  // Put the attach end at the origin so the root bone sits on the badge slot.
+  // Tag bottom at the origin, tag face centered on x=0 so the drag spin
+  // pivots through the badge.
   geometry.translate(
-    -(box.min.x + box.max.x) / 2,
+    -TAG_CENTER_X,
     -box.min.y,
     -(box.min.z + box.max.z) / 2
   );
@@ -153,10 +171,20 @@ function buildLanyardRig(source: Mesh): LanyardRig {
 
   const position = geometry.attributes.position;
   if (!position) throw new Error("Lanyard mesh has no positions.");
+  const vertex = new Vector3();
   const skinIndices: number[] = [];
   const skinWeights: number[] = [];
   for (let index = 0; index < position.count; index += 1) {
-    const along = MathUtils.clamp(position.getY(index) / segment, 0, LANYARD_BONES);
+    vertex.fromBufferAttribute(position, index);
+    // The tag binds fully to the rigid root; the string blends up the chain.
+    const along =
+      vertex.y < TAG_TOP_Y
+        ? 0
+        : MathUtils.clamp(
+            ((vertex.y - TAG_TOP_Y) / (length - TAG_TOP_Y)) * LANYARD_BONES,
+            0,
+            LANYARD_BONES
+          );
     const lower = Math.min(Math.floor(along), LANYARD_BONES - 1);
     const blend = along - lower;
     skinIndices.push(lower, lower + 1, 0, 0);
@@ -191,9 +219,24 @@ function buildLanyardRig(source: Mesh): LanyardRig {
   return { skinned, wiggleBones };
 }
 
-function LanyardModel({ reducedMotion }: { reducedMotion: boolean }) {
+function LanyardBadge({
+  twizzlerCanvas,
+  rainCanvas,
+  reducedMotion,
+}: {
+  twizzlerCanvas: RefObject<HTMLCanvasElement | null>;
+  rainCanvas: RefObject<HTMLCanvasElement | null>;
+  reducedMotion: boolean;
+}) {
+  const { gl, camera } = useThree();
   const { scene } = useGLTF(LANYARD_URL);
   const groupRef = useRef<Group>(null);
+  const rotationY = useRef(0.25);
+  const velocityY = useRef(0);
+  const dragging = useRef(false);
+  const lastX = useRef(0);
+  const texture = useHeroShaderTexture(twizzlerCanvas, rainCanvas);
+
   const rig = useMemo(() => {
     let source: Mesh | null = null;
     scene.traverse((child) => {
@@ -203,68 +246,20 @@ function LanyardModel({ reducedMotion }: { reducedMotion: boolean }) {
     return buildLanyardRig(source);
   }, [scene]);
 
+  const stickerGeometry = useMemo(
+    () => createRoundedPlane(STICKER_W, STICKER_H, STICKER_W * 0.12),
+    []
+  );
+
   useEffect(() => {
     if (!rig) return;
     return () => {
       for (const wiggleBone of rig.wiggleBones) wiggleBone.dispose();
       rig.skinned.geometry.dispose();
       (rig.skinned.material as MeshStandardMaterial).dispose();
+      stickerGeometry.dispose();
     };
-  }, [rig]);
-
-  useFrame(({ clock }) => {
-    const group = groupRef.current;
-    if (!rig || !group) return;
-    if (!reducedMotion) {
-      const t = clock.elapsedTime;
-      // Gentle sway of the rigid attach point; the wiggle bones make the
-      // string trail behind it.
-      group.rotation.z = Math.sin(t * 0.8) * 0.12;
-      group.position.x = Math.sin(t * 0.5) * 0.06;
-    }
-    for (const wiggleBone of rig.wiggleBones) wiggleBone.update();
-  });
-
-  if (!rig) return null;
-
-  return (
-    <group position={[0, BADGE_H / 2 - 0.14, 0.08]} ref={groupRef} scale={5}>
-      <primitive object={rig.skinned} />
-    </group>
-  );
-}
-
-function BadgeScene({
-  twizzlerCanvas,
-  rainCanvas,
-  reducedMotion,
-}: {
-  twizzlerCanvas: RefObject<HTMLCanvasElement | null>;
-  rainCanvas: RefObject<HTMLCanvasElement | null>;
-  reducedMotion: boolean;
-}) {
-  const { gl, clock, camera } = useThree();
-  const badgeRef = useRef<Group>(null);
-  const rotationY = useRef(0.22);
-  const velocityY = useRef(0);
-  const dragging = useRef(false);
-  const lastX = useRef(0);
-  const texture = useHeroShaderTexture(twizzlerCanvas, rainCanvas);
-  const faceGeometry = useMemo(
-    () =>
-      createRoundedPlane(
-        BADGE_W - SHADER_INSET * 2,
-        BADGE_H - SHADER_INSET * 2,
-        SHADER_RADIUS
-      ),
-    []
-  );
-
-  useEffect(() => {
-    return () => {
-      faceGeometry.dispose();
-    };
-  }, [faceGeometry]);
+  }, [rig, stickerGeometry]);
 
   useEffect(() => {
     const canvas = gl.domElement;
@@ -298,24 +293,63 @@ function BadgeScene({
     };
   }, [gl]);
 
-  useFrame(() => {
-    camera.position.z = gl.domElement.clientWidth < 700 ? 11.4 : 13.2;
+  useFrame(({ clock }) => {
+    camera.position.z = gl.domElement.clientWidth < 700 ? 11 : 13.2;
     if (!dragging.current) {
       velocityY.current *= 0.94;
       rotationY.current += velocityY.current;
     }
-    const badge = badgeRef.current;
-    if (!badge) return;
-    const t = clock.elapsedTime;
-    const idleX = reducedMotion ? 0 : Math.sin(t * 0.7) * 0.03;
-    const idleZ = reducedMotion ? 0 : Math.sin(t * 0.45) * 0.018;
-    badge.rotation.x = 0.06 + idleX;
-    badge.rotation.y = rotationY.current;
-    badge.rotation.z = idleZ;
+    const group = groupRef.current;
+    if (group) {
+      const t = clock.elapsedTime;
+      const sway = reducedMotion ? 0 : Math.sin(t * 0.6) * 0.03;
+      group.rotation.y = rotationY.current + sway;
+      group.position.x = reducedMotion ? 0 : Math.sin(t * 0.4) * 0.05;
+    }
+    if (rig) {
+      for (const wiggleBone of rig.wiggleBones) wiggleBone.update();
+    }
   });
 
-  const faceZ = BADGE_D / 2 + 0.002;
+  if (!rig) return null;
 
+  return (
+    <group
+      onPointerDown={(event) => {
+        event.stopPropagation();
+        dragging.current = true;
+        lastX.current = event.nativeEvent.clientX;
+        gl.domElement.style.cursor = "grabbing";
+        gl.domElement.setPointerCapture(event.pointerId);
+      }}
+      position={[0, MODEL_Y, 0]}
+      ref={groupRef}
+      scale={MODEL_SCALE}
+    >
+      <primitive object={rig.skinned} />
+      <mesh geometry={stickerGeometry} position={[0, STICKER_Y, STICKER_Z]}>
+        <meshBasicMaterial map={texture as Texture} toneMapped={false} />
+      </mesh>
+      <mesh
+        geometry={stickerGeometry}
+        position={[0, STICKER_Y, -STICKER_Z]}
+        rotation={[0, Math.PI, 0]}
+      >
+        <meshBasicMaterial map={texture as Texture} toneMapped={false} />
+      </mesh>
+    </group>
+  );
+}
+
+function BadgeScene({
+  twizzlerCanvas,
+  rainCanvas,
+  reducedMotion,
+}: {
+  twizzlerCanvas: RefObject<HTMLCanvasElement | null>;
+  rainCanvas: RefObject<HTMLCanvasElement | null>;
+  reducedMotion: boolean;
+}) {
   return (
     <>
       <PerspectiveCamera makeDefault fov={28} position={[0, 0, 13.2]} />
@@ -328,40 +362,11 @@ function BadgeScene({
         intensity={0.35}
         position={[-4, -1, 5]}
       />
-      <LanyardModel reducedMotion={reducedMotion} />
-      <group
-        ref={badgeRef}
-        onPointerDown={(event) => {
-          event.stopPropagation();
-          dragging.current = true;
-          lastX.current = event.nativeEvent.clientX;
-          gl.domElement.style.cursor = "grabbing";
-          gl.domElement.setPointerCapture(event.pointerId);
-        }}
-      >
-        <RoundedBox
-          args={[BADGE_W, BADGE_H, BADGE_D]}
-          radius={0.16}
-          smoothness={6}
-        >
-          <meshPhysicalMaterial
-            clearcoat={0.35}
-            color="#141414"
-            metalness={0.12}
-            roughness={0.38}
-          />
-        </RoundedBox>
-        <mesh geometry={faceGeometry} position={[0, 0, faceZ]}>
-          <meshBasicMaterial map={texture} toneMapped={false} />
-        </mesh>
-        <mesh
-          geometry={faceGeometry}
-          position={[0, 0, -faceZ]}
-          rotation={[0, Math.PI, 0]}
-        >
-          <meshBasicMaterial map={texture} toneMapped={false} />
-        </mesh>
-      </group>
+      <LanyardBadge
+        rainCanvas={rainCanvas}
+        reducedMotion={reducedMotion}
+        twizzlerCanvas={twizzlerCanvas}
+      />
     </>
   );
 }
