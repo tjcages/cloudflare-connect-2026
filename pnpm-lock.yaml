@@ -207,6 +207,9 @@ importers:
       usehooks-ts:
         specifier: ^3.1.1
         version: 3.1.1(react@19.2.7)
+      wiggle:
+        specifier: ^0.0.17
+        version: 0.0.17(three@0.170.0)
     devDependencies:
       '@astrojs/check':
         specifier: ^0.9.9
@@ -5407,6 +5410,11 @@ packages:
     resolution: {integrity: sha512-hUrmaWBdVDcxvYqnyh09zunKzROWjbZTiNy8dBEjkS7ehEDQibXJ7XvlmtbwuTclUiIyN+CyXQD4Vmko8fNm8w==}
     engines: {node: '>=8'}
     hasBin: true
+
+  wiggle@0.0.17:
+    resolution: {integrity: sha512-vF4Kx9a+lHVWia3ZLhZcMnam9VhFGND0+9WYnHq0rcnYDLlbL4iFzYUXJk2cx5reDolwt+EN5mhUP3uHGhWtRQ==}
+    peerDependencies:
+      three: '>= 0.152.0'
 
   word-wrap@1.2.5:
     resolution: {integrity: sha512-BN22B5eaMMI9UMtjrGd5g5eCYPpCPDUy0FJXbYsaT5zYxjFOckS53SQDE3pWkVoWpHXVb3BrYcEN4Twa55B5cA==}
@@ -10691,6 +10699,10 @@ snapshots:
     dependencies:
       siginfo: 2.0.0
       stackback: 0.0.2
+
+  wiggle@0.0.17(three@0.170.0):
+    dependencies:
+      three: 0.170.0
 
   word-wrap@1.2.5: {}
 

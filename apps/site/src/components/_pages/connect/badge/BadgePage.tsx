@@ -70,9 +70,14 @@ export default function BadgePage(_props: IslandProps) {
         </div>
 
         <div className="relative min-h-0 w-full flex-1">
+          {/* Offscreen hero stack rendered at the badge's portrait aspect so
+              the ribbon composes for the card instead of being cropped from a
+              wide canvas. Kept invisible; each frame is copied onto the 3D
+              badge face. */}
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute inset-0 z-0 opacity-0"
+            className="pointer-events-none absolute top-0 left-0 z-0 opacity-0"
+            style={{ height: 900, width: 640 }}
           >
             <ConnectTwizzler
               canvasClassName="size-full"
@@ -101,7 +106,6 @@ export default function BadgePage(_props: IslandProps) {
             <Suspense fallback={null}>
               {hydrated ? (
                 <BadgeLanyard
-                  fallback={view.theme.accent}
                   rainCanvas={rainRef}
                   reducedMotion={reducedMotion}
                   twizzlerCanvas={twizzlerRef}

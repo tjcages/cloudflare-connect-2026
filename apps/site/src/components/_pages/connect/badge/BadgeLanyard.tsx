@@ -1,43 +1,34 @@
 "use no memo";
 
-import { PerspectiveCamera, RoundedBox } from "@react-three/drei";
+import { PerspectiveCamera, RoundedBox, useGLTF } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, type RefObject } from "react";
-import type { Group } from "three";
+import type { BufferGeometry, Group, Mesh, MeshStandardMaterial } from "three";
 import {
+  Bone,
   CanvasTexture,
-  CatmullRomCurve3,
+  Color,
+  Float32BufferAttribute,
+  MathUtils,
   Shape,
   ShapeGeometry,
+  Skeleton,
+  SkinnedMesh,
   SRGBColorSpace,
-  TubeGeometry,
-  Vector3,
+  Uint16BufferAttribute,
 } from "three";
+import { WiggleBone } from "wiggle";
 
-const BADGE_W = 2.18;
-const BADGE_H = 3.08;
+const BADGE_W = 2;
+const BADGE_H = 3.2;
 const BADGE_D = 0.1;
-const SHADER_INSET = 0.07;
+const SHADER_INSET = 0.06;
 const SHADER_RADIUS = 0.14;
 const LANYARD_ORANGE = "#f46021";
-const TEXTURE_W = 720;
-const TEXTURE_H = 1020;
-
-const LANYARD_POINTS = [
-  new Vector3(0, 1.56, 0.06),
-  new Vector3(0.2, 1.6, -0.04),
-  new Vector3(0.58, 1.12, -0.1),
-  new Vector3(0.82, 0.32, -0.06),
-  new Vector3(0.95, -0.55, 0.1),
-  new Vector3(0.98, -1.52, 0.3),
-  new Vector3(0.18, -2.22, 0.82),
-  new Vector3(1.1, -2.72, 0.38),
-  new Vector3(1.22, -3.72, 0.08),
-  new Vector3(0.65, -5.3, 0),
-  new Vector3(0.98, -7.6, 0),
-  new Vector3(0.45, -10.6, 0),
-  new Vector3(0.75, -14.6, 0),
-];
+const LANYARD_URL = "/connect/badge-lanyard.glb";
+const LANYARD_BONES = 6;
+const TEXTURE_W = 880;
+const TEXTURE_H = 1240;
 
 function createRoundedPlane(width: number, height: number, radius: number) {
   const shape = new Shape();
@@ -83,8 +74,7 @@ function drawCover(
 
 function useHeroShaderTexture(
   twizzlerCanvas: RefObject<HTMLCanvasElement | null>,
-  rainCanvas: RefObject<HTMLCanvasElement | null>,
-  fallback: string
+  rainCanvas: RefObject<HTMLCanvasElement | null>
 ) {
   const texture = useMemo(() => {
     const canvas = document.createElement("canvas");
@@ -92,7 +82,7 @@ function useHeroShaderTexture(
     canvas.height = TEXTURE_H;
     const map = new CanvasTexture(canvas);
     map.colorSpace = SRGBColorSpace;
-    map.anisotropy = 8;
+    map.anisotropy = 16;
     map.needsUpdate = true;
     return map;
   }, []);
@@ -107,7 +97,9 @@ function useHeroShaderTexture(
     const canvas = texture.image as HTMLCanvasElement;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    ctx.fillStyle = fallback;
+    // The hero stack draws on the page's light background; both source
+    // canvases keep transparent clears, so composite on white like the hero.
+    ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     const twizzler = twizzlerCanvas.current;
     const rain = rainCanvas.current;
@@ -119,15 +111,136 @@ function useHeroShaderTexture(
   return texture;
 }
 
+type LanyardRig = {
+  skinned: SkinnedMesh;
+  wiggleBones: WiggleBone[];
+};
+
+/**
+ * The uploaded GLB is a single static mesh with no skeleton, so the rig is
+ * built at runtime: the geometry's longest axis (the strap) is stood up
+ * along +Y, a bone chain is laid along it, and vertices are skinned by their
+ * position on the strap. The root bone (the end attached to the badge) stays
+ * rigid; every child bone becomes a WiggleBone so only the string wiggles.
+ */
+function buildLanyardRig(source: Mesh): LanyardRig {
+  const geometry = (source.geometry as BufferGeometry).clone();
+  source.updateWorldMatrix(true, false);
+  geometry.applyMatrix4(source.matrixWorld);
+  // Strap runs along X in the source scan and the scan lies flat (+Y is its
+  // thin side). Stand it up along +Y, then turn its flat face to the camera.
+  geometry.rotateZ(Math.PI / 2);
+  geometry.rotateY(Math.PI / 2);
+  geometry.computeBoundingBox();
+  const box = geometry.boundingBox!;
+  const length = box.max.y - box.min.y;
+  // Put the attach end at the origin so the root bone sits on the badge slot.
+  geometry.translate(
+    -(box.min.x + box.max.x) / 2,
+    -box.min.y,
+    -(box.min.z + box.max.z) / 2
+  );
+
+  const segment = length / LANYARD_BONES;
+  const bones: Bone[] = [];
+  for (let index = 0; index <= LANYARD_BONES; index += 1) {
+    const bone = new Bone();
+    bone.position.y = index === 0 ? 0 : segment;
+    const parent = bones[index - 1];
+    if (parent) parent.add(bone);
+    bones.push(bone);
+  }
+
+  const position = geometry.attributes.position;
+  if (!position) throw new Error("Lanyard mesh has no positions.");
+  const skinIndices: number[] = [];
+  const skinWeights: number[] = [];
+  for (let index = 0; index < position.count; index += 1) {
+    const along = MathUtils.clamp(position.getY(index) / segment, 0, LANYARD_BONES);
+    const lower = Math.min(Math.floor(along), LANYARD_BONES - 1);
+    const blend = along - lower;
+    skinIndices.push(lower, lower + 1, 0, 0);
+    skinWeights.push(1 - blend, blend, 0, 0);
+  }
+  geometry.setAttribute("skinIndex", new Uint16BufferAttribute(skinIndices, 4));
+  geometry.setAttribute(
+    "skinWeight",
+    new Float32BufferAttribute(skinWeights, 4)
+  );
+
+  // Keep only the normal map; the scan's base/AO/roughness textures muddy
+  // the brand orange into brick red.
+  const material = (source.material as MeshStandardMaterial).clone();
+  material.map = null;
+  material.aoMap = null;
+  material.roughnessMap = null;
+  material.metalnessMap = null;
+  material.color = new Color(LANYARD_ORANGE);
+  material.roughness = 0.45;
+  material.metalness = 0.05;
+
+  const skinned = new SkinnedMesh(geometry, material);
+  const root = bones[0]!;
+  skinned.add(root);
+  skinned.bind(new Skeleton(bones));
+
+  const wiggleBones = bones
+    .slice(1)
+    .map((bone) => new WiggleBone(bone, { velocity: 0.45 }));
+
+  return { skinned, wiggleBones };
+}
+
+function LanyardModel({ reducedMotion }: { reducedMotion: boolean }) {
+  const { scene } = useGLTF(LANYARD_URL);
+  const groupRef = useRef<Group>(null);
+  const rig = useMemo(() => {
+    let source: Mesh | null = null;
+    scene.traverse((child) => {
+      if (!source && (child as Mesh).isMesh) source = child as Mesh;
+    });
+    if (!source) return null;
+    return buildLanyardRig(source);
+  }, [scene]);
+
+  useEffect(() => {
+    if (!rig) return;
+    return () => {
+      for (const wiggleBone of rig.wiggleBones) wiggleBone.dispose();
+      rig.skinned.geometry.dispose();
+      (rig.skinned.material as MeshStandardMaterial).dispose();
+    };
+  }, [rig]);
+
+  useFrame(({ clock }) => {
+    const group = groupRef.current;
+    if (!rig || !group) return;
+    if (!reducedMotion) {
+      const t = clock.elapsedTime;
+      // Gentle sway of the rigid attach point; the wiggle bones make the
+      // string trail behind it.
+      group.rotation.z = Math.sin(t * 0.8) * 0.12;
+      group.position.x = Math.sin(t * 0.5) * 0.06;
+    }
+    for (const wiggleBone of rig.wiggleBones) wiggleBone.update();
+  });
+
+  if (!rig) return null;
+
+  return (
+    <group position={[0, BADGE_H / 2 - 0.14, 0.08]} ref={groupRef} scale={5}>
+      <primitive object={rig.skinned} />
+    </group>
+  );
+}
+
 function BadgeScene({
   twizzlerCanvas,
   rainCanvas,
-  fallback,
   reducedMotion,
 }: {
   twizzlerCanvas: RefObject<HTMLCanvasElement | null>;
   rainCanvas: RefObject<HTMLCanvasElement | null>;
-  fallback: string;
   reducedMotion: boolean;
 }) {
   const { gl, clock, camera } = useThree();
@@ -136,7 +249,7 @@ function BadgeScene({
   const velocityY = useRef(0);
   const dragging = useRef(false);
   const lastX = useRef(0);
-  const texture = useHeroShaderTexture(twizzlerCanvas, rainCanvas, fallback);
+  const texture = useHeroShaderTexture(twizzlerCanvas, rainCanvas);
   const faceGeometry = useMemo(
     () =>
       createRoundedPlane(
@@ -146,24 +259,12 @@ function BadgeScene({
       ),
     []
   );
-  const tubeGeometry = useMemo(
-    () =>
-      new TubeGeometry(
-        new CatmullRomCurve3(LANYARD_POINTS, false, "catmullrom", 0.42),
-        160,
-        0.32,
-        24,
-        false
-      ),
-    []
-  );
 
   useEffect(() => {
     return () => {
       faceGeometry.dispose();
-      tubeGeometry.dispose();
     };
-  }, [faceGeometry, tubeGeometry]);
+  }, [faceGeometry]);
 
   useEffect(() => {
     const canvas = gl.domElement;
@@ -205,9 +306,12 @@ function BadgeScene({
     }
     const badge = badgeRef.current;
     if (!badge) return;
-    const idle = reducedMotion ? 0 : Math.sin(clock.elapsedTime * 0.7) * 0.035;
-    badge.rotation.x = 0.08 + idle;
+    const t = clock.elapsedTime;
+    const idleX = reducedMotion ? 0 : Math.sin(t * 0.7) * 0.03;
+    const idleZ = reducedMotion ? 0 : Math.sin(t * 0.45) * 0.018;
+    badge.rotation.x = 0.06 + idleX;
     badge.rotation.y = rotationY.current;
+    badge.rotation.z = idleZ;
   });
 
   const faceZ = BADGE_D / 2 + 0.002;
@@ -215,25 +319,16 @@ function BadgeScene({
   return (
     <>
       <PerspectiveCamera makeDefault fov={28} position={[0, 0, 13.2]} />
-      <ambientLight intensity={0.55} />
-      <hemisphereLight args={["#fff4ea", "#1c120c", 0.7]} />
-      <directionalLight intensity={1.35} position={[5, 7, 8]} />
+      <ambientLight intensity={0.6} />
+      <hemisphereLight args={["#fff4ea", "#2a1a10", 0.65]} />
+      <directionalLight intensity={1.3} position={[5, 7, 8]} />
+      <directionalLight intensity={0.5} position={[-6, 3, -6]} />
       <directionalLight
         color={LANYARD_ORANGE}
-        intensity={0.4}
+        intensity={0.35}
         position={[-4, -1, 5]}
       />
-      <mesh geometry={tubeGeometry}>
-        <meshPhysicalMaterial
-          clearcoat={0.55}
-          clearcoatRoughness={0.28}
-          color={LANYARD_ORANGE}
-          metalness={0.08}
-          roughness={0.32}
-          sheen={0.35}
-          sheenColor="#f77720"
-        />
-      </mesh>
+      <LanyardModel reducedMotion={reducedMotion} />
       <group
         ref={badgeRef}
         onPointerDown={(event) => {
@@ -266,24 +361,20 @@ function BadgeScene({
         >
           <meshBasicMaterial map={texture} toneMapped={false} />
         </mesh>
-        <mesh position={[0, BADGE_H / 2 - 0.02, 0]} rotation={[Math.PI / 2, 0, 0]}>
-          <cylinderGeometry args={[0.09, 0.09, 0.16, 20]} />
-          <meshStandardMaterial color={LANYARD_ORANGE} roughness={0.3} />
-        </mesh>
       </group>
     </>
   );
 }
 
+useGLTF.preload(LANYARD_URL);
+
 export default function BadgeLanyard({
   twizzlerCanvas,
   rainCanvas,
-  fallback,
   reducedMotion,
 }: {
   twizzlerCanvas: RefObject<HTMLCanvasElement | null>;
   rainCanvas: RefObject<HTMLCanvasElement | null>;
-  fallback: string;
   reducedMotion: boolean;
 }) {
   return (
@@ -294,7 +385,6 @@ export default function BadgeLanyard({
       style={{ height: "100%", touchAction: "none", width: "100%" }}
     >
       <BadgeScene
-        fallback={fallback}
         rainCanvas={rainCanvas}
         reducedMotion={reducedMotion}
         twizzlerCanvas={twizzlerCanvas}
