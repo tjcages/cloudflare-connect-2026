@@ -540,6 +540,11 @@ export const speakerSharedEngineConfig = (settings: SpeakerFrameSettings): Parti
   renderParams: [settings.renderParamA, settings.renderParamB, settings.renderParamC, settings.renderParamD],
   renderColorA: hexToColorNumber(settings.renderColorA, SPEAKER_SHADER_CONFIG.renderColorA),
   renderColorB: hexToColorNumber(settings.renderColorB, SPEAKER_SHADER_CONFIG.renderColorB),
+  background: {
+    ...SPEAKER_SHADER_CONFIG.background,
+    stars: { ...SPEAKER_SHADER_CONFIG.background.stars, enabled: false },
+    meteors: { ...SPEAKER_SHADER_CONFIG.background.meteors, enabled: false },
+  },
 });
 
 export const speakerVariantEngineConfig = (

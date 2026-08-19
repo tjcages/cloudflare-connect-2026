@@ -131,6 +131,8 @@ describe("speaker frame wipers", () => {
     expect(overlay.background?.transparent).toBe(true);
     expect(overlay.background?.stars?.enabled).toBe(false);
     expect(overlay.adjustments?.invert).toBe(false);
+    expect(speakerFramePaintConfig(SPEAKER_FRAME_DEFAULTS, "orange").background?.stars?.enabled).toBe(false);
+    expect(speakerFramePaintConfig(SPEAKER_FRAME_DEFAULTS, "white").background?.stars?.enabled).toBe(false);
   });
 
   it("paints orange and white fields from each look's background color", () => {

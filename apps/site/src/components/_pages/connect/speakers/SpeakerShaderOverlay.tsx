@@ -123,6 +123,23 @@ export default function SpeakerShaderOverlay() {
     let lastClientY = Number.NaN;
     let cursorFrame: CursorFrameSeed | null = null;
     let cursorTarget: Point | null = null;
+    const overlayBlit = document.createElement("canvas");
+    const overlayBlitContext = overlayBlit.getContext("2d");
+    let overlayBlitDirty = true;
+
+    const invalidateOverlayBlit = () => {
+      overlayBlitDirty = true;
+    };
+
+    const syncOverlayBlitSize = () => {
+      const pixelWidth = outputCanvas.width;
+      const pixelHeight = outputCanvas.height;
+      if (overlayBlit.width === pixelWidth && overlayBlit.height === pixelHeight) return;
+      overlayBlit.width = Math.max(1, pixelWidth);
+      overlayBlit.height = Math.max(1, pixelHeight);
+      overlayBlitDirty = true;
+    };
+
     const wiperClock: SpeakerWiperClock = {
       startedAtMs: apertureElements.map(() => null),
       pending: new Set<number>(),
@@ -169,12 +186,11 @@ export default function SpeakerShaderOverlay() {
       }
 
       engine?.setSource(sourceCanvas);
+      invalidateOverlayBlit();
     };
 
-    const paintLayer = (frames: Rect[], config: Partial<EngineConfig>) => {
+    const compositeLayer = (frames: Rect[], source: CanvasImageSource, includeDecorative: boolean) => {
       if (!engine || frames.length === 0) return;
-      engine.setConfig(config);
-      engine.renderFrame();
       const plan = buildPartialFramePlan(
         frames,
         apertures.map(({ rect }) => rect),
@@ -188,13 +204,36 @@ export default function SpeakerShaderOverlay() {
       }
       outputContext.clip();
       outputContext.globalAlpha = settingsRef.current.shaderOpacity;
-      outputContext.drawImage(renderCanvas, 0, 0, width, height);
+      outputContext.drawImage(source, 0, 0, width, height);
 
-      const decorativeFrames = engine.readFramesOverlay();
-      if (decorativeFrames) {
-        paintFramesOverlay(outputContext, decorativeFrames);
+      if (includeDecorative) {
+        const decorativeFrames = engine.readFramesOverlay();
+        if (decorativeFrames) {
+          paintFramesOverlay(outputContext, decorativeFrames);
+        }
       }
       outputContext.restore();
+    };
+
+    const paintLayer = (frames: Rect[], config: Partial<EngineConfig>) => {
+      if (!engine || frames.length === 0) return;
+      engine.setConfig(config);
+      engine.renderFrame();
+      compositeLayer(frames, renderCanvas, true);
+    };
+
+    const paintOverlayLayer = (frames: Rect[], config: Partial<EngineConfig>) => {
+      if (!engine || frames.length === 0 || !overlayBlitContext) return;
+      syncOverlayBlitSize();
+      if (overlayBlitDirty) {
+        engine.setConfig(config);
+        engine.renderFrame();
+        overlayBlitContext.setTransform(1, 0, 0, 1, 0, 0);
+        overlayBlitContext.clearRect(0, 0, overlayBlit.width, overlayBlit.height);
+        overlayBlitContext.drawImage(renderCanvas, 0, 0);
+        overlayBlitDirty = false;
+      }
+      compositeLayer(frames, overlayBlit, false);
     };
 
     const paint = () => {
@@ -223,7 +262,20 @@ export default function SpeakerShaderOverlay() {
           if (variant === "orange" && pointerFrameRect) {
             variantFrames.push(pointerFrameRect);
           }
-          paintLayer(variantFrames, speakerFramePaintConfig(settings, variant));
+          const config = speakerFramePaintConfig(settings, variant);
+          switch (variant) {
+            case "grey":
+              paintOverlayLayer(variantFrames, config);
+              break;
+            case "orange":
+            case "white":
+              paintLayer(variantFrames, config);
+              break;
+            default: {
+              const unused: never = variant;
+              throw new Error(`Unhandled speaker frame variant: ${String(unused)}`);
+            }
+          }
         }
       }
 
@@ -302,6 +354,7 @@ export default function SpeakerShaderOverlay() {
       cursorFrame = null;
       cursorTarget = null;
       drawSource();
+      invalidateOverlayBlit();
       if (visible && reducedMotion.matches) renderOnce();
     };
 
@@ -363,6 +416,7 @@ export default function SpeakerShaderOverlay() {
           pushStrengthPx: settings.trailPush,
         },
       });
+      invalidateOverlayBlit();
       if (visible && reducedMotion.matches) renderOnce();
     };
 

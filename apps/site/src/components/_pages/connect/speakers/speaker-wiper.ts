@@ -112,27 +112,18 @@ export const speakerFramePaintConfig = (
 ): Partial<EngineConfig> => {
   const base = speakerVariantEngineConfig(settings, variant);
   const color = speakerVariantBgNumber(settings, variant);
+  const background = {
+    ...SPEAKER_SHADER_CONFIG.background,
+    color,
+    stars: { ...SPEAKER_SHADER_CONFIG.background.stars, enabled: false },
+    meteors: { ...SPEAKER_SHADER_CONFIG.background.meteors, enabled: false },
+  };
   switch (variant) {
     case "orange":
     case "white":
-      return {
-        ...base,
-        background: {
-          ...SPEAKER_SHADER_CONFIG.background,
-          color,
-        },
-      };
+      return { ...base, background };
     case "grey":
-      return {
-        ...base,
-        background: {
-          ...SPEAKER_SHADER_CONFIG.background,
-          color,
-          transparent: true,
-          stars: { ...SPEAKER_SHADER_CONFIG.background.stars, enabled: false },
-          meteors: { ...SPEAKER_SHADER_CONFIG.background.meteors, enabled: false },
-        },
-      };
+      return { ...base, background: { ...background, transparent: true } };
     default:
       return unusedVariant(variant);
   }
