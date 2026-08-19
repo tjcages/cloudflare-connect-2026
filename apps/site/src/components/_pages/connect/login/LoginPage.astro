@@ -2,14 +2,15 @@
 import ConnectHeroTwizzler from "../hero/ConnectHeroTwizzler";
 import DashboardLoginForm from "./DashboardLoginForm";
 import LoginPromo from "./LoginPromo.astro";
-import { LOGIN_PANEL_TARGETS } from "./login-shader";
+import { LOGIN_PANEL_TARGETS, LOGIN_TWIZZLER_DEFAULTS } from "./login-shader";
 
 const SIGN_UP_HREF = "https://dash.cloudflare.com/sign-up";
 ---
 
 {/*
   1:1 dash.cloudflare.com/login chrome (Kumo). The right pane's globe
-  canvas is the only substitution: Connect Twizzler + rain.
+  canvas is the only substitution: homepage hero Twizzler + rain, Dark
+  Appearance (cream ribbon on deep orange).
 */}
 <div class="dash-login relative min-h-screen bg-[#ffffff] text-[#1d1d1d]">
   <header
@@ -91,23 +92,19 @@ const SIGN_UP_HREF = "https://dash.cloudflare.com/sign-up";
       class="relative hidden min-w-0 max-w-[800px] flex-1 overflow-hidden border-l border-[#e8e8e8] min-[1024px]:sticky min-[1024px]:top-0 min-[1024px]:block min-[1024px]:h-screen min-[1024px]:self-start"
     >
       <div
-        class="relative flex h-full items-center overflow-hidden bg-[#ff5e1f] p-40 min-[1280px]:p-64"
+        class="relative flex h-full items-center overflow-hidden bg-[#f86a00] p-40 min-[1280px]:p-64"
       >
-        <div
-          aria-hidden="true"
-          class="pointer-events-none absolute top-1/2 -right-[32%] z-0 aspect-square w-[42rem] max-w-none -translate-y-1/2 min-[1280px]:-right-[18%] min-[1280px]:w-[46rem] min-[1536px]:-right-[8%] min-[1536px]:w-[50rem]"
-        >
+        <div class="pointer-events-none absolute inset-0 z-0">
           <ConnectHeroTwizzler
             client:load
-            backgroundColor="#ff5e1f"
+            defaults={LOGIN_TWIZZLER_DEFAULTS}
             hideTopFade={true}
             panelTargets={LOGIN_PANEL_TARGETS}
-            posterSrc="/connect/twizzler-poster.png"
           />
         </div>
         <div
           aria-hidden="true"
-          class="pointer-events-none absolute inset-y-0 left-0 z-[1] w-[72%] bg-linear-to-r from-[#d9470f]/90 via-[#ff5e1f]/85 to-transparent"
+          class="pointer-events-none absolute inset-y-0 left-0 z-[1] w-[72%] bg-linear-to-r from-[#d9470f]/90 via-[#f86a00]/85 to-transparent"
         >
         </div>
         <LoginPromo />

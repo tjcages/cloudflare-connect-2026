@@ -27,8 +27,12 @@ interface Props {
    * stays visible across the pane (Astro omits `={false}` boolean props).
    */
   hideTopFade?: boolean;
-  /** Login tints the ribbon to the dash promo orange so the pane stays #ff5e1f. */
-  backgroundColor?: string;
+  /**
+   * Authored Twizzler look. Login passes Dark Appearance (cream on orange);
+   * homepage keeps the marketing orange-on-white defaults. When set, skip
+   * homepage panel persistence so that look is not overwritten.
+   */
+  defaults?: TwizzlerSettings;
 }
 
 const PANEL_STORAGE_KEY = "connect:twizzler-controls-visible";
@@ -38,11 +42,10 @@ export default function ConnectHeroTwizzler({
   posterSrc,
   panelTargets,
   hideTopFade = false,
-  backgroundColor,
+  defaults,
 }: IslandProps<Props>) {
-  const [settings, setSettings] = useState<TwizzlerSettings>(
-    CONNECT_HERO_TWIZZLER_DEFAULTS
-  );
+  const authored = defaults ?? CONNECT_HERO_TWIZZLER_DEFAULTS;
+  const [settings, setSettings] = useState<TwizzlerSettings>(authored);
   const [rain, setRain] = useState<ConnectHeroRain>(CONNECT_HERO_RAIN_DEFAULT);
   // Single source of truth for the dev panel's visibility; persisted both
   // ways so a refresh restores the last open/closed choice (closed on a
@@ -62,11 +65,13 @@ export default function ConnectHeroTwizzler({
   useEffect(() => {
     // Seed the shaders from this browser's persisted panel tuning so the
     // authored look (or saved tweaks) render without the panel mounting.
-    const stored = loadConnectTwizzlerControlSettings();
-    if (stored) setSettings(resolveConnectTwizzlerSettings(stored));
+    if (!defaults) {
+      const stored = loadConnectTwizzlerControlSettings();
+      if (stored) setSettings(resolveConnectTwizzlerSettings(stored));
+    }
     setRain(resolveConnectHeroRain(loadRainControlSettings()));
     setPanelOpen(localStorage.getItem(PANEL_STORAGE_KEY) === "true");
-  }, []);
+  }, [defaults]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -118,9 +123,7 @@ export default function ConnectHeroTwizzler({
           maxFps={30}
           posterSrc={posterSrc}
           rootMargin="240px"
-          settings={
-            backgroundColor ? { ...settings, backgroundColor } : settings
-          }
+          settings={settings}
         />
         {/* Rain sits above the ribbon with a transparent clear, matching the
             lab's Both stack (.lab-canvas-output over .lab-canvas-twizzler). */}

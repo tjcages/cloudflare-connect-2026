@@ -6,6 +6,7 @@ import { CONNECT_HERO_RAIN_DEFAULT } from "../hero/rain-control-settings";
 import { CONNECT_HERO_TWIZZLER_DEFAULTS } from "../hero/twizzler-defaults";
 import { LOGIN_OVERLAY_COPY } from "./login-copy";
 import {
+  LOGIN_DARK_APPEARANCE,
   LOGIN_PANEL_TARGETS,
   LOGIN_RAIN_DEFAULT,
   LOGIN_TWIZZLER_DEFAULTS,
@@ -20,9 +21,32 @@ const loginFormSource = readFileSync(
 const loginCssSource = readFileSync(resolve(loginDir, "dash-login.css"), "utf8");
 const loginPromoSource = readFileSync(resolve(loginDir, "LoginPromo.astro"), "utf8");
 
+const twizzlerGeometry = (settings: typeof CONNECT_HERO_TWIZZLER_DEFAULTS) => {
+  const {
+    backgroundColor: _backgroundColor,
+    color: _color,
+    colorFar: _colorFar,
+    colorNear: _colorNear,
+    colorEdge: _colorEdge,
+    gradientStops: _gradientStops,
+    ...geometry
+  } = settings;
+  return geometry;
+};
+
 describe("dashboard login shader", () => {
-  it("starts from the homepage hero Twizzler defaults", () => {
-    expect(LOGIN_TWIZZLER_DEFAULTS).toEqual(CONNECT_HERO_TWIZZLER_DEFAULTS);
+  it("keeps homepage hero Twizzler geometry under Dark Appearance ink", () => {
+    expect(twizzlerGeometry(LOGIN_TWIZZLER_DEFAULTS)).toEqual(
+      twizzlerGeometry(CONNECT_HERO_TWIZZLER_DEFAULTS)
+    );
+    expect(LOGIN_TWIZZLER_DEFAULTS).toMatchObject(LOGIN_DARK_APPEARANCE);
+    expect(LOGIN_TWIZZLER_DEFAULTS.gradientStops.map((stop) => stop.color)).toEqual(
+      [
+        LOGIN_DARK_APPEARANCE.colorFar,
+        LOGIN_DARK_APPEARANCE.colorEdge,
+        LOGIN_DARK_APPEARANCE.colorNear,
+      ]
+    );
   });
 
   it("starts from the homepage hero rain defaults", () => {
@@ -54,9 +78,12 @@ describe("dashboard login shader", () => {
     expect(loginPromoSource).not.toContain('size="callout"');
   });
 
-  it("puts the hero shader in the dash globe canvas slot", () => {
-    expect(loginPageSource).toContain("aspect-square w-[42rem]");
-    expect(loginPageSource).toContain("-right-[32%]");
+  it("fills the promo pane with the homepage hero shader stack", () => {
+    expect(loginPageSource).toContain("absolute inset-0");
+    expect(loginPageSource).toContain("defaults={LOGIN_TWIZZLER_DEFAULTS}");
+    expect(loginPageSource).not.toContain("aspect-square w-[42rem]");
+    expect(loginPageSource).not.toContain("-right-[32%]");
+    expect(loginPageSource).not.toContain("twizzler-poster");
   });
 
   it("uses the official Cloudflare cloud mark in the overlay header", () => {
@@ -83,8 +110,10 @@ describe("dashboard login shader", () => {
     expect(loginPageSource).toContain("Cookie Preferences");
   });
 
-  it("tints the login shader to the dash promo orange", () => {
-    expect(loginPageSource).toContain('backgroundColor="#ff5e1f"');
+  it("uses lab Dark Appearance cream-on-orange for the promo pane", () => {
+    expect(loginPageSource).toContain("bg-[#f86a00]");
+    expect(LOGIN_TWIZZLER_DEFAULTS.backgroundColor).toBe("#f86a00");
+    expect(LOGIN_TWIZZLER_DEFAULTS.colorNear).toBe("#ffefd4");
   });
 
   it("avoids theme-reset Tailwind white/black color tokens", () => {
