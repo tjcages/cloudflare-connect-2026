@@ -37,24 +37,24 @@ const CLIP_CLUSTER_Y1 = 0.135;
 const WING_CUT_X = 0.02;
 const LEFT_TASSEL_X = -0.02;
 const CHAIN_BONES = 8;
-const GRAVITY = -5.4;
-const DAMPING_TIP = 0.58;
-const DAMPING_CORD = 0.965;
-const DAMPING_Y = 0.7;
-const CONSTRAINT_ITERS = 4;
-const CONSTRAINT_STIFFNESS = 0.4;
-const DRAG_FOLLOW = 0.42;
-const REST_PULL = 0.26;
-const SWAY_FOLLOW = 0.1;
-const SLEEP_EPS = 0.0018;
-const DRAG_LIMIT_X = 0.22;
-const DRAG_LIMIT_UP = 0.07;
-const DRAG_LIMIT_DOWN = 0.13;
-const INWARD_Z = 0.28;
-const TWIST_POS = 5.8;
-const TWIST_VEL = 16;
+const GRAVITY = -1.65;
+const DAMPING_TIP = 0.93;
+const DAMPING_CORD = 0.975;
+const DAMPING_Y = 0.88;
+const CONSTRAINT_ITERS = 3;
+const CONSTRAINT_STIFFNESS = 0.34;
+const DRAG_FOLLOW = 0.13;
+const REST_PULL = 0.016;
+const SWAY_FOLLOW = 0.15;
+const SLEEP_EPS = 0.0009;
+const DRAG_LIMIT_X = 0.28;
+const DRAG_LIMIT_UP = 0.08;
+const DRAG_LIMIT_DOWN = 0.16;
+const INWARD_Z = 0.2;
+const TWIST_POS = 4.2;
+const TWIST_VEL = 10;
 const TWIST_MAX = 0.72;
-const TWIST_SMOOTH = 0.09;
+const TWIST_SMOOTH = 0.055;
 const ROLL_POS = 0.42;
 const ROLL_MAX = 0.2;
 
@@ -67,7 +67,12 @@ const CARD_OVERLAP = 0.006;
 const CARD_LOCAL_Y = -(CARD_H / 2) + CARD_OVERLAP;
 const HANG_Y = -CARD_LOCAL_Y * MODEL_SCALE;
 const WALL_Z = -0.022;
-const SHADOW_OPACITY = 0.4;
+const SHADOW_OPACITY = 0.5;
+const SHADOW_PLANE_W = 0.66;
+const SHADOW_PLANE_H = 0.54;
+const SHADOW_PLANE_Y = 0.02;
+const SHADOW_MAP_W = 512;
+const SHADOW_MAP_H = 420;
 
 const ACCENT = "#f46021";
 const METAL = ACCENT;
@@ -430,44 +435,36 @@ function createBadgeCard(texture: Texture, hookX: number): Group {
   return card;
 }
 
-function makeWallShadowMap() {
-  const width = 256;
-  const height = 384;
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Could not create lanyard shadow map.");
-  ctx.clearRect(0, 0, width, height);
-  const inset = 48;
-  ctx.shadowColor = "rgba(0,0,0,0.85)";
-  ctx.shadowBlur = 36;
-  ctx.fillStyle = "rgba(0,0,0,0.42)";
-  const x = inset;
-  const y = inset;
-  const w = width - inset * 2;
-  const h = height - inset * 2;
-  const r = 28;
+function traceRoundRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number
+) {
+  const r = Math.min(radius, width / 2, height / 2);
   ctx.beginPath();
   ctx.moveTo(x + r, y);
-  ctx.lineTo(x + w - r, y);
-  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-  ctx.lineTo(x + w, y + h - r);
-  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-  ctx.lineTo(x + r, y + h);
-  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x + width - r, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + r);
+  ctx.lineTo(x + width, y + height - r);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
+  ctx.lineTo(x + r, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - r);
   ctx.lineTo(x, y + r);
   ctx.quadraticCurveTo(x, y, x + r, y);
   ctx.closePath();
-  ctx.fill();
-  const map = new CanvasTexture(canvas);
-  map.needsUpdate = true;
-  return map;
 }
 
-function createWallShadow(): Mesh {
+function createWallShadow(): { mesh: Mesh; canvas: HTMLCanvasElement } {
+  const canvas = document.createElement("canvas");
+  canvas.width = SHADOW_MAP_W;
+  canvas.height = SHADOW_MAP_H;
+  const map = new CanvasTexture(canvas);
+  map.needsUpdate = true;
   const material = new MeshBasicMaterial({
-    map: makeWallShadowMap(),
+    map,
     transparent: true,
     depthWrite: false,
     opacity: SHADOW_OPACITY,
@@ -475,30 +472,77 @@ function createWallShadow(): Mesh {
     color: "#000000",
   });
   const mesh = new Mesh(
-    new PlaneGeometry(CARD_W * 1.7, CARD_H * 1.7),
+    new PlaneGeometry(SHADOW_PLANE_W, SHADOW_PLANE_H),
     material
   );
-  mesh.position.z = WALL_Z;
+  mesh.position.set(0, SHADOW_PLANE_Y, WALL_Z);
   mesh.renderOrder = -1;
   mesh.frustumCulled = false;
-  return mesh;
+  return { mesh, canvas };
 }
 
 function applyWallShadow(rig: LanyardRig) {
-  const shadow = rig.shadow;
+  const canvas = rig.shadowCanvas;
+  const ctx = canvas.getContext("2d");
+  const map = (rig.shadow.material as MeshBasicMaterial).map;
+  if (!ctx || !map) return;
+
   rig.card.getWorldPosition(CARD_WORLD);
   rig.group.worldToLocal(CARD_WORLD);
-  const lift = MathUtils.clamp((CARD_WORLD.z - WALL_Z) / 0.08, 0, 1);
-  shadow.position.set(
-    CARD_WORLD.x - 0.008 - lift * 0.016,
-    CARD_WORLD.y - 0.012 - lift * 0.014,
-    WALL_Z
-  );
-  const size = 1.05 + lift * 0.42;
-  shadow.scale.set(size, size, 1);
-  shadow.rotation.z = rig.card.rotation.z * 0.35;
-  const material = shadow.material as MeshBasicMaterial;
-  material.opacity = SHADOW_OPACITY * (1 - lift * 0.58);
+  const lift = MathUtils.clamp((CARD_WORLD.z - WALL_Z) / 0.09, 0, 1);
+  const shiftX = -0.007 - lift * 0.014;
+  const shiftY = -0.01 - lift * 0.012;
+  const toX = (x: number) =>
+    ((x + shiftX) / SHADOW_PLANE_W + 0.5) * canvas.width;
+  const toY = (y: number) =>
+    (0.5 - (y + shiftY - SHADOW_PLANE_Y) / SHADOW_PLANE_H) * canvas.height;
+  const px = canvas.width / SHADOW_PLANE_W;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.filter = `blur(${11 + lift * 16}px)`;
+  ctx.globalAlpha = 0.72 * (1 - lift * 0.42);
+  ctx.fillStyle = "#000000";
+  ctx.strokeStyle = "#000000";
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+
+  const points = rig.rope.now;
+  ctx.lineWidth = 0.015 * px;
+  ctx.beginPath();
+  for (let index = points.length - 1; index >= 0; index -= 1) {
+    const point = points[index]!;
+    const x = toX(point.x);
+    const y = toY(point.y);
+    if (index === points.length - 1) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  ctx.lineWidth = 0.028 * px;
+  const clip = points[0]!;
+  const clipX = toX(clip.x);
+  const clipY = toY(clip.y);
+  ctx.beginPath();
+  ctx.moveTo(clipX, clipY);
+  const next = points[1] ?? clip;
+  ctx.lineTo(toX(next.x * 0.35 + clip.x * 0.65), toY(next.y * 0.35 + clip.y * 0.65));
+  ctx.stroke();
+
+  const cardW = CARD_W * px;
+  const cardH = CARD_H * (canvas.height / SHADOW_PLANE_H);
+  ctx.save();
+  ctx.translate(toX(CARD_WORLD.x), toY(CARD_WORLD.y));
+  ctx.rotate(-rig.card.rotation.z);
+  ctx.scale(Math.max(0.32, Math.abs(Math.cos(rig.card.rotation.y))), 1);
+  traceRoundRect(ctx, -cardW / 2, -cardH / 2, cardW, cardH, CARD_RADIUS * px);
+  ctx.fill();
+  ctx.restore();
+
+  ctx.filter = "none";
+  ctx.globalAlpha = 1;
+  map.needsUpdate = true;
+  (rig.shadow.material as MeshBasicMaterial).opacity =
+    SHADOW_OPACITY * (1 - lift * 0.4);
 }
 
 type RopeState = {
@@ -517,6 +561,7 @@ type LanyardRig = {
   materials: Record<LanyardPart, MeshStandardMaterial>;
   card: Group;
   shadow: Mesh;
+  shadowCanvas: HTMLCanvasElement;
   rope: RopeState;
 };
 
@@ -585,8 +630,8 @@ function buildLanyardRig(source: Mesh, texture: Texture): LanyardRig {
   const hookX = hookXFromMetal(parts.metal);
   const card = createBadgeCard(texture, hookX);
   root.add(card);
-  const shadow = createWallShadow();
-  group.add(shadow);
+  const wallShadow = createWallShadow();
+  group.add(wallShadow.mesh);
 
   const now: Vector3[] = [];
   const prev: Vector3[] = [];
@@ -605,7 +650,8 @@ function buildLanyardRig(source: Mesh, texture: Texture): LanyardRig {
     meshes,
     materials,
     card,
-    shadow,
+    shadow: wallShadow.mesh,
+    shadowCanvas: wallShadow.canvas,
     rope: {
       now,
       prev,
