@@ -37,19 +37,23 @@ const CLIP_CLUSTER_Y1 = 0.135;
 const WING_CUT_X = 0.02;
 const LEFT_TASSEL_X = -0.02;
 const CHAIN_BONES = 8;
-const GRAVITY = -1.65;
-const DAMPING_TIP = 0.93;
-const DAMPING_CORD = 0.975;
-const DAMPING_Y = 0.88;
+const GRAVITY = -0.85;
+const DAMPING_TIP = 0.95;
+const DAMPING_CORD = 0.98;
+const DAMPING_Y = 0.9;
 const CONSTRAINT_ITERS = 3;
-const CONSTRAINT_STIFFNESS = 0.34;
-const DRAG_FOLLOW = 0.13;
-const REST_PULL = 0.016;
-const SWAY_FOLLOW = 0.15;
+const CONSTRAINT_STIFFNESS = 0.32;
+const DRAG_FOLLOW = 0.12;
+const REST_PULL = 0.01;
+const SWAY_FOLLOW = 0.16;
 const SLEEP_EPS = 0.0009;
 const DRAG_LIMIT_X = 0.28;
-const DRAG_LIMIT_UP = 0.08;
-const DRAG_LIMIT_DOWN = 0.16;
+const DRAG_LIMIT_UP = 0;
+const DRAG_LIMIT_DOWN = 0.042;
+const STRETCH_RETURN = 0.1;
+const INTRO_X = 0.1;
+const INTRO_Z = -0.018;
+const INTRO_SPIN = 0.006;
 const INWARD_Z = 0.2;
 const TWIST_POS = 4.2;
 const TWIST_VEL = 10;
@@ -551,6 +555,7 @@ type RopeState = {
   restPoints: Vector3[];
   rest: number;
   pin: Vector3;
+  stretch: number;
 };
 
 type LanyardRig = {
@@ -658,6 +663,7 @@ function buildLanyardRig(source: Mesh, texture: Texture): LanyardRig {
       restPoints,
       rest: segment,
       pin: restPoints[restPoints.length - 1]!.clone(),
+      stretch: 1,
     },
   };
 }
@@ -713,7 +719,7 @@ function solveDistance(
   }
 }
 
-function projectInextensible(rope: RopeState) {
+function projectInextensible(rope: RopeState, rest = rope.rest) {
   const last = rope.now.length - 1;
   rope.now[last]!.copy(rope.pin);
   for (let index = last - 1; index >= 0; index -= 1) {
@@ -723,11 +729,26 @@ function projectInextensible(rope: RopeState) {
     const dy = point.y - parent.y;
     const dz = point.z - parent.z;
     const dist = Math.hypot(dx, dy, dz) || 0.0001;
-    const scale = rope.rest / dist;
+    const scale = rest / dist;
     point.x = parent.x + dx * scale;
     point.y = parent.y + dy * scale;
     point.z = parent.z + dz * scale;
   }
+}
+
+function kickIntroSwing(rope: RopeState) {
+  const last = rope.now.length - 1;
+  for (let index = 0; index < last; index += 1) {
+    const along = 1 - index / last;
+    const lag = along * along;
+    const point = rope.now[index]!;
+    const previous = rope.prev[index]!;
+    point.x = INTRO_X * lag;
+    point.z = INTRO_Z * lag;
+    previous.copy(point);
+    previous.x += INTRO_SPIN * lag;
+  }
+  projectInextensible(rope);
 }
 
 function applySway(rope: RopeState) {
@@ -742,14 +763,26 @@ function applySway(rope: RopeState) {
   }
 }
 
+function updateStretch(rope: RopeState, drag: Vector3 | null) {
+  const last = rope.now.length - 1;
+  const total = rope.rest * last;
+  const target =
+    drag && drag.y < 0
+      ? 1 + Math.min(-drag.y, DRAG_LIMIT_DOWN) / total
+      : 1;
+  const mix = drag ? 0.28 : STRETCH_RETURN;
+  rope.stretch += (target - rope.stretch) * mix;
+}
+
 function constrainRope(rope: RopeState, drag: Vector3 | null) {
   const last = rope.now.length - 1;
+  const rest = rope.rest * rope.stretch;
   for (let iter = 0; iter < CONSTRAINT_ITERS; iter += 1) {
     for (let index = 0; index < last; index += 1) {
       solveDistance(
         rope.now[index]!,
         rope.now[index + 1]!,
-        rope.rest,
+        rest,
         false,
         index + 1 === last
       );
@@ -758,13 +791,15 @@ function constrainRope(rope: RopeState, drag: Vector3 | null) {
     if (drag) {
       const tip = rope.now[0]!;
       tip.x += (drag.x - tip.x) * 0.18;
-      tip.y += (drag.y - tip.y) * 0.12;
+      tip.y += (drag.y - tip.y) * 0.16;
       tip.z += (drag.z - tip.z) * 0.18;
     }
   }
-  projectInextensible(rope);
-  for (let index = 0; index < last; index += 1) {
-    rope.prev[index]!.y = rope.now[index]!.y;
+  projectInextensible(rope, rest);
+  if (rope.stretch <= 1.01) {
+    for (let index = 0; index < last; index += 1) {
+      rope.prev[index]!.y = rope.now[index]!.y;
+    }
   }
 }
 
@@ -802,10 +837,11 @@ function stepRope(
   if (drag) {
     const tip = rope.now[0]!;
     tip.x += (drag.x - tip.x) * DRAG_FOLLOW;
-    tip.y += (drag.y - tip.y) * DRAG_FOLLOW * 0.55;
+    tip.y += (drag.y - tip.y) * DRAG_FOLLOW * 0.7;
     tip.z += (drag.z - tip.z) * DRAG_FOLLOW;
   }
 
+  updateStretch(rope, drag);
   constrainRope(rope, drag);
 
   if (!drag) {
@@ -814,7 +850,7 @@ function stepRope(
     tip.z += -tip.z * REST_PULL;
   }
   applySway(rope);
-  projectInextensible(rope);
+  projectInextensible(rope, rope.rest * rope.stretch);
   rope.now[last]!.copy(rope.pin);
 }
 
@@ -930,6 +966,11 @@ function LanyardBadge({
     if (!rig) return;
     tintLanyardMetal(rig.materials, identity.accent);
   }, [identity.accent, rig]);
+
+  useEffect(() => {
+    if (!rig || reducedMotion) return;
+    kickIntroSwing(rig.rope);
+  }, [reducedMotion, rig]);
 
   useEffect(() => {
     if (!rig) return;
