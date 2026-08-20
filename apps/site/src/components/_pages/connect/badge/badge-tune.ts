@@ -128,10 +128,10 @@ export const BADGE_TUNE_DEFAULTS: BadgeTune = {
   fillLight: 0.7,
   rimLight: 0.7,
   logoEnabled: true,
-  logoBand: 0.32,
-  logoPadX: 0.12,
+  logoBand: 0.42,
+  logoPadX: 0.08,
   logoPadY: 0,
-  logoScale: 1,
+  logoScale: 1.12,
   logoPrintZoom: 1,
   logoMarkOpacity: 1,
   footerBand: 0.205,
@@ -252,7 +252,7 @@ export const BADGE_TUNE_FIELDS: PanelField<BadgeTune>[] = [
     label: "Show logo",
     description: "Centered mark, tinted to the selected color scheme.",
   },
-  slider("logoBand", "Mark height", 0.12, 0.55, 0.01),
+  slider("logoBand", "Mark height", 0.12, 0.7, 0.01),
   slider("logoPadX", "Pad X", 0.04, 0.28, 0.005),
   slider("logoPadY", "Mark Y", -0.2, 0.2, 0.005),
   slider("logoScale", "Mark scale", 0.4, 1.6, 0.01),
@@ -275,4 +275,4 @@ export const BADGE_TUNE_FIELDS: PanelField<BadgeTune>[] = [
   slider("backdropMaskY", "Mask Y %", 0, 100, 1),
 ];
 
-export const BADGE_TUNE_PANEL_ID = "connect-badge-tune-v3";
+export const BADGE_TUNE_PANEL_ID = "connect-badge-tune-v4";

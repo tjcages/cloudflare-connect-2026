@@ -27,8 +27,8 @@ describe("badge tune defaults", () => {
       wallZ: -0.015,
       dragLimitDown: 0.047,
       twistPos: 3.5,
-      logoBand: 0.32,
-      logoPadX: 0.12,
+      logoBand: 0.42,
+      logoPadX: 0.08,
       footerBand: 0.205,
     });
   });

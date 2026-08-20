@@ -1,7 +1,5 @@
 export const LOGO_TEXTURE_W = 800;
 export const LOGO_TEXTURE_H = 1200;
-export const LOGO_PAD = 0.16;
-export const LOGO_TEXTURE_FOOTER = 0.22;
 export const SVG_MAX_BYTES = 400_000;
 
 const SCRIPT_RE = /<script\b[\s\S]*?<\/script>/gi;
@@ -91,18 +89,9 @@ export function prepareBadgeLogo(svgText: string): {
   const colorInner = extractSvgInner(safe);
   if (!colorInner) throw new Error("That SVG is empty.");
   const whiteInner = paintSvgFillsWhite(colorInner);
-  const viewBox = `${viewport.x} ${viewport.y} ${viewport.w} ${viewport.h}`;
   const colorSvg = wrapSvg(colorInner, viewport);
   const markSvg = wrapSvg(whiteInner, viewport, "white");
-  const contentH = LOGO_TEXTURE_H * (1 - LOGO_TEXTURE_FOOTER);
-  const innerW = LOGO_TEXTURE_W * (1 - LOGO_PAD * 2);
-  const innerH = contentH * (1 - LOGO_PAD * 2);
-  const scale = Math.min(innerW / viewport.w, innerH / viewport.h);
-  const drawnW = viewport.w * scale;
-  const drawnH = viewport.h * scale;
-  const x = (LOGO_TEXTURE_W - drawnW) / 2;
-  const y = (contentH - drawnH) / 2;
-  const textureSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="${LOGO_TEXTURE_W}" height="${LOGO_TEXTURE_H}" viewBox="0 0 ${LOGO_TEXTURE_W} ${LOGO_TEXTURE_H}">${badgeTextureFieldMarkup(LOGO_TEXTURE_W, LOGO_TEXTURE_H)}<svg x="${x}" y="${y}" width="${drawnW}" height="${drawnH}" viewBox="${viewBox}" fill="white">${whiteInner}</svg></svg>`;
+  const textureSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="${LOGO_TEXTURE_W}" height="${LOGO_TEXTURE_H}" viewBox="0 0 ${LOGO_TEXTURE_W} ${LOGO_TEXTURE_H}">${badgeTextureFieldMarkup(LOGO_TEXTURE_W, LOGO_TEXTURE_H)}</svg>`;
   return { colorSvg, markSvg, textureSvg };
 }
 
