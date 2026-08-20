@@ -25,13 +25,36 @@
 .badge-theme-swatch__sheen {
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    118deg,
+  /* Smootherstep-sampled lobe — a 4-stop linear mix reads as a hard stripe. */
+  --badge-theme-sheen-stops:
     rgb(255 255 255 / 0) 18%,
+    rgb(255 255 255 / 0.003) 20%,
+    rgb(255 255 255 / 0.022) 22%,
+    rgb(255 255 255 / 0.064) 24%,
+    rgb(255 255 255 / 0.13) 26%,
+    rgb(255 255 255 / 0.215) 28%,
+    rgb(255 255 255 / 0.31) 30%,
+    rgb(255 255 255 / 0.405) 32%,
+    rgb(255 255 255 / 0.49) 34%,
+    rgb(255 255 255 / 0.556) 36%,
+    rgb(255 255 255 / 0.598) 38%,
+    rgb(255 255 255 / 0.617) 40%,
     rgb(255 255 255 / 0.62) 42%,
-    rgb(255 255 255 / 0.12) 52%,
-    rgb(255 255 255 / 0) 68%
-  );
+    rgb(255 255 255 / 0.617) 44%,
+    rgb(255 255 255 / 0.602) 46%,
+    rgb(255 255 255 / 0.568) 48%,
+    rgb(255 255 255 / 0.512) 50%,
+    rgb(255 255 255 / 0.439) 52%,
+    rgb(255 255 255 / 0.355) 54%,
+    rgb(255 255 255 / 0.265) 56%,
+    rgb(255 255 255 / 0.181) 58%,
+    rgb(255 255 255 / 0.108) 60%,
+    rgb(255 255 255 / 0.052) 62%,
+    rgb(255 255 255 / 0.018) 64%,
+    rgb(255 255 255 / 0.003) 66%,
+    rgb(255 255 255 / 0) 68%;
+  background: linear-gradient(118deg, var(--badge-theme-sheen-stops));
+  background: linear-gradient(118deg in oklab, var(--badge-theme-sheen-stops));
   background-size: 220% 220%;
   mix-blend-mode: overlay;
   pointer-events: none;

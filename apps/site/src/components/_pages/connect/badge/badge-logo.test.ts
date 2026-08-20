@@ -355,8 +355,18 @@ describe("badge logo SVG prep", () => {
     expect(picker).toContain("HexColorPicker");
     expect(picker).toContain("HexColorInput");
     expect(picker).toContain("Custom color");
-    expect(picker).toContain("conic-gradient");
+    expect(picker).toContain("badge-color-picker__wheel");
     expect(picker).toContain("plus-small");
+
+    const pickerCss = readFileSync(
+      resolve(
+        process.cwd(),
+        "src/components/_pages/connect/badge/BadgeColorPicker.css"
+      ),
+      "utf8"
+    );
+    expect(pickerCss).toContain("conic-gradient");
+    expect(pickerCss).toContain("in oklch");
 
     const page = readFileSync(
       resolve(

@@ -67,11 +67,7 @@ export default function BadgeColorPicker({
           ) : (
             <span
               aria-hidden="true"
-              className="relative flex size-28 items-center justify-center rounded-full"
-              style={{
-                background:
-                  "conic-gradient(#f46021, #f9b73b, #2e9d51, #38c5f6, #1f72ff, #9038fc, #f46021)",
-              }}
+              className="badge-color-picker__wheel relative flex size-28 items-center justify-center rounded-full"
             >
               <span className="flex size-16 items-center justify-center rounded-full bg-background-base text-icon-muted">
                 <Icon name="plus-small" size={16} />
