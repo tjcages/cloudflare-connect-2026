@@ -54,28 +54,23 @@ describe("speaker frame controls", () => {
     );
   });
 
-  it("authors the orange pane with a lab ramp on a 7×7 vertical grid", () => {
+  it("authors the orange pane with a four-stop Cloudflare ramp on a 7×7 grid", () => {
     expect(SPEAKER_FRAME_DEFAULTS.orange.stripes.map((stripe) => stripe.color)).toEqual([
-      "#fc682b",
-      "#ff6800",
-      "#ff6a00",
-      "#ff7000",
-      "#ff7a00",
-      "#ff8700",
-      "#ff9500",
-      "#ffa400",
-      "#ffbc15",
-      "#ffcd63",
+      "#f46021",
+      "#fea700",
+      "#fea700",
+      "#fea700",
     ]);
     expect(SPEAKER_FRAME_DEFAULTS.orange.stripes[0]).toMatchObject({ startFrom: 0, width: 0.5, opacity: 1 });
     expect(SPEAKER_FRAME_DEFAULTS.orange.bgColor).toBe("#f46021");
+    expect(SPEAKER_FRAME_DEFAULTS.orange.invert).toBe(true);
 
     const orange = speakerVariantEngineConfig(SPEAKER_FRAME_DEFAULTS, "orange");
     const overlay = speakerVariantEngineConfig(SPEAKER_FRAME_DEFAULTS, "grey");
     expect(orange.grid).toMatchObject({
       cellWidth: 7,
       cellHeight: 7,
-      angleDeg: 0,
+      angleDeg: 45,
       overlapAmount: 1.2,
     });
     expect(orange.fieldScale).toBe(1);

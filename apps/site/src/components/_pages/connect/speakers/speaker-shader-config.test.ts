@@ -29,17 +29,18 @@ describe("speaker shader production contract", () => {
     expect(SPEAKER_FRAME_DEFAULTS.gridCellHeight).toBe(SPEAKER_SHADER_CONFIG.grid.cellHeight);
     expect(SPEAKER_FRAME_DEFAULTS.grey.stripes).toHaveLength(SPEAKER_SHADER_CONFIG.stripes.length);
     expect(SPEAKER_FRAME_DEFAULTS.grey.stripes[0]).toMatchObject({
+      color: "#b8b8b8",
       startFrom: SPEAKER_SHADER_CONFIG.stripes[0].startFrom,
       width: SPEAKER_SHADER_CONFIG.stripes[0].width,
       opacity: SPEAKER_SHADER_CONFIG.stripes[0].opacity,
     });
     expect(SPEAKER_FRAME_DEFAULTS.orange.stripes[0]).toMatchObject({
-      color: "#fc682b",
+      color: "#f46021",
       startFrom: 0,
       width: 0.5,
       opacity: 1,
     });
-    expect(SPEAKER_SHADER_CONFIG.stripes[0].opacity).toBe(0.41);
+    expect(SPEAKER_SHADER_CONFIG.stripes[0].opacity).toBe(0);
     expect(SPEAKER_SHADER_CONFIG.grid.angleDeg).toBe(45);
     expect(SPEAKER_FRAME_DEFAULTS.dark.stripes[0]).toMatchObject({
       color: "#261106",
@@ -59,7 +60,7 @@ describe("speaker shader production contract", () => {
     expect(SPEAKER_FRAME_DEFAULTS.orange.grid).toMatchObject({
       cellWidth: 7,
       cellHeight: 7,
-      angleDeg: 0,
+      angleDeg: 45,
       overlapAmount: 1.2,
       fieldScale: 1,
     });
@@ -67,7 +68,13 @@ describe("speaker shader production contract", () => {
 
   it("keeps render, tone, and stripe-detail controls aligned with the production config", () => {
     expect(SPEAKER_FRAME_DEFAULTS.renderMode).toBe(SPEAKER_SHADER_CONFIG.renderMode);
-    expect(SPEAKER_FRAME_DEFAULTS.orange.brightness).toBe(SPEAKER_SHADER_CONFIG.adjustments.brightness);
+    expect(SPEAKER_FRAME_DEFAULTS.grey.brightness).toBe(SPEAKER_SHADER_CONFIG.adjustments.brightness);
+    expect(SPEAKER_FRAME_DEFAULTS.grey.invert).toBe(true);
+    expect(SPEAKER_FRAME_DEFAULTS.orange.invert).toBe(true);
+    expect(SPEAKER_FRAME_DEFAULTS.shaderOpacity).toBe(1);
+    expect(SPEAKER_FRAME_DEFAULTS.cursorWidth).toBe(0.67);
+    expect(SPEAKER_FRAME_DEFAULTS.trailRadius).toBe(160);
+    expect(SPEAKER_FRAME_DEFAULTS.engineFrameStripeCount).toBe(13);
     expect(SPEAKER_FRAME_DEFAULTS.sparkleStripeCoverage).toBe(SPEAKER_SHADER_CONFIG.sparkle.stripe.coverage);
     expect(SPEAKER_FRAME_DEFAULTS.dotsDensity).toBe(SPEAKER_SHADER_CONFIG.stripeDots.density);
     expect(SPEAKER_FRAME_DEFAULTS.stripeBlendMode).toBe(SPEAKER_SHADER_CONFIG.colors.stripeBlendMode);

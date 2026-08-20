@@ -126,8 +126,9 @@ export type SpeakerFrameSettings = {
 
 export const SPEAKER_IMAGE_COUNT = connectSpeakers.length;
 export const MAX_SPEAKER_FRAME_PLACEMENTS = 48;
-export const SPEAKER_FRAME_PANEL_ID = "connect-speaker-frames-v8";
+export const SPEAKER_FRAME_PANEL_ID = "connect-speaker-frames-v9";
 export const LEGACY_SPEAKER_FRAME_PANEL_IDS = [
+  "connect-speaker-frames-v8",
   "connect-speaker-frames-v7",
   "connect-speaker-frames-v6",
   "connect-speaker-frames-v5",
@@ -137,19 +138,6 @@ export const LEGACY_SPEAKER_FRAME_PANEL_IDS = [
   "connect-speaker-frames-v1",
 ] as const;
 export const SPEAKER_FRAME_SETTINGS_EVENT = "connect:speaker-frame-settings";
-
-const GREY_STRIPE_COLORS = [
-  "#f5f5f5",
-  "#e6e6e6",
-  "#cfcfcf",
-  "#b3b3b3",
-  "#7a7a7a",
-  "#3d3d3d",
-  "#2a2a2a",
-  "#d0d0d0",
-  "#d0d0d0",
-  "#b8b8b8",
-] as const;
 
 const toHex = (color: number) => `#${color.toString(16).padStart(6, "0")}`;
 
@@ -169,20 +157,6 @@ type SpeakerLabStripeStop = {
   width: number;
   opacity: number;
 };
-
-/** Lab-authored pane stripe shape (orange and dark share this geometry). */
-const SPEAKER_ORANGE_STRIPE_STOPS: readonly SpeakerLabStripeStop[] = [
-  { color: 16_541_739, startFrom: 0, width: 0.5, opacity: 1 },
-  { color: 16_738_304, startFrom: 0.0195, width: 0.5, opacity: 1 },
-  { color: 16_738_816, startFrom: 0.047, width: 1, opacity: 1 },
-  { color: 16_740_352, startFrom: 0.086, width: 1.5, opacity: 1 },
-  { color: 16_742_912, startFrom: 0.1408, width: 1.5, opacity: 1 },
-  { color: 16_746_240, startFrom: 0.2167, width: 2, opacity: 1 },
-  { color: 16_749_824, startFrom: 0.3191, width: 2.5, opacity: 1 },
-  { color: 16_753_664, startFrom: 0.4512, width: 3, opacity: 1 },
-  { color: 16_759_829, startFrom: 0.6129, width: 3.5, opacity: 1 },
-  { color: 16_764_259, startFrom: 0.8, width: 4, opacity: 1 },
-];
 
 const SPEAKER_DARK_STRIPE_STOPS: readonly SpeakerLabStripeStop[] = [
   { color: 2_494_726, startFrom: 0, width: 0.5, opacity: 1 },
@@ -218,14 +192,19 @@ const stripesFromStops = (stops: readonly SpeakerLabStripeStop[], idPrefix: stri
     opacity: stripe.opacity,
   }));
 
-const defaultOrangeStripes = (): SpeakerStripeControl[] => stripesFromStops(SPEAKER_ORANGE_STRIPE_STOPS, "stripe");
+const defaultOrangeStripes = (): SpeakerStripeControl[] => [
+  { id: "stripe-1", color: "#f46021", startFrom: 0, width: 0.5, opacity: 1 },
+  { id: "stripe-2", color: "#fea700", startFrom: 0.1644, width: 1, opacity: 1 },
+  { id: "stripe-3", color: "#fea700", startFrom: 0.4418, width: 1.5, opacity: 1 },
+  { id: "stripe-4", color: "#fea700", startFrom: 0.6357, width: 2, opacity: 1 },
+];
 
 const defaultDarkStripes = (): SpeakerStripeControl[] => stripesFromStops(SPEAKER_DARK_STRIPE_STOPS, "dark-stripe");
 
 const defaultGreyStripes = (): SpeakerStripeControl[] =>
   SPEAKER_SHADER_CONFIG.stripes.map((stripe, index) => ({
     id: `grey-stripe-${index + 1}`,
-    color: GREY_STRIPE_COLORS[index % GREY_STRIPE_COLORS.length],
+    color: toHex(stripe.color),
     startFrom: stripe.startFrom,
     width: stripe.width,
     opacity: stripe.opacity,
@@ -233,25 +212,25 @@ const defaultGreyStripes = (): SpeakerStripeControl[] =>
 
 const defaultOrangeLook = (): SpeakerFrameVariantLook => ({
   stripes: defaultOrangeStripes(),
-  brightness: SPEAKER_SHADER_CONFIG.adjustments.brightness,
-  exposure: SPEAKER_SHADER_CONFIG.adjustments.exposure,
-  contrast: SPEAKER_SHADER_CONFIG.adjustments.contrast,
-  blackPoint: SPEAKER_SHADER_CONFIG.adjustments.blackPoint,
-  whitePoint: SPEAKER_SHADER_CONFIG.adjustments.whitePoint,
-  gamma: SPEAKER_SHADER_CONFIG.adjustments.gamma,
-  invert: false,
+  brightness: -1,
+  exposure: -0.85,
+  contrast: 0,
+  blackPoint: 0.79,
+  whitePoint: 1,
+  gamma: 0.1,
+  invert: true,
   bgColor: SPEAKER_ORANGE_BG,
-  grid: { ...SPEAKER_PANE_GRID },
+  grid: { ...SPEAKER_PANE_GRID, angleDeg: 45 },
 });
 
 const defaultDarkLook = (): SpeakerFrameVariantLook => ({
   stripes: defaultDarkStripes(),
   brightness: 0.55,
   exposure: 1.05,
-  contrast: SPEAKER_SHADER_CONFIG.adjustments.contrast,
-  blackPoint: SPEAKER_SHADER_CONFIG.adjustments.blackPoint,
-  whitePoint: SPEAKER_SHADER_CONFIG.adjustments.whitePoint,
-  gamma: SPEAKER_SHADER_CONFIG.adjustments.gamma,
+  contrast: 1.35,
+  blackPoint: 0,
+  whitePoint: 1,
+  gamma: 0.75,
   invert: false,
   bgColor: SPEAKER_DARK_BG,
   grid: { ...SPEAKER_PANE_GRID },
@@ -259,13 +238,13 @@ const defaultDarkLook = (): SpeakerFrameVariantLook => ({
 
 const defaultGreyLook = (): SpeakerFrameVariantLook => ({
   stripes: defaultGreyStripes(),
-  brightness: 0.42,
-  exposure: 0.95,
-  contrast: 1.12,
+  brightness: SPEAKER_SHADER_CONFIG.adjustments.brightness,
+  exposure: SPEAKER_SHADER_CONFIG.adjustments.exposure,
+  contrast: SPEAKER_SHADER_CONFIG.adjustments.contrast,
   blackPoint: SPEAKER_SHADER_CONFIG.adjustments.blackPoint,
   whitePoint: SPEAKER_SHADER_CONFIG.adjustments.whitePoint,
-  gamma: 0.88,
-  invert: false,
+  gamma: SPEAKER_SHADER_CONFIG.adjustments.gamma,
+  invert: SPEAKER_SHADER_CONFIG.adjustments.invert,
   bgColor: SPEAKER_OVERLAY_BG,
 });
 
@@ -346,10 +325,10 @@ export const speakerVariantBgNumber = (
 
 export const SPEAKER_FRAME_DEFAULTS: SpeakerFrameSettings = {
   placements: defaultSpeakerFramePlacements(),
-  cursorWidth: 1,
+  cursorWidth: 0.67,
   cursorHeight: 1,
   cursorFollow: 0.22,
-  shaderOpacity: 0.56,
+  shaderOpacity: 1,
   gridCellWidth: SPEAKER_SHADER_CONFIG.grid.cellWidth,
   gridCellHeight: SPEAKER_SHADER_CONFIG.grid.cellHeight,
   gridGapX: SPEAKER_SHADER_CONFIG.grid.gapX,

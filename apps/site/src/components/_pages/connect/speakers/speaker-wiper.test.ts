@@ -153,12 +153,12 @@ describe("speaker frame wipers", () => {
     expect(frames[0]?.rect).toEqual(aperture);
   });
 
-  it("paints orange uninverted, with an independent overlay palette", () => {
+  it("paints orange inverted, with an independent overlay palette", () => {
     const orange = speakerFramePaintConfig(SPEAKER_FRAME_DEFAULTS, "orange");
     const overlay = speakerFramePaintConfig(SPEAKER_FRAME_DEFAULTS, "grey");
 
-    expect(orange.adjustments?.invert).toBe(false);
-    expect(overlay.adjustments?.invert).toBe(false);
+    expect(orange.adjustments?.invert).toBe(true);
+    expect(overlay.adjustments?.invert).toBe(true);
     expect(orange.background?.color).toBe(0xf4_60_21);
   });
 
@@ -166,9 +166,9 @@ describe("speaker frame wipers", () => {
     const orange = speakerFramePaintConfig(SPEAKER_FRAME_DEFAULTS, "orange");
     const overlay = speakerFramePaintConfig(SPEAKER_FRAME_DEFAULTS, "grey");
 
-    expect(orange.grid).toMatchObject({ cellWidth: 7, cellHeight: 7, angleDeg: 0, overlapAmount: 1.2 });
+    expect(orange.grid).toMatchObject({ cellWidth: 7, cellHeight: 7, angleDeg: 45, overlapAmount: 1.2 });
     expect(orange.fieldScale).toBe(1);
-    expect(orange.stripes?.[0]).toMatchObject({ color: 0xfc_68_2b, startFrom: 0, width: 0.5 });
+    expect(orange.stripes?.[0]).toMatchObject({ color: 0xf4_60_21, startFrom: 0, width: 0.5 });
     expect(overlay.grid).toMatchObject({
       cellWidth: SPEAKER_FRAME_DEFAULTS.gridCellWidth,
       cellHeight: SPEAKER_FRAME_DEFAULTS.gridCellHeight,
@@ -180,7 +180,7 @@ describe("speaker frame wipers", () => {
     const overlay = speakerFramePaintConfig(SPEAKER_FRAME_DEFAULTS, "grey");
     expect(overlay.background?.transparent).toBe(true);
     expect(overlay.background?.stars?.enabled).toBe(false);
-    expect(overlay.adjustments?.invert).toBe(false);
+    expect(overlay.adjustments?.invert).toBe(true);
     expect(speakerFramePaintConfig(SPEAKER_FRAME_DEFAULTS, "orange").background?.stars?.enabled).toBe(false);
   });
 
