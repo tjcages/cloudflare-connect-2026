@@ -24,7 +24,7 @@ import {
 } from "./badge-params";
 import { applyThemeToRain, applyThemeToTwizzler } from "./badge-themes";
 
-const BadgeLanyard = lazy(() => import("./BadgeLanyard"));
+const BadgeLanyard = lazy(() => import("./BadgeBillboard"));
 
 export default function BadgePage(_props: IslandProps) {
   const twizzlerRef = useRef<HTMLCanvasElement>(null);
