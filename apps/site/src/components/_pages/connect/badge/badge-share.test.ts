@@ -117,6 +117,7 @@ describe("badge share copy", () => {
     expect(copy).toContain("BADGE_SHARE_VENUE");
     expect(copy).toContain("BADGE_SHARE_DATE");
     expect(copy).not.toContain("Your Connect 2026 badge");
+    expect(copy).not.toContain("See you at Cloudflare Connect 2026");
   });
 
   it("extends the share grid by two square rows to the hero bottom", () => {

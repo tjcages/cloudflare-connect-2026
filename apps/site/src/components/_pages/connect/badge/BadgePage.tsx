@@ -522,19 +522,11 @@ export default function BadgePage(_props: IslandProps) {
 
           <div>
             <h1 className="mb-16 text-left text-heading-h1 text-balance text-text-base">
-              Your Connect 2026 badge
+              See you at Cloudflare Connect 2026
             </h1>
 
-            <div className="flex flex-col gap-24 text-body-large text-text-base max-lg:[&_br]:hidden">
-              <p>
-                The case-study stripe shader, printed on the badge from your
-                logo. <br />
-                Grab it and pull — the lanyard wiggles back.
-              </p>
-              <p>
-                Pick a color scheme — stripes and the logo follow it. Add your
-                mark as a JPEG, WebP, PNG, or SVG.
-              </p>
+            <div className="flex flex-col gap-24 text-body-large text-text-base">
+              <p>You’re all set. October 19–21 at Moscone West, San Francisco.</p>
               <BadgeCustomizer
                 error={logoError}
                 fileName={logo?.fileName ?? null}

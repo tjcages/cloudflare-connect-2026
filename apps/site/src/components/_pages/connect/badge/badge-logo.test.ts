@@ -397,7 +397,12 @@ describe("badge logo SVG prep", () => {
     expect(page).toContain("sourceZoom");
     expect(page).toContain("readLogoFile");
     expect(page).toContain("badgeShaderPlateRaster");
-    expect(page).toContain("JPEG, WebP, PNG, or SVG");
+    expect(page).toContain("See you at Cloudflare Connect 2026");
+    expect(page).toContain(
+      "You’re all set. October 19–21 at Moscone West, San Francisco."
+    );
+    expect(page).not.toContain("Your Connect 2026 badge");
+    expect(page).not.toContain("JPEG, WebP, PNG, or SVG");
     expect(page).toContain("setTune");
     expect(page).toContain("defaultOpen: false");
     expect(page).not.toContain("defaultOpen: true");
@@ -437,7 +442,6 @@ describe("badge logo SVG prep", () => {
     expect(page).not.toContain("data-share-title");
     expect(page).not.toContain("Copy badge link");
     expect(page).not.toContain("Register now");
-    expect(page).toContain("Your Connect 2026 badge");
     expect(LOGO_FILE_ACCEPT).toContain("image/jpeg");
     expect(LOGO_FILE_ACCEPT).toContain("image/webp");
 
