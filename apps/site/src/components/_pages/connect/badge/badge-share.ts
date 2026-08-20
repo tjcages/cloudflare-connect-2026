@@ -53,11 +53,21 @@ async function waitForDesktopShareSize(scene: HTMLElement) {
   }
 }
 
+export function sceneFitsShareCard(scene: {
+  getBoundingClientRect: () => Pick<DOMRect, "width" | "height">;
+}) {
+  const rect = scene.getBoundingClientRect();
+  return (
+    rect.width >= BADGE_SHARE_WIDTH - 1 &&
+    rect.height >= BADGE_SHARE_HEIGHT - 1
+  );
+}
+
 async function withDesktopShareLayout<T>(
   scene: HTMLElement,
   run: () => Promise<T>
 ): Promise<T> {
-  if (window.innerWidth >= 992) return run();
+  if (sceneFitsShareCard(scene)) return run();
 
   const spacer = document.createElement("div");
   spacer.dataset.shareCaptureSpacer = "";

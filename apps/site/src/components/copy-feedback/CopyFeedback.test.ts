@@ -17,6 +17,9 @@ describe("copy feedback", () => {
     expect(source).toContain("justify-items-center");
     expect(source).toContain("inline-grid");
     expect(source).toContain("size-20");
+    expect(source).toContain("relative flex size-20 shrink-0 items-center justify-center");
+    expect(source).toContain("className");
+    expect(source).not.toContain("className ??");
   });
 });
 

@@ -1,3 +1,4 @@
+import cn from "classnames";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Icon from "@/components/icon/Icon";
@@ -46,11 +47,16 @@ export function CopyFeedbackIcon({
   copied: boolean;
 }) {
   return (
-    <span className="relative flex size-20 shrink-0 items-center justify-center">
+    <span
+      className={cn(
+        "relative flex size-20 shrink-0 items-center justify-center",
+        className
+      )}
+    >
       <AnimatePresence initial={false} mode="popLayout">
         <motion.span
           animate={{ filter: "blur(0px)", opacity: 1, scale: 1 }}
-          className={className ?? "absolute inset-0 flex items-center justify-center"}
+          className="absolute inset-0 flex items-center justify-center"
           exit={{ filter: "blur(3px)", opacity: 0, scale: 0.5 }}
           initial={{ filter: "blur(3px)", opacity: 0, scale: 0.5 }}
           key={`${copied}`}

@@ -10,6 +10,7 @@ import {
   badgeShareHeadline,
   badgeTweetUrl,
   keepShareNode,
+  sceneFitsShareCard,
   wrapShareTitle,
 } from "./badge-share";
 
@@ -60,6 +61,24 @@ describe("badge share copy", () => {
     const text = decodeURIComponent(new URL(url).searchParams.get("text") ?? "");
     expect(text).toBe("Tyler's Connect 2026 badge");
     expect(text).not.toContain("http");
+  });
+
+  it("forces the 1200×800 capture layout when the live scene is narrower", () => {
+    expect(
+      sceneFitsShareCard({
+        getBoundingClientRect: () => ({ width: 1200, height: 800 }),
+      })
+    ).toBe(true);
+    expect(
+      sceneFitsShareCard({
+        getBoundingClientRect: () => ({ width: 1100, height: 800 }),
+      })
+    ).toBe(false);
+    expect(
+      sceneFitsShareCard({
+        getBoundingClientRect: () => ({ width: 390, height: 540 }),
+      })
+    ).toBe(false);
   });
 
   it("drops marked nodes and canvases from the hero screenshot", () => {
@@ -163,6 +182,8 @@ describe("badge share copy", () => {
     expect(source).not.toContain("stampShareTitle");
     expect(source).toContain("withDesktopShareLayout");
     expect(source).toContain("waitForDesktopShareSize");
+    expect(source).toContain("sceneFitsShareCard");
+    expect(source).not.toContain("innerWidth >= 992");
     expect(source).toContain("BADGE_SHARE_WIDTH");
     expect(source).toContain("BADGE_SHARE_HEIGHT");
     expect(source).toContain("shareCapturing");
