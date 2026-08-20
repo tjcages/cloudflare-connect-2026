@@ -29,6 +29,10 @@ import {
 } from "./speaker-shader-geometry";
 import { SPEAKER_SHADER_CONFIG } from "./speaker-shader-config";
 import {
+  punchSpeakerFaceMask,
+  type SpeakerFaceMaskSettings,
+} from "./speaker-face-mask";
+import {
   readSpeakerShaderQualityInput,
   resolveSpeakerShaderQuality,
   speakerLowPowerEngineConfig,
@@ -318,6 +322,21 @@ export default function SpeakerShaderOverlay() {
               throw new Error(`Unhandled speaker frame variant: ${String(unused)}`);
             }
           }
+        }
+      }
+
+      if (settings.faceMaskEnabled) {
+        const faceMask: SpeakerFaceMaskSettings = {
+          enabled: settings.faceMaskEnabled,
+          x: settings.faceMaskX,
+          y: settings.faceMaskY,
+          radius: settings.faceMaskRadius,
+          softness: settings.faceMaskSoftness,
+          blurPx: quality.liveEffects ? settings.faceMaskBlur : Math.min(settings.faceMaskBlur, 8),
+          strength: settings.faceMaskStrength,
+        };
+        for (const { rect } of apertures) {
+          punchSpeakerFaceMask(outputContext, rect, faceMask);
         }
       }
 
