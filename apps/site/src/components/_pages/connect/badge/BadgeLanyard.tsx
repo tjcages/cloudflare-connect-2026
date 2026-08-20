@@ -12,20 +12,19 @@ import {
   ExtrudeGeometry,
   Float32BufferAttribute,
   Group,
-  InstancedMesh,
   MathUtils,
   Mesh,
   MeshBasicMaterial,
   MeshPhysicalMaterial,
   MeshStandardMaterial,
-  Object3D,
   PlaneGeometry,
-  Quaternion,
+  ShaderMaterial,
   Shape,
   Skeleton,
   SkinnedMesh,
   SRGBColorSpace,
   Uint16BufferAttribute,
+  Vector2,
   Vector3,
 } from "three";
 
@@ -75,8 +74,11 @@ const CARD_OVERLAP = 0.006;
 const CARD_LOCAL_Y = -(CARD_H / 2) + CARD_OVERLAP;
 const HANG_Y = -CARD_LOCAL_Y * MODEL_SCALE;
 const WALL_Z = -0.022;
-const SHADOW_OPACITY = 0.38;
-const SHADOW_STRAP_COUNT = CHAIN_BONES + 1;
+const SHADOW_OPACITY = 0.34;
+const SHADOW_SOFT_OPACITY = 0.16;
+const SHADOW_INFLATE = 0.028;
+const SHADOW_LIGHT_DIR = new Vector3(-0.15, -0.22, -1).normalize();
+const SHADOW_NUDGE_LOCAL = new Vector3(-0.002, -0.003, 0);
 
 const ACCENT = "#f46021";
 const METAL = ACCENT;
@@ -85,11 +87,9 @@ const CORD = ACCENT;
 const WEBBING = ACCENT;
 
 const Y_UP = new Vector3(0, 1, 0);
-const CARD_WORLD = new Vector3();
-const CARD_QUAT = new Quaternion();
-const CARD_UP = new Vector3();
-const CARD_NORMAL = new Vector3();
-const SHADOW_DUMMY = new Object3D();
+const WALL_WORLD = new Vector3();
+const SHADOW_ORIGIN = new Vector3();
+const SHADOW_NUDGE = new Vector3();
 
 export type BadgeCardIdentity = {
   name: string;
@@ -433,7 +433,11 @@ function hookXFromMetal(geometry: BufferGeometry): number {
   return count === 0 ? 0 : sum / count;
 }
 
-function createBadgeCard(texture: Texture, hookX: number, lowPower: boolean): Group {
+function createBadgeCard(
+  texture: Texture,
+  hookX: number,
+  lowPower: boolean
+): { card: Group; body: Mesh } {
   const card = new Group();
   card.position.set(hookX, CARD_LOCAL_Y, 0);
 
@@ -469,166 +473,150 @@ function createBadgeCard(texture: Texture, hookX: number, lowPower: boolean): Gr
   face.position.z = CARD_D / 2 + 0.0008;
   card.add(body);
   card.add(face);
-  return card;
+  return { card, body };
 }
 
-function traceRoundRect(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  radius: number
+const SILHOUETTE_VERT = /* glsl */ `
+#include <common>
+#include <skinning_pars_vertex>
+
+uniform float uWallZ;
+uniform vec3 uLightDir;
+uniform vec2 uNudge;
+uniform float uInflate;
+uniform float uOpacity;
+
+varying float vAlpha;
+
+void main() {
+  #include <skinbase_vertex>
+  #include <beginnormal_vertex>
+  #include <skinnormal_vertex>
+  #include <begin_vertex>
+  #include <skinning_vertex>
+
+  vec4 world = modelMatrix * vec4(transformed, 1.0);
+  float denom = uLightDir.z;
+  float t = abs(denom) > 1e-4 ? (uWallZ - world.z) / denom : 0.0;
+  t = max(t, 0.0);
+  world.xyz += uLightDir * t;
+  world.xy += uNudge;
+
+  vec3 worldNormal = normalize(mat3(modelMatrix) * objectNormal);
+  float nLen = length(worldNormal.xy);
+  vec2 nxy = nLen > 1e-4 ? worldNormal.xy / nLen : vec2(0.0);
+  world.xy += nxy * uInflate;
+  world.z = uWallZ;
+
+  vAlpha = uOpacity * (1.0 - smoothstep(0.0, 0.14, t));
+  gl_Position = projectionMatrix * viewMatrix * world;
+}
+`;
+
+const SILHOUETTE_FRAG = /* glsl */ `
+varying float vAlpha;
+
+void main() {
+  gl_FragColor = vec4(0.0, 0.0, 0.0, vAlpha);
+}
+`;
+
+type ShadowUniforms = {
+  uWallZ: { value: number };
+  uLightDir: { value: Vector3 };
+  uNudge: { value: Vector2 };
+};
+
+function createSilhouetteMaterial(
+  uniforms: ShadowUniforms,
+  inflate: number,
+  opacity: number
 ) {
-  const r = Math.min(radius, width / 2, height / 2);
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.lineTo(x + width - r, y);
-  ctx.quadraticCurveTo(x + width, y, x + width, y + r);
-  ctx.lineTo(x + width, y + height - r);
-  ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
-  ctx.lineTo(x + r, y + height);
-  ctx.quadraticCurveTo(x, y + height, x, y + height - r);
-  ctx.lineTo(x, y + r);
-  ctx.quadraticCurveTo(x, y, x + r, y);
-  ctx.closePath();
+  const material = new ShaderMaterial({
+    uniforms: {
+      uWallZ: uniforms.uWallZ,
+      uLightDir: uniforms.uLightDir,
+      uNudge: uniforms.uNudge,
+      uInflate: { value: inflate },
+      uOpacity: { value: opacity },
+    },
+    vertexShader: SILHOUETTE_VERT,
+    fragmentShader: SILHOUETTE_FRAG,
+    transparent: true,
+    depthWrite: false,
+    side: DoubleSide,
+    toneMapped: false,
+    fog: false,
+  });
+  material.polygonOffset = true;
+  material.polygonOffsetFactor = inflate > 0 ? 2 : 1;
+  material.polygonOffsetUnits = inflate > 0 ? 2 : 1;
+  return material;
 }
 
-function paintSoftDisc() {
-  const size = 64;
-  const canvas = document.createElement("canvas");
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Could not create strap shadow.");
-  const gradient = ctx.createRadialGradient(
-    size / 2,
-    size / 2,
-    2,
-    size / 2,
-    size / 2,
-    size / 2
-  );
-  gradient.addColorStop(0, "rgba(0,0,0,0.55)");
-  gradient.addColorStop(0.45, "rgba(0,0,0,0.22)");
-  gradient.addColorStop(1, "rgba(0,0,0,0)");
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, size, size);
-  const map = new CanvasTexture(canvas);
-  map.needsUpdate = true;
-  return map;
+function stampSilhouette(mesh: Mesh, renderOrder: number) {
+  mesh.frustumCulled = false;
+  mesh.renderOrder = renderOrder;
+  mesh.raycast = () => {};
 }
 
-function paintSoftCard() {
-  const width = 160;
-  const height = 240;
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Could not create card shadow.");
-  ctx.clearRect(0, 0, width, height);
-  ctx.shadowColor = "rgba(0,0,0,0.8)";
-  ctx.shadowBlur = 18;
-  ctx.fillStyle = "rgba(0,0,0,0.5)";
-  const inset = 28;
-  traceRoundRect(
-    ctx,
-    inset,
-    inset,
-    width - inset * 2,
-    height - inset * 2,
-    18
-  );
-  ctx.fill();
-  const map = new CanvasTexture(canvas);
-  map.needsUpdate = true;
-  return map;
-}
-
-function createWallShadows(): {
-  cardShadow: Mesh;
-  strapShadow: InstancedMesh;
+function createWallShadows(options: {
+  lanyardGeometry: BufferGeometry;
+  skeleton: Skeleton;
+  card: Group;
+  cardBody: Mesh;
+  lowPower: boolean;
+}): {
+  shadows: Mesh[];
+  uniforms: ShadowUniforms;
 } {
-  const cardMaterial = new MeshBasicMaterial({
-    map: paintSoftCard(),
-    transparent: true,
-    depthWrite: false,
-    opacity: SHADOW_OPACITY,
-    toneMapped: false,
-    color: "#000000",
-  });
-  const cardShadow = new Mesh(
-    new PlaneGeometry(CARD_W * 1.55, CARD_H * 1.55),
-    cardMaterial
-  );
-  cardShadow.position.z = WALL_Z;
-  cardShadow.renderOrder = -1;
-  cardShadow.frustumCulled = false;
-
-  const strapMaterial = new MeshBasicMaterial({
-    map: paintSoftDisc(),
-    transparent: true,
-    depthWrite: false,
-    opacity: SHADOW_OPACITY * 0.85,
-    toneMapped: false,
-    color: "#000000",
-  });
-  const strapShadow = new InstancedMesh(
-    new PlaneGeometry(0.034, 0.034),
-    strapMaterial,
-    SHADOW_STRAP_COUNT
-  );
-  strapShadow.position.z = WALL_Z;
-  strapShadow.renderOrder = -1;
-  strapShadow.frustumCulled = false;
-  return { cardShadow, strapShadow };
+  const uniforms: ShadowUniforms = {
+    uWallZ: { value: 0 },
+    uLightDir: { value: SHADOW_LIGHT_DIR.clone() },
+    uNudge: { value: new Vector2() },
+  };
+  const layers = options.lowPower
+    ? [{ inflate: 0.004, opacity: SHADOW_OPACITY, order: -1 }]
+    : [
+        { inflate: SHADOW_INFLATE, opacity: SHADOW_SOFT_OPACITY, order: -2 },
+        { inflate: 0, opacity: SHADOW_OPACITY, order: -1 },
+      ];
+  const shadows: Mesh[] = [];
+  for (const layer of layers) {
+    const lanyardMaterial = createSilhouetteMaterial(
+      uniforms,
+      layer.inflate,
+      layer.opacity
+    );
+    const cardMaterial = createSilhouetteMaterial(
+      uniforms,
+      layer.inflate,
+      layer.opacity
+    );
+    const lanyard = new SkinnedMesh(options.lanyardGeometry, lanyardMaterial);
+    lanyard.bind(options.skeleton);
+    stampSilhouette(lanyard, layer.order);
+    const cardShadow = new Mesh(options.cardBody.geometry, cardMaterial);
+    stampSilhouette(cardShadow, layer.order);
+    options.card.add(cardShadow);
+    shadows.push(lanyard, cardShadow);
+  }
+  return { shadows, uniforms };
 }
 
 function applyWallShadow(rig: LanyardRig) {
-  rig.card.getWorldPosition(CARD_WORLD);
-  rig.group.worldToLocal(CARD_WORLD);
-  rig.card.getWorldQuaternion(CARD_QUAT);
-  CARD_UP.set(0, 1, 0).applyQuaternion(CARD_QUAT);
-  CARD_NORMAL.set(0, 0, 1).applyQuaternion(CARD_QUAT);
-  const lift = MathUtils.clamp((CARD_WORLD.z - WALL_Z) / 0.09, 0, 1);
-  const facing = Math.max(0.28, Math.abs(CARD_NORMAL.z));
-  const tilt = Math.atan2(CARD_UP.x, CARD_UP.y);
-  rig.cardShadow.position.set(
-    CARD_WORLD.x - 0.007 - lift * 0.012,
-    CARD_WORLD.y - 0.01 - lift * 0.01,
-    WALL_Z
-  );
-  rig.cardShadow.rotation.set(0, 0, tilt);
-  const size = 1.05 + lift * 0.22;
-  rig.cardShadow.scale.set(size * facing, size, 1);
-  (rig.cardShadow.material as MeshBasicMaterial).opacity =
-    SHADOW_OPACITY * (1 - lift * 0.4);
+  WALL_WORLD.set(0, 0, WALL_Z);
+  rig.group.localToWorld(WALL_WORLD);
+  rig.shadowUniforms.uWallZ.value = WALL_WORLD.z;
 
-  const blob = 1 + lift * 0.35;
-  const lastShadow = SHADOW_STRAP_COUNT - 1;
-  for (let index = 0; index < SHADOW_STRAP_COUNT; index += 1) {
-    const point = rig.rope.now[index]!;
-    const other =
-      rig.rope.now[index === lastShadow ? index - 1 : index + 1]!;
-    const nearClip = 1 - index / lastShadow;
-    SHADOW_DUMMY.position.set(
-      point.x - 0.005 - lift * 0.01,
-      point.y - 0.006 - lift * 0.008,
-      0
-    );
-    SHADOW_DUMMY.rotation.set(0, 0, Math.atan2(other.x - point.x, other.y - point.y));
-    SHADOW_DUMMY.scale.set(
-      0.42 * blob,
-      (0.85 + nearClip * 0.55) * blob,
-      1
-    );
-    SHADOW_DUMMY.updateMatrix();
-    rig.strapShadow.setMatrixAt(index, SHADOW_DUMMY.matrix);
-  }
-  rig.strapShadow.instanceMatrix.needsUpdate = true;
-  (rig.strapShadow.material as MeshBasicMaterial).opacity =
-    SHADOW_OPACITY * 0.8 * (1 - lift * 0.4);
+  SHADOW_NUDGE.copy(SHADOW_NUDGE_LOCAL);
+  rig.group.localToWorld(SHADOW_NUDGE);
+  SHADOW_ORIGIN.set(0, 0, 0);
+  rig.group.localToWorld(SHADOW_ORIGIN);
+  rig.shadowUniforms.uNudge.value.set(
+    SHADOW_NUDGE.x - SHADOW_ORIGIN.x,
+    SHADOW_NUDGE.y - SHADOW_ORIGIN.y
+  );
 }
 
 type RopeState = {
@@ -647,16 +635,20 @@ type LanyardRig = {
   meshes: SkinnedMesh[];
   materials: Record<LanyardPart, MeshStandardMaterial>;
   card: Group;
-  cardShadow: Mesh;
-  strapShadow: InstancedMesh;
+  shadows: Mesh[];
+  shadowUniforms: ShadowUniforms;
   rope: RopeState;
 };
 
-function disposeTexturedMesh(mesh: Mesh | InstancedMesh) {
-  mesh.geometry.dispose();
-  const material = mesh.material as MeshBasicMaterial;
-  material.map?.dispose();
-  material.dispose();
+function disposeShadows(rig: LanyardRig) {
+  const materials = new Set<ShaderMaterial>();
+  let lanyardGeometry: BufferGeometry | null = null;
+  for (const mesh of rig.shadows) {
+    if (mesh.material instanceof ShaderMaterial) materials.add(mesh.material);
+    if (mesh instanceof SkinnedMesh) lanyardGeometry = mesh.geometry;
+  }
+  lanyardGeometry?.dispose();
+  for (const material of materials) material.dispose();
 }
 
 function buildLanyardRig(
@@ -693,6 +685,7 @@ function buildLanyardRig(
   const cordLength = Math.max(length - anchor.y, 0.08);
 
   skinAlongY(geometry, cordLength);
+  geometry.computeVertexNormals();
   const parts = splitByPart(geometry);
   const sourceMaterial = source.material as MeshStandardMaterial;
   const materials: Record<LanyardPart, MeshStandardMaterial> = {
@@ -726,10 +719,18 @@ function buildLanyardRig(
   }
 
   const hookX = hookXFromMetal(parts.metal);
-  const card = createBadgeCard(texture, hookX, lowPower);
+  const { card, body } = createBadgeCard(texture, hookX, lowPower);
   root.add(card);
-  const { cardShadow, strapShadow } = createWallShadows();
-  group.add(cardShadow, strapShadow);
+  const { shadows, uniforms } = createWallShadows({
+    lanyardGeometry: geometry,
+    skeleton,
+    card,
+    cardBody: body,
+    lowPower,
+  });
+  for (const mesh of shadows) {
+    if (mesh.parent === null) group.add(mesh);
+  }
 
   const now: Vector3[] = [];
   const prev: Vector3[] = [];
@@ -748,8 +749,8 @@ function buildLanyardRig(
     meshes,
     materials,
     card,
-    cardShadow,
-    strapShadow,
+    shadows,
+    shadowUniforms: uniforms,
     rope: {
       now,
       prev,
@@ -1086,6 +1087,7 @@ function LanyardBadge({
       }
       rig.card.traverse((child) => {
         if (!(child instanceof Mesh)) return;
+        if (rig.shadows.includes(child)) return;
         child.geometry.dispose();
         const material = child.material;
         if (Array.isArray(material)) {
@@ -1094,8 +1096,7 @@ function LanyardBadge({
           material.dispose();
         }
       });
-      disposeTexturedMesh(rig.cardShadow);
-      disposeTexturedMesh(rig.strapShadow);
+      disposeShadows(rig);
     };
   }, [rig]);
 
