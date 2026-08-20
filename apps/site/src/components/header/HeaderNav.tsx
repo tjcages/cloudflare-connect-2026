@@ -49,7 +49,7 @@ export default function HeaderNav({
 }: IslandProps<{
   className?: string;
   itemClassName?: string;
-  /** `connect` uses Agenda / Speakers / Sessions / Resources (menu built client-side). */
+  /** `connect` uses Agenda / Speakers / Resources (menu built client-side). */
   variant?: "default" | "connect";
 }>) {
   const navItems = variant === "connect" ? connectNavItems : defaultNavItems;

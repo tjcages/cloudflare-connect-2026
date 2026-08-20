@@ -8,11 +8,13 @@ import {
   universitySchedule,
   universityWhy,
 } from "@/components/_pages/connect/page-data/university";
+import AgendaStripeAperture from "@/components/_pages/connect/shared/AgendaStripeAperture.astro";
+import AgendaStripeRoot from "@/components/_pages/connect/shared/AgendaStripeRoot.astro";
 import FaqList from "@/components/_pages/connect/shared/FaqList.astro";
 import SubpageHero from "@/components/_pages/connect/shared/SubpageHero.astro";
 import Item from "@/components/features/Item.astro";
 import DashedLineGrid from "@/components/dashed-line/DashedLineGrid";
-import Icon from "@/components/icon/Icon";
+import Eyebrow from "@/components/Eyebrow";
 import Section from "@/layouts/Section.astro";
 import Layout from "@/layouts/Layout.astro";
 ---
@@ -59,25 +61,32 @@ import Layout from "@/layouts/Layout.astro";
 
   <Section
     class="scroll-mt-80"
-    layout="split"
+    layout="sticky"
     eyebrow="Schedule"
     sectionEyebrow="Schedule"
     title={universitySchedule.title}
     description={universitySchedule.body}
   >
-    <div
-      class="relative grid grid-cols-2 before:inside-border before:border-border-default max-md:grid-cols-1"
-    >
+    <AgendaStripeRoot class="flex flex-col gap-48 p-40 max-lg:p-24">
       {universitySchedule.days.map((day) => (
-        <div class="relative flex flex-col gap-24 p-40">
-          <div class="text-decorative-small text-text-faint uppercase">
-            {day.date} · {day.label}
+        <div class="flex flex-col gap-16">
+          <AgendaStripeAperture class="h-200">
+            <Eyebrow
+              client:visible
+              direction="left"
+              title={day.label}
+              variant="faint"
+            />
+            <div class="text-heading-h3 text-orange-900">{day.date}</div>
+          </AgendaStripeAperture>
+
+          <div class="flex flex-col gap-8">
+            <div class="text-heading-h3 text-text-base">{day.title}</div>
+            <p class="text-body-medium text-text-default">{day.body}</p>
           </div>
-          <div class="text-heading-h3 text-text-base">{day.title}</div>
-          <p class="text-body-medium text-text-default">{day.body}</p>
         </div>
       ))}
-    </div>
+    </AgendaStripeRoot>
   </Section>
 
   <Section
@@ -90,42 +99,31 @@ import Layout from "@/layouts/Layout.astro";
     headerClass="pb-72!"
   >
     <div
-      class="relative flex flex-col before:inside-border before:border-border-default"
+      class="relative grid grid-cols-2 before:inside-border before:border-border-default max-lg:grid-cols-1"
     >
-      <div class="relative grid grid-cols-2 max-lg:grid-cols-1">
-        {universityIncluded.items.map((item) => (
-          <Item
-            class="h-full min-h-262 max-lg:min-h-0"
-            iconName={item.iconName}
-            title={item.title}
-          >
-            {item.body}
-          </Item>
-        ))}
-
-        <div class="pointer-events-none absolute inset-0 max-lg:hidden">
-          <DashedLineGrid
-            client:visible={{ rootMargin: "200px" }}
-            columns={2}
-            rows={2}
-          />
-        </div>
-      </div>
-
-      <div
-        class="relative flex h-80 items-center gap-20 bg-background-surface px-40 text-body-x-small text-text-default max-lg:h-auto max-lg:px-20 max-lg:py-16"
-      >
-        <div
-          class="relative flex-center size-40 shrink-0 rounded-full bg-background-surface before:inside-border before:border-border-default"
+      {universityIncluded.items.map((item) => (
+        <Item
+          class="h-full min-h-262 max-lg:min-h-0"
+          iconName={item.iconName}
+          title={item.title}
         >
-          <Icon name="info-simple" size={20} className="text-icon-default" />
-        </div>
-        <div>
-          <span class="contents text-label-x-small">Note:</span>{" "}
-          {universityIncluded.note}
-        </div>
+          {item.body}
+        </Item>
+      ))}
+
+      <div class="pointer-events-none absolute inset-0 max-lg:hidden">
+        <DashedLineGrid
+          client:visible={{ rootMargin: "200px" }}
+          columns={2}
+          rows={2}
+        />
       </div>
     </div>
+
+    <Fragment slot="info">
+      <span class="contents text-label-x-small">Note:</span>{" "}
+      {universityIncluded.note}
+    </Fragment>
   </Section>
 
   <Section

@@ -2,6 +2,7 @@
 import Button from "@/components/Button";
 import CornerDots from "@/components/CornerDots";
 import Eyebrow from "@/components/Eyebrow";
+import ConnectHeroTwizzler from "../hero/ConnectHeroTwizzler";
 
 interface Cta {
   text: string;
@@ -19,15 +20,27 @@ interface Props {
 const { eyebrow, title, body, primaryCta, secondaryCta } = Astro.props;
 ---
 
+{/*
+  Same shell as the homepage hero: full-width max-w-1200 column, isolate +
+  overflow clip so the Twizzler/rain stack sits in the lower band without
+  escaping the grid frame.
+*/}
 <div
-  class="relative mx-auto max-w-1200 before:inside-border-b before:border-border-default"
+  class="relative isolate mx-auto w-full min-h-760 max-w-1200 overflow-hidden before:inside-border-b before:border-border-default md:min-h-616"
 >
   <CornerDots count={4} faintClassName="z-30" />
 
   <div
-    class="flex justify-between px-80 pt-80 pb-160 max-lg:flex-col max-lg:gap-40 max-lg:px-24 max-lg:pt-48 max-lg:pb-80"
+    class="pointer-events-none absolute inset-x-0 -bottom-48 z-0 h-320 md:-bottom-96 md:h-520"
+    aria-hidden="true"
   >
-    <div class="flex w-440 flex-col items-start max-lg:w-full">
+    <ConnectHeroTwizzler client:load posterSrc="/connect/twizzler-poster.png" />
+  </div>
+
+  <div
+    class="relative z-10 flex flex-col gap-32 px-24 pt-48 pb-160 md:flex-row md:justify-between md:gap-0 md:px-80 md:pt-80"
+  >
+    <div class="flex w-full flex-col items-start md:w-440">
       <Eyebrow
         client:visible
         direction="left"
@@ -36,6 +49,10 @@ const { eyebrow, title, body, primaryCta, secondaryCta } = Astro.props;
       />
 
       <h1 class="mt-24 text-heading-hero text-text-base">{title}</h1>
+    </div>
+
+    <div class="w-full self-start py-4 md:w-480 md:self-end md:py-0">
+      <p class="text-body-large text-text-base">{body}</p>
 
       <div class="mt-40 flex flex-wrap items-center gap-12">
         <Button className="px-14" href={primaryCta.href} size="large">
@@ -48,11 +65,7 @@ const { eyebrow, title, body, primaryCta, secondaryCta } = Astro.props;
         )}
       </div>
     </div>
-
-    <div class="mt-80 w-480 self-start py-4 max-lg:mt-0 max-lg:w-full">
-      <p class="text-body-large text-text-base">{body}</p>
-    </div>
   </div>
 
-  <div class="h-80"></div>
+  <div class="relative z-10 h-80"></div>
 </div>

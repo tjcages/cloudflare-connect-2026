@@ -56,6 +56,11 @@ export const partnerExtend = {
   body: "Stick around from October 19 – 21 to learn alongside our customers, broaden your professional network, and cap off the week at our can’t-miss closing party at Oracle Park.",
 };
 
+export const partnerStay = {
+  title: "Stay for Connect",
+  body: "Learn alongside customers, broaden your network, and close the week at func(tion) — our closing party at Oracle Park.",
+};
+
 export const partnerFaq = [
   {
     question: "When and where is the Global Partner Summit?",

@@ -3,11 +3,9 @@ import CopyTemplate from "@/components/_pages/connect/convince/CopyTemplate";
 import RegisterCta from "@/components/_pages/connect/cta/RegisterCta.astro";
 import {
   convinceEmailTemplate,
-  convinceHero,
   convincePageMeta,
   convinceSlackTemplate,
 } from "@/components/_pages/connect/page-data/convince";
-import SubpageHero from "@/components/_pages/connect/shared/SubpageHero.astro";
 import Section from "@/layouts/Section.astro";
 import Layout from "@/layouts/Layout.astro";
 ---
@@ -18,8 +16,6 @@ import Layout from "@/layouts/Layout.astro";
   cta={false}
   nav="connect"
 >
-  <SubpageHero {...convinceHero} />
-
   <Section
     class="scroll-mt-80"
     id="templates"

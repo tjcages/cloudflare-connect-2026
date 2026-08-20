@@ -7,14 +7,17 @@ import {
   partnerFaq,
   partnerHero,
   partnerPageMeta,
+  partnerStay,
   partnerWhy,
 } from "@/components/_pages/connect/page-data/partner";
+import AgendaStripeAperture from "@/components/_pages/connect/shared/AgendaStripeAperture.astro";
+import AgendaStripeRoot from "@/components/_pages/connect/shared/AgendaStripeRoot.astro";
 import FaqList from "@/components/_pages/connect/shared/FaqList.astro";
 import SubpageHero from "@/components/_pages/connect/shared/SubpageHero.astro";
 import Item from "@/components/features/Item.astro";
 import Button from "@/components/Button";
 import DashedLineGrid from "@/components/dashed-line/DashedLineGrid";
-import Icon from "@/components/icon/Icon";
+import Eyebrow from "@/components/Eyebrow";
 import Section from "@/layouts/Section.astro";
 import Layout from "@/layouts/Layout.astro";
 ---
@@ -37,72 +40,59 @@ import Layout from "@/layouts/Layout.astro";
     headerClass="pb-72!"
   >
     <div
-      class="relative flex flex-col before:inside-border before:border-border-default"
+      class="relative grid grid-cols-2 before:inside-border before:border-border-default max-lg:grid-cols-1"
     >
-      <div class="relative grid grid-cols-2 max-lg:grid-cols-1">
-        {partnerWhy.items.map((item) => (
-          <Item
-            class="h-full min-h-262 max-lg:min-h-0"
-            iconName={item.iconName}
-            title={item.title}
-          >
-            {item.body}
-          </Item>
-        ))}
-
-        <div class="pointer-events-none absolute inset-0 max-lg:hidden">
-          <DashedLineGrid
-            client:visible={{ rootMargin: "200px" }}
-            columns={2}
-            rows={2}
-          />
-        </div>
-      </div>
-
-      {/* Tickets / Isolates full-card info — snaps to elevated card rails */}
-      <div
-        class="relative flex h-80 items-center gap-20 bg-background-surface px-40 text-body-x-small text-text-default max-lg:h-auto max-lg:px-20 max-lg:py-16"
-      >
-        <div
-          class="relative flex-center size-40 shrink-0 rounded-full bg-background-surface before:inside-border before:border-border-default"
+      {partnerWhy.items.map((item) => (
+        <Item
+          class="h-full min-h-262 max-lg:min-h-0"
+          iconName={item.iconName}
+          title={item.title}
         >
-          <Icon name="info-simple" size={20} className="text-icon-default" />
-        </div>
-        <div>
-          <span class="contents text-label-x-small">
-            {partnerWhy.featuredSpeaker.label}:
-          </span>{" "}
-          {partnerWhy.featuredSpeaker.name} — {partnerWhy.featuredSpeaker.role}
-        </div>
+          {item.body}
+        </Item>
+      ))}
+
+      <div class="pointer-events-none absolute inset-0 max-lg:hidden">
+        <DashedLineGrid
+          client:visible={{ rootMargin: "200px" }}
+          columns={2}
+          rows={2}
+        />
       </div>
     </div>
+
+    <Fragment slot="info">
+      <span class="contents text-label-x-small">
+        {partnerWhy.featuredSpeaker.label}:
+      </span>{" "}
+      {partnerWhy.featuredSpeaker.name} — {partnerWhy.featuredSpeaker.role}
+    </Fragment>
   </Section>
 
   <Section
     class="scroll-mt-80"
-    layout="split"
+    layout="sticky"
     eyebrow="Recognition"
     sectionEyebrow="Awards"
     title={partnerAwards.title}
     description={partnerAwards.body}
   >
-    <div
-      class="relative flex min-h-320 flex-col justify-end gap-8 bg-background-surface p-40 before:inside-border before:border-border-muted"
-    >
-      <div class="text-decorative-small text-text-faint uppercase">
-        Recognition
-      </div>
-      <div class="text-heading-h3 text-text-base">Partner Awards</div>
-      <p class="max-w-480 text-body-medium text-text-default">
-        Honoring outstanding achievements, innovation, and impact across the
-        Cloudflare Partner Network.
-      </p>
-    </div>
+    <AgendaStripeRoot class="p-40 max-lg:p-24">
+      <AgendaStripeAperture class="min-h-400">
+        <Eyebrow
+          client:visible
+          direction="left"
+          title="Recognition"
+          variant="faint"
+        />
+        <div class="text-heading-h3 text-orange-900">Partner Awards</div>
+      </AgendaStripeAperture>
+    </AgendaStripeRoot>
   </Section>
 
   <Section
     class="scroll-mt-80"
-    layout="split"
+    layout="sticky"
     eyebrow="Oct 19–21"
     sectionEyebrow="Connect"
     title={partnerExtend.title}
@@ -112,18 +102,32 @@ import Layout from "@/layouts/Layout.astro";
       <span>Register for Connect</span>
     </Button>
 
-    <div
-      class="relative flex min-h-320 flex-col justify-end gap-8 bg-background-surface p-40 before:inside-border before:border-border-muted"
-    >
-      <div class="text-decorative-small text-text-faint uppercase">
-        Oct 19–21
+    <AgendaStripeRoot class="flex flex-col gap-24 p-40 max-lg:p-24">
+      <div class="flex flex-col gap-16">
+        <AgendaStripeAperture class="h-200">
+          <Eyebrow
+            client:visible
+            direction="left"
+            title="Oct 19–21"
+            variant="faint"
+          />
+          <div class="text-heading-h3 text-orange-900">Extend your stay</div>
+        </AgendaStripeAperture>
       </div>
-      <div class="text-heading-h3 text-text-base">Stay for Connect</div>
-      <p class="max-w-480 text-body-medium text-text-default">
-        Learn alongside customers, broaden your network, and close the week at
-        func(tion) — our closing party at Oracle Park.
-      </p>
-    </div>
+
+      <div class="flex flex-col gap-16">
+        <AgendaStripeAperture class="h-200">
+          <Eyebrow
+            client:visible
+            direction="left"
+            title="Oct 19–21"
+            variant="faint"
+          />
+          <div class="text-heading-h3 text-orange-900">{partnerStay.title}</div>
+        </AgendaStripeAperture>
+        <p class="text-body-medium text-text-default">{partnerStay.body}</p>
+      </div>
+    </AgendaStripeRoot>
   </Section>
 
   <Section

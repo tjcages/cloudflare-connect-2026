@@ -1,0 +1,17 @@
+---
+import AgendaRainOverlay from "../agenda/AgendaRainOverlay";
+
+interface Props {
+  class?: string;
+}
+
+const { class: className } = Astro.props;
+---
+
+<div data-agenda-rain-root class:list={["relative", className]}>
+  <slot />
+
+  <div class="pointer-events-none absolute inset-0 z-0">
+    <AgendaRainOverlay client:visible={{ rootMargin: "240px" }} />
+  </div>
+</div>

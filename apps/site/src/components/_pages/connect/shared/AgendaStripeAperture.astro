@@ -1,0 +1,23 @@
+---
+interface Props {
+  class?: string;
+}
+
+const { class: className } = Astro.props;
+---
+
+<div
+  data-agenda-rain-aperture
+  class:list={[
+    "relative overflow-clip bg-background-surface after:inside-border after:z-20 after:border-border-muted",
+    className,
+  ]}
+>
+  <div class="relative z-10 flex size-full flex-col justify-end p-32">
+    <div
+      class="-m-16 flex w-fit max-w-full flex-col gap-8 bg-background-surface/90 p-16"
+    >
+      <slot />
+    </div>
+  </div>
+</div>

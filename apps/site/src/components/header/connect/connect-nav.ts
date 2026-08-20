@@ -5,8 +5,6 @@ import { connectResourcesMenu } from "./resources-menu";
 export const connectNavItems: IHeaderNavItem[] = [
   { label: "Agenda", href: "/connect#agenda" },
   { label: "Speakers", href: "/connect#speakers" },
-  { label: "Badge", href: "/connect/badge" },
-  { label: "Sessions", href: "/connect#agenda" },
   {
     label: "Resources",
     dropdown: { menu: connectResourcesMenu },
