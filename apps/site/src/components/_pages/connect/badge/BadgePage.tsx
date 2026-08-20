@@ -199,6 +199,7 @@ export default function BadgePage(_props: IslandProps) {
         stripes: cardStripes(themeToStripeColors(view.theme)),
         whitePoint: 0.8,
       }),
+      grid: { overlapAmount: 1.2, angleDeg: 45 },
       maxFps: lowPower ? 10 : 30,
       clickWave: { enabled: false as const },
       cursorTrail: { enabled: false as const },

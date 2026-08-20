@@ -68,7 +68,7 @@ export const BADGE_BACKDROP_CONFIG: StripesTextureConfig = {
     gapY: 0,
     cornerRadius: 0,
     orientation: "vertical",
-    angleDeg: 0,
+    angleDeg: 45,
     rotationMode: "cell",
     overlapAmount: 1.2,
     streamGapWave: { enabled: false },

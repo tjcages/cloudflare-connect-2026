@@ -390,6 +390,7 @@ describe("badge logo SVG prep", () => {
     expect(page).toContain("applyBadgeTwizzlerOverlay");
     expect(page).toContain("cardTextureConfig");
     expect(page).toContain("cardStripes");
+    expect(page).toContain("angleDeg: 45");
     expect(page).toContain('fit: "width"');
     expect(page).toContain("whitePoint: 0.8");
     expect(page).toContain("Copy shareable card");
