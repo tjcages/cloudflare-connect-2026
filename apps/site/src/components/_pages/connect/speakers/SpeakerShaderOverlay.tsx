@@ -29,6 +29,11 @@ import {
 } from "./speaker-shader-geometry";
 import { SPEAKER_SHADER_CONFIG } from "./speaker-shader-config";
 import {
+  punchSpeakerFaceMask,
+  speakerFaceMaskFade,
+  type SpeakerFaceMaskSettings,
+} from "./speaker-face-mask";
+import {
   readSpeakerShaderQualityInput,
   resolveSpeakerShaderQuality,
   speakerLowPowerEngineConfig,
@@ -43,8 +48,10 @@ import {
   speakerFrameOutlineColor,
   speakerFramePaintConfig,
   speakerWiperClockIsLive,
+  speakerWiperImageProgress,
   speakerWiperShouldEnter,
   speakerWiperShouldLeave,
+  speakerWiperVisualOrder,
   SPEAKER_WIPER_ENTER_RATIO,
   SPEAKER_WIPER_SHADER_DELAY_MS,
   type SpeakerWiperClock,
@@ -320,6 +327,38 @@ export default function SpeakerShaderOverlay() {
         }
       }
 
+      if (settings.faceMaskEnabled) {
+        const blurPx = quality.liveEffects ? settings.faceMaskBlur : Math.min(settings.faceMaskBlur, 8);
+        const wiperOptions = {
+          reducedMotion: reducedMotion.matches,
+          progressOverride: wiperProgressOverride,
+        };
+        apertures.forEach(({ rect }, imageIndex) => {
+          const overlayRects = frames
+            .filter((frame) => frame.variant === "grey" && frame.imageIndex === imageIndex)
+            .map((frame) => frame.rect);
+          if (overlayRects.length === 0) return;
+          const progress = speakerWiperImageProgress(
+            imageIndex,
+            wiperClock.startedAtMs,
+            wiperNowMs,
+            wiperOptions,
+          );
+          const fade = speakerFaceMaskFade(progress ?? 0);
+          if (fade <= 0) return;
+          const faceMask: SpeakerFaceMaskSettings = {
+            enabled: true,
+            x: settings.faceMaskX,
+            y: settings.faceMaskY,
+            radius: settings.faceMaskRadius,
+            softness: settings.faceMaskSoftness,
+            blurPx,
+            strength: settings.faceMaskStrength * fade,
+          };
+          punchSpeakerFaceMask(outputContext, rect, faceMask, overlayRects);
+        });
+      }
+
       outputContext.save();
       outputContext.beginPath();
       for (const band of portraitBands) {
@@ -368,7 +407,12 @@ export default function SpeakerShaderOverlay() {
         return;
       }
       lastFrameMs = nowMs;
-      commitPendingSpeakerWipers(wiperClock, nowMs, wiperStartDelayMs());
+      commitPendingSpeakerWipers(
+        wiperClock,
+        nowMs,
+        wiperStartDelayMs(),
+        speakerWiperVisualOrder(apertures.map(({ rect }) => rect)),
+      );
       wiperNowMs = nowMs;
       clock.set(nowMs);
       renderOnce();

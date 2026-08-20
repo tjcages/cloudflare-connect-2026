@@ -1,5 +1,6 @@
 import type { EngineConfig } from "@necatikcl/stripes-engine";
 import { connectSpeakers } from "../data";
+import { SPEAKER_FACE_MASK_DEFAULTS } from "./speaker-face-mask";
 import { SPEAKER_SHADER_CONFIG } from "./speaker-shader-config";
 
 export const SPEAKER_FRAME_VARIANT_IDS = ["grey", "orange"] as const;
@@ -122,6 +123,13 @@ export type SpeakerFrameSettings = {
   renderParamD: number;
   renderColorA: string;
   renderColorB: string;
+  faceMaskEnabled: boolean;
+  faceMaskX: number;
+  faceMaskY: number;
+  faceMaskRadius: number;
+  faceMaskSoftness: number;
+  faceMaskBlur: number;
+  faceMaskStrength: number;
 };
 
 export const SPEAKER_IMAGE_COUNT = connectSpeakers.length;
@@ -393,6 +401,13 @@ export const SPEAKER_FRAME_DEFAULTS: SpeakerFrameSettings = {
   renderParamD: SPEAKER_SHADER_CONFIG.renderParams[3],
   renderColorA: toHex(SPEAKER_SHADER_CONFIG.renderColorA),
   renderColorB: toHex(SPEAKER_SHADER_CONFIG.renderColorB),
+  faceMaskEnabled: SPEAKER_FACE_MASK_DEFAULTS.enabled,
+  faceMaskX: SPEAKER_FACE_MASK_DEFAULTS.x,
+  faceMaskY: SPEAKER_FACE_MASK_DEFAULTS.y,
+  faceMaskRadius: SPEAKER_FACE_MASK_DEFAULTS.radius,
+  faceMaskSoftness: SPEAKER_FACE_MASK_DEFAULTS.softness,
+  faceMaskBlur: SPEAKER_FACE_MASK_DEFAULTS.blurPx,
+  faceMaskStrength: SPEAKER_FACE_MASK_DEFAULTS.strength,
 };
 
 const cloneVariantLook = (look: SpeakerFrameVariantLook): SpeakerFrameVariantLook => ({

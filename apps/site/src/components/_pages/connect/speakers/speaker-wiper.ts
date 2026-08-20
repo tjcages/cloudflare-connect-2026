@@ -13,7 +13,8 @@ import { intersectRects, type Rect } from "./speaker-shader-geometry";
 export const SPEAKER_OVERLAY_REST_WIDTH = 1;
 /** Grow the overlay iris from the portrait center. */
 export const SPEAKER_WIPER_DURATION_MS = 900;
-export const SPEAKER_WIPER_STAGGER_MS = 0;
+/** Per-portrait delay when several irises start in the same wave (reading order). */
+export const SPEAKER_WIPER_STAGGER_MS = 140;
 /** Hold the orange field until the water reveal has played. */
 export const SPEAKER_WIPER_SHADER_DELAY_MS = SPEAKER_SHADER_CONFIG.reveal.water.durationMs;
 
@@ -138,6 +139,18 @@ const frameElapsedMs = (
 const frameProgress = (elapsedMs: number, options: { reducedMotion?: boolean; progressOverride?: number }): number => {
   if (options.reducedMotion) return 1;
   return speakerWiperProgress(elapsedMs, 0);
+};
+
+/** Overlay iris progress for one portrait, or null if that wipe has not started. */
+export const speakerWiperImageProgress = (
+  imageIndex: number,
+  startedAtMs: readonly (number | null)[],
+  nowMs: number,
+  options: { reducedMotion?: boolean; progressOverride?: number } = {},
+): number | null => {
+  const elapsedMs = frameElapsedMs(imageIndex, startedAtMs, nowMs, options);
+  if (elapsedMs == null) return null;
+  return frameProgress(elapsedMs, options);
 };
 
 type WipingFrame = {
@@ -284,13 +297,56 @@ export const armSpeakerWiper = (
   return "armed";
 };
 
-export const commitPendingSpeakerWipers = (clock: SpeakerWiperClock, nowMs: number, delayMs = 0) => {
-  const startAt = nowMs + Math.max(0, delayMs);
+export const commitPendingSpeakerWipers = (
+  clock: SpeakerWiperClock,
+  nowMs: number,
+  delayMs = 0,
+  visualOrder: readonly number[] = [],
+) => {
+  if (clock.pending.size === 0) return;
+  const startBase = nowMs + Math.max(0, delayMs);
+  const stillPlaying: number[] = [];
+  for (let index = 0; index < clock.startedAtMs.length; index += 1) {
+    const startedAt = clock.startedAtMs[index];
+    if (startedAt == null) continue;
+    if (nowMs >= startedAt + SPEAKER_WIPER_DURATION_MS) continue;
+    stillPlaying.push(index);
+  }
+  const wave = new Set<number>([...clock.pending, ...stillPlaying]);
+  const waveOrder: number[] = [];
+  const seen = new Set<number>();
+  const pushWaveIndex = (index: number) => {
+    if (!wave.has(index) || seen.has(index)) return;
+    seen.add(index);
+    waveOrder.push(index);
+  };
+  for (const index of visualOrder) pushWaveIndex(index);
+  for (const index of [...wave].sort((a, b) => a - b)) pushWaveIndex(index);
+
+  let waveOrigin = startBase;
+  for (const index of stillPlaying) {
+    const startedAt = clock.startedAtMs[index];
+    if (startedAt == null) continue;
+    const rank = waveOrder.indexOf(index);
+    if (rank < 0) continue;
+    waveOrigin = Math.min(waveOrigin, startedAt - rank * SPEAKER_WIPER_STAGGER_MS);
+  }
+
   for (const index of clock.pending) {
-    if (clock.startedAtMs[index] == null) clock.startedAtMs[index] = startAt;
+    if (clock.startedAtMs[index] != null) continue;
+    const rank = waveOrder.indexOf(index);
+    const staggeredRank = rank >= 0 ? rank : 0;
+    clock.startedAtMs[index] = Math.max(startBase, waveOrigin + staggeredRank * SPEAKER_WIPER_STAGGER_MS);
   }
   clock.pending.clear();
 };
+
+/** Reading order for a speaker grid: left to right, then top to bottom. */
+export const speakerWiperVisualOrder = (rects: readonly Pick<Rect, "x" | "y">[]): number[] =>
+  rects
+    .map((rect, index) => ({ index, x: rect.x, y: rect.y }))
+    .sort((a, b) => Math.round(a.y) - Math.round(b.y) || Math.round(a.x) - Math.round(b.x) || a.index - b.index)
+    .map((item) => item.index);
 
 export const resetSpeakerWiper = (clock: SpeakerWiperClock, index: number) => {
   clock.startedAtMs[index] = null;

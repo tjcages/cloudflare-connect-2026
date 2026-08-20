@@ -14,13 +14,16 @@ import {
   speakerOverlayIrisRect,
   speakerWiperProgress,
   speakerWiperClockIsLive,
+  speakerWiperImageProgress,
   speakerWiperNeedsLiveClock,
   speakerWiperShouldEnter,
   speakerWiperShouldLeave,
   speakerWiperStaggerMs,
+  speakerWiperVisualOrder,
   SPEAKER_OVERLAY_REST_WIDTH,
   SPEAKER_WIPER_DURATION_MS,
   SPEAKER_WIPER_SHADER_DELAY_MS,
+  SPEAKER_WIPER_STAGGER_MS,
 } from "./speaker-wiper";
 
 const aperture = { x: 40, y: 10, width: 200, height: 180 };
@@ -137,10 +140,11 @@ describe("speaker frame wipers", () => {
     expect(resolveWipingFrames(authored, [aperture], [0], 20_000).map((frame) => frame.variant)).toEqual(["grey"]);
   });
 
-  it("starts the overlay and orange iris together", () => {
+  it("starts the overlay and orange iris together on one portrait", () => {
     expect(speakerWiperStaggerMs("grey")).toBe(0);
     expect(speakerWiperStaggerMs("orange")).toBe(0);
     expect(speakerWiperProgress(16, 0)).toBeGreaterThan(0);
+    expect(SPEAKER_WIPER_STAGGER_MS).toBe(140);
   });
 
   it("jumps authored frames to rest when reduced motion is on", () => {
@@ -229,6 +233,41 @@ describe("speaker frame wipers", () => {
     expect(SPEAKER_WIPER_SHADER_DELAY_MS).toBe(950);
   });
 
+  it("orders portraits left to right, then top to bottom", () => {
+    expect(
+      speakerWiperVisualOrder([
+        { x: 400, y: 10 },
+        { x: 40, y: 10 },
+        { x: 40, y: 220 },
+        { x: 400, y: 220 },
+      ]),
+    ).toEqual([1, 0, 2, 3]);
+  });
+
+  it("staggers a visible grid in reading order and starts a later solo portrait immediately", () => {
+    const order = [0, 1, 2, 3];
+    const clock = { startedAtMs: [null, null, null, null], pending: new Set([2, 0, 1, 3]) };
+    commitPendingSpeakerWipers(clock, 1_000, 0, order);
+    expect(clock.startedAtMs).toEqual([
+      1_000,
+      1_000 + SPEAKER_WIPER_STAGGER_MS,
+      1_000 + SPEAKER_WIPER_STAGGER_MS * 2,
+      1_000 + SPEAKER_WIPER_STAGGER_MS * 3,
+    ]);
+
+    const continued = {
+      startedAtMs: [1_000, 1_000 + SPEAKER_WIPER_STAGGER_MS, null, null],
+      pending: new Set([2, 3]),
+    };
+    commitPendingSpeakerWipers(continued, 1_016, 0, order);
+    expect(continued.startedAtMs[2]).toBe(1_000 + SPEAKER_WIPER_STAGGER_MS * 2);
+    expect(continued.startedAtMs[3]).toBe(1_000 + SPEAKER_WIPER_STAGGER_MS * 3);
+
+    const solo = { startedAtMs: [null, null, null, null], pending: new Set([3]) };
+    commitPendingSpeakerWipers(solo, 8_000, 0, order);
+    expect(solo.startedAtMs[3]).toBe(8_000);
+  });
+
   it("replays the same orange-then-iris settle from the start", () => {
     const clock = { startedAtMs: [0], pending: new Set<number>() };
     expect(replaySpeakerWiper(clock, 0, { imageReady: true, reducedMotion: false, nowMs: 800 })).toBe("armed");
@@ -262,5 +301,8 @@ describe("speaker frame wipers", () => {
   it("runs the iris clip in 900ms", () => {
     expect(SPEAKER_WIPER_DURATION_MS).toBe(900);
     expect(speakerWiperProgress(450, 0)).toBe(0.5);
+    expect(speakerWiperImageProgress(0, [null], 1_000)).toBeNull();
+    expect(speakerWiperImageProgress(0, [0], 450)).toBe(0.5);
+    expect(speakerWiperImageProgress(0, [9_000], 9_010, { reducedMotion: true })).toBe(1);
   });
 });

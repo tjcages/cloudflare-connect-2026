@@ -75,6 +75,8 @@ describe("speaker shader production contract", () => {
     expect(SPEAKER_FRAME_DEFAULTS.cursorWidth).toBe(0.67);
     expect(SPEAKER_FRAME_DEFAULTS.trailRadius).toBe(160);
     expect(SPEAKER_FRAME_DEFAULTS.engineFrameStripeCount).toBe(13);
+    expect(SPEAKER_FRAME_DEFAULTS.faceMaskEnabled).toBe(true);
+    expect(SPEAKER_FRAME_DEFAULTS.faceMaskY).toBe(0.32);
     expect(SPEAKER_FRAME_DEFAULTS.sparkleStripeCoverage).toBe(SPEAKER_SHADER_CONFIG.sparkle.stripe.coverage);
     expect(SPEAKER_FRAME_DEFAULTS.dotsDensity).toBe(SPEAKER_SHADER_CONFIG.stripeDots.density);
     expect(SPEAKER_FRAME_DEFAULTS.stripeBlendMode).toBe(SPEAKER_SHADER_CONFIG.colors.stripeBlendMode);

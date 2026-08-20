@@ -337,6 +337,20 @@ export function buildSpeakerFramesSections(): PanelSectionDef[] {
       ],
     },
     {
+      id: "Face mask",
+      title: "Face mask",
+      defaultOpen: true,
+      fields: [
+        toggle("faceMaskEnabled", "Clear overlay on face"),
+        num("faceMaskX", "Center X", 0, 1, 0.01),
+        num("faceMaskY", "Center Y", 0, 1, 0.01),
+        num("faceMaskRadius", "Radius", 0.05, 0.8, 0.01),
+        num("faceMaskSoftness", "Gradient softness", 0, 1, 0.01),
+        num("faceMaskBlur", "Edge blur", 0, 48, 1),
+        num("faceMaskStrength", "Strength", 0, 1, 0.01),
+      ],
+    },
+    {
       id: "Grid geometry",
       title: "Grid geometry (overlay)",
       fields: [
