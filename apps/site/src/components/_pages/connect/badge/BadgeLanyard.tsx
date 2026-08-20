@@ -41,10 +41,8 @@ import {
 import { drawIdentity, type BadgeCardIdentity } from "./badge-identity";
 import {
   INTRO_DELAY_MS,
-  INTRO_ROLL,
-  INTRO_YAW,
-  INTRO_YAW_DECAY,
-  introRopePoint,
+  introDragTip,
+  introHeldTwist,
 } from "./badge-intro";
 import { svgRasterSize } from "./badge-logo";
 import {
@@ -1151,15 +1149,22 @@ function projectInextensible(rope: RopeState, rest = rope.rest) {
   }
 }
 
-function kickIntroSwing(rope: RopeState) {
+function kickIntroSwing(rope: RopeState, tune: BadgeTune) {
   const last = rope.now.length - 1;
-  const length = rope.rest * last;
+  const drag = introDragTip(tune.dragLimitX, tune.inwardZ);
+  const tipY = rope.restPoints[0]!.y;
   for (let index = 0; index < last; index += 1) {
     const along = (last - index) / last;
-    const posed = introRopePoint(rope.pin, length, along);
-    rope.now[index]!.set(posed.x, posed.y, posed.z);
+    rope.now[index]!.set(
+      rope.pin.x + drag.x * along,
+      rope.pin.y + (tipY - rope.pin.y) * along,
+      rope.pin.z + drag.z * along
+    );
   }
   rope.now[last]!.copy(rope.pin);
+  projectInextensible(rope);
+  applySway(rope, tune.swayFollow);
+  projectInextensible(rope);
   for (let index = 0; index <= last; index += 1) {
     rope.prev[index]!.copy(rope.now[index]!);
   }
@@ -1329,24 +1334,19 @@ function applyCardTwist(
   card: Group,
   rope: RopeState,
   reducedMotion: boolean,
-  tune: BadgeTune,
-  introYaw: { current: number }
+  tune: BadgeTune
 ) {
   if (reducedMotion) {
-    introYaw.current = 0;
     card.rotation.set(0, 0, 0);
     return;
   }
   const tip = rope.now[0]!;
   const previous = rope.prev[0]!;
   const velX = tip.x - previous.x;
-  introYaw.current *= INTRO_YAW_DECAY;
-  if (Math.abs(introYaw.current) < 0.002) introYaw.current = 0;
-  const yawLimit = Math.max(tune.twistMax, Math.abs(introYaw.current));
   const twist = MathUtils.clamp(
-    -tip.x * tune.twistPos - velX * tune.twistVel + introYaw.current,
-    -yawLimit,
-    yawLimit
+    -tip.x * tune.twistPos - velX * tune.twistVel,
+    -tune.twistMax,
+    tune.twistMax
   );
   const roll = MathUtils.clamp(
     tip.x * tune.rollPos,
@@ -1413,7 +1413,6 @@ function LanyardBadge({
   const dragOffset = useRef(new Vector3());
   const dragTarget = useRef(new Vector3());
   const introKicked = useRef(false);
-  const introYaw = useRef(0);
   const [printReady, setPrintReady] = useState(false);
   const [introVisible, setIntroVisible] = useState(reducedMotion);
   const texture = useHeroShaderTexture(
@@ -1487,9 +1486,9 @@ function LanyardBadge({
         window.setTimeout(resolve, INTRO_DELAY_MS);
       });
       if (cancelled || introKicked.current) return;
-      kickIntroSwing(rig.rope);
-      introYaw.current = -INTRO_YAW;
-      rig.card.rotation.set(0, -INTRO_YAW, INTRO_ROLL);
+      kickIntroSwing(rig.rope, tune);
+      const held = introHeldTwist(tune.dragLimitX, tune);
+      rig.card.rotation.set(0, held.y, held.z);
       introKicked.current = true;
       setIntroVisible(true);
       invalidate();
@@ -1498,7 +1497,7 @@ function LanyardBadge({
     return () => {
       cancelled = true;
     };
-  }, [camera, gl, invalidate, printReady, reducedMotion, rig]);
+  }, [camera, gl, invalidate, printReady, reducedMotion, rig, tune]);
 
   useEffect(() => {
     invalidate();
@@ -1594,7 +1593,7 @@ function LanyardBadge({
       tune
     );
     applyRopeToBones(rig.bones, rig.rope);
-    applyCardTwist(rig.card, rig.rope, reducedMotion, tune, introYaw);
+    applyCardTwist(rig.card, rig.rope, reducedMotion, tune);
     applyWallShadow(rig, tune);
     const hang = groupRef.current;
     const localY = cardLocalY(tune.cardHeight, tune.cardOverlap);

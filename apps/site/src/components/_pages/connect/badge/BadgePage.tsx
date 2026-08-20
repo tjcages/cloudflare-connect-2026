@@ -104,7 +104,7 @@ export default function BadgePage(_props: IslandProps) {
     title: "Badge",
     defaults: BADGE_TUNE_DEFAULTS,
     fields: BADGE_TUNE_FIELDS,
-    defaultOpen: true,
+    defaultOpen: false,
     defaultTheme: "dark",
     prompts: [],
   });

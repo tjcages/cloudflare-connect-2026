@@ -15,8 +15,8 @@ describe("badge twizzler overlay", () => {
       BADGE_TUNE_DEFAULTS
     );
     expect(overlay.color).toBe(theme.twizzler.color);
-    expect(overlay.scale).toBe(CONNECT_HERO_TWIZZLER_DEFAULTS.scale);
-    expect(overlay.lineCount).toBe(CONNECT_HERO_TWIZZLER_DEFAULTS.lineCount);
+    expect(overlay.scale).toBe(BADGE_TUNE_DEFAULTS.twizzlerScale);
+    expect(overlay.lineCount).toBe(BADGE_TUNE_DEFAULTS.twizzlerLineCount);
   });
 
   it("applies overlay sliders on top of the themed ribbon", () => {

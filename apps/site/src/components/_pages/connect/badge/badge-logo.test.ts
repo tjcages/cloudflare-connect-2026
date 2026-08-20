@@ -373,6 +373,8 @@ describe("badge logo SVG prep", () => {
     expect(page).toContain("badgeShaderPlateRaster");
     expect(page).toContain("JPEG, WebP, PNG, or SVG");
     expect(page).toContain("setTune");
+    expect(page).toContain("defaultOpen: false");
+    expect(page).not.toContain("defaultOpen: true");
     expect(page).toContain("onPanChange");
     expect(page).toContain("onScaleChange");
     expect(page).toContain("applyBadgeTwizzlerOverlay");
@@ -448,11 +450,13 @@ describe("badge logo SVG prep", () => {
     expect(lanyard).toContain("bakedWhileFrozen.current = false");
     expect(lanyard).not.toContain("Boolean(logoMarkSrc)");
     expect(lanyard).toContain("shaderLive && !reducedMotion");
-    expect(lanyard).toContain("kickIntroSwing(rig.rope)");
-    expect(lanyard).toContain("introRopePoint");
-    expect(lanyard).toContain("INTRO_YAW");
-    expect(lanyard).toContain("INTRO_ROLL");
+    expect(lanyard).toContain("kickIntroSwing(rig.rope, tune)");
+    expect(lanyard).toContain("introDragTip");
+    expect(lanyard).toContain("introHeldTwist");
     expect(lanyard).toContain("INTRO_DELAY_MS");
+    expect(lanyard).not.toContain("INTRO_YAW");
+    expect(lanyard).not.toContain("INTRO_ROLL");
+    expect(lanyard).not.toContain("introRopePoint");
     expect(lanyard).toContain("preventStrapCatch");
     expect(lanyard).toContain("CARD_FRONT_Z");
     expect(lanyard).not.toContain("INTRO_SPIN");
