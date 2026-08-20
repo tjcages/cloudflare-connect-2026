@@ -1,7 +1,7 @@
 export default function BadgeShaderSource({ src }: { src: string }) {
   return (
-    <figure className="flex flex-col gap-8">
-      <figcaption className="text-label-x-small text-text-muted">
+    <figure className="rounded-8 bg-background-base p-8 shadow-elevation-default">
+      <figcaption className="mb-8 text-label-x-small text-text-muted">
         Shader source
       </figcaption>
       <img

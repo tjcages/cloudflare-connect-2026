@@ -174,6 +174,19 @@ describe("badge logo SVG prep", () => {
     );
     expect(preview).toContain("src={src}");
 
+    const upload = readFileSync(
+      resolve(
+        process.cwd(),
+        "src/components/_pages/connect/badge/BadgeLogoUpload.tsx"
+      ),
+      "utf8"
+    );
+    expect(upload).toContain("BadgeShaderSource");
+    expect(upload).toContain("src={plateSrc}");
+    expect(upload).toContain("group/source");
+    expect(upload).toContain("group-hover/source:visible");
+    expect(upload).toContain('aria-label="Preview shader source"');
+
     const page = readFileSync(
       resolve(
         process.cwd(),
@@ -181,9 +194,10 @@ describe("badge logo SVG prep", () => {
       ),
       "utf8"
     );
-    expect(page).toContain("BadgeShaderSource");
-    expect(page).toContain("src={plateSrc}");
+    expect(page).toContain("plateSrc={plateSrc}");
+    expect(page).toContain("h-760");
     expect(page).toContain("badgeShaderPlateSvg");
     expect(page).not.toContain("src={logoMarkSrc");
+    expect(page).not.toContain("<BadgeShaderSource");
   });
 });

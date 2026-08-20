@@ -41,7 +41,6 @@ import {
 } from "./badge-logo";
 import BadgeLogoUpload from "./BadgeLogoUpload";
 import BadgePrintShader from "./BadgePrintShader";
-import BadgeShaderSource from "./BadgeShaderSource";
 import {
   badgeSharePath,
   DEFAULT_BADGE_PARAMS,
@@ -316,13 +315,13 @@ export default function BadgePage(_props: IslandProps) {
         />
       ) : null}
 
-      <div className="relative h-640 overflow-x-visible before:inside-border-b before:border-border-default max-lg:h-auto">
+      <div className="relative h-760 overflow-x-visible before:inside-border-b before:border-border-default max-lg:h-auto">
         <HeroGrid
           aria-hidden="true"
           className="pointer-events-none absolute -top-0.5 -right-0.5 -z-10 h-641 w-401 text-border-default max-lg:hidden"
         />
 
-        <div className="absolute inset-0 max-lg:relative max-lg:h-520">
+        <div className="absolute inset-0 max-lg:relative max-lg:h-640">
           {hydrated ? (
             <div
               aria-hidden="true"
@@ -403,7 +402,6 @@ export default function BadgePage(_props: IslandProps) {
                 SVG to print your mark in the center.
               </p>
               <BadgeCustomizer onChange={setParams} params={params} />
-              <BadgeShaderSource src={plateSrc} />
               <BadgeLogoUpload
                 error={logoError}
                 fileName={logo?.fileName ?? null}
@@ -412,6 +410,7 @@ export default function BadgePage(_props: IslandProps) {
                   setLogoError(null);
                 }}
                 onFile={onLogoFile}
+                plateSrc={plateSrc}
               />
             </div>
           </div>
