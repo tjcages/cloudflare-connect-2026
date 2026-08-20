@@ -110,6 +110,8 @@ describe("dashboard login shader", () => {
     expect(loginPromoSource).toContain("text-heading-h5");
     expect(loginPromoSource).toContain("text-body-small");
     expect(loginPromoSource).toContain('name="arrow-right"');
+    expect(loginPromoSource).toContain("size={28}");
+    expect(loginPromoSource).toContain("-top-14 -right-10");
     expect(loginPromoSource).toContain("-rotate-45");
     expect(loginPromoSource).toContain("LOGIN_OVERLAY_COPY.bodyVenue");
     expect(loginPageSource).toContain(`href={LOGIN_OVERLAY_COPY.registerHref}`);
