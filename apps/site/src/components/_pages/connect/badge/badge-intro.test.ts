@@ -4,19 +4,40 @@ import {
   applyPoseToCard,
   applyPoseToRope,
   captureBadgePose,
+  cardBottomDragOffsetY,
+  hangingRope,
+  INTRO_PIN,
   INTRO_POSE,
+  INTRO_TIP,
 } from "./badge-intro";
 
 describe("badge intro pose", () => {
-  it("bakes the captured hold as the intro start", () => {
-    expect(INTRO_POSE.event).toBe("hold");
-    expect(INTRO_POSE.drag).toEqual({ x: 0.28, y: 0, z: -0.056 });
-    expect(INTRO_POSE.tip).toEqual({ x: 0.0839, y: 0.0536, z: -0.0168 });
+  it("starts from a lowered hang of the captured swing, grabbed at the card bottom", () => {
+    expect(INTRO_POSE.tip).toEqual(INTRO_TIP);
+    expect(INTRO_POSE.tip.y).toBeLessThan(0);
+    expect(INTRO_POSE.tip.x).toBe(0.0839);
+    expect(INTRO_POSE.drag?.y).toBe(-0.04);
     expect(INTRO_POSE.card.ry).toBe(-0.2934);
-    expect(INTRO_POSE.card.rz).toBe(0.0352);
     expect(INTRO_POSE.rope).toHaveLength(9);
-    expect(INTRO_POSE.rope[0]).toEqual(INTRO_POSE.tip);
-    expect(INTRO_POSE.rope.at(-1)).toEqual({ x: 0, y: 0.1256, z: 0 });
+    expect(INTRO_POSE.rope[0]).toEqual(INTRO_TIP);
+    expect(INTRO_POSE.rope.at(-1)).toEqual(INTRO_PIN);
+    expect(INTRO_POSE.dragOffset.y).toBe(
+      cardBottomDragOffsetY(INTRO_TIP.y, 0.158, -0.025)
+    );
+    expect(INTRO_POSE.dragOffset.y).toBeGreaterThan(0.1);
+  });
+
+  it("builds an unbunched hanging rope from pin to tip", () => {
+    const rope = hangingRope(INTRO_TIP, INTRO_PIN, 9);
+    expect(rope[0]).toEqual(INTRO_TIP);
+    expect(rope.at(-1)).toEqual(INTRO_PIN);
+    const mid = rope[4]!;
+    expect(mid.y).toBeGreaterThan(INTRO_TIP.y);
+    expect(mid.y).toBeLessThan(INTRO_PIN.y);
+  });
+
+  it("places the drag grab at the bottom of the card", () => {
+    expect(cardBottomDragOffsetY(0, 0.158, -0.025)).toBeCloseTo(0.183);
   });
 
   it("applies that hold onto the rope and card", () => {
@@ -32,7 +53,7 @@ describe("badge intro pose", () => {
     applyIntroPose(rope, card);
     expect(rope.now[0]).toEqual(INTRO_POSE.tip);
     expect(rope.prev[0]).toEqual(INTRO_POSE.prev);
-    expect(rope.stretch).toBe(1);
+    expect(rope.stretch).toBe(INTRO_POSE.stretch);
     expect(card.rotation).toEqual({
       x: INTRO_POSE.card.rx,
       y: INTRO_POSE.card.ry,

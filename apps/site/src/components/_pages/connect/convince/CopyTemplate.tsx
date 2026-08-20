@@ -1,6 +1,7 @@
 import Button from "@/components/Button";
 import {
   CopyFeedbackIcon,
+  CopyFeedbackLabel,
   useCopyFeedback,
 } from "@/components/copy-feedback/CopyFeedback";
 import type { IslandProps } from "@/types/island-props";
@@ -48,9 +49,10 @@ export default function CopyTemplate({
 
       <Button className="self-start" onClick={copy} size="large">
         <CopyFeedbackIcon copied={copied} />
-        <span>
-          {copied ? "Copied" : tab === "email" ? "Copy email" : "Copy message"}
-        </span>
+        <CopyFeedbackLabel
+          copied={copied}
+          idle={tab === "email" ? "Copy email" : "Copy message"}
+        />
       </Button>
     </div>
   );

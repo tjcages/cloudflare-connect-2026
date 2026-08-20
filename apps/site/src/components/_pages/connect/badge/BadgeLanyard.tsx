@@ -44,6 +44,7 @@ import {
   INTRO_DELAY_MS,
   INTRO_FADE_MS,
   applyIntroPose,
+  cardBottomDragOffsetY,
 } from "./badge-intro";
 import { svgRasterSize } from "./badge-logo";
 import {
@@ -1643,13 +1644,13 @@ function LanyardBadge({
         );
         const local = world.clone();
         rig.group.worldToLocal(local);
+        const tip = rig.rope.now[0]!;
         dragOffset.current.set(
-          rig.rope.now[0]!.x - local.x,
-          rig.rope.now[0]!.y - local.y,
+          tip.x - local.x,
+          cardBottomDragOffsetY(tip.y, tune.cardHeight, tune.cardOverlap),
           0
         );
-        const tip = rig.rope.now[0]!;
-        dragTarget.current.set(tip.x, tip.y, -tip.x * tune.inwardZ);
+        dragTarget.current.set(tip.x, Math.min(tip.y, 0), -tip.x * tune.inwardZ);
         gl.domElement.style.cursor = "grabbing";
         gl.domElement.setPointerCapture(event.pointerId);
         invalidate();

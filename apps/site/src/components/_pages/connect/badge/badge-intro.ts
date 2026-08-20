@@ -1,5 +1,6 @@
 export const INTRO_DELAY_MS = 500;
 export const INTRO_FADE_MS = 800;
+export const INTRO_ROPE_POINTS = 9;
 
 export type BadgePosePoint = { x: number; y: number; z: number };
 
@@ -22,29 +23,6 @@ export type BadgePoseSnapshot = {
   rope: BadgePosePoint[];
 };
 
-export const INTRO_POSE: BadgePoseSnapshot = {
-  event: "hold",
-  heldMs: 7072,
-  drag: { x: 0.28, y: 0, z: -0.056 },
-  dragOffset: { x: 0.0271, y: 0.1385, z: 0 },
-  hang: { x: 1.7925, y: 2.0232, z: 0 },
-  tip: { x: 0.0839, y: 0.0536, z: -0.0168 },
-  prev: { x: 0.0839, y: 0.0535, z: -0.0168 },
-  stretch: 1,
-  card: { x: 0, y: -0.104, z: 0.006, rx: 0, ry: -0.2934, rz: 0.0352 },
-  rope: [
-    { x: 0.0839, y: 0.0536, z: -0.0168 },
-    { x: 0.0689, y: 0.0571, z: -0.0138 },
-    { x: 0.0539, y: 0.0607, z: -0.0108 },
-    { x: 0.0391, y: 0.065, z: -0.0078 },
-    { x: 0.0249, y: 0.071, z: -0.005 },
-    { x: 0.0132, y: 0.0812, z: -0.0026 },
-    { x: 0.0055, y: 0.0948, z: -0.0011 },
-    { x: 0.0014, y: 0.11, z: -0.0003 },
-    { x: 0, y: 0.1256, z: 0 },
-  ],
-};
-
 export function roundPose(value: number): number {
   return Math.round(value * 10000) / 10000;
 }
@@ -52,6 +30,64 @@ export function roundPose(value: number): number {
 export function posePoint(x: number, y: number, z: number): BadgePosePoint {
   return { x: roundPose(x), y: roundPose(y), z: roundPose(z) };
 }
+
+export function hangingRope(
+  tip: BadgePosePoint,
+  pin: BadgePosePoint,
+  count: number
+): BadgePosePoint[] {
+  const last = Math.max(count - 1, 1);
+  return Array.from({ length: count }, (_, index) => {
+    const along = (last - index) / last;
+    return posePoint(
+      pin.x + (tip.x - pin.x) * along,
+      pin.y + (tip.y - pin.y) * along,
+      pin.z + (tip.z - pin.z) * along
+    );
+  });
+}
+
+export function hangingStretch(
+  tip: BadgePosePoint,
+  pin: BadgePosePoint
+): number {
+  const rest = Math.abs(pin.y) || 1;
+  return roundPose(
+    Math.hypot(tip.x - pin.x, tip.y - pin.y, tip.z - pin.z) / rest
+  );
+}
+
+export function cardBottomDragOffsetY(
+  tipY: number,
+  cardHeight: number,
+  cardOverlap: number
+): number {
+  const centerY = -(cardHeight / 2) + cardOverlap;
+  const bottomY = centerY - cardHeight / 2;
+  return roundPose(tipY - bottomY);
+}
+
+export const INTRO_PIN: BadgePosePoint = { x: 0, y: 0.1256, z: 0 };
+export const INTRO_TIP: BadgePosePoint = { x: 0.0839, y: -0.04, z: -0.0168 };
+
+const INTRO_ROPE = hangingRope(INTRO_TIP, INTRO_PIN, INTRO_ROPE_POINTS);
+
+export const INTRO_POSE: BadgePoseSnapshot = {
+  event: "hold",
+  heldMs: 7072,
+  drag: { x: 0.28, y: -0.04, z: -0.056 },
+  dragOffset: {
+    x: 0,
+    y: cardBottomDragOffsetY(INTRO_TIP.y, 0.158, -0.025),
+    z: 0,
+  },
+  hang: { x: 1.7925, y: 2.0232, z: 0 },
+  tip: INTRO_TIP,
+  prev: posePoint(INTRO_TIP.x, INTRO_TIP.y + 0.0001, INTRO_TIP.z),
+  stretch: hangingStretch(INTRO_TIP, INTRO_PIN),
+  card: { x: 0, y: -0.104, z: 0.006, rx: 0, ry: -0.2934, rz: 0.0352 },
+  rope: INTRO_ROPE,
+};
 
 function copyPoint(point: BadgePoseVec3): BadgePosePoint {
   return posePoint(point.x, point.y, point.z);

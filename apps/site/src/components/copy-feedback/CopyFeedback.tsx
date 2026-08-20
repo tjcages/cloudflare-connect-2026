@@ -2,6 +2,8 @@ import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Icon from "@/components/icon/Icon";
 
+const SWAP_TRANSITION = { duration: 0.25, ease: [0.6, 0.6, 0, 1] as const };
+
 export function useCopyFeedback(value: string) {
   const [copied, setCopied] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -38,7 +40,7 @@ export function CopyFeedbackIcon({
         exit={{ filter: "blur(3px)", opacity: 0, scale: 0.5 }}
         initial={{ filter: "blur(3px)", opacity: 0, scale: 0.5 }}
         key={`${copied}`}
-        transition={{ duration: 0.25, ease: [0.6, 0.6, 0, 1] }}
+        transition={SWAP_TRANSITION}
       >
         <Icon
           name={copied ? "checkmark-1-medium" : "square-behind-square-2"}
@@ -46,5 +48,33 @@ export function CopyFeedbackIcon({
         />
       </motion.span>
     </AnimatePresence>
+  );
+}
+
+export function CopyFeedbackLabel({
+  copied,
+  idle,
+  copiedLabel = "Copied",
+}: {
+  copied: boolean;
+  idle: string;
+  copiedLabel?: string;
+}) {
+  const text = copied ? copiedLabel : idle;
+  return (
+    <span className="inline-flex overflow-hidden">
+      <AnimatePresence initial={false} mode="popLayout">
+        <motion.span
+          animate={{ filter: "blur(0px)", opacity: 1, x: 0 }}
+          className="whitespace-nowrap"
+          exit={{ filter: "blur(3px)", opacity: 0, x: -8 }}
+          initial={{ filter: "blur(3px)", opacity: 0, x: 8 }}
+          key={text}
+          transition={SWAP_TRANSITION}
+        >
+          {text}
+        </motion.span>
+      </AnimatePresence>
+    </span>
   );
 }

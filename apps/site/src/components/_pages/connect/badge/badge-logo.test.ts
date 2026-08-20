@@ -383,6 +383,7 @@ describe("badge logo SVG prep", () => {
     expect(page).toContain('fit: "width"');
     expect(page).toContain("whitePoint: 0.8");
     expect(page).toContain("Copy shareable card");
+    expect(page).toContain("CopyFeedbackLabel");
     expect(page).toContain("<span>Share</span>");
     expect(page).not.toContain("Share on X");
     expect(page).toContain("badgeTweetUrl(badgeShareHeadline(view.name))");
@@ -451,6 +452,7 @@ describe("badge logo SVG prep", () => {
     expect(lanyard).not.toContain("Boolean(logoMarkSrc)");
     expect(lanyard).toContain("shaderLive && !reducedMotion");
     expect(lanyard).toContain("applyIntroPose(rig.rope, rig.card)");
+    expect(lanyard).toContain("cardBottomDragOffsetY");
     expect(lanyard).toContain("INTRO_DELAY_MS");
     expect(lanyard).toContain("INTRO_FADE_MS");
     expect(lanyard).toContain("onIntroReady");

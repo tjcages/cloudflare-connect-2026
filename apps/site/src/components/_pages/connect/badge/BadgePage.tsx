@@ -14,7 +14,10 @@ import {
   useState,
 } from "react";
 import Button from "@/components/Button";
-import { CopyFeedbackIcon } from "@/components/copy-feedback/CopyFeedback";
+import {
+  CopyFeedbackIcon,
+  CopyFeedbackLabel,
+} from "@/components/copy-feedback/CopyFeedback";
 import CornerDots from "@/components/CornerDots";
 import Icon from "@/components/icon/Icon";
 import {
@@ -564,7 +567,10 @@ export default function BadgePage(_props: IslandProps) {
           <div className="flex gap-12 max-sm:flex-col">
             <Button onClick={onCopyShareable} size="large" type="button">
               <CopyFeedbackIcon copied={shareCopied} />
-              <span>{shareCopied ? "Copied" : "Copy shareable card"}</span>
+              <CopyFeedbackLabel
+                copied={shareCopied}
+                idle="Copy shareable card"
+              />
             </Button>
             <Button
               onClick={onShareX}
