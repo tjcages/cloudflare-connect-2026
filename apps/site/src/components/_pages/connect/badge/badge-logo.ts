@@ -2,7 +2,7 @@ export const LOGO_TEXTURE_W = 800;
 export const LOGO_TEXTURE_H = 1200;
 export const SVG_MAX_BYTES = 400_000;
 /** Logo-free luminance plate. The stripe engine must never see an upload. */
-export const BADGE_PRINT_FIELD_SRC = "/connect/badge-print-field.svg";
+export const BADGE_PRINT_FIELD_SRC = "/connect/badge-print-field.svg?v=flat";
 
 const SCRIPT_RE = /<script\b[\s\S]*?<\/script>/gi;
 const FOREIGN_RE = /<foreignObject\b[\s\S]*?<\/foreignObject>/gi;
@@ -95,15 +95,9 @@ export function prepareBadgeLogo(svgText: string): {
   return { colorSvg, markSvg };
 }
 
-/** Soft white orbs on black — the same luminance field case-study cards feed the stripe shader. */
+/** Even luma plate — no orbs or paths the stripe engine could silhouette. */
 export function badgeTextureFieldMarkup(width: number, height: number): string {
-  return [
-    `<rect width="${width}" height="${height}" fill="black"/>`,
-    `<circle cx="${Math.round(width * 0.22)}" cy="${Math.round(height * -0.04)}" r="${Math.round(width * 0.52)}" fill="white" opacity="0.28"/>`,
-    `<circle cx="0" cy="${Math.round(height * 0.72)}" r="${Math.round(width * 0.7)}" fill="white" opacity="0.22"/>`,
-    `<circle cx="${Math.round(width * 0.9)}" cy="${Math.round(height * -0.05)}" r="${Math.round(width * 0.58)}" fill="white" opacity="0.18"/>`,
-    `<circle cx="${Math.round(width * 0.7)}" cy="${Math.round(height * 0.82)}" r="${Math.round(width * 0.64)}" fill="white" opacity="0.24"/>`,
-  ].join("");
+  return `<rect width="${width}" height="${height}" fill="#9a9a9a"/>`;
 }
 
 export function badgePrintFieldSvg(): string {

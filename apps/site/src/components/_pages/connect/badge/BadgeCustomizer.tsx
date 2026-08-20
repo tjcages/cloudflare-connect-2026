@@ -1,6 +1,7 @@
 import cn from "classnames";
 import type { BadgeParams } from "./badge-params";
 import { BADGE_THEMES } from "./badge-themes";
+import BadgeThemeSwatch from "./BadgeThemeSwatch";
 
 export default function BadgeCustomizer({
   params,
@@ -32,12 +33,7 @@ export default function BadgeCustomizer({
             role="radio"
             type="button"
           >
-            <span
-              className="size-28 rounded-full"
-              style={{
-                background: `linear-gradient(135deg, ${theme.accent} 0%, ${theme.pair} 55%, ${theme.deep} 100%)`,
-              }}
-            />
+            <BadgeThemeSwatch theme={theme} />
           </button>
         );
       })}

@@ -322,6 +322,11 @@ export function badgeMarkFill(theme: BadgeTheme): string {
   return hexLuma(theme.accent) > 0.65 ? theme.deep : theme.accent;
 }
 
+export function badgeSwatchColors(theme: BadgeTheme): readonly [string, string, string, string] {
+  const highlight = hexLuma(theme.accent) > 0.72 ? "#ffffff" : theme.pair;
+  return [theme.deep, theme.accent, highlight, theme.pair];
+}
+
 export function applyThemeToTwizzler(themeEntry: BadgeTheme): TwizzlerSettings {
   const ink = themeEntry.twizzler;
   return {

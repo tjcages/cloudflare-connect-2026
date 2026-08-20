@@ -128,10 +128,10 @@ describe("badge logo SVG prep", () => {
     const field = readFileSync(fieldPath, "utf8");
     expect(compactSvg(field)).toBe(compactSvg(badgePrintFieldSvg()));
     expect(field).not.toMatch(/<path\b/i);
+    expect(field).not.toMatch(/<circle\b/i);
     expect(field).not.toMatch(/\bd=/);
-    expect(field).toContain("<circle");
-    expect(field).toContain('fill="black"');
-    expect(BADGE_PRINT_FIELD_SRC).toBe("/connect/badge-print-field.svg");
+    expect(field).toContain('fill="#9a9a9a"');
+    expect(BADGE_PRINT_FIELD_SRC).toBe("/connect/badge-print-field.svg?v=flat");
 
     const shader = readFileSync(
       resolve(

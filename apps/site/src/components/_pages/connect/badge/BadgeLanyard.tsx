@@ -188,15 +188,28 @@ function containSize(srcW: number, srcH: number, maxW: number, maxH: number) {
   return { w: srcW * scale, h: srcH * scale };
 }
 
-function markSize(mark: HTMLImageElement) {
+function markSize(mark: HTMLImageElement | HTMLCanvasElement) {
+  if (mark instanceof HTMLCanvasElement) {
+    return { w: mark.width, h: mark.height };
+  }
   const w = mark.naturalWidth || mark.width;
   const h = mark.naturalHeight || mark.height;
   return { w, h };
 }
 
+function rasterizeMark(image: HTMLImageElement) {
+  const size = markSize(image);
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(size.w));
+  canvas.height = Math.max(1, Math.round(size.h));
+  const ctx = canvas.getContext("2d");
+  if (ctx) ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+  return canvas;
+}
+
 function drawCenteredLogo(
   ctx: CanvasRenderingContext2D,
-  mark: HTMLImageElement | null,
+  mark: HTMLImageElement | HTMLCanvasElement | null,
   width: number,
   height: number,
   tune: BadgeTune
@@ -229,7 +242,7 @@ function useHeroShaderTexture(
   const skip = useRef(0);
   const lastKey = useRef("");
   const bakedWhileFrozen = useRef(false);
-  const markImage = useRef<HTMLImageElement | null>(null);
+  const markImage = useRef<HTMLCanvasElement | null>(null);
   const markGeneration = useRef(0);
   const texture = useMemo(() => {
     const canvas = document.createElement("canvas");
@@ -261,7 +274,7 @@ function useHeroShaderTexture(
     image.decoding = "async";
     image.onload = () => {
       if (generation !== markGeneration.current) return;
-      markImage.current = image;
+      markImage.current = rasterizeMark(image);
       markGeneration.current += 1;
     };
     image.onerror = () => {
