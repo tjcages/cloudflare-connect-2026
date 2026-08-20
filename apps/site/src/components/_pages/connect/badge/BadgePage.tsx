@@ -51,6 +51,7 @@ import {
   svgToBlobUrl,
 } from "./badge-logo";
 import BadgePrintShader from "./BadgePrintShader";
+import BadgeShareCopy from "./BadgeShareCopy";
 import BadgeShareDock from "./BadgeShareDock";
 import {
   badgeShareHeadline,
@@ -503,17 +504,9 @@ export default function BadgePage(_props: IslandProps) {
 
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute inset-y-0 left-80 z-10 flex w-520 flex-col justify-center gap-40 max-lg:left-24 max-lg:w-auto max-lg:pr-24"
+            className="pointer-events-none absolute inset-y-0 left-80 z-10 w-520 max-lg:left-24 max-lg:w-auto max-lg:pr-24"
           >
-            <p className="text-decorative-small text-text-faint opacity-0">
-              01 · BADGE
-            </p>
-            <h1
-              className="mb-16 text-left text-heading-h1 text-balance text-text-base opacity-0"
-              data-share-title=""
-            >
-              Your Connect 2026 badge
-            </h1>
+            <BadgeShareCopy />
           </div>
         </div>
 

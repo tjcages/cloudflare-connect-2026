@@ -3,7 +3,10 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { badgeIdentityLayout } from "./badge-identity";
 import {
+  BADGE_SHARE_DATE,
+  BADGE_SHARE_HEADLINE,
   BADGE_SHARE_SURFACE,
+  BADGE_SHARE_VENUE,
   badgeShareHeadline,
   badgeTweetUrl,
   keepShareNode,
@@ -80,15 +83,40 @@ describe("badge share copy", () => {
     const ctx = {
       measureText: (text: string) => ({ width: text.length * 10 }),
     } as CanvasRenderingContext2D;
-    expect(wrapShareTitle(ctx, "Your Connect 2026 badge", 500)).toEqual([
-      "Your Connect 2026 badge",
+    expect(wrapShareTitle(ctx, "Let’s shape what’s next together", 500)).toEqual(
+      ["Let’s shape what’s next together"]
+    );
+    expect(wrapShareTitle(ctx, "Let’s shape what’s next together", 80)).toEqual(
+      ["Let’s", "shape", "what’s", "next", "together"]
+    );
+  });
+
+  it("keeps poster copy for the share card lockup", () => {
+    expect(BADGE_SHARE_HEADLINE).toBe("Let’s shape what’s\nnext together");
+    expect([...BADGE_SHARE_VENUE]).toEqual([
+      "Moscone Center",
+      "San Francisco",
     ]);
-    expect(wrapShareTitle(ctx, "Your Connect 2026 badge", 80)).toEqual([
-      "Your",
-      "Connect",
-      "2026",
-      "badge",
-    ]);
+    expect(BADGE_SHARE_DATE).toBe("October 20, 2026");
+    const copy = readFileSync(
+      resolve(
+        process.cwd(),
+        "src/components/_pages/connect/badge/BadgeShareCopy.tsx"
+      ),
+      "utf8"
+    );
+    expect(copy).toContain("ConnectCloud");
+    expect(copy).toContain("text-orange-900");
+    expect(copy).toContain("justify-between");
+    expect(copy).toContain("data-share-copy");
+    expect(copy).toContain("data-share-logo");
+    expect(copy).toContain("data-share-stamp");
+    expect(copy).toContain("Cloudflare");
+    expect(copy).toContain("Connect 2026");
+    expect(copy).toContain("BADGE_SHARE_HEADLINE");
+    expect(copy).toContain("BADGE_SHARE_VENUE");
+    expect(copy).toContain("BADGE_SHARE_DATE");
+    expect(copy).not.toContain("Your Connect 2026 badge");
   });
 
   it("composites the share scene instead of screenshotting the live hero", () => {
@@ -106,12 +134,16 @@ describe("badge share copy", () => {
     expect(source).toContain("BADGE_SHARE_FILE");
     expect(source).toContain("stampHeroGrid");
     expect(source).toContain("stampBackdrop");
-    expect(source).toContain("stampShareTitle");
+    expect(source).toContain("stampShareCopy");
+    expect(source).toContain("stampShareLogo");
     expect(source).toContain("wrapShareTitle");
     expect(source).toContain("data-share-backdrop");
-    expect(source).toContain("data-share-title");
+    expect(source).toContain("data-share-copy");
+    expect(source).toContain("data-share-logo");
+    expect(source).toContain("data-share-stamp");
     expect(source).toContain("toDataURL");
     expect(source).toContain("destination-in");
+    expect(source).not.toContain("stampShareTitle");
     expect(source).not.toContain("drawShareGrid");
   });
 });

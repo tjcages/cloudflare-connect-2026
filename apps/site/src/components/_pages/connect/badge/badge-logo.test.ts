@@ -409,15 +409,15 @@ describe("badge logo SVG prep", () => {
     expect(page).not.toContain("shareCapture");
     expect(page).not.toContain("disabled={sharing}");
     expect(page).toContain("text-left");
+    expect(page).toContain("BadgeShareCopy");
     expect(page).toContain("BadgeShareDock");
     expect(page).toContain("shareSceneRef");
     expect(page).toContain('data-share-scene=""');
-    expect(page).toContain("data-share-title");
     expect(page).toContain('data-share-layer="behind"');
     expect(page).toContain("data-share-grid");
     expect(page).toContain("data-share-mask");
     expect(page).toContain("shareBackdrop");
-    expect(page).toContain("justify-center");
+    expect(page).not.toContain("data-share-title");
     expect(page).not.toContain("Copy badge link");
     expect(page).not.toContain("Register now");
     expect(page).toContain("Your Connect 2026 badge");

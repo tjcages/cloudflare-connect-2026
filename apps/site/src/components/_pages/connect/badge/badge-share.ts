@@ -1,5 +1,8 @@
 export const BADGE_SHARE_SURFACE = "#ffffff";
 export const BADGE_SHARE_FILE = "connect-2026-badge.png";
+export const BADGE_SHARE_HEADLINE = "Let’s shape what’s\nnext together";
+export const BADGE_SHARE_VENUE = ["Moscone Center", "San Francisco"] as const;
+export const BADGE_SHARE_DATE = "October 20, 2026";
 
 export function badgeShareHeadline(name: string): string {
   const trimmed = name.trim();
@@ -296,52 +299,107 @@ export function wrapShareTitle(
   return lines;
 }
 
-function paintShareTitle(
+function paintShareText(
   ctx: CanvasRenderingContext2D,
-  title: HTMLElement,
+  node: HTMLElement,
   rect: DOMRect
 ) {
-  const style = getComputedStyle(title);
-  const box = title.getBoundingClientRect();
+  const style = getComputedStyle(node);
+  const box = node.getBoundingClientRect();
+  if (box.width < 1 || box.height < 1) return;
+  const raw = (node.innerText || node.textContent || "")
+    .replace(/\u00a0/g, " ")
+    .trim();
+  if (!raw) return;
   const lineHeight =
     Number.parseFloat(style.lineHeight) ||
     Number.parseFloat(style.fontSize) * 1.1 ||
     48;
   ctx.save();
   ctx.globalAlpha = 1;
-  ctx.fillStyle = style.color || "#292929";
-  ctx.font = style.font || '400 44px "STK Bureau Sans", sans-serif';
+  ctx.fillStyle = style.color || "#f46021";
+  ctx.font = style.font || '400 56px "STK Bureau Sans", sans-serif';
   ctx.textBaseline = "top";
   ctx.textAlign = "left";
+  if ("letterSpacing" in ctx && style.letterSpacing !== "normal") {
+    ctx.letterSpacing = style.letterSpacing;
+  }
   const maxWidth = Math.max(1, box.width);
-  const lines = wrapShareTitle(
-    ctx,
-    title.textContent?.trim() || "Your Connect 2026 badge",
-    maxWidth
-  );
   let y = box.top - rect.top;
-  for (const line of lines) {
-    ctx.fillText(line, box.left - rect.left, y, maxWidth);
-    y += lineHeight;
+  for (const paragraph of raw.split(/\n+/)) {
+    const lines = wrapShareTitle(ctx, paragraph.trim(), maxWidth);
+    for (const line of lines) {
+      ctx.fillText(line, box.left - rect.left, y, maxWidth);
+      y += lineHeight;
+    }
   }
   ctx.restore();
 }
 
-function stampShareTitle(
+async function stampShareLogo(
+  ctx: CanvasRenderingContext2D,
+  copy: HTMLElement,
+  rect: DOMRect
+) {
+  const host = copy.querySelector("[data-share-logo]");
+  if (!(host instanceof Element)) return;
+  const svg =
+    host instanceof SVGSVGElement
+      ? host
+      : host.querySelector("svg");
+  if (!svg) return;
+  const box = svg.getBoundingClientRect();
+  if (box.width < 1 || box.height < 1) return;
+  const clone = svg.cloneNode(true) as SVGSVGElement;
+  clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+  const blob = new Blob([new XMLSerializer().serializeToString(clone)], {
+    type: "image/svg+xml;charset=utf-8",
+  });
+  const url = URL.createObjectURL(blob);
+  try {
+    const image = await loadImage(url);
+    drawLayer(ctx, image, box, rect, 1, 1);
+  } catch {
+    // Wordmark + headline still export if the cloud SVG blob fails.
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+function stampShareStamps(
+  ctx: CanvasRenderingContext2D,
+  copy: HTMLElement,
+  rect: DOMRect
+) {
+  const nodes = copy.querySelectorAll<HTMLElement>("[data-share-stamp]");
+  for (const node of nodes) {
+    paintShareText(ctx, node, rect);
+  }
+}
+
+async function stampShareCopy(
   ctx: CanvasRenderingContext2D,
   scene: HTMLElement,
   rect: DOMRect
 ) {
-  const title = scene.querySelector<HTMLElement>("[data-share-title]");
-  if (!title) return;
-  const box = title.getBoundingClientRect();
+  const copy = scene.querySelector<HTMLElement>("[data-share-copy]");
+  if (!copy) return;
+  const box = copy.getBoundingClientRect();
   if (box.width < 1 || box.height < 1) return;
-  paintShareTitle(ctx, title, rect);
+  await stampShareLogo(ctx, copy, rect);
+  stampShareStamps(ctx, copy, rect);
 }
 
 export async function captureHeroShare(
   scene: HTMLElement
 ): Promise<HTMLCanvasElement> {
+  if (document.fonts?.status !== "loaded") {
+    try {
+      await document.fonts.ready;
+    } catch {
+      // Stamp with whatever face is already available.
+    }
+  }
   await waitForBackdrop(scene);
   const rect = scene.getBoundingClientRect();
   const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
@@ -354,7 +412,7 @@ export async function captureHeroShare(
   ctx.fillStyle = BADGE_SHARE_SURFACE;
   ctx.fillRect(0, 0, rect.width, rect.height);
   await stampHeroLayers(ctx, scene, rect, 1, 1);
-  stampShareTitle(ctx, scene, rect);
+  await stampShareCopy(ctx, scene, rect);
   return canvas;
 }
 
