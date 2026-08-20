@@ -42,8 +42,12 @@ export default function BadgeCustomizer({
 
   return (
     <div className="flex flex-col gap-12">
-      <div className="flex flex-wrap gap-8">
-        <div aria-label="Color" className="contents" role="radiogroup">
+      <div className="flex flex-wrap items-center gap-8">
+        <div
+          aria-label="Color"
+          className="flex flex-wrap gap-8"
+          role="radiogroup"
+        >
           <BadgeColorPicker onChange={onChange} params={params} />
           {BADGE_PRESET_THEMES.map((theme) => {
             const selected = params.theme === theme.id;
@@ -66,6 +70,9 @@ export default function BadgeCustomizer({
               </button>
             );
           })}
+        </div>
+        <div aria-hidden="true" className="mx-8 flex-center h-40">
+          <div className="h-13 w-px rounded-full bg-border-default" />
         </div>
         <BadgeLogoUpload
           fileName={fileName}

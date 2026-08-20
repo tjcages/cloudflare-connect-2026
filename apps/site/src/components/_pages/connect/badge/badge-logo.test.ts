@@ -341,7 +341,7 @@ describe("badge logo SVG prep", () => {
     expect(customizer).toContain("BadgeColorPicker");
     expect(customizer).toContain("BADGE_PRESET_THEMES");
     expect(customizer).toContain('role="radiogroup"');
-    expect(customizer).toContain('className="contents"');
+    expect(customizer).toContain("h-13 w-px rounded-full bg-border-default");
     expect(customizer).toContain("badgeMarkFill");
 
     const picker = readFileSync(
