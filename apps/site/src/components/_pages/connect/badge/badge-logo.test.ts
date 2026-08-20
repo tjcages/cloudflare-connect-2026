@@ -65,6 +65,13 @@ describe("badge logo SVG prep", () => {
     const lit = badgePlateLitStops(BADGE_PLATE_LIGHT_DEFAULT);
     expect(plate).toContain(`stop-color="${lit.hi}"`);
     expect(plate).toContain(`stop-color="${lit.lo}"`);
+    expect(Number.parseInt(lit.lo.slice(1, 3), 16)).toBeLessThan(0x1f);
+    const previous = badgePlateLitStops(1);
+    expect(previous).toEqual({
+      hi: "#b4b4b4",
+      mid: "#5a5a5a",
+      lo: "#1f1f1f",
+    });
     const dark = badgePlateLitStops(0);
     const bright = badgePlateLitStops(1);
     expect(Number.parseInt(bright.lo.slice(1, 3), 16)).toBeGreaterThan(
@@ -196,7 +203,7 @@ describe("badge logo SVG prep", () => {
     expect(field).toContain("M226.32 47.1364");
     expect(overlay).toContain("M29.818");
     expect(field).not.toContain("M29.818");
-    expect(BADGE_PRINT_FIELD_SRC).toBe("/connect/badge-print-field.svg?v=light");
+    expect(BADGE_PRINT_FIELD_SRC).toBe("/connect/badge-print-field.svg?v=dark");
 
     const shader = readFileSync(
       resolve(

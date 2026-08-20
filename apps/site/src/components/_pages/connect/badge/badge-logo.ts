@@ -9,9 +9,9 @@ export const BADGE_PLATE_LOGO_PAD = 0.05;
 /** Pixel size of the longest edge when rasterizing the centered color mark. */
 export const BADGE_MARK_RASTER = 2048;
 /** Fallback plate when no SVG is loaded. */
-export const BADGE_PRINT_FIELD_SRC = "/connect/badge-print-field.svg?v=light";
-/** 0 = dark mark (more stripes). 1 = light mark (fewer stripes). */
-export const BADGE_PLATE_LIGHT_DEFAULT = 0.78;
+export const BADGE_PRINT_FIELD_SRC = "/connect/badge-print-field.svg?v=dark";
+/** 0 = dim mark. 1 = the previous brighter ramp. Default stays dark. */
+export const BADGE_PLATE_LIGHT_DEFAULT = 0.1;
 
 const SCRIPT_RE = /<script\b[\s\S]*?<\/script>/gi;
 const FOREIGN_RE = /<foreignObject\b[\s\S]*?<\/foreignObject>/gi;
@@ -126,7 +126,7 @@ function grayHex(value: number): string {
   return `#${hex}${hex}${hex}`;
 }
 
-/** Luminance stops for the logo fill. Higher light → fewer stripes on the mark. */
+/** Luminance stops for the logo fill. 0 is dim; 1 is the previous brighter ramp. */
 export function badgePlateLitStops(light: number): {
   hi: string;
   mid: string;
@@ -134,9 +134,9 @@ export function badgePlateLitStops(light: number): {
 } {
   const t = Math.max(0, Math.min(1, light));
   return {
-    hi: grayHex(140 + t * 100),
-    mid: grayHex(80 + t * 130),
-    lo: grayHex(30 + t * 150),
+    hi: grayHex(48 + t * 132),
+    mid: grayHex(14 + t * 76),
+    lo: grayHex(4 + t * 27),
   };
 }
 

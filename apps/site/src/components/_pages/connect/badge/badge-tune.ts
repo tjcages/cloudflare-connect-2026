@@ -220,11 +220,11 @@ export const BADGE_TUNE_FIELDS: PanelField<BadgeTune>[] = [
   slider("sourcePanY", "SVG Y", -1, 1, 0.01),
   slider(
     "sourceLight",
-    "SVG lightness",
+    "SVG brightness",
     0,
     1,
     0.01,
-    "Lighter fill on the logo in the source plate. Higher = fewer stripes on the mark."
+    "Fill brightness on the logo in the source plate. Lower = darker, especially the inner area."
   ),
   { type: "section", title: "Print" },
   slider(
@@ -345,4 +345,4 @@ export const BADGE_TUNE_FIELDS: PanelField<BadgeTune>[] = [
   slider("backdropMaskY", "Mask Y %", 0, 100, 1),
 ];
 
-export const BADGE_TUNE_PANEL_ID = "connect-badge-tune-v10";
+export const BADGE_TUNE_PANEL_ID = "connect-badge-tune-v11";
