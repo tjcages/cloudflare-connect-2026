@@ -227,16 +227,17 @@ export default function BadgeLogoUpload({
           onPointerDown={(event) => event.stopPropagation()}
         >
           <div
-            className="bg-black relative aspect-4/3 cursor-grab touch-none overflow-hidden rounded-8 select-none active:cursor-grabbing"
+            className="relative aspect-4/3 cursor-grab touch-none overflow-hidden rounded-8 bg-[#000] select-none active:cursor-grabbing"
             onPointerCancel={onPadPointerUp}
             onPointerDown={onPadPointerDown}
             onPointerMove={onPadPointerMove}
             onPointerUp={onPadPointerUp}
+            style={{ backgroundColor: "#000000" }}
           >
             <img
               alt=""
-              className="pointer-events-none absolute inset-24 size-[calc(100%-48px)] object-contain"
-              src={previewSrc ?? plateSrc}
+              className="pointer-events-none absolute inset-0 size-full object-contain"
+              src={plateSrc}
               style={{
                 transform: `translate(${sourcePanX * 50}%, ${sourcePanY * -50}%)`,
               }}

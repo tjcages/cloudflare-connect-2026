@@ -307,8 +307,10 @@ describe("badge logo SVG prep", () => {
     expect(upload).not.toContain("PanelGrip");
     expect(upload).toContain("Logo size");
     expect(upload).toContain("object-contain");
-    expect(upload).toContain("bg-black");
-    expect(upload).toContain("previewSrc ?? plateSrc");
+    expect(upload).toContain("bg-[#000]");
+    expect(upload).toContain('backgroundColor: "#000000"');
+    expect(upload).toContain("src={plateSrc}");
+    expect(upload).not.toContain("previewSrc ?? plateSrc");
     expect(upload).not.toContain('tone="dark"');
     expect(upload).toContain('side="top"');
     expect(upload).toContain("scroll={false}");
