@@ -37,13 +37,13 @@ const WING_CUT_X = 0.02;
 const LEFT_TASSEL_X = -0.02;
 const CHAIN_BONES = 8;
 const GRAVITY = -5.4;
-const DAMPING_XZ = 0.993;
-const DAMPING_Y = 0.78;
+const DAMPING_XZ = 0.87;
+const DAMPING_Y = 0.72;
 const CONSTRAINT_ITERS = 8;
 const CONSTRAINT_STIFFNESS = 0.5;
 const DRAG_FOLLOW = 0.32;
-const REST_PULL = 0.004;
-const SLEEP_EPS = 0.0007;
+const REST_PULL = 0.09;
+const SLEEP_EPS = 0.0024;
 const DRAG_LIMIT_X = 0.22;
 const DRAG_LIMIT_UP = 0.07;
 const DRAG_LIMIT_DOWN = 0.13;
@@ -63,6 +63,8 @@ const SHADER_INSET = 0.003;
 const CARD_OVERLAP = 0.006;
 const CARD_LOCAL_Y = -(CARD_H / 2) + CARD_OVERLAP;
 const HANG_Y = -CARD_LOCAL_Y * MODEL_SCALE;
+const WALL_Z = -0.022;
+const SHADOW_OPACITY = 0.4;
 
 const ACCENT = "#f46021";
 const METAL = ACCENT;
@@ -71,6 +73,7 @@ const CORD = ACCENT;
 const WEBBING = ACCENT;
 
 const Y_UP = new Vector3(0, 1, 0);
+const CARD_WORLD = new Vector3();
 
 export type BadgeCardIdentity = {
   name: string;
@@ -422,6 +425,77 @@ function createBadgeCard(texture: Texture, hookX: number): Group {
   return card;
 }
 
+function makeWallShadowMap() {
+  const width = 256;
+  const height = 384;
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Could not create lanyard shadow map.");
+  ctx.clearRect(0, 0, width, height);
+  const inset = 48;
+  ctx.shadowColor = "rgba(0,0,0,0.85)";
+  ctx.shadowBlur = 36;
+  ctx.fillStyle = "rgba(0,0,0,0.42)";
+  const x = inset;
+  const y = inset;
+  const w = width - inset * 2;
+  const h = height - inset * 2;
+  const r = 28;
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+  ctx.fill();
+  const map = new CanvasTexture(canvas);
+  map.needsUpdate = true;
+  return map;
+}
+
+function createWallShadow(): Mesh {
+  const material = new MeshBasicMaterial({
+    map: makeWallShadowMap(),
+    transparent: true,
+    depthWrite: false,
+    opacity: SHADOW_OPACITY,
+    toneMapped: false,
+    color: "#000000",
+  });
+  const mesh = new Mesh(
+    new PlaneGeometry(CARD_W * 1.7, CARD_H * 1.7),
+    material
+  );
+  mesh.position.z = WALL_Z;
+  mesh.renderOrder = -1;
+  mesh.frustumCulled = false;
+  return mesh;
+}
+
+function applyWallShadow(rig: LanyardRig) {
+  const shadow = rig.shadow;
+  rig.card.getWorldPosition(CARD_WORLD);
+  rig.group.worldToLocal(CARD_WORLD);
+  const lift = MathUtils.clamp((CARD_WORLD.z - WALL_Z) / 0.08, 0, 1);
+  shadow.position.set(
+    CARD_WORLD.x - 0.008 - lift * 0.016,
+    CARD_WORLD.y - 0.012 - lift * 0.014,
+    WALL_Z
+  );
+  const size = 1.05 + lift * 0.42;
+  shadow.scale.set(size, size, 1);
+  shadow.rotation.z = rig.card.rotation.z * 0.35;
+  const material = shadow.material as MeshBasicMaterial;
+  material.opacity = SHADOW_OPACITY * (1 - lift * 0.58);
+}
+
 type RopeState = {
   now: Vector3[];
   prev: Vector3[];
@@ -437,6 +511,7 @@ type LanyardRig = {
   meshes: SkinnedMesh[];
   materials: Record<LanyardPart, MeshStandardMaterial>;
   card: Group;
+  shadow: Mesh;
   rope: RopeState;
 };
 
@@ -505,6 +580,8 @@ function buildLanyardRig(source: Mesh, texture: Texture): LanyardRig {
   const hookX = hookXFromMetal(parts.metal);
   const card = createBadgeCard(texture, hookX);
   root.add(card);
+  const shadow = createWallShadow();
+  group.add(shadow);
 
   const now: Vector3[] = [];
   const prev: Vector3[] = [];
@@ -523,6 +600,7 @@ function buildLanyardRig(source: Mesh, texture: Texture): LanyardRig {
     meshes,
     materials,
     card,
+    shadow,
     rope: {
       now,
       prev,
@@ -807,6 +885,10 @@ function LanyardBadge({
           material.dispose();
         }
       });
+      rig.shadow.geometry.dispose();
+      const shadowMaterial = rig.shadow.material as MeshBasicMaterial;
+      shadowMaterial.map?.dispose();
+      shadowMaterial.dispose();
     };
   }, [rig]);
 
@@ -868,6 +950,7 @@ function LanyardBadge({
     );
     applyRopeToBones(rig.bones, rig.rope);
     applyCardTwist(rig.card, rig.rope, reducedMotion);
+    applyWallShadow(rig);
     const hang = groupRef.current;
     if (hang) {
       hang.position.x = rightColumnWorldX(size.width, viewport.width);
