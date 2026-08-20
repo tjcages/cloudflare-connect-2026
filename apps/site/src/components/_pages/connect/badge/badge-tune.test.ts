@@ -7,7 +7,8 @@ describe("badge tune defaults", () => {
   it("prints the case-study shader with a faint, lower shadow", () => {
     expect(BADGE_TUNE_DEFAULTS.printTwizzler).toBe(false);
     expect(BADGE_TUNE_DEFAULTS.printRain).toBe(false);
-    expect(BADGE_TUNE_DEFAULTS.printZoom).toBe(1);
+    expect(BADGE_TUNE_DEFAULTS.printZoom).toBe(1.17);
+    expect(BADGE_TUNE_DEFAULTS.sourceLight).toBeGreaterThan(0.5);
     expect(BADGE_TUNE_DEFAULTS.shadowOpacity).toBeLessThan(0.2);
     expect(BADGE_TUNE_DEFAULTS.nudgeY).toBeLessThan(-0.01);
     expect(BADGE_TUNE_DEFAULTS.lightY).toBeLessThan(-0.3);
@@ -28,15 +29,22 @@ describe("badge tune defaults", () => {
       wallZ: -0.015,
       dragLimitDown: 0.047,
       twistPos: 3.5,
-      logoBand: 0.42,
-      logoPadX: 0.08,
+      logoBand: 0.21,
+      logoPadX: 0.04,
+      logoPadY: -0.005,
+      logoPrintZoom: 2.2,
       footerBand: 0.205,
       printPadX: 0,
       printPadTop: 0,
-      printFeather: 0.08,
-      sourceZoom: 1,
+      printFeather: 0.065,
+      printZoom: 1.17,
+      printPanX: -0.4,
+      printPanY: -0.065,
+      sourceZoom: 1.25,
       sourcePanX: 0,
       sourcePanY: 0,
+      sourceLight: 0.78,
+      modelScale: 15.8,
     });
   });
 
@@ -62,6 +70,21 @@ describe("badge tune defaults", () => {
     expect(scale.min).toBeLessThan(1);
     expect(panX.min).toBeLessThan(0);
     expect(panX.max).toBeGreaterThan(0);
+  });
+
+  it("exposes SVG lightness and Twizzler overlay sliders", () => {
+    const light = BADGE_TUNE_FIELDS.find(
+      (field) => field.type === "slider" && field.key === "sourceLight"
+    );
+    const scale = BADGE_TUNE_FIELDS.find(
+      (field) => field.type === "slider" && field.key === "twizzlerScale"
+    );
+    expect(light?.type).toBe("slider");
+    expect(scale?.type).toBe("slider");
+    if (light?.type !== "slider" || scale?.type !== "slider") return;
+    expect(light.max).toBe(1);
+    expect(scale.max).toBeGreaterThan(3);
+    expect(BADGE_TUNE_DEFAULTS.twizzlerScale).toBeGreaterThan(1);
   });
 
   it("exposes a field for every tune key", () => {

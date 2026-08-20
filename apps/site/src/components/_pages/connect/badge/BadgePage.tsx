@@ -56,6 +56,7 @@ import {
   hexToColorInt,
   type BadgeTheme,
 } from "./badge-themes";
+import { applyBadgeTwizzlerOverlay } from "./badge-twizzler-overlay";
 
 type BadgeLogoSession = {
   fileName: string;
@@ -140,8 +141,8 @@ export default function BadgePage(_props: IslandProps) {
       : `${window.location.origin}${sharePath}`;
   const { copied, copy } = useCopyFeedback(shareUrl);
   const twizzler = useMemo(
-    () => applyThemeToTwizzler(view.theme),
-    [view.theme]
+    () => applyBadgeTwizzlerOverlay(applyThemeToTwizzler(view.theme), tune),
+    [tune, view.theme]
   );
   const rainConfig = useMemo(
     () => applyThemeToRain(view.theme, view.hash),
@@ -203,11 +204,11 @@ export default function BadgePage(_props: IslandProps) {
   const plateSrc = useMemo(() => {
     if (!logo) return BADGE_PRINT_FIELD_SRC;
     try {
-      return svgToBlobUrl(badgeShaderPlateSvg(logo.sourceSvg));
+      return svgToBlobUrl(badgeShaderPlateSvg(logo.sourceSvg, tune.sourceLight));
     } catch {
       return BADGE_PRINT_FIELD_SRC;
     }
-  }, [logo]);
+  }, [logo, tune.sourceLight]);
 
   const replaceLogo = (next: BadgeLogoSession | null) => {
     logoSessionRef.current = next;

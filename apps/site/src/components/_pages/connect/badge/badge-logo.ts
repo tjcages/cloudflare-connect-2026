@@ -9,7 +9,9 @@ export const BADGE_PLATE_LOGO_PAD = 0.05;
 /** Pixel size of the longest edge when rasterizing the centered color mark. */
 export const BADGE_MARK_RASTER = 2048;
 /** Fallback plate when no SVG is loaded. */
-export const BADGE_PRINT_FIELD_SRC = "/connect/badge-print-field.svg?v=43";
+export const BADGE_PRINT_FIELD_SRC = "/connect/badge-print-field.svg?v=light";
+/** 0 = dark mark (more stripes). 1 = light mark (fewer stripes). */
+export const BADGE_PLATE_LIGHT_DEFAULT = 0.78;
 
 const SCRIPT_RE = /<script\b[\s\S]*?<\/script>/gi;
 const FOREIGN_RE = /<foreignObject\b[\s\S]*?<\/foreignObject>/gi;
@@ -118,8 +120,31 @@ export function badgePlateLogoRect(viewport: { w: number; h: number }): {
   };
 }
 
+function grayHex(value: number): string {
+  const v = Math.round(Math.max(0, Math.min(255, value)));
+  const hex = v.toString(16).padStart(2, "0");
+  return `#${hex}${hex}${hex}`;
+}
+
+/** Luminance stops for the logo fill. Higher light → fewer stripes on the mark. */
+export function badgePlateLitStops(light: number): {
+  hi: string;
+  mid: string;
+  lo: string;
+} {
+  const t = Math.max(0, Math.min(1, light));
+  return {
+    hi: grayHex(140 + t * 100),
+    mid: grayHex(80 + t * 130),
+    lo: grayHex(30 + t * 150),
+  };
+}
+
 /** Stylized SVG the stripe engine converts — landscape plate, logo centered. */
-export function badgeShaderPlateSvg(svgText: string): string {
+export function badgeShaderPlateSvg(
+  svgText: string,
+  light = BADGE_PLATE_LIGHT_DEFAULT
+): string {
   const safe = stripUnsafeSvg(svgText.trim());
   if (!/<svg[\s>]/i.test(safe)) {
     throw new Error("Upload an SVG file.");
@@ -135,7 +160,8 @@ export function badgeShaderPlateSvg(svgText: string): string {
   if (!inner) throw new Error("That SVG is empty.");
   const slot = badgePlateLogoRect(viewport);
   const stroke = Math.max(viewport.w, viewport.h) * 0.012;
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${BADGE_PLATE_W}" height="${BADGE_PLATE_H}" viewBox="0 0 ${BADGE_PLATE_VIEW_W} ${BADGE_PLATE_VIEW_H}" preserveAspectRatio="xMidYMid meet"><defs><linearGradient id="badge-print-lit" x1="0.15" y1="0" x2="0.9" y2="1"><stop offset="0" stop-color="#b4b4b4"/><stop offset="0.42" stop-color="#5a5a5a"/><stop offset="1" stop-color="#1f1f1f"/></linearGradient></defs><rect width="${BADGE_PLATE_VIEW_W}" height="${BADGE_PLATE_VIEW_H}" fill="#000000"/><svg x="${slot.x}" y="${slot.y}" width="${slot.w}" height="${slot.h}" viewBox="${viewport.x} ${viewport.y} ${viewport.w} ${viewport.h}" preserveAspectRatio="xMidYMid meet"><g fill="url(#badge-print-lit)" stroke="#ffffff" stroke-width="${stroke}" paint-order="stroke fill">${inner}</g></svg></svg>`;
+  const lit = badgePlateLitStops(light);
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${BADGE_PLATE_W}" height="${BADGE_PLATE_H}" viewBox="0 0 ${BADGE_PLATE_VIEW_W} ${BADGE_PLATE_VIEW_H}" preserveAspectRatio="xMidYMid meet"><defs><linearGradient id="badge-print-lit" x1="0.15" y1="0" x2="0.9" y2="1"><stop offset="0" stop-color="${lit.hi}"/><stop offset="0.42" stop-color="${lit.mid}"/><stop offset="1" stop-color="${lit.lo}"/></linearGradient></defs><rect width="${BADGE_PLATE_VIEW_W}" height="${BADGE_PLATE_VIEW_H}" fill="#000000"/><svg x="${slot.x}" y="${slot.y}" width="${slot.w}" height="${slot.h}" viewBox="${viewport.x} ${viewport.y} ${viewport.w} ${viewport.h}" preserveAspectRatio="xMidYMid meet"><g fill="url(#badge-print-lit)" stroke="#ffffff" stroke-width="${stroke}" paint-order="stroke fill">${inner}</g></svg></svg>`;
 }
 
 export function prepareBadgeLogo(svgText: string): {

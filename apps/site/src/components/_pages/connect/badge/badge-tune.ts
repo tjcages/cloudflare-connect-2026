@@ -1,4 +1,9 @@
 import type { PanelField } from "@tjcages/panels/dev";
+import { BADGE_PLATE_LIGHT_DEFAULT } from "./badge-logo";
+import {
+  BADGE_TWIZZLER_OVERLAY_DEFAULTS,
+  type BadgeTwizzlerOverlay,
+} from "./badge-twizzler-overlay";
 
 export type BadgeTune = {
   modelScale: number;
@@ -29,6 +34,7 @@ export type BadgeTune = {
   sourceZoom: number;
   sourcePanX: number;
   sourcePanY: number;
+  sourceLight: number;
   shadowOpacity: number;
   shadowSoftOpacity: number;
   wallZ: number;
@@ -75,10 +81,10 @@ export type BadgeTune = {
   backdropMaskH: number;
   backdropMaskX: number;
   backdropMaskY: number;
-};
+} & BadgeTwizzlerOverlay;
 
 export const BADGE_TUNE_DEFAULTS: BadgeTune = {
-  modelScale: 16,
+  modelScale: 15.8,
   hangLift: 0.38,
   hangX: -0.61,
   hangZ: 0,
@@ -95,17 +101,18 @@ export const BADGE_TUNE_DEFAULTS: BadgeTune = {
   cameraX: 0,
   cameraY: 0.15,
   cameraZ: 8,
-  printZoom: 1,
-  printPanX: 0,
-  printPanY: 0,
+  printZoom: 1.17,
+  printPanX: -0.4,
+  printPanY: -0.065,
   printTwizzler: false,
   printRain: false,
   printPadX: 0,
   printPadTop: 0,
-  printFeather: 0.08,
-  sourceZoom: 1,
+  printFeather: 0.065,
+  sourceZoom: 1.25,
   sourcePanX: 0,
   sourcePanY: 0,
+  sourceLight: BADGE_PLATE_LIGHT_DEFAULT,
   shadowOpacity: 0.01,
   shadowSoftOpacity: 0,
   wallZ: -0.015,
@@ -140,11 +147,11 @@ export const BADGE_TUNE_DEFAULTS: BadgeTune = {
   fillLight: 0.7,
   rimLight: 0.7,
   logoEnabled: true,
-  logoBand: 0.42,
-  logoPadX: 0.08,
-  logoPadY: 0,
+  logoBand: 0.21,
+  logoPadX: 0.04,
+  logoPadY: -0.005,
   logoScale: 1.12,
-  logoPrintZoom: 1,
+  logoPrintZoom: 2.2,
   logoMarkOpacity: 1,
   footerBand: 0.205,
   backdropZoom: 1,
@@ -152,6 +159,7 @@ export const BADGE_TUNE_DEFAULTS: BadgeTune = {
   backdropMaskH: 78,
   backdropMaskX: 62,
   backdropMaskY: 44,
+  ...BADGE_TWIZZLER_OVERLAY_DEFAULTS,
 };
 
 function slider(
@@ -210,6 +218,14 @@ export const BADGE_TUNE_FIELDS: PanelField<BadgeTune>[] = [
   ),
   slider("sourcePanX", "SVG X", -1, 1, 0.01),
   slider("sourcePanY", "SVG Y", -1, 1, 0.01),
+  slider(
+    "sourceLight",
+    "SVG lightness",
+    0,
+    1,
+    0.01,
+    "Lighter fill on the logo in the source plate. Higher = fewer stripes on the mark."
+  ),
   { type: "section", title: "Print" },
   slider(
     "printZoom",
@@ -219,8 +235,8 @@ export const BADGE_TUNE_FIELDS: PanelField<BadgeTune>[] = [
     0.01,
     "How the converted field sits on the badge."
   ),
-  slider("printPanX", "Field pan X", -0.4, 0.4, 0.005),
-  slider("printPanY", "Field pan Y", -0.4, 0.4, 0.005),
+  slider("printPanX", "Field pan X", -0.8, 0.8, 0.005),
+  slider("printPanY", "Field pan Y", -0.8, 0.8, 0.005),
   slider("printPadX", "Pad X", 0, 0.2, 0.005),
   slider("printPadTop", "Pad top", 0, 0.2, 0.005),
   slider(
@@ -235,13 +251,34 @@ export const BADGE_TUNE_FIELDS: PanelField<BadgeTune>[] = [
     type: "toggle",
     key: "printTwizzler",
     label: "Twizzler overlay",
-    description: "Off by default. The case-study shader is the print.",
+    description: "Adds the themed ribbon under the case-study print. Tune it below.",
   },
   {
     type: "toggle",
     key: "printRain",
     label: "Hero rain overlay",
   },
+  { type: "section", title: "Twizzler overlay" },
+  slider("twizzlerOpacity", "Opacity", 0, 1, 0.01),
+  slider("twizzlerScale", "Zoom", 0.05, 20, 0.05),
+  slider("twizzlerCenterY", "Center Y", -1, 2, 0.01),
+  slider("twizzlerPanX", "Move X", -800, 800, 1),
+  slider("twizzlerPanY", "Move Y", -800, 800, 1),
+  slider("twizzlerPanZ", "Move Z", -10, 10, 0.05),
+  slider("twizzlerAmplitude", "Amplitude", 0, 10, 0.05),
+  slider("twizzlerTwist", "Twist", 0, 6, 0.05),
+  slider("twizzlerRotateX", "Rotate X", -720, 720, 0.5),
+  slider("twizzlerRotateY", "Rotate Y", -720, 720, 0.5),
+  slider("twizzlerRotateZ", "Rotate Z", -720, 720, 0.5),
+  slider("twizzlerFov", "FOV", 0.05, 12, 0.02),
+  slider("twizzlerCamDist", "Cam Z", 0.5, 120, 0.1),
+  slider("twizzlerLineWidth", "Base width", 0.05, 40, 0.05),
+  slider("twizzlerPerspectiveWidth", "Persp width", 0, 20, 0.05),
+  slider("twizzlerMinLineWidth", "Min width", 0.01, 20, 0.05),
+  slider("twizzlerMaxLineWidth", "Max width", 0.05, 80, 0.1),
+  slider("twizzlerLineCount", "Layers", 1, 400, 1),
+  slider("twizzlerPointSpacing", "Point spacing", 1, 200, 1),
+  slider("twizzlerSpeed", "Speed", 0, 20, 0.05),
   { type: "section", title: "Shadow" },
   slider("shadowOpacity", "Opacity", 0, 0.8, 0.01),
   slider("shadowSoftOpacity", "Soft opacity", 0, 0.5, 0.01),
@@ -285,11 +322,11 @@ export const BADGE_TUNE_FIELDS: PanelField<BadgeTune>[] = [
     label: "Show logo",
     description: "Centered mark, tinted to the selected color scheme.",
   },
-  slider("logoBand", "Mark height", 0.12, 0.7, 0.01),
-  slider("logoPadX", "Pad X", 0.04, 0.28, 0.005),
+  slider("logoBand", "Mark height", 0.08, 0.7, 0.01),
+  slider("logoPadX", "Pad X", 0, 0.28, 0.005),
   slider("logoPadY", "Mark Y", -0.2, 0.2, 0.005),
   slider("logoScale", "Mark scale", 0.4, 1.6, 0.01),
-  slider("logoPrintZoom", "Stripe zoom", 0.4, 2.2, 0.01),
+  slider("logoPrintZoom", "Stripe zoom", 0.4, 3.5, 0.01),
   slider(
     "logoMarkOpacity",
     "Mark opacity",
@@ -308,4 +345,4 @@ export const BADGE_TUNE_FIELDS: PanelField<BadgeTune>[] = [
   slider("backdropMaskY", "Mask Y %", 0, 100, 1),
 ];
 
-export const BADGE_TUNE_PANEL_ID = "connect-badge-tune-v9";
+export const BADGE_TUNE_PANEL_ID = "connect-badge-tune-v10";

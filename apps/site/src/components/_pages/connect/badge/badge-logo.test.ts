@@ -3,10 +3,12 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   BADGE_MARK_RASTER,
+  BADGE_PLATE_LIGHT_DEFAULT,
   BADGE_PLATE_VIEW_H,
   BADGE_PLATE_VIEW_W,
   BADGE_PRINT_FIELD_SRC,
   badgeMarkSvg,
+  badgePlateLitStops,
   badgePlateLogoRect,
   badgeShaderPlateSvg,
   extractSvgInner,
@@ -58,6 +60,16 @@ describe("badge logo SVG prep", () => {
     expect(plate).toContain('stroke="#ffffff"');
     expect(plate).toContain("url(#badge-print-lit)");
     expect(plate).not.toContain("#123456");
+    expect(plate).not.toContain("#1f1f1f");
+    expect(plate).not.toContain("#5a5a5a");
+    const lit = badgePlateLitStops(BADGE_PLATE_LIGHT_DEFAULT);
+    expect(plate).toContain(`stop-color="${lit.hi}"`);
+    expect(plate).toContain(`stop-color="${lit.lo}"`);
+    const dark = badgePlateLitStops(0);
+    const bright = badgePlateLitStops(1);
+    expect(Number.parseInt(bright.lo.slice(1, 3), 16)).toBeGreaterThan(
+      Number.parseInt(dark.lo.slice(1, 3), 16)
+    );
     expect(paintSvgFillsWhite(`fill="#abc" stroke="#def"`)).toBe(
       `fill="white" stroke="white"`
     );
@@ -184,7 +196,7 @@ describe("badge logo SVG prep", () => {
     expect(field).toContain("M226.32 47.1364");
     expect(overlay).toContain("M29.818");
     expect(field).not.toContain("M29.818");
-    expect(BADGE_PRINT_FIELD_SRC).toBe("/connect/badge-print-field.svg?v=43");
+    expect(BADGE_PRINT_FIELD_SRC).toBe("/connect/badge-print-field.svg?v=light");
 
     const shader = readFileSync(
       resolve(
@@ -233,6 +245,8 @@ describe("badge logo SVG prep", () => {
     expect(page).toContain("printSrc={plateSrc}");
     expect(page).toContain("h-760");
     expect(page).toContain("sourceZoom");
+    expect(page).toContain("sourceLight");
+    expect(page).toContain("applyBadgeTwizzlerOverlay");
     expect(page).toContain("cardTextureConfig");
     expect(page).toContain("cardStripes");
     expect(page).toContain('fit: "width"');
