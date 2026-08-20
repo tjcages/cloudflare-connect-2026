@@ -1,6 +1,11 @@
 import cn from "classnames";
 import type { BadgeParams } from "./badge-params";
-import { BADGE_THEMES, badgeMarkFill, findBadgeTheme } from "./badge-themes";
+import {
+  BADGE_PRESET_THEMES,
+  badgeMarkFill,
+  resolveBadgeTheme,
+} from "./badge-themes";
+import BadgeColorPicker from "./BadgeColorPicker";
 import BadgeLogoUpload from "./BadgeLogoUpload";
 import BadgeThemeSwatch from "./BadgeThemeSwatch";
 
@@ -33,11 +38,14 @@ export default function BadgeCustomizer({
   onPanChange: (panX: number, panY: number) => void;
   onScaleChange: (scale: number) => void;
 }) {
+  const viewTheme = resolveBadgeTheme(params.theme, params.color);
+
   return (
     <div className="flex flex-col gap-12">
       <div className="flex flex-wrap gap-8">
         <div aria-label="Color" className="contents" role="radiogroup">
-          {BADGE_THEMES.map((theme) => {
+          <BadgeColorPicker onChange={onChange} params={params} />
+          {BADGE_PRESET_THEMES.map((theme) => {
             const selected = params.theme === theme.id;
             return (
               <button
@@ -62,7 +70,7 @@ export default function BadgeCustomizer({
         <BadgeLogoUpload
           fileName={fileName}
           logoScale={logoScale}
-          markFill={badgeMarkFill(findBadgeTheme(params.theme))}
+          markFill={badgeMarkFill(viewTheme)}
           onClear={onClear}
           onFile={onFile}
           onPanChange={onPanChange}

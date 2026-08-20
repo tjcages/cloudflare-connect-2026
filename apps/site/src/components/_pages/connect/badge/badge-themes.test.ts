@@ -1,7 +1,12 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { badgeMarkFill, badgeSwatchColors, findBadgeTheme, hexLuma } from "./badge-themes";
+import {
+  badgeMarkFill,
+  badgeSwatchColors,
+  findBadgeTheme,
+  hexLuma,
+} from "./badge-themes";
 
 describe("badge mark fill", () => {
   it("tints saturated accents onto the SVG", () => {

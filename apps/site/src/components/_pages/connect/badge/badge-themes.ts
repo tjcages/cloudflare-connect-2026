@@ -8,8 +8,9 @@ import {
 import { CONNECT_HERO_RAIN_CONFIG } from "@/components/_pages/connect/hero/hero-rain-config";
 import { CONNECT_HERO_TWIZZLER_DEFAULTS } from "@/components/_pages/connect/hero/twizzler-defaults";
 
-/** Lab Color presets (`CLIENT_COLOR_PRESETS`) — a handful, not the full editor. */
+/** Lab Color presets (`CLIENT_COLOR_PRESETS`) — a handful, not a full editor. */
 export const BADGE_THEME_IDS = [
+  "custom",
   "coral-classic",
   "brand",
   "red",
@@ -44,6 +45,7 @@ export type BadgeTheme = {
 };
 
 export const DEFAULT_BADGE_THEME_ID: BadgeThemeId = "coral-classic";
+export const DEFAULT_BADGE_COLOR = LIBRARY_COLOR.orangeAccent;
 
 /** Factory rain mix — lab Default Color. */
 const DEFAULT_STRIPE_PALETTE_HEXES = [
@@ -290,18 +292,116 @@ export const BADGE_THEMES: readonly BadgeTheme[] = [
 
 const THEME_BY_ID = new Map(BADGE_THEMES.map((entry) => [entry.id, entry]));
 
+/** Preset dots in the customizer — the first coral slot is now the picker. */
+export const BADGE_PRESET_THEMES: readonly BadgeTheme[] = BADGE_THEMES.filter(
+  (entry) => entry.id !== "coral-classic"
+);
+
 export function isBadgeThemeId(
   value: string | null | undefined
 ): value is BadgeThemeId {
   return BADGE_THEME_IDS.some((id) => id === value);
 }
 
+export function isBadgePickerTheme(id: BadgeThemeId): boolean {
+  switch (id) {
+    case "custom":
+    case "coral-classic":
+      return true;
+    case "brand":
+    case "red":
+    case "green":
+    case "blue":
+    case "purple":
+    case "soft-gold":
+    case "deep-ember":
+    case "light":
+      return false;
+    default: {
+      const _never: never = id;
+      return _never;
+    }
+  }
+}
+
+export function parseBadgeHex(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const raw = value.trim().replace(/^#/, "");
+  if (/^[0-9a-fA-F]{3}$/.test(raw)) {
+    return `#${raw[0]}${raw[0]}${raw[1]}${raw[1]}${raw[2]}${raw[2]}`.toLowerCase();
+  }
+  if (/^[0-9a-fA-F]{6}$/.test(raw)) return `#${raw.toLowerCase()}`;
+  return null;
+}
+
+function hexChannel(hex: string, start: number): number {
+  return Number.parseInt(hex.slice(start, start + 2), 16);
+}
+
+function mixHex(a: string, b: string, t: number): string {
+  const left = a.replace(/^#/, "");
+  const right = b.replace(/^#/, "");
+  const mix = (start: number) => {
+    const from = hexChannel(left, start);
+    const to = hexChannel(right, start);
+    return Math.round(from + (to - from) * t)
+      .toString(16)
+      .padStart(2, "0");
+  };
+  return `#${mix(0)}${mix(2)}${mix(4)}`;
+}
+
+export function themeFromHex(hex: string): BadgeTheme {
+  const accent = parseBadgeHex(hex) ?? DEFAULT_BADGE_COLOR;
+  const pair = mixHex(accent, "#ffffff", 0.32);
+  const deep = mixHex(accent, "#1a1a1a", 0.42);
+  const stops = [
+    "#fafafa",
+    mixHex(accent, "#ffffff", 0.82),
+    mixHex(accent, "#ffffff", 0.64),
+    mixHex(accent, "#ffffff", 0.46),
+    mixHex(accent, "#ffffff", 0.28),
+    accent,
+    mixHex(accent, "#000000", 0.16),
+    mixHex(accent, "#000000", 0.28),
+    deep,
+    mixHex(deep, "#000000", 0.18),
+  ];
+  const stripeHexes = Array.from(
+    { length: HERO_STRIPE_COUNT },
+    (_, index) => stops[index] ?? stops[stops.length - 1] ?? accent
+  );
+  return {
+    id: "custom",
+    label: "Custom",
+    stripePalette: "Default",
+    twizzler: {
+      color: accent,
+      colorFar: pair,
+      colorNear: accent,
+      colorEdge: deep,
+    },
+    accent,
+    pair,
+    deep,
+    stripeHexes,
+  };
+}
+
 export function findBadgeTheme(id: string | null | undefined): BadgeTheme {
+  if (id === "custom") return themeFromHex(DEFAULT_BADGE_COLOR);
   if (isBadgeThemeId(id)) {
     const match = THEME_BY_ID.get(id);
     if (match) return match;
   }
   return THEME_BY_ID.get(DEFAULT_BADGE_THEME_ID)!;
+}
+
+export function resolveBadgeTheme(
+  theme: BadgeThemeId,
+  color: string
+): BadgeTheme {
+  return theme === "custom" ? themeFromHex(color) : findBadgeTheme(theme);
 }
 
 export function hexToColorInt(hex: string): number {
@@ -322,7 +422,9 @@ export function badgeMarkFill(theme: BadgeTheme): string {
   return hexLuma(theme.accent) > 0.65 ? theme.deep : theme.accent;
 }
 
-export function badgeSwatchColors(theme: BadgeTheme): readonly [string, string, string, string] {
+export function badgeSwatchColors(
+  theme: BadgeTheme
+): readonly [string, string, string, string] {
   const highlight = hexLuma(theme.accent) > 0.72 ? "#ffffff" : theme.pair;
   return [theme.deep, theme.accent, highlight, theme.pair];
 }

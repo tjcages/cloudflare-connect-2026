@@ -13,10 +13,14 @@ import {
 import {
   applyThemeToRain,
   applyThemeToTwizzler,
+  BADGE_PRESET_THEMES,
   BADGE_THEMES,
+  DEFAULT_BADGE_COLOR,
   DEFAULT_BADGE_THEME_ID,
   findBadgeTheme,
   hexToColorInt,
+  parseBadgeHex,
+  themeFromHex,
 } from "./badge-themes";
 
 describe("badge URL params", () => {
@@ -28,6 +32,7 @@ describe("badge URL params", () => {
       name: "Jane Doe",
       company: "Cloudflare",
       theme: "blue",
+      color: DEFAULT_BADGE_COLOR,
       role: "speaker",
     });
   });
@@ -37,12 +42,42 @@ describe("badge URL params", () => {
       name: "",
       company: "",
       theme: DEFAULT_BADGE_THEME_ID,
+      color: DEFAULT_BADGE_COLOR,
       role: "attendee",
     });
     expect(parseBadgeSearch("?theme=hot-pink&role=vip&name=").theme).toBe(
       DEFAULT_BADGE_THEME_ID
     );
     expect(parseBadgeSearch("?role=vip").role).toBe("attendee");
+    expect(parseBadgeSearch("?color=1f72ff")).toEqual({
+      name: "",
+      company: "",
+      theme: "custom",
+      color: "#1f72ff",
+      role: "attendee",
+    });
+    expect(parseBadgeHex("#1F7")).toBe("#11ff77");
+  });
+
+  it("writes a custom hex to the share URL and omits the default coral", () => {
+    expect(
+      serializeBadgeSearch({
+        name: "Ada",
+        company: "",
+        theme: "custom",
+        color: "#1f72ff",
+        role: "attendee",
+      })
+    ).toBe("?name=Ada&color=1f72ff");
+    expect(
+      serializeBadgeSearch({
+        name: "",
+        company: "",
+        theme: "custom",
+        color: DEFAULT_BADGE_COLOR,
+        role: "attendee",
+      })
+    ).toBe("");
   });
 
   it("omits default theme and role from the share URL", () => {
@@ -51,6 +86,7 @@ describe("badge URL params", () => {
         name: "Ada",
         company: "Acme",
         theme: "coral-classic",
+        color: DEFAULT_BADGE_COLOR,
         role: "attendee",
       })
     ).toBe("?name=Ada&company=Acme");
@@ -59,6 +95,7 @@ describe("badge URL params", () => {
         name: "",
         company: "",
         theme: "coral-classic",
+        color: DEFAULT_BADGE_COLOR,
         role: "attendee",
       })
     ).toBe("");
@@ -67,6 +104,7 @@ describe("badge URL params", () => {
         name: "Ada",
         company: "Acme",
         theme: "purple",
+        color: DEFAULT_BADGE_COLOR,
         role: "staff",
       })
     ).toBe("/connect/badge?name=Ada&company=Acme&theme=purple&role=staff");
@@ -106,6 +144,21 @@ describe("badge lab color schemes", () => {
       "light",
     ]);
     expect(BADGE_THEMES).toHaveLength(9);
+    expect(BADGE_PRESET_THEMES).toHaveLength(8);
+    expect(BADGE_PRESET_THEMES.map((theme) => theme.id)).not.toContain(
+      "coral-classic"
+    );
+  });
+
+  it("builds a custom theme from a picker hex", () => {
+    const theme = themeFromHex("#1f72ff");
+    expect(theme.id).toBe("custom");
+    expect(theme.accent).toBe("#1f72ff");
+    expect(theme.pair).not.toBe(theme.accent);
+    expect(theme.deep).not.toBe(theme.accent);
+    expect(theme.stripeHexes.length).toBeGreaterThan(4);
+    expect(theme.stripeHexes[0]).toBe("#fafafa");
+    expect(theme.twizzler.colorNear).toBe("#1f72ff");
   });
 
   it("ships Brand as the ninth Orange 700 swatch", () => {

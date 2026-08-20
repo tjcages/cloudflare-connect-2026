@@ -315,9 +315,13 @@ describe("badge logo SVG prep", () => {
     expect(upload).toContain("logoScale");
     expect(upload).toContain("Dropdown");
     expect(upload).toContain("aspect-4/3");
+    expect(upload).toContain("BadgeInspectorField");
+    expect(upload).toContain("rounded-12");
+    expect(upload).toContain("Adjust");
     expect(upload).not.toContain("Upload logo");
     expect(upload).not.toContain("Drag to move");
     expect(upload).not.toContain("Shader source");
+    expect(upload).not.toContain('type="range"');
 
     const customizer = readFileSync(
       resolve(
@@ -327,9 +331,23 @@ describe("badge logo SVG prep", () => {
       "utf8"
     );
     expect(customizer).toContain("BadgeLogoUpload");
+    expect(customizer).toContain("BadgeColorPicker");
+    expect(customizer).toContain("BADGE_PRESET_THEMES");
     expect(customizer).toContain('role="radiogroup"');
     expect(customizer).toContain('className="contents"');
     expect(customizer).toContain("badgeMarkFill");
+
+    const picker = readFileSync(
+      resolve(
+        process.cwd(),
+        "src/components/_pages/connect/badge/BadgeColorPicker.tsx"
+      ),
+      "utf8"
+    );
+    expect(picker).toContain("react-colorful");
+    expect(picker).toContain("HexColorPicker");
+    expect(picker).toContain("HexColorInput");
+    expect(picker).toContain("Custom color");
 
     const page = readFileSync(
       resolve(

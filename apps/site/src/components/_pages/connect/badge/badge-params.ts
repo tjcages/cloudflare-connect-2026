@@ -1,6 +1,8 @@
 import {
+  DEFAULT_BADGE_COLOR,
   DEFAULT_BADGE_THEME_ID,
-  findBadgeTheme,
+  parseBadgeHex,
+  resolveBadgeTheme,
   isBadgeThemeId,
   type BadgeThemeId,
 } from "./badge-themes";
@@ -35,6 +37,7 @@ export type BadgeParams = {
   name: string;
   company: string;
   theme: BadgeThemeId;
+  color: string;
   role: BadgeRoleId;
 };
 
@@ -42,6 +45,7 @@ export const DEFAULT_BADGE_PARAMS: BadgeParams = {
   name: "",
   company: "",
   theme: DEFAULT_BADGE_THEME_ID,
+  color: DEFAULT_BADGE_COLOR,
   role: DEFAULT_BADGE_ROLE_ID,
 };
 
@@ -94,13 +98,21 @@ export function parseBadgeSearch(search: string): BadgeParams {
   );
   const themeValue = params.get("theme");
   const roleValue = params.get("role");
+  const color = parseBadgeHex(params.get("color"));
+  let theme: BadgeThemeId = DEFAULT_BADGE_THEME_ID;
+  if (color) {
+    theme = "custom";
+  } else if (isBadgeThemeId(themeValue)) {
+    theme = themeValue;
+  }
   return {
     name: clampBadgeText(params.get("name") ?? "", BADGE_NAME_MAX).trim(),
     company: clampBadgeText(
       params.get("company") ?? "",
       BADGE_COMPANY_MAX
     ).trim(),
-    theme: isBadgeThemeId(themeValue) ? themeValue : DEFAULT_BADGE_THEME_ID,
+    theme,
+    color: color ?? DEFAULT_BADGE_COLOR,
     role: isBadgeRoleId(roleValue) ? roleValue : DEFAULT_BADGE_ROLE_ID,
   };
 }
@@ -109,10 +121,14 @@ export function serializeBadgeSearch(params: BadgeParams): string {
   const search = new URLSearchParams();
   const name = params.name.trim();
   const company = params.company.trim();
+  const color = parseBadgeHex(params.color) ?? DEFAULT_BADGE_COLOR;
   if (name) search.set("name", name);
   if (company) search.set("company", company);
-  if (params.theme !== DEFAULT_BADGE_THEME_ID)
+  if (params.theme === "custom") {
+    if (color !== DEFAULT_BADGE_COLOR) search.set("color", color.slice(1));
+  } else if (params.theme !== DEFAULT_BADGE_THEME_ID) {
     search.set("theme", params.theme);
+  }
   if (params.role !== DEFAULT_BADGE_ROLE_ID) search.set("role", params.role);
   const encoded = search.toString();
   return encoded ? `?${encoded}` : "";
@@ -123,7 +139,7 @@ export function badgeSharePath(params: BadgeParams): string {
 }
 
 export function resolveBadgeView(params: BadgeParams) {
-  const theme = findBadgeTheme(params.theme);
+  const theme = resolveBadgeTheme(params.theme, params.color);
   const role = findBadgeRole(params.role);
   const hash = hashBadgeIdentity(params.name, params.company);
   return {
