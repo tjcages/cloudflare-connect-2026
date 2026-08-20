@@ -9,6 +9,11 @@ import {
   useCopyFeedback,
 } from "@/components/copy-feedback/CopyFeedback";
 import CornerDots from "@/components/CornerDots";
+import {
+  cardStripes,
+  cardTextureConfig,
+  type StripeColors,
+} from "@/components/_pages/case-studies/cards/texture-config";
 import Scramble from "@/components/scramble/Scramble";
 import { asThemedEngineConfig } from "@/components/stripes-texture/config";
 import HeroGrid from "@/layouts/window-hero/_svg/Grid.svg?react";
@@ -17,6 +22,12 @@ import { REGISTER_URL } from "../data";
 import { CONNECT_HERO_RAIN_SHADER_SOURCE } from "../hero/hero-rain-config";
 import BadgeCustomizer from "./BadgeCustomizer";
 import {
+  prepareBadgeLogo,
+  readSvgFile,
+  svgToBlobUrl,
+} from "./badge-logo";
+import BadgeLogoUpload from "./BadgeLogoUpload";
+import {
   badgeSharePath,
   DEFAULT_BADGE_PARAMS,
   parseBadgeSearch,
@@ -24,18 +35,54 @@ import {
   serializeBadgeSearch,
   type BadgeParams,
 } from "./badge-params";
-import { applyThemeToRain, applyThemeToTwizzler } from "./badge-themes";
+import {
+  applyThemeToRain,
+  applyThemeToTwizzler,
+  hexToColorInt,
+  type BadgeTheme,
+} from "./badge-themes";
+
+type BadgeLogoSession = {
+  fileName: string;
+  textureUrl: string;
+  markUrl: string;
+};
+
+function revokeLogo(session: BadgeLogoSession | null) {
+  if (!session) return;
+  URL.revokeObjectURL(session.textureUrl);
+  URL.revokeObjectURL(session.markUrl);
+}
+
+function themeToStripeColors(theme: BadgeTheme): StripeColors {
+  const hexes = theme.stripeHexes;
+  const fallback = theme.accent;
+  return [
+    hexToColorInt(hexes[0] ?? fallback),
+    hexToColorInt(hexes[1] ?? fallback),
+    hexToColorInt(hexes[2] ?? fallback),
+    hexToColorInt(hexes[3] ?? fallback),
+    hexToColorInt(hexes[4] ?? fallback),
+    hexToColorInt(hexes[5] ?? fallback),
+    hexToColorInt(hexes[6] ?? fallback),
+    hexToColorInt(hexes[7] ?? fallback),
+  ];
+}
 
 const BadgeLanyard = lazy(() => import("./BadgeLanyard"));
 
 export default function BadgePage(_props: IslandProps) {
   const twizzlerRef = useRef<HTMLCanvasElement>(null);
   const rainRef = useRef<HTMLCanvasElement>(null);
+  const logoRef = useRef<HTMLCanvasElement>(null);
+  const logoSessionRef = useRef<BadgeLogoSession | null>(null);
   const [params, setParams] = useState<BadgeParams>(DEFAULT_BADGE_PARAMS);
   const [hydrated, setHydrated] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [lowPower, setLowPower] = useState(false);
   const [shaderLive, setShaderLive] = useState(true);
+  const [logo, setLogo] = useState<BadgeLogoSession | null>(null);
+  const [logoError, setLogoError] = useState<string | null>(null);
 
   useEffect(() => {
     setParams(parseBadgeSearch(window.location.search));
@@ -67,6 +114,10 @@ export default function BadgePage(_props: IslandProps) {
     return () => window.clearTimeout(id);
   }, [lowPower, params]);
 
+  useEffect(() => {
+    return () => revokeLogo(logoSessionRef.current);
+  }, []);
+
   const view = useMemo(() => resolveBadgeView(params), [params]);
   const sharePath = badgeSharePath(params);
   const shareUrl =
@@ -85,6 +136,45 @@ export default function BadgePage(_props: IslandProps) {
   const captureClass = lowPower
     ? "h-[450px] w-[300px]"
     : "h-[900px] w-[640px]";
+  const logoCaptureClass = lowPower
+    ? "h-[128px] w-[320px]"
+    : "h-[256px] w-[640px]";
+  const logoConfig = useMemo(
+    () =>
+      asThemedEngineConfig({
+        ...cardTextureConfig({
+          stripes: cardStripes(themeToStripeColors(view.theme)),
+        }),
+        maxFps: lowPower ? 10 : 30,
+        clickWave: { enabled: false },
+        cursorTrail: { enabled: false },
+      }),
+    [lowPower, view.theme]
+  );
+
+  const replaceLogo = (next: BadgeLogoSession | null) => {
+    revokeLogo(logoSessionRef.current);
+    logoSessionRef.current = next;
+    setLogo(next);
+  };
+
+  const onLogoFile = (file: File) => {
+    void (async () => {
+      try {
+        const prepared = prepareBadgeLogo(await readSvgFile(file));
+        replaceLogo({
+          fileName: file.name,
+          markUrl: svgToBlobUrl(prepared.markSvg),
+          textureUrl: svgToBlobUrl(prepared.textureSvg),
+        });
+        setLogoError(null);
+      } catch (error) {
+        setLogoError(
+          error instanceof Error ? error.message : "Could not read that SVG."
+        );
+      }
+    })();
+  };
 
   return (
     <div className="relative mx-auto max-w-1200">
@@ -131,6 +221,25 @@ export default function BadgePage(_props: IslandProps) {
         </div>
       ) : null}
 
+      {hydrated && logo ? (
+        <div
+          aria-hidden="true"
+          className={`pointer-events-none fixed top-[1200px] left-[-2000px] z-0 ${logoCaptureClass}`}
+        >
+          <StripesShader
+            autoPlay={!reducedMotion}
+            className="size-full"
+            config={logoConfig}
+            label="badge-logo"
+            maxDpr={lowPower ? 1 : 1.5}
+            mediaKind="image"
+            ref={logoRef}
+            rootMargin="4000px"
+            src={logo.textureUrl}
+          />
+        </div>
+      ) : null}
+
       <div className="relative h-640 before:inside-border-b before:border-border-default max-lg:h-auto">
         <HeroGrid
           aria-hidden="true"
@@ -148,6 +257,8 @@ export default function BadgePage(_props: IslandProps) {
                   role: view.role.label,
                   serial: view.serial,
                 }}
+                logoCanvas={logoRef}
+                logoMarkSrc={logo?.markUrl ?? null}
                 lowPower={lowPower}
                 rainCanvas={rainRef}
                 reducedMotion={reducedMotion}
@@ -181,10 +292,19 @@ export default function BadgePage(_props: IslandProps) {
                 Grab it and pull — the lanyard wiggles back.
               </p>
               <p>
-                Pick a color scheme, then copy the link to share <br />
-                your badge.
+                Pick a color scheme. Upload an SVG to print your logo on the
+                badge — this tab only, not in the link.
               </p>
               <BadgeCustomizer onChange={setParams} params={params} />
+              <BadgeLogoUpload
+                error={logoError}
+                fileName={logo?.fileName ?? null}
+                onClear={() => {
+                  replaceLogo(null);
+                  setLogoError(null);
+                }}
+                onFile={onLogoFile}
+              />
             </div>
           </div>
 

@@ -18,6 +18,7 @@ import {
   MeshPhysicalMaterial,
   MeshStandardMaterial,
   PlaneGeometry,
+  Quaternion,
   ShaderMaterial,
   Shape,
   Skeleton,
@@ -90,6 +91,10 @@ const Y_UP = new Vector3(0, 1, 0);
 const WALL_WORLD = new Vector3();
 const SHADOW_ORIGIN = new Vector3();
 const SHADOW_NUDGE = new Vector3();
+const BONE_LOOK = new Vector3();
+const BONE_PARENT_LOOK = new Vector3();
+const BONE_WORLD_Q = new Quaternion();
+const BONE_PARENT_Q = new Quaternion();
 
 export type BadgeCardIdentity = {
   name: string;
@@ -97,6 +102,17 @@ export type BadgeCardIdentity = {
   role: string;
   serial: string;
   accent: string;
+};
+
+type BadgeLanyardProps = {
+  twizzlerCanvas: RefObject<HTMLCanvasElement | null>;
+  rainCanvas: RefObject<HTMLCanvasElement | null>;
+  logoCanvas: RefObject<HTMLCanvasElement | null>;
+  logoMarkSrc: string | null;
+  reducedMotion: boolean;
+  identity: BadgeCardIdentity;
+  lowPower: boolean;
+  shaderLive: boolean;
 };
 
 type LanyardPart = "metal" | "plastic" | "webbing" | "cord";
@@ -179,8 +195,64 @@ function drawIdentity(
   );
 }
 
-function identityKey(identity: BadgeCardIdentity) {
-  return `${identity.name}|${identity.company}|${identity.role}|${identity.serial}|${identity.accent}`;
+function identityKey(
+  identity: BadgeCardIdentity,
+  logoMarkSrc: string | null
+) {
+  return `${identity.name}|${identity.company}|${identity.role}|${identity.serial}|${identity.accent}|${logoMarkSrc ?? ""}`;
+}
+
+function containSize(srcW: number, srcH: number, maxW: number, maxH: number) {
+  const scale = Math.min(maxW / Math.max(srcW, 1), maxH / Math.max(srcH, 1));
+  return { w: srcW * scale, h: srcH * scale };
+}
+
+let logoScratch: HTMLCanvasElement | null = null;
+
+function getLogoScratch(width: number, height: number) {
+  if (!logoScratch) logoScratch = document.createElement("canvas");
+  if (logoScratch.width !== width || logoScratch.height !== height) {
+    logoScratch.width = width;
+    logoScratch.height = height;
+  }
+  return logoScratch;
+}
+
+function drawLogoBand(
+  ctx: CanvasRenderingContext2D,
+  shader: HTMLCanvasElement | null,
+  mark: HTMLImageElement | null,
+  width: number,
+  height: number
+) {
+  if (!shader && !mark) return;
+  const bandH = Math.round(height * 0.28);
+  const padX = width * 0.14;
+  const padY = height * 0.055;
+  const maxW = width - padX * 2;
+  const maxH = bandH - padY;
+  const srcW = mark?.naturalWidth || shader?.width || maxW;
+  const srcH = mark?.naturalHeight || shader?.height || maxH;
+  const fit = containSize(srcW, srcH, maxW, maxH);
+  const dx = (width - fit.w) / 2;
+  const dy = padY + (maxH - fit.h) / 2;
+  if (shader && shader.width > 1) {
+    const scratch = getLogoScratch(width, bandH);
+    const scratchCtx = scratch.getContext("2d");
+    if (scratchCtx) {
+      scratchCtx.clearRect(0, 0, width, bandH);
+      drawCover(scratchCtx, shader, 0, 0, width, bandH);
+      if (mark && mark.naturalWidth > 0) {
+        scratchCtx.globalCompositeOperation = "destination-in";
+        scratchCtx.drawImage(mark, dx, dy, fit.w, fit.h);
+        scratchCtx.globalCompositeOperation = "source-over";
+      }
+      ctx.drawImage(scratch, 0, 0);
+    }
+  }
+  if (mark && mark.naturalWidth > 0) {
+    ctx.drawImage(mark, dx, dy, fit.w, fit.h);
+  }
 }
 
 function useHeroShaderTexture(
@@ -188,11 +260,15 @@ function useHeroShaderTexture(
   rainCanvas: RefObject<HTMLCanvasElement | null>,
   identity: BadgeCardIdentity,
   lowPower: boolean,
-  shaderLive: boolean
+  shaderLive: boolean,
+  logoCanvas: RefObject<HTMLCanvasElement | null>,
+  logoMarkSrc: string | null
 ) {
   const skip = useRef(0);
   const lastKey = useRef("");
   const bakedWhileFrozen = useRef(false);
+  const markImage = useRef<HTMLImageElement | null>(null);
+  const markGeneration = useRef(0);
   const texture = useMemo(() => {
     const canvas = document.createElement("canvas");
     canvas.width = lowPower ? TEXTURE_W_LOW : TEXTURE_W;
@@ -214,12 +290,37 @@ function useHeroShaderTexture(
     if (shaderLive) bakedWhileFrozen.current = false;
   }, [shaderLive]);
 
+  useEffect(() => {
+    markImage.current = null;
+    markGeneration.current += 1;
+    const generation = markGeneration.current;
+    if (!logoMarkSrc) return;
+    const image = new Image();
+    image.decoding = "async";
+    image.onload = () => {
+      if (generation !== markGeneration.current) return;
+      markImage.current = image;
+      markGeneration.current += 1;
+    };
+    image.src = logoMarkSrc;
+    return () => {
+      image.onload = null;
+    };
+  }, [logoMarkSrc]);
+
   useFrame(() => {
-    const key = identityKey(identity);
+    const key = `${identityKey(identity, logoMarkSrc)}|${markGeneration.current}`;
     const identityChanged = key !== lastKey.current;
+    const logoLive = Boolean(logoMarkSrc);
     skip.current += 1;
-    if (!shaderLive && !identityChanged && bakedWhileFrozen.current) return;
-    if (shaderLive && !identityChanged && skip.current % (lowPower ? 4 : 2) !== 0) {
+    if (!shaderLive && !logoLive && !identityChanged && bakedWhileFrozen.current) {
+      return;
+    }
+    if (
+      (shaderLive || logoLive) &&
+      !identityChanged &&
+      skip.current % (lowPower ? 4 : 2) !== 0
+    ) {
       return;
     }
     const canvas = texture.image as HTMLCanvasElement;
@@ -231,6 +332,13 @@ function useHeroShaderTexture(
     const rain = rainCanvas.current;
     if (twizzler) drawCover(ctx, twizzler, 0, 0, canvas.width, canvas.height);
     if (rain) drawCover(ctx, rain, 0, 0, canvas.width, canvas.height);
+    drawLogoBand(
+      ctx,
+      logoCanvas.current,
+      markImage.current,
+      canvas.width,
+      canvas.height
+    );
     drawIdentity(ctx, identity, canvas.width, canvas.height);
     texture.needsUpdate = true;
     lastKey.current = key;
@@ -949,29 +1057,26 @@ function stepRope(
 }
 
 function applyRopeToBones(bones: Bone[], rope: RopeState) {
-  const look = new Vector3();
-  const world = new Quaternion();
-  const parent = new Quaternion();
   const points = rope.now;
   bones[0]!.position.copy(points[0]!);
-  look.copy(points[1]!).sub(points[0]!);
-  if (look.lengthSq() < 1e-10) look.copy(Y_UP);
-  else look.normalize();
-  bones[0]!.quaternion.setFromUnitVectors(Y_UP, look);
+  BONE_LOOK.copy(points[1]!).sub(points[0]!);
+  if (BONE_LOOK.lengthSq() < 1e-10) BONE_LOOK.copy(Y_UP);
+  else BONE_LOOK.normalize();
+  bones[0]!.quaternion.setFromUnitVectors(Y_UP, BONE_LOOK);
 
   for (let index = 1; index < bones.length; index += 1) {
     bones[index]!.position.set(0, rope.rest, 0);
     const from = points[index]!;
     const to = points[Math.min(index + 1, points.length - 1)]!;
-    look.copy(to).sub(from);
-    if (look.lengthSq() < 1e-10) look.copy(Y_UP);
-    else look.normalize();
-    world.setFromUnitVectors(Y_UP, look);
-    const parentLook = from.clone().sub(points[index - 1]!);
-    if (parentLook.lengthSq() < 1e-10) parentLook.copy(Y_UP);
-    else parentLook.normalize();
-    parent.setFromUnitVectors(Y_UP, parentLook);
-    bones[index]!.quaternion.copy(parent.invert()).multiply(world);
+    BONE_LOOK.copy(to).sub(from);
+    if (BONE_LOOK.lengthSq() < 1e-10) BONE_LOOK.copy(Y_UP);
+    else BONE_LOOK.normalize();
+    BONE_WORLD_Q.setFromUnitVectors(Y_UP, BONE_LOOK);
+    BONE_PARENT_LOOK.copy(from).sub(points[index - 1]!);
+    if (BONE_PARENT_LOOK.lengthSq() < 1e-10) BONE_PARENT_LOOK.copy(Y_UP);
+    else BONE_PARENT_LOOK.normalize();
+    BONE_PARENT_Q.setFromUnitVectors(Y_UP, BONE_PARENT_LOOK);
+    bones[index]!.quaternion.copy(BONE_PARENT_Q).invert().multiply(BONE_WORLD_Q);
   }
 }
 
@@ -1031,18 +1136,13 @@ function rightColumnWorldX(width: number, viewportWidth: number) {
 function LanyardBadge({
   twizzlerCanvas,
   rainCanvas,
+  logoCanvas,
+  logoMarkSrc,
   reducedMotion,
   identity,
   lowPower,
   shaderLive,
-}: {
-  twizzlerCanvas: RefObject<HTMLCanvasElement | null>;
-  rainCanvas: RefObject<HTMLCanvasElement | null>;
-  reducedMotion: boolean;
-  identity: BadgeCardIdentity;
-  lowPower: boolean;
-  shaderLive: boolean;
-}) {
+}: BadgeLanyardProps) {
   const { gl, camera, viewport, size, invalidate } = useThree();
   const { scene } = useGLTF(LANYARD_URL);
   const groupRef = useRef<Group>(null);
@@ -1054,7 +1154,9 @@ function LanyardBadge({
     rainCanvas,
     identity,
     lowPower,
-    shaderLive
+    shaderLive,
+    logoCanvas,
+    logoMarkSrc
   );
 
   const rig = useMemo(() => {
@@ -1166,7 +1268,12 @@ function LanyardBadge({
       hang.position.x = rightColumnWorldX(size.width, viewport.width);
       hang.position.y = HANG_Y;
     }
-    if (dragging.current || shaderLive || !ropeIsAsleep(rig.rope)) {
+    if (
+      dragging.current ||
+      shaderLive ||
+      Boolean(logoMarkSrc) ||
+      !ropeIsAsleep(rig.rope)
+    ) {
       state.invalidate();
     }
   });
@@ -1211,18 +1318,13 @@ function LanyardBadge({
 function BadgeScene({
   twizzlerCanvas,
   rainCanvas,
+  logoCanvas,
+  logoMarkSrc,
   reducedMotion,
   identity,
   lowPower,
   shaderLive,
-}: {
-  twizzlerCanvas: RefObject<HTMLCanvasElement | null>;
-  rainCanvas: RefObject<HTMLCanvasElement | null>;
-  reducedMotion: boolean;
-  identity: BadgeCardIdentity;
-  lowPower: boolean;
-  shaderLive: boolean;
-}) {
+}: BadgeLanyardProps) {
   return (
     <>
       <PerspectiveCamera makeDefault fov={30} position={[0, 0.15, 8]} />
@@ -1243,6 +1345,8 @@ function BadgeScene({
       )}
       <LanyardBadge
         identity={identity}
+        logoCanvas={logoCanvas}
+        logoMarkSrc={logoMarkSrc}
         lowPower={lowPower}
         rainCanvas={rainCanvas}
         reducedMotion={reducedMotion}
@@ -1258,18 +1362,13 @@ useGLTF.preload(LANYARD_URL);
 export default function BadgeLanyard({
   twizzlerCanvas,
   rainCanvas,
+  logoCanvas,
+  logoMarkSrc,
   reducedMotion,
   identity,
   lowPower,
   shaderLive,
-}: {
-  twizzlerCanvas: RefObject<HTMLCanvasElement | null>;
-  rainCanvas: RefObject<HTMLCanvasElement | null>;
-  reducedMotion: boolean;
-  identity: BadgeCardIdentity;
-  lowPower: boolean;
-  shaderLive: boolean;
-}) {
+}: BadgeLanyardProps) {
   return (
     <Canvas
       camera={{ fov: 30, position: [0, 0.15, 8] }}
@@ -1291,6 +1390,8 @@ export default function BadgeLanyard({
     >
       <BadgeScene
         identity={identity}
+        logoCanvas={logoCanvas}
+        logoMarkSrc={logoMarkSrc}
         lowPower={lowPower}
         rainCanvas={rainCanvas}
         reducedMotion={reducedMotion}
