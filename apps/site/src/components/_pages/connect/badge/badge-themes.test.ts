@@ -44,4 +44,18 @@ describe("badge mark fill", () => {
     expect(swatch).toContain("animate");
     expect(swatch).toContain("grain");
   });
+
+  it("eases the swatch sheen instead of a 4-stop linear stripe", () => {
+    const css = readFileSync(
+      resolve(
+        process.cwd(),
+        "src/components/_pages/connect/badge/BadgeThemeSwatch.css"
+      ),
+      "utf8"
+    );
+    expect(css).toContain("118deg in oklab");
+    expect(css).toContain("--badge-theme-sheen-stops");
+    expect(css.match(/rgb\(255 255 255 \/ /g)?.length).toBeGreaterThan(20);
+    expect(css).not.toContain("rgb(255 255 255 / 0.12) 52%");
+  });
 });

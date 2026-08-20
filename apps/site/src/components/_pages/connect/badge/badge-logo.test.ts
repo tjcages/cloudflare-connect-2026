@@ -340,7 +340,15 @@ describe("badge logo SVG prep", () => {
     expect(customizer).toContain("BadgeLogoUpload");
     expect(customizer).toContain("BadgeColorPicker");
     expect(customizer).toContain("BADGE_PRESET_THEMES");
-    expect(customizer).toContain('role="radiogroup"');
+    expect(customizer).toContain("flex-nowrap");
+    expect(customizer).toContain("max-lg:gap-0");
+    expect(customizer).toContain("max-lg:justify-between");
+    expect(customizer).toContain("max-lg:contents");
+    expect(customizer).toContain("max-lg:size-32");
+    expect(customizer).toContain(
+      "mx-8 flex h-40 w-40 shrink-0 items-center justify-center max-lg:mx-0 max-lg:size-32"
+    );
+    expect(customizer).not.toContain("flex-wrap");
     expect(customizer).toContain("h-13 w-px rounded-full bg-border-default");
     expect(customizer).toContain("badgeMarkFill");
 
@@ -355,8 +363,18 @@ describe("badge logo SVG prep", () => {
     expect(picker).toContain("HexColorPicker");
     expect(picker).toContain("HexColorInput");
     expect(picker).toContain("Custom color");
-    expect(picker).toContain("conic-gradient");
+    expect(picker).toContain("badge-color-picker__wheel");
     expect(picker).toContain("plus-small");
+
+    const pickerCss = readFileSync(
+      resolve(
+        process.cwd(),
+        "src/components/_pages/connect/badge/BadgeColorPicker.css"
+      ),
+      "utf8"
+    );
+    expect(pickerCss).toContain("conic-gradient");
+    expect(pickerCss).toContain("in oklch");
 
     const page = readFileSync(
       resolve(
@@ -367,41 +385,63 @@ describe("badge logo SVG prep", () => {
     );
     expect(page).toContain("plateSrc={plateSrc}");
     expect(page).toContain("printSrc={plateSrc}");
-    expect(page).toContain("h-760");
+    expect(page).toContain("h-800");
+    expect(page).toContain("h-801");
+    expect(page).toContain("max-lg:h-540");
+    expect(page).toContain("max-lg:-mt-80");
+    expect(page).not.toContain("max-lg:pt-24");
+    expect(page).toContain("group/share");
+    expect(page).toContain("group-data-[share-capturing]/share:!block");
+    expect(page).toContain("BadgeGrid");
+    expect(page).not.toContain("HeroGrid");
     expect(page).toContain("sourceZoom");
     expect(page).toContain("readLogoFile");
     expect(page).toContain("badgeShaderPlateRaster");
-    expect(page).toContain("JPEG, WebP, PNG, or SVG");
+    expect(page).toContain("See you at Cloudflare Connect 2026");
+    expect(page).toContain(
+      "You’re all set. October 19–21 at Moscone West, San Francisco."
+    );
+    expect(page).not.toContain("Your Connect 2026 badge");
+    expect(page).not.toContain("JPEG, WebP, PNG, or SVG");
     expect(page).toContain("setTune");
+    expect(page).toContain("defaultOpen: false");
+    expect(page).not.toContain("defaultOpen: true");
     expect(page).toContain("onPanChange");
     expect(page).toContain("onScaleChange");
     expect(page).toContain("applyBadgeTwizzlerOverlay");
     expect(page).toContain("cardTextureConfig");
     expect(page).toContain("cardStripes");
+    expect(page).toContain("angleDeg: 45");
     expect(page).toContain('fit: "width"');
     expect(page).toContain("whitePoint: 0.8");
     expect(page).toContain("Copy shareable card");
-    expect(page).toContain("Share on X");
+    expect(page).toContain("CopyFeedbackLabel");
+    expect(page).toContain('align="center"');
+    expect(page).toContain("<span>Share</span>");
+    expect(page).not.toContain("Share on X");
     expect(page).toContain("badgeTweetUrl(badgeShareHeadline(view.name))");
     expect(page).toContain("noopener,noreferrer");
     expect(page).not.toContain('window.open("about:blank"');
     expect(page).toContain("paused={reducedMotion || !shaderLive}");
     expect(page).toContain("text-balance");
     expect(page).toContain("captureHeroShare");
-    expect(page).toContain("captureHeroShare(hero)");
+    expect(page).toContain("captureHeroShare(scene)");
     expect(page).not.toContain("captureHeroShare(hero, title)");
+    expect(page).not.toContain("flushSync");
+    expect(page).not.toContain("shareCapture");
+    expect(page).not.toContain("disabled={sharing}");
     expect(page).toContain("text-left");
+    expect(page).toContain("BadgeShareCopy");
     expect(page).toContain("BadgeShareDock");
-    expect(page).toContain("heroRef");
-    expect(page).toContain("data-share-hide");
+    expect(page).toContain("shareSceneRef");
+    expect(page).toContain('data-share-scene=""');
     expect(page).toContain('data-share-layer="behind"');
     expect(page).toContain("data-share-grid");
     expect(page).toContain("data-share-mask");
     expect(page).toContain("shareBackdrop");
-    expect(page).toContain("justify-center");
+    expect(page).not.toContain("data-share-title");
     expect(page).not.toContain("Copy badge link");
     expect(page).not.toContain("Register now");
-    expect(page).toContain("Your Connect 2026 badge");
     expect(LOGO_FILE_ACCEPT).toContain("image/jpeg");
     expect(LOGO_FILE_ACCEPT).toContain("image/webp");
 
@@ -423,11 +463,42 @@ describe("badge logo SVG prep", () => {
     expect(dock).toContain("rounded-16");
     expect(dock).toContain("draggable");
     expect(dock).toContain("cross-small");
+    expect(dock).not.toContain("arrows-zoom");
+    expect(dock).not.toContain("Open shareable card");
+    expect(dock).toContain("cursor-zoom-in");
+    expect(dock).toContain("stopPropagation");
+    expect(dock).toContain("BadgeLightbox");
+    expect(dock).toContain("originRect");
+    expect(dock).toContain("originRef");
     expect(dock).toContain('filter: "blur(6px)"');
     expect(dock).toContain("scale: 0.88");
     expect(dock).not.toContain("hover:scale-105");
     expect(dock).not.toContain("Right-click the image to save");
     expect(dock).not.toContain("before:inside-border");
+
+    const lightbox = readFileSync(
+      resolve(
+        process.cwd(),
+        "src/components/_pages/connect/badge/BadgeLightbox.tsx"
+      ),
+      "utf8"
+    );
+    expect(lightbox).toContain("createPortal");
+    expect(lightbox).toContain("z-20000");
+    expect(lightbox).toContain("useMotionValue");
+    expect(lightbox).toContain("dragMomentum={false}");
+    expect(lightbox).toContain("preventDefault");
+    expect(lightbox).toContain("ArrowLeft");
+    expect(lightbox).toContain("Escape");
+    expect(lightbox).toContain("originRect");
+    expect(lightbox).toContain("originRef");
+    expect(lightbox).toContain("flipFromOrigin");
+    expect(lightbox).toContain("handleDragEnd");
+    expect(lightbox).toContain("backdrop-blur-[24px]");
+    expect(lightbox).not.toContain("bg-black/90");
+    expect(lightbox).not.toContain("animate(imgOpacity, 0");
+    expect(lightbox).toContain("closingUi");
+    expect(lightbox).toContain("role=\"dialog\"");
 
     const lanyard = readFileSync(
       resolve(
@@ -436,6 +507,21 @@ describe("badge logo SVG prep", () => {
       ),
       "utf8"
     );
+    expect(lanyard).toContain("width < 992");
+    expect(lanyard).toContain("rightColumnWorldX");
+    expect(lanyard).toContain("hangWorldX");
+    expect(lanyard).toContain("data-share-capturing");
+    expect(lanyard).toContain("BADGE_SHARE_WIDTH");
+    expect(lanyard).toContain("applyBadgeLook");
+    expect(lanyard).toContain("BADGE_DPR_MAX");
+    expect(lanyard).toContain("envMapIntensity: 0.85");
+    expect(lanyard).toContain("BADGE_ACCENT_LIGHTS");
+    expect(lanyard).toContain("BADGE_PRINT_ROUGHNESS");
+    expect(lanyard).toContain("BADGE_COAT_MESH_NAME");
+    expect(lanyard).toContain("AdditiveBlending");
+    expect(lanyard).toContain("MeshBasicMaterial");
+    expect(lanyard).not.toContain("EffectComposer");
+    expect(lanyard).not.toContain("Bloom");
     expect(lanyard).toContain('"contain"');
     expect(lanyard).toContain("preserveDrawingBuffer");
     expect(lanyard).toContain("setClearColor");
@@ -443,9 +529,23 @@ describe("badge logo SVG prep", () => {
     expect(lanyard).toContain("bakedWhileFrozen.current = false");
     expect(lanyard).not.toContain("Boolean(logoMarkSrc)");
     expect(lanyard).toContain("shaderLive && !reducedMotion");
-    expect(lanyard).toContain("kickIntroSwing(rig.rope)");
-    expect(lanyard).toContain("INTRO_SPIN");
+    expect(lanyard).toContain("applyIntroPose(rig.rope, rig.card)");
+    expect(lanyard).toContain("cardBottomDragOffsetY");
     expect(lanyard).toContain("INTRO_DELAY_MS");
+    expect(lanyard).toContain("INTRO_FADE_MS");
+    expect(lanyard).toContain("onIntroReady");
+    expect(lanyard).not.toContain("kickIntroSwing");
+    expect(lanyard).not.toContain("logBadgePose");
+    expect(lanyard).not.toContain("POSE_LOG_MS");
+    expect(lanyard).not.toContain("INTRO_YAW");
+    expect(lanyard).not.toContain("INTRO_ROLL");
+    expect(lanyard).not.toContain("introRopePoint");
+    expect(lanyard).toContain("stepRope");
+    expect(lanyard).toContain("BADGE_CHAIN_BONES");
+    expect(lanyard).toContain("tune.cardPitch");
+    expect(lanyard).toContain("CARD_FRONT_Z");
+    expect(lanyard).not.toContain("INTRO_SPIN");
+    expect(lanyard).not.toContain("INTRO_X");
     expect(lanyard).toContain("visible={introVisible}");
     expect(lanyard).toContain("document.fonts.ready");
     expect(page).toContain("AnimatePresence");

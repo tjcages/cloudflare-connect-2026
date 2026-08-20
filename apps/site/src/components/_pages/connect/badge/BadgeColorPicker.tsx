@@ -54,7 +54,7 @@ export default function BadgeColorPicker({
           aria-checked={selected}
           aria-label="Custom color"
           className={cn(
-            "flex size-40 items-center justify-center rounded-full transition-transform",
+            "flex size-40 max-lg:size-32 items-center justify-center rounded-full transition-transform",
             open || selected
               ? "shadow-[inset_0_0_0_2px_var(--color-orange-900)]"
               : "hover:scale-105"
@@ -67,11 +67,7 @@ export default function BadgeColorPicker({
           ) : (
             <span
               aria-hidden="true"
-              className="relative flex size-28 items-center justify-center rounded-full"
-              style={{
-                background:
-                  "conic-gradient(#f46021, #f9b73b, #2e9d51, #38c5f6, #1f72ff, #9038fc, #f46021)",
-              }}
+              className="badge-color-picker__wheel relative flex size-28 items-center justify-center rounded-full"
             >
               <span className="flex size-16 items-center justify-center rounded-full bg-background-base text-icon-muted">
                 <Icon name="plus-small" size={16} />

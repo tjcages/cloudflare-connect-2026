@@ -65,7 +65,7 @@ function LogoCircle({
     <button
       {...attributes}
       className={cn(
-        "relative flex size-40 items-center justify-center rounded-full outline-none",
+        "relative flex size-40 max-lg:size-32 items-center justify-center rounded-full outline-none",
         !active && "hover:scale-105"
       )}
       type="button"

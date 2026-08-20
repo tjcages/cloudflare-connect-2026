@@ -3,10 +3,15 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { badgeIdentityLayout } from "./badge-identity";
 import {
+  BADGE_SHARE_DATE,
+  BADGE_SHARE_HEADLINE,
   BADGE_SHARE_SURFACE,
+  BADGE_SHARE_VENUE,
   badgeShareHeadline,
   badgeTweetUrl,
   keepShareNode,
+  sceneFitsShareCard,
+  wrapShareTitle,
 } from "./badge-share";
 
 describe("badge identity layout", () => {
@@ -58,6 +63,24 @@ describe("badge share copy", () => {
     expect(text).not.toContain("http");
   });
 
+  it("forces the 1200×800 capture layout when the live scene is narrower", () => {
+    expect(
+      sceneFitsShareCard({
+        getBoundingClientRect: () => ({ width: 1200, height: 800 }),
+      })
+    ).toBe(true);
+    expect(
+      sceneFitsShareCard({
+        getBoundingClientRect: () => ({ width: 1100, height: 800 }),
+      })
+    ).toBe(false);
+    expect(
+      sceneFitsShareCard({
+        getBoundingClientRect: () => ({ width: 390, height: 540 }),
+      })
+    ).toBe(false);
+  });
+
   it("drops marked nodes and canvases from the hero screenshot", () => {
     expect(keepShareNode({ hasAttribute: () => false } as HTMLElement)).toBe(
       true
@@ -75,7 +98,64 @@ describe("badge share copy", () => {
     ).toBe(false);
   });
 
-  it("screenshots the live hero onto a white field", () => {
+  it("wraps the share title to the column width", () => {
+    const ctx = {
+      measureText: (text: string) => ({ width: text.length * 10 }),
+    } as CanvasRenderingContext2D;
+    expect(wrapShareTitle(ctx, "Let’s shape what’s next together", 500)).toEqual(
+      ["Let’s shape what’s next together"]
+    );
+    expect(wrapShareTitle(ctx, "Let’s shape what’s next together", 80)).toEqual(
+      ["Let’s", "shape", "what’s", "next", "together"]
+    );
+  });
+
+  it("keeps poster copy for the share card lockup", () => {
+    expect(BADGE_SHARE_HEADLINE).toBe("Let’s shape what’s\nnext together");
+    expect([...BADGE_SHARE_VENUE]).toEqual([
+      "Moscone Center",
+      "San Francisco",
+    ]);
+    expect(BADGE_SHARE_DATE).toBe("October 20, 2026");
+    const copy = readFileSync(
+      resolve(
+        process.cwd(),
+        "src/components/_pages/connect/badge/BadgeShareCopy.tsx"
+      ),
+      "utf8"
+    );
+    expect(copy).toContain("ConnectCloud");
+    expect(copy).toContain("text-orange-900");
+    expect(copy).toContain("justify-between");
+    expect(copy).toContain("data-share-copy");
+    expect(copy).toContain("data-share-logo");
+    expect(copy).toContain("data-share-stamp");
+    expect(copy).toContain("Cloudflare");
+    expect(copy).toContain("Connect 2026");
+    expect(copy).toContain("BADGE_SHARE_HEADLINE");
+    expect(copy).toContain("BADGE_SHARE_VENUE");
+    expect(copy).toContain("BADGE_SHARE_DATE");
+    expect(copy).not.toContain("Your Connect 2026 badge");
+    expect(copy).not.toContain("See you at Cloudflare Connect 2026");
+  });
+
+  it("extends the share grid by two square rows to the hero bottom", () => {
+    const grid = readFileSync(
+      resolve(
+        process.cwd(),
+        "src/components/_pages/connect/badge/_svg/Grid.svg"
+      ),
+      "utf8"
+    );
+    expect(grid).toContain('viewBox="0 0 401 801"');
+    expect(grid).toContain('height="800"');
+    expect(grid).toContain("M0.5 720.5H400.5");
+    expect(grid).toContain("M0.5 800.5H400.5");
+    expect(grid).toContain("V800.5");
+    expect(grid).not.toContain("V640.5");
+  });
+
+  it("composites the share scene instead of screenshotting the live hero", () => {
     expect(BADGE_SHARE_SURFACE).toBe("#ffffff");
     const source = readFileSync(
       resolve(
@@ -84,15 +164,31 @@ describe("badge share copy", () => {
       ),
       "utf8"
     );
-    expect(source).toContain("toCanvas(hero");
+    expect(source).not.toContain("toCanvas(");
+    expect(source).not.toContain("captureHeroShareFallback");
     expect(source).toContain("shareStamp");
-    expect(source).toContain("captureHeroShareFallback");
     expect(source).toContain("BADGE_SHARE_FILE");
     expect(source).toContain("stampHeroGrid");
     expect(source).toContain("stampBackdrop");
+    expect(source).toContain("stampShareCopy");
+    expect(source).toContain("stampShareLogo");
+    expect(source).toContain("wrapShareTitle");
     expect(source).toContain("data-share-backdrop");
+    expect(source).toContain("data-share-copy");
+    expect(source).toContain("data-share-logo");
+    expect(source).toContain("data-share-stamp");
     expect(source).toContain("toDataURL");
     expect(source).toContain("destination-in");
+    expect(source).not.toContain("stampShareTitle");
+    expect(source).toContain("withDesktopShareLayout");
+    expect(source).toContain("waitForDesktopShareSize");
+    expect(source).toContain("sceneFitsShareCard");
+    expect(source).not.toContain("innerWidth >= 992");
+    expect(source).toContain("BADGE_SHARE_WIDTH");
+    expect(source).toContain("BADGE_SHARE_HEIGHT");
+    expect(source).toContain("shareCapturing");
+    expect(source).toContain("1200");
+    expect(source).toContain("800");
     expect(source).not.toContain("drawShareGrid");
   });
 });

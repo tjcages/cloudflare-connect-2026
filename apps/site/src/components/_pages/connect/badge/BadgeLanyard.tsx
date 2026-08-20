@@ -3,7 +3,9 @@
 import { PerspectiveCamera, useGLTF } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import {
+  useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -11,6 +13,7 @@ import {
 } from "react";
 import type { BufferGeometry, Camera, Texture } from "three";
 import {
+  AdditiveBlending,
   Bone,
   CanvasTexture,
   Color,
@@ -34,17 +37,44 @@ import {
   Vector3,
 } from "three";
 import {
+  BADGE_COAT_MESH_NAME,
   BADGE_PRINT_MESH_NAME,
   createPrintFaceGeometry,
   roundedRect,
 } from "./badge-card-geometry";
 import { drawIdentity, type BadgeCardIdentity } from "./badge-identity";
+import {
+  INTRO_DELAY_MS,
+  INTRO_FADE_MS,
+  applyIntroPose,
+  cardBottomDragOffsetY,
+} from "./badge-intro";
+import {
+  BADGE_ACCENT_LIGHTS,
+  BADGE_DPR_MAX,
+  BADGE_PRINT_CLEARCOAT,
+  BADGE_PRINT_CLEARCOAT_ROUGHNESS,
+  BADGE_PRINT_ENV,
+  BADGE_PRINT_IOR,
+  BADGE_PRINT_ROUGHNESS,
+  BADGE_PRINT_SPECULAR,
+  applyBadgeLook,
+  badgeAnisotropy,
+} from "./badge-look";
 import { svgRasterSize } from "./badge-logo";
 import {
   badgePrintFieldRect,
   fadePrintField,
   type BadgePrintFieldRect,
 } from "./badge-print-layout";
+import {
+  BADGE_CHAIN_BONES,
+  DRAG_LIMIT_UP,
+  type RopeState,
+  ropeIsAsleep,
+  stepRope,
+} from "./badge-rope";
+import { BADGE_SHARE_WIDTH } from "./badge-share";
 import { BADGE_TUNE_DEFAULTS, type BadgeTune } from "./badge-tune";
 
 const LANYARD_URL = "/connect/badge-lanyard.glb";
@@ -57,15 +87,8 @@ const CLIP_CLUSTER_Y0 = 0.118;
 const CLIP_CLUSTER_Y1 = 0.135;
 const WING_CUT_X = 0.02;
 const LEFT_TASSEL_X = -0.02;
-const CHAIN_BONES = 8;
-const CONSTRAINT_ITERS = 3;
-const SLEEP_EPS = 0.0009;
-const DRAG_LIMIT_UP = 0;
-const STRETCH_RETURN = 0.1;
-const INTRO_X = 0.1;
-const INTRO_Z = -0.018;
-const INTRO_SPIN = 0.006;
-const INTRO_DELAY_MS = 500;
+const CHAIN_BONES = BADGE_CHAIN_BONES;
+const CARD_FRONT_Z = 0.006;
 
 const SHADOW_OPACITY = BADGE_TUNE_DEFAULTS.shadowOpacity;
 const SHADOW_SOFT_OPACITY = BADGE_TUNE_DEFAULTS.shadowSoftOpacity;
@@ -105,6 +128,7 @@ type BadgeLanyardProps = {
   lowPower: boolean;
   shaderLive: boolean;
   tune: BadgeTune;
+  onIntroReady?: () => void;
 };
 
 type LanyardPart = "metal" | "plastic" | "webbing" | "cord";
@@ -285,7 +309,7 @@ function useHeroShaderTexture(
   faceCanvasRef?: RefObject<HTMLCanvasElement | null>,
   onReady?: () => void
 ) {
-  const { invalidate } = useThree();
+  const { invalidate, gl } = useThree();
   const skip = useRef(0);
   const lastKey = useRef("");
   const bakedWhileFrozen = useRef(false);
@@ -307,10 +331,10 @@ function useHeroShaderTexture(
     canvas.height = lowPower ? TEXTURE_H_LOW : TEXTURE_H;
     const map = new CanvasTexture(canvas);
     map.colorSpace = SRGBColorSpace;
-    map.anisotropy = lowPower ? 1 : 4;
+    map.anisotropy = badgeAnisotropy(gl, lowPower);
     map.needsUpdate = true;
     return map;
-  }, [lowPower]);
+  }, [gl, lowPower]);
 
   useEffect(() => {
     return () => {
@@ -665,6 +689,8 @@ function makePartMaterial(
   material.roughness = roughness;
   material.emissive = new Color(emissive > 0 ? color : "#000000");
   material.emissiveIntensity = emissive;
+  material.envMapIntensity = 0.85;
+  material.toneMapped = true;
   material.side = DoubleSide;
   material.vertexColors = false;
   return material;
@@ -735,9 +761,10 @@ function createBadgeCard(
           metalness: 0,
           roughness: tune.cardRoughness,
           clearcoat: tune.cardClearcoat,
-          clearcoatRoughness: 0.28,
-          envMapIntensity: 0.15,
-          toneMapped: false,
+          clearcoatRoughness: 0.08,
+          envMapIntensity: 0.85,
+          ior: 1.4,
+          toneMapped: true,
         })
   );
   const faceWidth = tune.cardWidth - tune.shaderInset * 2;
@@ -755,6 +782,29 @@ function createBadgeCard(
   face.position.z = tune.cardDepth / 2 + 0.0008;
   card.add(body);
   card.add(face);
+  if (!lowPower) {
+    const coat = new Mesh(
+      createPrintFaceGeometry(faceWidth, faceHeight, faceRadius),
+      new MeshPhysicalMaterial({
+        color: "#000000",
+        roughness: BADGE_PRINT_ROUGHNESS,
+        metalness: 0,
+        clearcoat: BADGE_PRINT_CLEARCOAT,
+        clearcoatRoughness: BADGE_PRINT_CLEARCOAT_ROUGHNESS,
+        envMapIntensity: BADGE_PRINT_ENV,
+        ior: BADGE_PRINT_IOR,
+        specularIntensity: BADGE_PRINT_SPECULAR,
+        transparent: true,
+        depthWrite: false,
+        blending: AdditiveBlending,
+        toneMapped: true,
+      })
+    );
+    coat.name = BADGE_COAT_MESH_NAME;
+    coat.renderOrder = 2;
+    coat.position.z = tune.cardDepth / 2 + 0.0012;
+    card.add(coat);
+  }
   return { card, body };
 }
 
@@ -927,15 +977,6 @@ function applyWallShadow(rig: LanyardRig, tune: BadgeTune) {
   }
 }
 
-type RopeState = {
-  now: Vector3[];
-  prev: Vector3[];
-  restPoints: Vector3[];
-  rest: number;
-  pin: Vector3;
-  stretch: number;
-};
-
 type LanyardRig = {
   group: Group;
   root: Bone;
@@ -998,7 +1039,7 @@ function buildLanyardRig(
   const parts = splitByPart(geometry);
   const sourceMaterial = source.material as MeshStandardMaterial;
   const materials: Record<LanyardPart, MeshStandardMaterial> = {
-    metal: makePartMaterial(sourceMaterial, METAL, 0.48, 0.28, !lowPower, 0.2),
+    metal: makePartMaterial(sourceMaterial, METAL, 0.72, 0.22, !lowPower, 0.12),
     plastic: makePartMaterial(sourceMaterial, PLASTIC, 0.08, 0.5, !lowPower),
     webbing: makePartMaterial(
       sourceMaterial,
@@ -1078,201 +1119,6 @@ function buildLanyardRig(
   };
 }
 
-function snapRopeToRest(rope: RopeState) {
-  for (let index = 0; index < rope.now.length; index += 1) {
-    rope.now[index]!.copy(rope.restPoints[index]!);
-    rope.prev[index]!.copy(rope.restPoints[index]!);
-  }
-}
-
-function ropeIsAsleep(rope: RopeState) {
-  let maxOff = 0;
-  for (let index = 0; index < rope.now.length; index += 1) {
-    const now = rope.now[index]!;
-    const rest = rope.restPoints[index]!;
-    const prev = rope.prev[index]!;
-    maxOff = Math.max(
-      maxOff,
-      Math.hypot(now.x - rest.x, now.z - rest.z),
-      Math.hypot(now.x - prev.x, now.z - prev.z)
-    );
-  }
-  return maxOff < SLEEP_EPS;
-}
-
-function solveDistance(
-  a: Vector3,
-  b: Vector3,
-  rest: number,
-  pinA: boolean,
-  pinB: boolean,
-  stiffness: number
-) {
-  const dx = b.x - a.x;
-  const dy = b.y - a.y;
-  const dz = b.z - a.z;
-  const dist = Math.hypot(dx, dy, dz) || 0.0001;
-  const shift = ((dist - rest) / dist) * stiffness;
-  const px = dx * shift;
-  const py = dy * shift;
-  const pz = dz * shift;
-  if (!pinA) {
-    const scale = pinB ? 2 : 1;
-    a.x += px * scale;
-    a.y += py * scale;
-    a.z += pz * scale;
-  }
-  if (!pinB) {
-    const scale = pinA ? 2 : 1;
-    b.x -= px * scale;
-    b.y -= py * scale;
-    b.z -= pz * scale;
-  }
-}
-
-function projectInextensible(rope: RopeState, rest = rope.rest) {
-  const last = rope.now.length - 1;
-  rope.now[last]!.copy(rope.pin);
-  for (let index = last - 1; index >= 0; index -= 1) {
-    const point = rope.now[index]!;
-    const parent = rope.now[index + 1]!;
-    const dx = point.x - parent.x;
-    const dy = point.y - parent.y;
-    const dz = point.z - parent.z;
-    const dist = Math.hypot(dx, dy, dz) || 0.0001;
-    const scale = rest / dist;
-    point.x = parent.x + dx * scale;
-    point.y = parent.y + dy * scale;
-    point.z = parent.z + dz * scale;
-  }
-}
-
-function kickIntroSwing(rope: RopeState) {
-  const last = rope.now.length - 1;
-  for (let index = 0; index < last; index += 1) {
-    const along = 1 - index / last;
-    const lag = along * along;
-    const point = rope.now[index]!;
-    const previous = rope.prev[index]!;
-    point.x = INTRO_X * lag;
-    point.z = INTRO_Z * lag;
-    previous.copy(point);
-    previous.x += INTRO_SPIN * lag;
-  }
-  projectInextensible(rope);
-}
-
-function applySway(rope: RopeState, follow: number) {
-  const last = rope.now.length - 1;
-  const tip = rope.now[0]!;
-  for (let index = 1; index < last; index += 1) {
-    const along = 1 - index / last;
-    const lag = along * along;
-    const point = rope.now[index]!;
-    point.x += (tip.x * lag - point.x) * follow;
-    point.z += (tip.z * lag - point.z) * follow;
-  }
-}
-
-function updateStretch(
-  rope: RopeState,
-  drag: Vector3 | null,
-  dragLimitDown: number
-) {
-  const last = rope.now.length - 1;
-  const total = rope.rest * last;
-  const target =
-    drag && drag.y < 0 ? 1 + Math.min(-drag.y, dragLimitDown) / total : 1;
-  const mix = drag ? 0.28 : STRETCH_RETURN;
-  rope.stretch += (target - rope.stretch) * mix;
-}
-
-function constrainRope(
-  rope: RopeState,
-  drag: Vector3 | null,
-  stiffness: number
-) {
-  const last = rope.now.length - 1;
-  const rest = rope.rest * rope.stretch;
-  for (let iter = 0; iter < CONSTRAINT_ITERS; iter += 1) {
-    for (let index = 0; index < last; index += 1) {
-      solveDistance(
-        rope.now[index]!,
-        rope.now[index + 1]!,
-        rest,
-        false,
-        index + 1 === last,
-        stiffness
-      );
-    }
-    rope.now[last]!.copy(rope.pin);
-    if (drag) {
-      const tip = rope.now[0]!;
-      tip.x += (drag.x - tip.x) * 0.18;
-      tip.y += (drag.y - tip.y) * 0.16;
-      tip.z += (drag.z - tip.z) * 0.18;
-    }
-  }
-  projectInextensible(rope, rest);
-  if (rope.stretch <= 1.01) {
-    for (let index = 0; index < last; index += 1) {
-      rope.prev[index]!.y = rope.now[index]!.y;
-    }
-  }
-}
-
-function stepRope(
-  rope: RopeState,
-  drag: Vector3 | null,
-  dt: number,
-  reducedMotion: boolean,
-  tune: BadgeTune
-) {
-  const last = rope.now.length - 1;
-  if (reducedMotion) {
-    snapRopeToRest(rope);
-    return;
-  }
-
-  if (!drag && ropeIsAsleep(rope)) {
-    snapRopeToRest(rope);
-    return;
-  }
-
-  const gravity = tune.gravity * dt * dt;
-  for (let index = 0; index < last; index += 1) {
-    const point = rope.now[index]!;
-    const previous = rope.prev[index]!;
-    const damp = index === 0 ? tune.dampingTip : tune.dampingCord;
-    const vx = (point.x - previous.x) * damp;
-    const vy = (point.y - previous.y) * tune.dampingY;
-    const vz = (point.z - previous.z) * damp;
-    previous.copy(point);
-    point.x += vx;
-    point.y += vy + gravity;
-    point.z += vz;
-  }
-
-  if (drag) {
-    const tip = rope.now[0]!;
-    tip.x += (drag.x - tip.x) * tune.dragFollow;
-    tip.y += (drag.y - tip.y) * tune.dragFollow * 0.7;
-    tip.z += (drag.z - tip.z) * tune.dragFollow;
-  }
-
-  updateStretch(rope, drag, tune.dragLimitDown);
-  constrainRope(rope, drag, tune.constraintStiffness);
-
-  if (!drag) {
-    const tip = rope.now[0]!;
-    tip.x += -tip.x * tune.restPull;
-    tip.z += -tip.z * tune.restPull;
-  }
-  applySway(rope, tune.swayFollow);
-  projectInextensible(rope, rope.rest * rope.stretch);
-  rope.now[last]!.copy(rope.pin);
-}
-
 function applyRopeToBones(bones: Bone[], rope: RopeState) {
   const points = rope.now;
   bones[0]!.position.copy(points[0]!);
@@ -1306,7 +1152,7 @@ function applyCardTwist(
   tune: BadgeTune
 ) {
   if (reducedMotion) {
-    card.rotation.set(0, 0, 0);
+    card.rotation.set(tune.cardPitch, 0, 0);
     return;
   }
   const tip = rope.now[0]!;
@@ -1322,6 +1168,7 @@ function applyCardTwist(
     -tune.rollMax,
     tune.rollMax
   );
+  card.rotation.x = tune.cardPitch;
   card.rotation.y = MathUtils.lerp(card.rotation.y, twist, tune.twistSmooth);
   card.rotation.z = MathUtils.lerp(card.rotation.z, roll, tune.twistSmooth);
 }
@@ -1361,6 +1208,17 @@ function rightColumnWorldX(width: number, viewportWidth: number) {
   return (columnCenterPx / width - 0.5) * viewportWidth;
 }
 
+function hangWorldX(
+  width: number,
+  viewportWidth: number,
+  hangX: number,
+  capturing: boolean
+) {
+  if (!capturing && width < 992) return 0;
+  const layoutWidth = capturing ? Math.max(width, BADGE_SHARE_WIDTH) : width;
+  return rightColumnWorldX(layoutWidth, viewportWidth) + hangX;
+}
+
 function LanyardBadge({
   twizzlerCanvas,
   rainCanvas,
@@ -1373,6 +1231,7 @@ function LanyardBadge({
   lowPower,
   shaderLive,
   tune,
+  onIntroReady,
 }: BadgeLanyardProps) {
   const { gl, camera, viewport, size, invalidate } = useThree();
   const { scene } = useGLTF(LANYARD_URL);
@@ -1382,6 +1241,7 @@ function LanyardBadge({
   const dragOffset = useRef(new Vector3());
   const dragTarget = useRef(new Vector3());
   const introKicked = useRef(false);
+  const introReleased = useRef(reducedMotion);
   const [printReady, setPrintReady] = useState(false);
   const [introVisible, setIntroVisible] = useState(reducedMotion);
   const texture = useHeroShaderTexture(
@@ -1402,6 +1262,47 @@ function LanyardBadge({
     const id = window.setTimeout(() => setPrintReady(true), 4000);
     return () => window.clearTimeout(id);
   }, []);
+
+  const applyHang = useCallback(() => {
+    const hang = groupRef.current;
+    if (!hang) return;
+    const capturing = Boolean(gl.domElement.closest("[data-share-capturing]"));
+    const localY = cardLocalY(tune.cardHeight, tune.cardOverlap);
+    hang.position.x = hangWorldX(
+      size.width,
+      viewport.width,
+      tune.hangX,
+      capturing
+    );
+    hang.position.y = -localY * tune.modelScale + tune.hangLift;
+    hang.position.z = tune.hangZ;
+  }, [
+    gl.domElement,
+    size.width,
+    tune.cardHeight,
+    tune.cardOverlap,
+    tune.hangLift,
+    tune.hangX,
+    tune.hangZ,
+    tune.modelScale,
+    viewport.width,
+  ]);
+
+  useLayoutEffect(() => {
+    applyHang();
+    invalidate();
+    const sceneEl = gl.domElement.closest("[data-share-scene]");
+    if (!sceneEl) return;
+    const observer = new MutationObserver(() => {
+      applyHang();
+      invalidate();
+    });
+    observer.observe(sceneEl, {
+      attributes: true,
+      attributeFilter: ["data-share-capturing"],
+    });
+    return () => observer.disconnect();
+  }, [applyHang, gl.domElement, invalidate]);
 
   const rig = useMemo(() => {
     let source: Mesh | null = null;
@@ -1430,6 +1331,8 @@ function LanyardBadge({
   useEffect(() => {
     if (reducedMotion) {
       setIntroVisible(true);
+      introReleased.current = true;
+      onIntroReady?.();
       invalidate();
       return;
     }
@@ -1455,16 +1358,24 @@ function LanyardBadge({
         window.setTimeout(resolve, INTRO_DELAY_MS);
       });
       if (cancelled || introKicked.current) return;
-      kickIntroSwing(rig.rope);
+      applyIntroPose(rig.rope, rig.card);
       introKicked.current = true;
       setIntroVisible(true);
       invalidate();
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (cancelled) return;
+          introReleased.current = true;
+          onIntroReady?.();
+          invalidate();
+        });
+      });
     };
     void startIntro();
     return () => {
       cancelled = true;
     };
-  }, [camera, gl, invalidate, printReady, reducedMotion, rig]);
+  }, [camera, gl, invalidate, onIntroReady, printReady, reducedMotion, rig]);
 
   useEffect(() => {
     invalidate();
@@ -1552,22 +1463,32 @@ function LanyardBadge({
   useFrame((state, delta) => {
     if (!rig) return;
     const dt = Math.min(delta, 1 / 30);
-    stepRope(
-      rig.rope,
-      dragging.current ? dragTarget.current : null,
-      dt,
-      reducedMotion,
-      tune
-    );
+    const swinging = dragging.current || introReleased.current;
+    if (swinging) {
+      stepRope(
+        rig.rope,
+        dragging.current ? dragTarget.current : null,
+        dt,
+        reducedMotion,
+        tune
+      );
+      applyCardTwist(rig.card, rig.rope, reducedMotion, tune);
+    } else {
+      rig.card.rotation.x = tune.cardPitch;
+    }
     applyRopeToBones(rig.bones, rig.rope);
-    applyCardTwist(rig.card, rig.rope, reducedMotion, tune);
     applyWallShadow(rig, tune);
     const hang = groupRef.current;
     const localY = cardLocalY(tune.cardHeight, tune.cardOverlap);
     rig.card.position.y = localY;
+    rig.card.position.z = CARD_FRONT_Z;
     if (hang) {
-      hang.position.x =
-        rightColumnWorldX(size.width, viewport.width) + tune.hangX;
+      hang.position.x = hangWorldX(
+        size.width,
+        viewport.width,
+        tune.hangX,
+        Boolean(gl.domElement.closest("[data-share-capturing]"))
+      );
       hang.position.y = -localY * tune.modelScale + tune.hangLift;
       hang.position.z = tune.hangZ;
     }
@@ -1576,6 +1497,7 @@ function LanyardBadge({
     rig.card.traverse((child) => {
       if (!(child instanceof Mesh)) return;
       if (child.name === BADGE_PRINT_MESH_NAME) return;
+      if (child.name === BADGE_COAT_MESH_NAME) return;
       if (rig.shadows.includes(child)) return;
       const material = child.material;
       if (Array.isArray(material) || !material) return;
@@ -1592,8 +1514,8 @@ function LanyardBadge({
     });
     if (
       dragging.current ||
-      (shaderLive && !reducedMotion) ||
-      !ropeIsAsleep(rig.rope)
+      (introReleased.current &&
+        ((shaderLive && !reducedMotion) || !ropeIsAsleep(rig.rope)))
     ) {
       state.invalidate();
     }
@@ -1615,13 +1537,13 @@ function LanyardBadge({
         );
         const local = world.clone();
         rig.group.worldToLocal(local);
+        const tip = rig.rope.now[0]!;
         dragOffset.current.set(
-          rig.rope.now[0]!.x - local.x,
-          rig.rope.now[0]!.y - local.y,
+          tip.x - local.x,
+          cardBottomDragOffsetY(tip.y, tune.cardHeight, tune.cardOverlap),
           0
         );
-        const tip = rig.rope.now[0]!;
-        dragTarget.current.set(tip.x, tip.y, -tip.x * tune.inwardZ);
+        dragTarget.current.set(tip.x, Math.min(tip.y, 0), -tip.x * tune.inwardZ);
         gl.domElement.style.cursor = "grabbing";
         gl.domElement.setPointerCapture(event.pointerId);
         invalidate();
@@ -1654,6 +1576,7 @@ function BadgeScene({
   lowPower,
   shaderLive,
   tune,
+  onIntroReady,
 }: BadgeLanyardProps) {
   const { camera } = useThree();
   useFrame(() => {
@@ -1673,20 +1596,38 @@ function BadgeScene({
         intensity={lowPower ? Math.min(tune.ambient + 0.2, 1.2) : tune.ambient}
       />
       {lowPower ? (
-        <directionalLight
-          intensity={tune.keyLight * 0.85}
-          position={[5, 7, 8]}
-        />
-      ) : (
         <>
-          <hemisphereLight args={["#fff1e4", "#1a1a1a", tune.hemi]} />
-          <directionalLight intensity={tune.keyLight} position={[5, 7, 8]} />
-          <directionalLight intensity={tune.fillLight} position={[-6, 3, 5]} />
+          <directionalLight
+            intensity={tune.keyLight * 0.85}
+            position={[5, 7, 8]}
+          />
           <directionalLight
             color={identity.accent}
-            intensity={tune.rimLight}
-            position={[2, -1, 6]}
+            intensity={tune.rimLight * 0.7}
+            position={[4, 4, 6]}
           />
+        </>
+      ) : (
+        <>
+          <hemisphereLight args={["#fff4e8", "#d4cbc2", tune.hemi]} />
+          <directionalLight
+            color="#fff7ee"
+            intensity={tune.keyLight}
+            position={[5, 7, 8]}
+          />
+          <directionalLight
+            color="#e8eef6"
+            intensity={tune.fillLight}
+            position={[-6, 3, 5]}
+          />
+          {BADGE_ACCENT_LIGHTS.map((light) => (
+            <directionalLight
+              color={identity.accent}
+              intensity={tune.rimLight * light.scale}
+              key={light.position.join(":")}
+              position={[...light.position]}
+            />
+          ))}
         </>
       )}
       <LanyardBadge
@@ -1696,6 +1637,7 @@ function BadgeScene({
         logoMarkSrc={logoMarkSrc}
         printSrc={printSrc}
         lowPower={lowPower}
+        onIntroReady={onIntroReady}
         rainCanvas={rainCanvas}
         reducedMotion={reducedMotion}
         shaderLive={shaderLive}
@@ -1721,47 +1663,59 @@ export default function BadgeLanyard({
   shaderLive,
   tune,
 }: BadgeLanyardProps) {
+  const [introReady, setIntroReady] = useState(reducedMotion);
+  const onIntroReady = useCallback(() => setIntroReady(true), []);
   return (
-    <Canvas
-      camera={{
-        fov: tune.cameraFov,
-        position: [tune.cameraX, tune.cameraY, tune.cameraZ],
+    <div
+      className="h-full w-full"
+      style={{
+        opacity: introReady ? 1 : 0,
+        transition: reducedMotion ? "none" : `opacity ${INTRO_FADE_MS}ms ease`,
       }}
-      dpr={lowPower ? 1 : [1, 1.5]}
-      frameloop="demand"
-      gl={{
-        alpha: true,
-        antialias: !lowPower,
-        depth: true,
-        premultipliedAlpha: true,
-        preserveDrawingBuffer: true,
-        powerPreference: lowPower ? "low-power" : "high-performance",
-        stencil: false,
-      }}
-      onCreated={({ gl }) => {
-        gl.setClearColor(0x000000, 0);
-        gl.domElement.dataset.shareStamp = "";
-      }}
-      performance={
-        lowPower
-          ? { min: 0.4, max: 0.7, debounce: 200 }
-          : { min: 0.5, max: 1, debounce: 200 }
-      }
-      style={{ height: "100%", touchAction: "none", width: "100%" }}
     >
-      <BadgeScene
-        faceCanvasRef={faceCanvasRef}
-        identity={identity}
-        logoCanvas={logoCanvas}
-        logoMarkSrc={logoMarkSrc}
-        printSrc={printSrc}
-        lowPower={lowPower}
-        rainCanvas={rainCanvas}
-        reducedMotion={reducedMotion}
-        shaderLive={shaderLive}
-        tune={tune}
-        twizzlerCanvas={twizzlerCanvas}
-      />
-    </Canvas>
+      <Canvas
+        camera={{
+          fov: tune.cameraFov,
+          position: [tune.cameraX, tune.cameraY, tune.cameraZ],
+        }}
+        dpr={lowPower ? 1 : [1, BADGE_DPR_MAX]}
+        frameloop="demand"
+        gl={{
+          alpha: true,
+          antialias: !lowPower,
+          depth: true,
+          premultipliedAlpha: true,
+          preserveDrawingBuffer: true,
+          powerPreference: lowPower ? "low-power" : "high-performance",
+          stencil: false,
+        }}
+        onCreated={({ gl, scene }) => {
+          gl.setClearColor(0x000000, 0);
+          gl.domElement.dataset.shareStamp = "";
+          applyBadgeLook(gl, scene, lowPower);
+        }}
+        performance={
+          lowPower
+            ? { min: 0.4, max: 0.7, debounce: 200 }
+            : { min: 0.75, max: 1, debounce: 200 }
+        }
+        style={{ height: "100%", touchAction: "none", width: "100%" }}
+      >
+        <BadgeScene
+          faceCanvasRef={faceCanvasRef}
+          identity={identity}
+          logoCanvas={logoCanvas}
+          logoMarkSrc={logoMarkSrc}
+          printSrc={printSrc}
+          lowPower={lowPower}
+          onIntroReady={onIntroReady}
+          rainCanvas={rainCanvas}
+          reducedMotion={reducedMotion}
+          shaderLive={shaderLive}
+          tune={tune}
+          twizzlerCanvas={twizzlerCanvas}
+        />
+      </Canvas>
+    </div>
   );
 }

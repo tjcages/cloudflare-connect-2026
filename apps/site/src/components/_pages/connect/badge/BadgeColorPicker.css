@@ -1,3 +1,25 @@
+.badge-color-picker__wheel {
+  background: conic-gradient(
+    #f46021,
+    #f9b73b,
+    #2e9d51,
+    #38c5f6,
+    #1f72ff,
+    #9038fc,
+    #f46021
+  );
+  background: conic-gradient(
+    in oklch,
+    #f46021,
+    #f9b73b,
+    #2e9d51,
+    #38c5f6,
+    #1f72ff,
+    #9038fc,
+    #f46021
+  );
+}
+
 .badge-color-picker .react-colorful {
   width: 100%;
   height: 148px;

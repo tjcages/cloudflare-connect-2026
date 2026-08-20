@@ -18,7 +18,7 @@ export default function Button({
   )) {
   const className = cn(
     "group relative flex-center cursor-pointer rounded-full",
-    "transition-all active:scale-[0.99] active:duration-30",
+    "transition-[box-shadow,background-color,color,opacity,transform] active:scale-[0.99] active:duration-30",
     "text-label-x-small",
     "[&>astro-slot>span]:relative [&>astro-slot>span]:z-1 [&>astro-slot>span]:px-6",
     "[&>span]:relative [&>span]:z-1 [&>span]:px-6",

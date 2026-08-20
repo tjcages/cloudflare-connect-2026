@@ -1,7 +1,10 @@
-import { toCanvas } from "html-to-image";
-
 export const BADGE_SHARE_SURFACE = "#ffffff";
 export const BADGE_SHARE_FILE = "connect-2026-badge.png";
+export const BADGE_SHARE_WIDTH = 1200;
+export const BADGE_SHARE_HEIGHT = 800;
+export const BADGE_SHARE_HEADLINE = "Let’s shape what’s\nnext together";
+export const BADGE_SHARE_VENUE = ["Moscone Center", "San Francisco"] as const;
+export const BADGE_SHARE_DATE = "October 20, 2026";
 
 export function badgeShareHeadline(name: string): string {
   const trimmed = name.trim();
@@ -24,6 +27,72 @@ function waitTwoFrames() {
       requestAnimationFrame(() => resolve());
     });
   });
+}
+
+async function waitForDesktopShareSize(scene: HTMLElement) {
+  const slack = 2;
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    const rect = scene.getBoundingClientRect();
+    const canvas =
+      scene.querySelector<HTMLCanvasElement>("canvas[data-share-stamp]") ??
+      scene.querySelector("canvas");
+    const canvasW = canvas?.clientWidth ?? 0;
+    const canvasH = canvas?.clientHeight ?? 0;
+    if (
+      rect.width >= BADGE_SHARE_WIDTH - slack &&
+      rect.height >= BADGE_SHARE_HEIGHT - slack &&
+      canvasW >= BADGE_SHARE_WIDTH - slack &&
+      canvasH >= BADGE_SHARE_HEIGHT - slack
+    ) {
+      window.dispatchEvent(new Event("resize"));
+      await waitTwoFrames();
+      await waitTwoFrames();
+      return;
+    }
+    await waitTwoFrames();
+  }
+}
+
+export function sceneFitsShareCard(scene: {
+  getBoundingClientRect: () => Pick<DOMRect, "width" | "height">;
+}) {
+  const rect = scene.getBoundingClientRect();
+  return (
+    rect.width >= BADGE_SHARE_WIDTH - 1 &&
+    rect.height >= BADGE_SHARE_HEIGHT - 1
+  );
+}
+
+async function withDesktopShareLayout<T>(
+  scene: HTMLElement,
+  run: () => Promise<T>
+): Promise<T> {
+  if (sceneFitsShareCard(scene)) return run();
+
+  const spacer = document.createElement("div");
+  spacer.dataset.shareCaptureSpacer = "";
+  spacer.style.height = `${scene.getBoundingClientRect().height}px`;
+  scene.parentElement?.insertBefore(spacer, scene);
+
+  const previousCss = scene.style.cssText;
+  scene.dataset.shareCapturing = "";
+  scene.style.position = "fixed";
+  scene.style.left = "0px";
+  scene.style.top = "0px";
+  scene.style.width = `${BADGE_SHARE_WIDTH}px`;
+  scene.style.height = `${BADGE_SHARE_HEIGHT}px`;
+  scene.style.zIndex = "-1";
+  scene.style.opacity = "0";
+  scene.style.pointerEvents = "none";
+  scene.style.maxHeight = "none";
+  try {
+    await waitForDesktopShareSize(scene);
+    return await run();
+  } finally {
+    delete scene.dataset.shareCapturing;
+    scene.style.cssText = previousCss;
+    spacer.remove();
+  }
 }
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
@@ -265,77 +334,156 @@ async function stampHeroGrid(
 
 async function stampHeroLayers(
   ctx: CanvasRenderingContext2D,
-  hero: HTMLElement,
+  scene: HTMLElement,
   rect: DOMRect,
   scaleX: number,
   scaleY: number
 ) {
-  await stampHeroGrid(ctx, hero, rect, scaleX, scaleY);
-  await stampBackdrop(ctx, hero, rect, scaleX, scaleY);
-  stampLanyard(ctx, hero, rect, scaleX, scaleY);
+  await stampHeroGrid(ctx, scene, rect, scaleX, scaleY);
+  await stampBackdrop(ctx, scene, rect, scaleX, scaleY);
+  stampLanyard(ctx, scene, rect, scaleX, scaleY);
 }
 
-async function captureHeroShareFallback(
-  hero: HTMLElement
-): Promise<HTMLCanvasElement> {
-  const rect = hero.getBoundingClientRect();
-  const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.max(1, Math.round(rect.width * pixelRatio));
-  canvas.height = Math.max(1, Math.round(rect.height * pixelRatio));
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return canvas;
-  ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-  ctx.fillStyle = BADGE_SHARE_SURFACE;
-  ctx.fillRect(0, 0, rect.width, rect.height);
-  await stampHeroLayers(ctx, hero, rect, 1, 1);
-  const title = hero.querySelector("h1");
-  if (title) {
-    const style = getComputedStyle(title);
-    const box = title.getBoundingClientRect();
-    ctx.fillStyle = style.color || "#292929";
-    ctx.font = style.font || '400 44px "STK Bureau Sans", sans-serif';
-    ctx.textBaseline = "top";
-    ctx.fillText(
-      title.textContent?.trim() || "Your Connect 2026 badge",
-      box.left - rect.left,
-      box.top - rect.top,
-      Math.max(1, box.width)
-    );
+export function wrapShareTitle(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number
+): string[] {
+  const words = text.split(/\s+/).filter(Boolean);
+  if (words.length === 0) return [text];
+  const lines: string[] = [];
+  let line = words[0]!;
+  for (let index = 1; index < words.length; index += 1) {
+    const word = words[index]!;
+    const next = `${line} ${word}`;
+    if (ctx.measureText(next).width <= maxWidth) {
+      line = next;
+      continue;
+    }
+    lines.push(line);
+    line = word;
   }
-  return canvas;
+  lines.push(line);
+  return lines;
+}
+
+function paintShareText(
+  ctx: CanvasRenderingContext2D,
+  node: HTMLElement,
+  rect: DOMRect
+) {
+  const style = getComputedStyle(node);
+  const box = node.getBoundingClientRect();
+  if (box.width < 1 || box.height < 1) return;
+  const raw = (node.innerText || node.textContent || "")
+    .replace(/\u00a0/g, " ")
+    .trim();
+  if (!raw) return;
+  const lineHeight =
+    Number.parseFloat(style.lineHeight) ||
+    Number.parseFloat(style.fontSize) * 1.1 ||
+    48;
+  ctx.save();
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = style.color || "#f46021";
+  ctx.font = style.font || '400 56px "STK Bureau Sans", sans-serif';
+  ctx.textBaseline = "top";
+  ctx.textAlign = "left";
+  if ("letterSpacing" in ctx && style.letterSpacing !== "normal") {
+    ctx.letterSpacing = style.letterSpacing;
+  }
+  const maxWidth = Math.max(1, box.width);
+  let y = box.top - rect.top;
+  for (const paragraph of raw.split(/\n+/)) {
+    const lines = wrapShareTitle(ctx, paragraph.trim(), maxWidth);
+    for (const line of lines) {
+      ctx.fillText(line, box.left - rect.left, y, maxWidth);
+      y += lineHeight;
+    }
+  }
+  ctx.restore();
+}
+
+async function stampShareLogo(
+  ctx: CanvasRenderingContext2D,
+  copy: HTMLElement,
+  rect: DOMRect
+) {
+  const host = copy.querySelector("[data-share-logo]");
+  if (!(host instanceof Element)) return;
+  const svg =
+    host instanceof SVGSVGElement
+      ? host
+      : host.querySelector("svg");
+  if (!svg) return;
+  const box = svg.getBoundingClientRect();
+  if (box.width < 1 || box.height < 1) return;
+  const clone = svg.cloneNode(true) as SVGSVGElement;
+  clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+  const blob = new Blob([new XMLSerializer().serializeToString(clone)], {
+    type: "image/svg+xml;charset=utf-8",
+  });
+  const url = URL.createObjectURL(blob);
+  try {
+    const image = await loadImage(url);
+    drawLayer(ctx, image, box, rect, 1, 1);
+  } catch {
+    // Wordmark + headline still export if the cloud SVG blob fails.
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+function stampShareStamps(
+  ctx: CanvasRenderingContext2D,
+  copy: HTMLElement,
+  rect: DOMRect
+) {
+  const nodes = copy.querySelectorAll<HTMLElement>("[data-share-stamp]");
+  for (const node of nodes) {
+    paintShareText(ctx, node, rect);
+  }
+}
+
+async function stampShareCopy(
+  ctx: CanvasRenderingContext2D,
+  scene: HTMLElement,
+  rect: DOMRect
+) {
+  const copy = scene.querySelector<HTMLElement>("[data-share-copy]");
+  if (!copy) return;
+  const box = copy.getBoundingClientRect();
+  if (box.width < 1 || box.height < 1) return;
+  await stampShareLogo(ctx, copy, rect);
+  stampShareStamps(ctx, copy, rect);
 }
 
 export async function captureHeroShare(
-  hero: HTMLElement
+  scene: HTMLElement
 ): Promise<HTMLCanvasElement> {
-  await waitForBackdrop(hero);
-  const rect = hero.getBoundingClientRect();
-  try {
-    const canvas = await withTimeout(
-      toCanvas(hero, {
-        backgroundColor: BADGE_SHARE_SURFACE,
-        cacheBust: true,
-        filter: keepShareNode,
-        pixelRatio: Math.min(window.devicePixelRatio || 1, 2),
-      }),
-      4000
-    );
-    const ctx = canvas.getContext("2d");
-    if (!ctx || rect.width < 1 || rect.height < 1) {
-      return captureHeroShareFallback(hero);
+  if (document.fonts?.status !== "loaded") {
+    try {
+      await document.fonts.ready;
+    } catch {
+      // Stamp with whatever face is already available.
     }
-    await stampHeroLayers(
-      ctx,
-      hero,
-      rect,
-      canvas.width / rect.width,
-      canvas.height / rect.height
-    );
-    return canvas;
-  } catch {
-    return captureHeroShareFallback(hero);
   }
+  return withDesktopShareLayout(scene, async () => {
+    await waitForBackdrop(scene);
+    const rect = scene.getBoundingClientRect();
+    const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(rect.width * pixelRatio));
+    canvas.height = Math.max(1, Math.round(rect.height * pixelRatio));
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return canvas;
+    ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+    ctx.fillStyle = BADGE_SHARE_SURFACE;
+    ctx.fillRect(0, 0, rect.width, rect.height);
+    await stampHeroLayers(ctx, scene, rect, 1, 1);
+    await stampShareCopy(ctx, scene, rect);
+    return canvas;
+  });
 }
 
 export async function copyCanvasImage(

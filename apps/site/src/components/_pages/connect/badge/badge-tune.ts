@@ -19,6 +19,7 @@ export type BadgeTune = {
   cardEmissive: number;
   cardRoughness: number;
   cardClearcoat: number;
+  cardPitch: number;
   cameraFov: number;
   cameraX: number;
   cameraY: number;
@@ -88,9 +89,9 @@ export const BADGE_LOGO_SCALE_MIN = 0.4;
 export const BADGE_LOGO_SCALE_MAX = 1.6;
 
 export const BADGE_TUNE_DEFAULTS: BadgeTune = {
-  modelScale: 15.8,
-  hangLift: 0.38,
-  hangX: -0.61,
+  modelScale: 14.9,
+  hangLift: 1.2,
+  hangX: -0.47,
   hangZ: 0,
   cardWidth: 0.1,
   cardHeight: 0.158,
@@ -101,25 +102,26 @@ export const BADGE_TUNE_DEFAULTS: BadgeTune = {
   cardEmissive: 0.17,
   cardRoughness: 0.18,
   cardClearcoat: 1,
+  cardPitch: -0.08,
   cameraFov: 30,
   cameraX: 0,
   cameraY: 0.15,
   cameraZ: 8,
   printZoom: 1.17,
-  printPanX: -0.4,
+  printPanX: -0.44,
   printPanY: -0.065,
   printTwizzler: false,
   printRain: false,
   printPadX: 0,
   printPadTop: 0,
   printFeather: 0.065,
-  sourceZoom: 1.25,
-  sourcePanX: 0,
+  sourceZoom: 1.18,
+  sourcePanX: 0.0015,
   sourcePanY: 0,
   sourceLight: BADGE_PLATE_LIGHT_DEFAULT,
   shadowOpacity: 0.01,
   shadowSoftOpacity: 0,
-  wallZ: -0.015,
+  wallZ: -0.03,
   lightX: -0.55,
   lightY: -0.55,
   lightZ: -1,
@@ -135,8 +137,8 @@ export const BADGE_TUNE_DEFAULTS: BadgeTune = {
   dragFollow: 0.12,
   restPull: 0.01,
   swayFollow: 0.16,
-  dragLimitX: 0.28,
-  dragLimitDown: 0.047,
+  dragLimitX: 0.15,
+  dragLimitDown: 0.09,
   constraintStiffness: 0.32,
   twistPos: 3.5,
   twistVel: 10,
@@ -154,7 +156,7 @@ export const BADGE_TUNE_DEFAULTS: BadgeTune = {
   logoBand: 0.21,
   logoPadX: 0.04,
   logoPadY: -0.005,
-  logoScale: 1.12,
+  logoScale: 1.26,
   logoPrintZoom: 1.6,
   logoMarkOpacity: 1,
   footerBand: 0.28,
@@ -164,6 +166,26 @@ export const BADGE_TUNE_DEFAULTS: BadgeTune = {
   backdropMaskX: 62,
   backdropMaskY: 44,
   ...BADGE_TWIZZLER_OVERLAY_DEFAULTS,
+  twizzlerOpacity: 1,
+  twizzlerScale: 3.65,
+  twizzlerCenterY: 0.5,
+  twizzlerPanX: 0,
+  twizzlerPanY: 0,
+  twizzlerPanZ: 0,
+  twizzlerAmplitude: 1.39,
+  twizzlerTwist: 1.15,
+  twizzlerRotateX: -151.4,
+  twizzlerRotateY: 125.4,
+  twizzlerRotateZ: 12.1,
+  twizzlerFov: 0.95,
+  twizzlerCamDist: 12.42,
+  twizzlerLineWidth: 3.86,
+  twizzlerPerspectiveWidth: 40,
+  twizzlerMinLineWidth: 0.4,
+  twizzlerMaxLineWidth: 9.54,
+  twizzlerLineCount: 79,
+  twizzlerPointSpacing: 10,
+  twizzlerSpeed: 0.95,
 };
 
 function slider(
@@ -206,6 +228,14 @@ export const BADGE_TUNE_FIELDS: PanelField<BadgeTune>[] = [
   slider("cardEmissive", "Plastic white", 0, 1, 0.01),
   slider("cardRoughness", "Roughness", 0, 1, 0.01),
   slider("cardClearcoat", "Clearcoat", 0, 1, 0.01),
+  slider(
+    "cardPitch",
+    "Pitch",
+    -0.4,
+    0.4,
+    0.005,
+    "Negative tips the top into the screen so the coat catches light."
+  ),
   { type: "section", title: "Camera" },
   slider("cameraFov", "FOV", 18, 55, 0.5),
   slider("cameraX", "Camera X", -3, 3, 0.01),
@@ -312,7 +342,7 @@ export const BADGE_TUNE_FIELDS: PanelField<BadgeTune>[] = [
   slider("restPull", "Rest pull", 0, 0.08, 0.001),
   slider("swayFollow", "Sway follow", 0, 0.5, 0.005),
   slider("dragLimitX", "Drag limit X", 0.05, 0.6, 0.005),
-  slider("dragLimitDown", "Stretch down", 0, 0.12, 0.001),
+  slider("dragLimitDown", "Stretch down", 0, 0.18, 0.001),
   slider("constraintStiffness", "Stiffness", 0.05, 0.8, 0.01),
   slider("twistPos", "Twist from X", 0, 10, 0.05),
   slider("twistVel", "Twist from velocity", 0, 24, 0.1),
@@ -363,4 +393,4 @@ export const BADGE_TUNE_FIELDS: PanelField<BadgeTune>[] = [
   slider("backdropMaskY", "Mask Y %", 0, 100, 1),
 ];
 
-export const BADGE_TUNE_PANEL_ID = "connect-badge-tune-v13";
+export const BADGE_TUNE_PANEL_ID = "connect-badge-tune-v18";
