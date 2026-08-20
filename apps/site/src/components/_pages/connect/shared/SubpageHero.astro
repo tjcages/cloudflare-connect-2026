@@ -15,30 +15,50 @@ interface Props {
   body: string;
   primaryCta: Cta;
   secondaryCta?: Cta;
+  shader?: boolean;
 }
 
-const { eyebrow, title, body, primaryCta, secondaryCta } = Astro.props;
+const {
+  eyebrow,
+  title,
+  body,
+  primaryCta,
+  secondaryCta,
+  shader = true,
+} = Astro.props;
 ---
 
 {/*
   Same shell as the homepage hero: full-width max-w-1200 column, isolate +
   overflow clip so the Twizzler/rain stack sits in the lower band without
-  escaping the grid frame.
+  escaping the grid frame. Pass shader={false} to keep title, body, and CTAs
+  without the shader band (FAQ).
 */}
 <div
-  class="relative isolate mx-auto w-full min-h-760 max-w-1200 overflow-hidden before:inside-border-b before:border-border-default md:min-h-616"
+  class:list={[
+    "relative mx-auto w-full max-w-1200 before:inside-border-b before:border-border-default",
+    shader && "isolate min-h-760 overflow-hidden md:min-h-616",
+  ]}
 >
   <CornerDots count={4} faintClassName="z-30" />
 
-  <div
-    class="pointer-events-none absolute inset-x-0 -bottom-48 z-0 h-320 md:-bottom-96 md:h-520"
-    aria-hidden="true"
-  >
-    <ConnectHeroTwizzler client:load posterSrc="/connect/twizzler-poster.png" />
-  </div>
+  {shader && (
+    <div
+      class="pointer-events-none absolute inset-x-0 -bottom-48 z-0 h-320 md:-bottom-96 md:h-520"
+      aria-hidden="true"
+    >
+      <ConnectHeroTwizzler
+        client:load
+        posterSrc="/connect/twizzler-poster.png"
+      />
+    </div>
+  )}
 
   <div
-    class="relative z-10 flex flex-col gap-32 px-24 pt-48 pb-160 md:flex-row md:justify-between md:gap-0 md:px-80 md:pt-80"
+    class:list={[
+      "relative z-10 flex flex-col gap-32 px-24 pt-48 md:flex-row md:justify-between md:gap-0 md:px-80 md:pt-80",
+      shader ? "pb-160" : "pb-48 md:pb-80",
+    ]}
   >
     <div class="flex w-full flex-col items-start md:w-440">
       <Eyebrow
@@ -53,7 +73,12 @@ const { eyebrow, title, body, primaryCta, secondaryCta } = Astro.props;
       </h1>
     </div>
 
-    <div class="w-full self-start py-4 md:w-480 md:self-end md:py-0">
+    <div
+      class:list={[
+        "w-full self-start py-4 md:w-480 md:py-0",
+        shader && "md:self-end",
+      ]}
+    >
       <p class="text-body-large text-balance text-text-base">{body}</p>
 
       <div
@@ -80,5 +105,5 @@ const { eyebrow, title, body, primaryCta, secondaryCta } = Astro.props;
     </div>
   </div>
 
-  <div class="relative z-10 h-80"></div>
+  {shader && <div class="relative z-10 h-80"></div>}
 </div>

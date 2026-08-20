@@ -3,9 +3,11 @@ import RegisterCta from "@/components/_pages/connect/cta/RegisterCta.astro";
 import {
   faqContactEmail,
   faqGroups,
+  faqHero,
   faqPageMeta,
 } from "@/components/_pages/connect/page-data/faq";
 import FaqList from "@/components/_pages/connect/shared/FaqList.astro";
+import SubpageHero from "@/components/_pages/connect/shared/SubpageHero.astro";
 import Icon from "@/components/icon/Icon";
 import Section from "@/layouts/Section.astro";
 import Layout from "@/layouts/Layout.astro";
@@ -17,9 +19,9 @@ import Layout from "@/layouts/Layout.astro";
   cta={false}
   nav="connect"
 >
-  <Section class="scroll-mt-80" layout="headerless" sectionEyebrow="FAQ">
-    <h1 class="sr-only">Frequently asked questions</h1>
+  <SubpageHero {...faqHero} shader={false} />
 
+  <Section class="scroll-mt-80" layout="headerless" sectionEyebrow="FAQ">
     <div
       class="mx-auto flex w-full max-w-720 flex-col gap-64 px-40 py-40 max-lg:gap-40 max-lg:px-16 max-lg:py-24"
     >

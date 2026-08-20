@@ -1,3 +1,5 @@
+import { REGISTER_URL } from "../data";
+
 export type ConnectFaqItem = { question: string; answer: string };
 export type ConnectFaqGroup = { title: string; items: ConnectFaqItem[] };
 
@@ -5,6 +7,17 @@ export const faqPageMeta = {
   title: "FAQ - Cloudflare Connect 2026 | Cloudflare",
   description:
     "Cloudflare Connect 2026 FAQ — Frequently Asked Questions about the event.",
+};
+
+export const faqHero = {
+  eyebrow: "FAQ",
+  title: "Frequently asked questions",
+  body: "Registration, venue, University, and what to expect at Connect 2026.",
+  primaryCta: { text: "Register Now", href: REGISTER_URL },
+  secondaryCta: {
+    text: "Convince your boss",
+    href: "/connect/convince-your-boss",
+  },
 };
 
 export const faqGroups: ConnectFaqGroup[] = [

@@ -71,12 +71,17 @@ describe("Connect subpage polish", () => {
     expect(sponsors).toContain("SubpageHero");
   });
 
-  it("starts the FAQ page at the topic groups without a hero or section title", () => {
+  it("keeps the FAQ hero title, description, and CTAs without the shader band", () => {
     const faq = read("src/pages/connect/faq.astro");
-    expect(faq).not.toContain("SubpageHero");
+    const hero = read(
+      "src/components/_pages/connect/shared/SubpageHero.astro"
+    );
+    expect(faq).toContain("SubpageHero");
+    expect(faq).toContain("shader={false}");
     expect(faq).not.toContain("Answers by topic");
     expect(faq).toContain('layout="headerless"');
-    expect(faq).toContain('class="sr-only"');
+    expect(hero).toContain("shader = true");
+    expect(hero).toContain("ConnectHeroTwizzler");
   });
 
   it("balances subpage hero description copy", () => {
