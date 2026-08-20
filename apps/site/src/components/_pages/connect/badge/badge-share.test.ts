@@ -7,6 +7,7 @@ import {
   badgeShareHeadline,
   badgeTweetUrl,
   keepShareNode,
+  wrapShareTitle,
 } from "./badge-share";
 
 describe("badge identity layout", () => {
@@ -75,7 +76,22 @@ describe("badge share copy", () => {
     ).toBe(false);
   });
 
-  it("screenshots the live hero onto a white field", () => {
+  it("wraps the share title to the column width", () => {
+    const ctx = {
+      measureText: (text: string) => ({ width: text.length * 10 }),
+    } as CanvasRenderingContext2D;
+    expect(wrapShareTitle(ctx, "Your Connect 2026 badge", 500)).toEqual([
+      "Your Connect 2026 badge",
+    ]);
+    expect(wrapShareTitle(ctx, "Your Connect 2026 badge", 80)).toEqual([
+      "Your",
+      "Connect",
+      "2026",
+      "badge",
+    ]);
+  });
+
+  it("composites the share scene instead of screenshotting the live hero", () => {
     expect(BADGE_SHARE_SURFACE).toBe("#ffffff");
     const source = readFileSync(
       resolve(
@@ -84,13 +100,16 @@ describe("badge share copy", () => {
       ),
       "utf8"
     );
-    expect(source).toContain("toCanvas(hero");
+    expect(source).not.toContain("toCanvas(");
+    expect(source).not.toContain("captureHeroShareFallback");
     expect(source).toContain("shareStamp");
-    expect(source).toContain("captureHeroShareFallback");
     expect(source).toContain("BADGE_SHARE_FILE");
     expect(source).toContain("stampHeroGrid");
     expect(source).toContain("stampBackdrop");
+    expect(source).toContain("stampShareTitle");
+    expect(source).toContain("wrapShareTitle");
     expect(source).toContain("data-share-backdrop");
+    expect(source).toContain("data-share-title");
     expect(source).toContain("toDataURL");
     expect(source).toContain("destination-in");
     expect(source).not.toContain("drawShareGrid");

@@ -1,5 +1,3 @@
-import { toCanvas } from "html-to-image";
-
 export const BADGE_SHARE_SURFACE = "#ffffff";
 export const BADGE_SHARE_FILE = "connect-2026-badge.png";
 
@@ -265,20 +263,87 @@ async function stampHeroGrid(
 
 async function stampHeroLayers(
   ctx: CanvasRenderingContext2D,
-  hero: HTMLElement,
+  scene: HTMLElement,
   rect: DOMRect,
   scaleX: number,
   scaleY: number
 ) {
-  await stampHeroGrid(ctx, hero, rect, scaleX, scaleY);
-  await stampBackdrop(ctx, hero, rect, scaleX, scaleY);
-  stampLanyard(ctx, hero, rect, scaleX, scaleY);
+  await stampHeroGrid(ctx, scene, rect, scaleX, scaleY);
+  await stampBackdrop(ctx, scene, rect, scaleX, scaleY);
+  stampLanyard(ctx, scene, rect, scaleX, scaleY);
 }
 
-async function captureHeroShareFallback(
-  hero: HTMLElement
+export function wrapShareTitle(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number
+): string[] {
+  const words = text.split(/\s+/).filter(Boolean);
+  if (words.length === 0) return [text];
+  const lines: string[] = [];
+  let line = words[0]!;
+  for (let index = 1; index < words.length; index += 1) {
+    const word = words[index]!;
+    const next = `${line} ${word}`;
+    if (ctx.measureText(next).width <= maxWidth) {
+      line = next;
+      continue;
+    }
+    lines.push(line);
+    line = word;
+  }
+  lines.push(line);
+  return lines;
+}
+
+function paintShareTitle(
+  ctx: CanvasRenderingContext2D,
+  title: HTMLElement,
+  rect: DOMRect
+) {
+  const style = getComputedStyle(title);
+  const box = title.getBoundingClientRect();
+  const lineHeight =
+    Number.parseFloat(style.lineHeight) ||
+    Number.parseFloat(style.fontSize) * 1.1 ||
+    48;
+  ctx.save();
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = style.color || "#292929";
+  ctx.font = style.font || '400 44px "STK Bureau Sans", sans-serif';
+  ctx.textBaseline = "top";
+  ctx.textAlign = "left";
+  const maxWidth = Math.max(1, box.width);
+  const lines = wrapShareTitle(
+    ctx,
+    title.textContent?.trim() || "Your Connect 2026 badge",
+    maxWidth
+  );
+  let y = box.top - rect.top;
+  for (const line of lines) {
+    ctx.fillText(line, box.left - rect.left, y, maxWidth);
+    y += lineHeight;
+  }
+  ctx.restore();
+}
+
+function stampShareTitle(
+  ctx: CanvasRenderingContext2D,
+  scene: HTMLElement,
+  rect: DOMRect
+) {
+  const title = scene.querySelector<HTMLElement>("[data-share-title]");
+  if (!title) return;
+  const box = title.getBoundingClientRect();
+  if (box.width < 1 || box.height < 1) return;
+  paintShareTitle(ctx, title, rect);
+}
+
+export async function captureHeroShare(
+  scene: HTMLElement
 ): Promise<HTMLCanvasElement> {
-  const rect = hero.getBoundingClientRect();
+  await waitForBackdrop(scene);
+  const rect = scene.getBoundingClientRect();
   const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
   const canvas = document.createElement("canvas");
   canvas.width = Math.max(1, Math.round(rect.width * pixelRatio));
@@ -288,54 +353,9 @@ async function captureHeroShareFallback(
   ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
   ctx.fillStyle = BADGE_SHARE_SURFACE;
   ctx.fillRect(0, 0, rect.width, rect.height);
-  await stampHeroLayers(ctx, hero, rect, 1, 1);
-  const title = hero.querySelector("h1");
-  if (title) {
-    const style = getComputedStyle(title);
-    const box = title.getBoundingClientRect();
-    ctx.fillStyle = style.color || "#292929";
-    ctx.font = style.font || '400 44px "STK Bureau Sans", sans-serif';
-    ctx.textBaseline = "top";
-    ctx.fillText(
-      title.textContent?.trim() || "Your Connect 2026 badge",
-      box.left - rect.left,
-      box.top - rect.top,
-      Math.max(1, box.width)
-    );
-  }
+  await stampHeroLayers(ctx, scene, rect, 1, 1);
+  stampShareTitle(ctx, scene, rect);
   return canvas;
-}
-
-export async function captureHeroShare(
-  hero: HTMLElement
-): Promise<HTMLCanvasElement> {
-  await waitForBackdrop(hero);
-  const rect = hero.getBoundingClientRect();
-  try {
-    const canvas = await withTimeout(
-      toCanvas(hero, {
-        backgroundColor: BADGE_SHARE_SURFACE,
-        cacheBust: true,
-        filter: keepShareNode,
-        pixelRatio: Math.min(window.devicePixelRatio || 1, 2),
-      }),
-      4000
-    );
-    const ctx = canvas.getContext("2d");
-    if (!ctx || rect.width < 1 || rect.height < 1) {
-      return captureHeroShareFallback(hero);
-    }
-    await stampHeroLayers(
-      ctx,
-      hero,
-      rect,
-      canvas.width / rect.width,
-      canvas.height / rect.height
-    );
-    return canvas;
-  } catch {
-    return captureHeroShareFallback(hero);
-  }
 }
 
 export async function copyCanvasImage(
