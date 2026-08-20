@@ -12,20 +12,20 @@ import { connectFaq } from "../data";
   sectionEyebrow="FAQ"
   title="Frequently asked questions"
   description="Registration, venue, and what to expect."
-  headerClass="pb-72!"
+  headerClass="pb-72! max-lg:pb-40!"
 >
   <div
-    class="mx-auto flex w-full max-w-720 flex-col px-40 pt-80 pb-80 max-lg:px-24 max-lg:pt-40 max-lg:pb-40"
+    class="mx-auto flex w-full max-w-720 flex-col px-40 pt-80 pb-80 max-lg:px-16 max-lg:pt-32 max-lg:pb-32"
   >
     {connectFaq.map((item, index) => (
       <div
         class:list={[
-          "relative flex flex-col gap-12 py-32",
+          "relative flex flex-col gap-12 py-32 max-lg:py-20",
           index < connectFaq.length - 1 &&
             "before:pointer-events-none before:absolute before:inset-x-0 before:bottom-0 before:h-px before:bg-border-muted",
         ]}
       >
-        <h3 class="text-heading-h5 text-text-base">{item.question}</h3>
+        <h3 class="text-heading-h5 text-balance text-text-base">{item.question}</h3>
         <p class="text-body-medium text-text-default">{item.answer}</p>
       </div>
     ))}

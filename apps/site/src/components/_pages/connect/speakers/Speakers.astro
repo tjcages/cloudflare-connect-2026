@@ -12,8 +12,10 @@ import { SPEAKER_SHADER_HYDRATE_ROOT_MARGIN } from "./speaker-shader-quality";
   <div class="h-80"></div>
 
   <div class="px-80 pb-40 max-lg:px-24">
-    <h2 class="mb-16 text-heading-h2 text-text-base">Meet our speakers</h2>
-    <p class="max-w-640 text-body-large text-text-base">
+    <h2 class="mb-16 text-heading-h2 text-balance text-text-base">
+      Meet our speakers
+    </h2>
+    <p class="max-w-640 text-body-large text-balance text-text-base">
       Learn from and network with industry leaders shaping the modern Internet.
     </p>
   </div>
@@ -23,11 +25,11 @@ import { SPEAKER_SHADER_HYDRATE_ROOT_MARGIN } from "./speaker-shader-quality";
     class="relative grid grid-cols-3 gap-y-40 p-40 before:inside-border before:border-border-muted max-lg:grid-cols-2 max-lg:p-16 max-sm:grid-cols-1"
   >
     {connectSpeakers.map((speaker, index) => (
-      <div class="flex flex-col gap-24 px-24">
+      <div class="flex flex-col gap-24 px-24 max-sm:px-8">
         <div
           data-speaker-index={index}
           data-speaker-shader-aperture
-          class="relative h-320 w-full overflow-clip bg-background-surface after:inside-border after:border-border-muted"
+          class="relative h-320 w-full overflow-clip bg-background-surface after:inside-border after:border-border-muted max-sm:h-240"
         >
           <img
             src={speaker.image}

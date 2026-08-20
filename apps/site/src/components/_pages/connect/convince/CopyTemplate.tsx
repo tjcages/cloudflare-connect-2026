@@ -25,8 +25,8 @@ export default function CopyTemplate({
 
   return (
     <div className="flex flex-col gap-24">
-      <div className="flex items-center justify-between gap-12">
-        <div className="flex min-w-0 flex-wrap gap-8">
+      <div className="flex items-start justify-between gap-12">
+        <div className="flex min-w-0 flex-1 flex-wrap gap-8">
           <Button
             onClick={() => setTab("email")}
             size="default"
@@ -45,13 +45,16 @@ export default function CopyTemplate({
 
         <Button
           aria-label={copyLabel}
-          className="shrink-0"
+          className="size-32 shrink-0 self-start p-0! [&>span]:flex [&>span]:size-full [&>span]:items-center [&>span]:justify-center [&>span]:p-0! [&>span]:px-0!"
           onClick={copy}
           size="default"
           title={copyLabel}
           variant="secondary"
         >
-          <CopyFeedbackIcon copied={copied} />
+          <CopyFeedbackIcon
+            className="flex size-full items-center justify-center"
+            copied={copied}
+          />
         </Button>
       </div>
 

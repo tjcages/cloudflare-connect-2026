@@ -19,12 +19,13 @@ describe("Connect subpage polish", () => {
     expect(mobileMenu).not.toMatch(/label: "Sessions"/);
   });
 
-  it("keeps Badge inside the Resources dropdown", () => {
+  it("keeps Badge out of the Resources dropdown", () => {
     const labels = connectResourceGroups.flatMap((group) =>
       group.items.map((item) => item.label)
     );
-    expect(labels).toContain("Badge");
+    expect(labels).not.toContain("Badge");
     expect(labels).toContain("Partner Summit");
+    expect(labels).toContain("FAQs");
   });
 
   it("paints Partner Summit and FAQ dropdown icons as orange/yellow duo-tone", () => {
@@ -65,11 +66,24 @@ describe("Connect subpage polish", () => {
     expect(partnerData).toContain("Stay for Connect");
   });
 
-  it("adds hero shaders to Sponsors and FAQ via the shared subpage hero", () => {
+  it("adds hero shaders to Sponsors via the shared subpage hero", () => {
     const sponsors = read("src/pages/connect/sponsors.astro");
-    const faq = read("src/pages/connect/faq.astro");
     expect(sponsors).toContain("SubpageHero");
-    expect(faq).toContain("SubpageHero");
+  });
+
+  it("starts the FAQ page at the topic groups without a hero or section title", () => {
+    const faq = read("src/pages/connect/faq.astro");
+    expect(faq).not.toContain("SubpageHero");
+    expect(faq).not.toContain("Answers by topic");
+    expect(faq).toContain('layout="headerless"');
+    expect(faq).toContain('class="sr-only"');
+  });
+
+  it("balances subpage hero description copy", () => {
+    const hero = read(
+      "src/components/_pages/connect/shared/SubpageHero.astro"
+    );
+    expect(hero).toContain("text-balance");
   });
 
   it("starts Convince your boss at the templates section with an icon-only copy control", () => {
@@ -82,6 +96,8 @@ describe("Connect subpage polish", () => {
     expect(copy).toContain('variant="secondary"');
     expect(copy).toContain("CopyFeedbackIcon");
     expect(copy).toContain("Copy email");
+    expect(copy).toContain("size-32");
+    expect(copy).toContain("[&>span]:px-0!");
     expect(copy).not.toMatch(/<span>\s*Copy email/);
   });
 });

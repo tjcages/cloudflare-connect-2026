@@ -37,7 +37,7 @@ import Layout from "@/layouts/Layout.astro";
     sectionEyebrow="Why attend"
     title={partnerWhy.title}
     description={partnerWhy.body}
-    headerClass="pb-72!"
+    headerClass="pb-72! max-lg:pb-40!"
   >
     <div
       class="relative grid grid-cols-2 before:inside-border before:border-border-default max-lg:grid-cols-1"
@@ -77,8 +77,8 @@ import Layout from "@/layouts/Layout.astro";
     title={partnerAwards.title}
     description={partnerAwards.body}
   >
-    <AgendaStripeRoot class="p-40 max-lg:p-24">
-      <AgendaStripeAperture class="min-h-400">
+    <AgendaStripeRoot class="p-40 max-lg:p-16">
+      <AgendaStripeAperture class="min-h-400 max-lg:min-h-220">
         <Eyebrow
           client:visible
           direction="left"
@@ -102,9 +102,9 @@ import Layout from "@/layouts/Layout.astro";
       <span>Register for Connect</span>
     </Button>
 
-    <AgendaStripeRoot class="flex flex-col gap-24 p-40 max-lg:p-24">
+    <AgendaStripeRoot class="flex flex-col gap-24 p-40 max-lg:gap-16 max-lg:p-16">
       <div class="flex flex-col gap-16">
-        <AgendaStripeAperture class="h-200">
+        <AgendaStripeAperture class="h-200 max-lg:h-160">
           <Eyebrow
             client:visible
             direction="left"
@@ -116,7 +116,7 @@ import Layout from "@/layouts/Layout.astro";
       </div>
 
       <div class="flex flex-col gap-16">
-        <AgendaStripeAperture class="h-200">
+        <AgendaStripeAperture class="h-200 max-lg:h-160">
           <Eyebrow
             client:visible
             direction="left"
@@ -125,7 +125,7 @@ import Layout from "@/layouts/Layout.astro";
           />
           <div class="text-heading-h3 text-orange-900">{partnerStay.title}</div>
         </AgendaStripeAperture>
-        <p class="text-body-medium text-text-default">{partnerStay.body}</p>
+        <p class="text-body-medium text-pretty text-text-default">{partnerStay.body}</p>
       </div>
     </AgendaStripeRoot>
   </Section>
@@ -138,10 +138,10 @@ import Layout from "@/layouts/Layout.astro";
     sectionEyebrow="FAQ"
     title="Frequently asked questions"
     description="Eligibility, registration types, and what to expect."
-    headerClass="pb-72!"
+    headerClass="pb-72! max-lg:pb-40!"
   >
     <div
-      class="mx-auto w-full max-w-720 px-40 pt-80 pb-80 max-lg:px-24 max-lg:pt-40 max-lg:pb-40"
+      class="mx-auto w-full max-w-720 px-40 pt-80 pb-80 max-lg:px-16 max-lg:pt-32 max-lg:pb-32"
     >
       <FaqList items={partnerFaq} />
     </div>

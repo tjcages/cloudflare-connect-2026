@@ -13,10 +13,10 @@ import { connectTicketIncludes, connectTickets } from "../data";
 >
   <div slot="custom" class="flex items-end justify-between">
     <div>
-      <h2 class="mb-16 text-heading-h2 text-text-base">
+      <h2 class="mb-16 text-heading-h2 text-balance text-text-base">
         Don’t just anticipate the future. Build it.
       </h2>
-      <div class="max-w-520 text-body-large text-text-base">
+      <div class="max-w-520 text-body-large text-balance text-text-base">
         Conference access, optional University training, and evenings built for
         connections.
       </div>
@@ -41,7 +41,7 @@ import { connectTicketIncludes, connectTickets } from "../data";
   <div class="relative before:inside-border before:border-border-default">
     <div class="relative grid grid-cols-2 max-md:grid-cols-1">
       {connectTickets.map((ticket) => (
-        <div class="relative flex flex-col gap-24 p-40">
+        <div class="relative flex flex-col gap-24 p-40 max-lg:p-24">
           <div class="text-decorative-small text-text-faint uppercase">
             {ticket.name}
           </div>

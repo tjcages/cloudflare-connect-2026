@@ -15,7 +15,7 @@ import { connectHero, REGISTER_URL } from "../data";
   <CtaTexture client:visible />
 
   <div
-    class="relative mx-auto max-w-1200 px-16 py-80 text-center sm:px-40 md:py-160 lg:px-120 xl:px-240"
+    class="relative mx-auto max-w-1200 px-16 py-48 text-center sm:px-40 md:py-80 lg:px-120 lg:py-160 xl:px-240"
   >
     <DashedLineBleed className="-top-0.5" />
     <GridArea className="overlay" borderColor="muted" />
@@ -24,21 +24,21 @@ import { connectHero, REGISTER_URL } from "../data";
     <CornerDots />
 
     <div
-      class="relative bg-background-base py-80 before:inside-border before:border-border-muted"
+      class="relative bg-background-base py-80 before:inside-border before:border-border-muted max-lg:px-20 max-lg:py-48"
     >
       <div class="relative z-20">
         <Eyebrow client:visible direction="center" title="get started" />
 
-        <div class="mt-24 mb-16 text-heading-display text-text-base">
+        <div class="mt-24 mb-16 text-heading-display text-balance text-text-base">
           Don’t just anticipate<br />the future. Build it.
         </div>
 
-        <div class="mx-auto max-w-480 text-body-large text-text-base">
+        <div class="mx-auto max-w-480 text-body-large text-balance text-text-base">
           Join 5,000+ builders at Moscone West for three days of keynotes,
           University, and nights built for connections.
         </div>
 
-        <div class="mt-40 flex-center gap-12">
+        <div class="mt-40 flex flex-wrap items-center justify-center gap-12">
           <Button data-cta-primary href={REGISTER_URL} size="large">
             <Icon name="cloudflare" className="h-20 w-30" />
             <span>Register Now</span>

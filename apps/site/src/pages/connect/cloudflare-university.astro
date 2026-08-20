@@ -34,7 +34,7 @@ import Layout from "@/layouts/Layout.astro";
     sectionEyebrow="Training"
     title={universityWhy.title}
     description={universityWhy.body}
-    headerClass="pb-72!"
+    headerClass="pb-72! max-lg:pb-40!"
   >
     <div
       class="relative grid grid-cols-2 before:inside-border before:border-border-default max-lg:grid-cols-1"
@@ -67,10 +67,10 @@ import Layout from "@/layouts/Layout.astro";
     title={universitySchedule.title}
     description={universitySchedule.body}
   >
-    <AgendaStripeRoot class="flex flex-col gap-48 p-40 max-lg:p-24">
+    <AgendaStripeRoot class="flex flex-col gap-48 p-40 max-lg:gap-24 max-lg:p-16">
       {universitySchedule.days.map((day) => (
         <div class="flex flex-col gap-16">
-          <AgendaStripeAperture class="h-200">
+          <AgendaStripeAperture class="h-200 max-lg:h-160">
             <Eyebrow
               client:visible
               direction="left"
@@ -81,8 +81,12 @@ import Layout from "@/layouts/Layout.astro";
           </AgendaStripeAperture>
 
           <div class="flex flex-col gap-8">
-            <div class="text-heading-h3 text-text-base">{day.title}</div>
-            <p class="text-body-medium text-text-default">{day.body}</p>
+            <div class="text-heading-h3 text-balance text-text-base">
+              {day.title}
+            </div>
+            <p class="text-body-medium text-pretty text-text-default">
+              {day.body}
+            </p>
           </div>
         </div>
       ))}
@@ -96,7 +100,7 @@ import Layout from "@/layouts/Layout.astro";
     sectionEyebrow="Pass"
     title={universityIncluded.title}
     description={universityIncluded.intro}
-    headerClass="pb-72!"
+    headerClass="pb-72! max-lg:pb-40!"
   >
     <div
       class="relative grid grid-cols-2 before:inside-border before:border-border-default max-lg:grid-cols-1"
@@ -134,10 +138,10 @@ import Layout from "@/layouts/Layout.astro";
     sectionEyebrow="FAQ"
     title="Frequently asked questions"
     description="University pass, training, and certification."
-    headerClass="pb-72!"
+    headerClass="pb-72! max-lg:pb-40!"
   >
     <div
-      class="mx-auto w-full max-w-720 px-40 pt-80 pb-80 max-lg:px-24 max-lg:pt-40 max-lg:pb-40"
+      class="mx-auto w-full max-w-720 px-40 pt-80 pb-80 max-lg:px-16 max-lg:pt-32 max-lg:pb-32"
     >
       <FaqList items={universityFaq} />
     </div>

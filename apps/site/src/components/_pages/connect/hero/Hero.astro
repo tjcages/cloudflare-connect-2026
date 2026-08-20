@@ -37,17 +37,22 @@ import ConnectHeroTwizzler from "./ConnectHeroTwizzler";
     </div>
 
     <div class="w-full self-start py-4 md:w-480 md:self-end md:py-0">
-      <p class="text-body-large text-text-base">{connectHero.body}</p>
+      <p class="text-body-large text-balance text-text-base">
+        {connectHero.body}
+      </p>
 
-      <div class="mt-40 flex flex-wrap items-center gap-12">
+      <div
+        class="mt-40 flex flex-wrap items-center gap-12 max-sm:flex-col max-sm:items-stretch"
+      >
         <Button
-          className="px-14"
+          className="px-14 max-sm:w-full"
           href={connectHero.primaryCta.href}
           size="large"
         >
           <span>{connectHero.primaryCta.text}</span>
         </Button>
         <Button
+          className="max-sm:w-full"
           href={connectHero.secondaryCta.href}
           size="large"
           variant="secondary"
