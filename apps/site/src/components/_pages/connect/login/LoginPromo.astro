@@ -1,0 +1,87 @@
+---
+import DottedLink from "@/components/DottedLink";
+import Eyebrow from "@/components/Eyebrow";
+import Icon from "@/components/icon/Icon";
+import { LOGIN_OVERLAY_COPY } from "./login-copy";
+
+interface Props {
+  layout?: "pane" | "banner";
+}
+
+const { layout = "pane" } = Astro.props;
+const isBanner = layout === "banner";
+
+const eyebrowStyle = {
+  "--eyebrow-color-badge": "var(--color-background-base)",
+  "--eyebrow-color-badge-text": "var(--color-text-base)",
+  "--eyebrow-color-line-big": "var(--color-text-inverse)",
+  "--eyebrow-color-line-small":
+    "color-mix(in srgb, var(--color-text-inverse) 55%, transparent)",
+};
+---
+
+<div
+  class:list={[
+    "relative z-10 flex w-full flex-col items-start text-text-inverse",
+    isBanner ? "pr-32" : "max-w-320 pt-24",
+  ]}
+>
+  {isBanner ? (
+    <span class="pointer-events-none absolute -top-14 -right-10 text-text-inverse">
+      <Icon
+        className="-rotate-45 transition-transform duration-150 group-hover:translate-x-2 group-hover:-translate-y-2"
+        name="arrow-right"
+        size={28}
+      />
+    </span>
+  ) : null}
+
+  <Eyebrow
+    client:visible
+    direction="left"
+    style={eyebrowStyle}
+    title={LOGIN_OVERLAY_COPY.eyebrow}
+  />
+
+  <h2
+    class:list={[
+      "text-text-inverse",
+      isBanner ? "mt-12 text-heading-h5" : "mt-16 text-heading-h3",
+    ]}
+  >
+    {LOGIN_OVERLAY_COPY.titleLines[0]}
+    <br />
+    {LOGIN_OVERLAY_COPY.titleLines[1]}
+  </h2>
+
+  <p
+    class:list={[
+      "text-text-inverse",
+      isBanner ? "mt-12 text-body-small" : "mt-16 text-body-medium",
+    ]}
+  >
+    {LOGIN_OVERLAY_COPY.bodyDate}
+    {isBanner ? (
+      <>
+        <br />
+        {LOGIN_OVERLAY_COPY.bodyVenue}
+      </>
+    ) : (
+      <>
+        {" · "}
+        {LOGIN_OVERLAY_COPY.bodyVenue}.{" "}
+        <DottedLink
+          canvasFromBottom={-6}
+          className="text-text-inverse hover:text-orange-300"
+          client:visible={{ rootMargin: "200px" }}
+          hoverColorVar="--color-orange-300"
+          href={LOGIN_OVERLAY_COPY.registerHref}
+          restColorVar="--color-text-inverse"
+          target="_blank"
+        >
+          {LOGIN_OVERLAY_COPY.register}
+        </DottedLink>
+      </>
+    )}
+  </p>
+</div>

@@ -1,0 +1,44 @@
+---
+import LoginPage from "@/components/_pages/connect/login/LoginPage.astro";
+import Layout from "@/layouts/Layout.astro";
+import "@/components/_pages/connect/login/dash-login.css";
+---
+
+<Layout
+  title="Sign in to Cloudflare | Connect 2026"
+  description="Dashboard login mock for Cloudflare Connect 2026 — the dash sign-in form with the homepage hero shader on the right."
+  header={false}
+  footer={false}
+  cta={false}
+  main={false}
+  frame={false}
+  zoom={false}
+  lockTheme="light"
+>
+  <link slot="head" rel="preconnect" href="https://fonts.googleapis.com" />
+  <link
+    slot="head"
+    rel="preconnect"
+    href="https://fonts.gstatic.com"
+    crossorigin="anonymous"
+  />
+  <link
+    slot="head"
+    href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
+  <style slot="head" is:inline>
+    .dash-login-chrome {
+      font-family:
+        Inter,
+        ui-sans-serif,
+        system-ui,
+        -apple-system,
+        "Segoe UI",
+        Helvetica,
+        Arial,
+        sans-serif;
+    }
+  </style>
+  <LoginPage />
+</Layout>

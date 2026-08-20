@@ -1,3 +1,4 @@
+import cn from "classnames";
 import { cubicBezier } from "motion";
 import { useEffect, useRef } from "react";
 import { resolveZoom } from "@/utils/zoom";
@@ -8,12 +9,24 @@ interface Props {
   href?: string;
   canvasFromBottom?: number;
   children: React.ReactNode;
+  className?: string;
+  /** CSS variable for rest-state dots. Defaults to `--color-text-subtle`. */
+  restColorVar?: string;
+  /** CSS variable for hover-state dots. Defaults to `--color-orange-900`. */
+  hoverColorVar?: string;
+  target?: React.HTMLAttributeAnchorTarget;
+  rel?: string;
 }
 
 export default function DottedLink({
   href,
   canvasFromBottom,
   children,
+  className,
+  restColorVar = "--color-text-subtle",
+  hoverColorVar = "--color-orange-900",
+  target,
+  rel,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const spanRef = useRef<HTMLElement>(null);
@@ -48,8 +61,8 @@ export default function DottedLink({
     const getColorVar = (token: string) =>
       window.getComputedStyle(document.body).getPropertyValue(token).trim();
 
-    let grayColor = getColorVar("--color-text-subtle");
-    let orangeColor = getColorVar("--color-orange-900");
+    let grayColor = getColorVar(restColorVar);
+    let orangeColor = getColorVar(hoverColorVar);
 
     const dots = Array.from({ length: dotCount + 1 }, (_, i) => ({
       x: 2 + i * 4,
@@ -157,8 +170,8 @@ export default function DottedLink({
     const onMouseLeave = () => spawn(lastEnterOrigin, 0);
 
     const refreshColors = () => {
-      grayColor = getColorVar("--color-text-subtle");
-      orangeColor = getColorVar("--color-orange-900");
+      grayColor = getColorVar(restColorVar);
+      orangeColor = getColorVar(hoverColorVar);
       draw();
     };
 
@@ -173,7 +186,7 @@ export default function DottedLink({
       window.removeEventListener("themechange", refreshColors);
       if (rafId) cancelAnimationFrame(rafId);
     };
-  }, []);
+  }, [hoverColorVar, restColorVar]);
 
   const canvasNode = (
     <canvas
@@ -186,10 +199,14 @@ export default function DottedLink({
   if (href) {
     return (
       <a
-        className="relative inline-block cursor-pointer transition-all duration-300 hover:text-orange-900"
+        className={cn(
+          "relative inline-block cursor-pointer transition-all duration-300",
+          className ?? "hover:text-orange-900"
+        )}
         href={href}
         ref={spanRef as React.RefObject<HTMLAnchorElement>}
-        rel={href.startsWith("http") ? "noreferrer" : undefined}
+        rel={rel ?? (href.startsWith("http") ? "noreferrer" : undefined)}
+        target={target}
       >
         {children}
         {canvasNode}
@@ -199,7 +216,10 @@ export default function DottedLink({
 
   return (
     <span
-      className="relative cursor-pointer transition-all duration-300 hover:text-orange-900"
+      className={cn(
+        "relative cursor-pointer transition-all duration-300",
+        className ?? "hover:text-orange-900"
+      )}
       ref={spanRef as React.RefObject<HTMLSpanElement>}
     >
       {children}
