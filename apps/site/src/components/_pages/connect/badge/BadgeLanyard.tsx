@@ -46,6 +46,11 @@ import {
   applyIntroPose,
   cardBottomDragOffsetY,
 } from "./badge-intro";
+import {
+  BADGE_DPR_MAX,
+  applyBadgeLook,
+  badgeAnisotropy,
+} from "./badge-look";
 import { svgRasterSize } from "./badge-logo";
 import {
   badgePrintFieldRect,
@@ -290,7 +295,7 @@ function useHeroShaderTexture(
   faceCanvasRef?: RefObject<HTMLCanvasElement | null>,
   onReady?: () => void
 ) {
-  const { invalidate } = useThree();
+  const { invalidate, gl } = useThree();
   const skip = useRef(0);
   const lastKey = useRef("");
   const bakedWhileFrozen = useRef(false);
@@ -312,10 +317,10 @@ function useHeroShaderTexture(
     canvas.height = lowPower ? TEXTURE_H_LOW : TEXTURE_H;
     const map = new CanvasTexture(canvas);
     map.colorSpace = SRGBColorSpace;
-    map.anisotropy = lowPower ? 1 : 4;
+    map.anisotropy = badgeAnisotropy(gl, lowPower);
     map.needsUpdate = true;
     return map;
-  }, [lowPower]);
+  }, [gl, lowPower]);
 
   useEffect(() => {
     return () => {
@@ -670,6 +675,8 @@ function makePartMaterial(
   material.roughness = roughness;
   material.emissive = new Color(emissive > 0 ? color : "#000000");
   material.emissiveIntensity = emissive;
+  material.envMapIntensity = 0.85;
+  material.toneMapped = true;
   material.side = DoubleSide;
   material.vertexColors = false;
   return material;
@@ -740,9 +747,10 @@ function createBadgeCard(
           metalness: 0,
           roughness: tune.cardRoughness,
           clearcoat: tune.cardClearcoat,
-          clearcoatRoughness: 0.28,
-          envMapIntensity: 0.15,
-          toneMapped: false,
+          clearcoatRoughness: 0.18,
+          envMapIntensity: 0.7,
+          ior: 1.4,
+          toneMapped: true,
         })
   );
   const faceWidth = tune.cardWidth - tune.shaderInset * 2;
@@ -1003,7 +1011,7 @@ function buildLanyardRig(
   const parts = splitByPart(geometry);
   const sourceMaterial = source.material as MeshStandardMaterial;
   const materials: Record<LanyardPart, MeshStandardMaterial> = {
-    metal: makePartMaterial(sourceMaterial, METAL, 0.48, 0.28, !lowPower, 0.2),
+    metal: makePartMaterial(sourceMaterial, METAL, 0.72, 0.22, !lowPower, 0.12),
     plastic: makePartMaterial(sourceMaterial, PLASTIC, 0.08, 0.5, !lowPower),
     webbing: makePartMaterial(
       sourceMaterial,
@@ -1709,9 +1717,17 @@ function BadgeScene({
         />
       ) : (
         <>
-          <hemisphereLight args={["#fff1e4", "#1a1a1a", tune.hemi]} />
-          <directionalLight intensity={tune.keyLight} position={[5, 7, 8]} />
-          <directionalLight intensity={tune.fillLight} position={[-6, 3, 5]} />
+          <hemisphereLight args={["#fff4e8", "#d4cbc2", tune.hemi]} />
+          <directionalLight
+            color="#fff7ee"
+            intensity={tune.keyLight}
+            position={[5, 7, 8]}
+          />
+          <directionalLight
+            color="#e8eef6"
+            intensity={tune.fillLight}
+            position={[-6, 3, 5]}
+          />
           <directionalLight
             color={identity.accent}
             intensity={tune.rimLight}
@@ -1767,7 +1783,7 @@ export default function BadgeLanyard({
           fov: tune.cameraFov,
           position: [tune.cameraX, tune.cameraY, tune.cameraZ],
         }}
-        dpr={lowPower ? 1 : [1, 1.5]}
+        dpr={lowPower ? 1 : [1, BADGE_DPR_MAX]}
         frameloop="demand"
         gl={{
           alpha: true,
@@ -1778,9 +1794,10 @@ export default function BadgeLanyard({
           powerPreference: lowPower ? "low-power" : "high-performance",
           stencil: false,
         }}
-        onCreated={({ gl }) => {
+        onCreated={({ gl, scene }) => {
           gl.setClearColor(0x000000, 0);
           gl.domElement.dataset.shareStamp = "";
+          applyBadgeLook(gl, scene, lowPower);
         }}
         performance={
           lowPower

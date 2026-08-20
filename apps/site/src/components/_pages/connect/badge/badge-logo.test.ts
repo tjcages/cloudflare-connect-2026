@@ -444,6 +444,11 @@ describe("badge logo SVG prep", () => {
       ),
       "utf8"
     );
+    expect(lanyard).toContain("applyBadgeLook");
+    expect(lanyard).toContain("BADGE_DPR_MAX");
+    expect(lanyard).toContain("envMapIntensity: 0.7");
+    expect(lanyard).not.toContain("EffectComposer");
+    expect(lanyard).not.toContain("Bloom");
     expect(lanyard).toContain('"contain"');
     expect(lanyard).toContain("preserveDrawingBuffer");
     expect(lanyard).toContain("setClearColor");
