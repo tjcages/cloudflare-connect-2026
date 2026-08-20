@@ -12,9 +12,11 @@ import Layout from "@/layouts/Layout.astro";
 >
   <BadgePage client:only="react">
     <div
-      class="relative mx-auto min-h-760 bg-background-base before:inside-border-b before:border-border-default md:min-h-800"
+      class="relative mx-auto max-w-1200 bg-background-base before:inside-border-b before:border-border-default"
       slot="fallback"
     >
+      <div class="h-640 max-lg:h-520"></div>
+      <div class="h-80"></div>
     </div>
   </BadgePage>
   <RegisterCta />

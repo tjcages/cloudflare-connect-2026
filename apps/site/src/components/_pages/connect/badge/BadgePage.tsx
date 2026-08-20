@@ -9,9 +9,11 @@ import {
   useCopyFeedback,
 } from "@/components/copy-feedback/CopyFeedback";
 import CornerDots from "@/components/CornerDots";
-import Eyebrow from "@/components/Eyebrow";
+import Scramble from "@/components/scramble/Scramble";
 import { asThemedEngineConfig } from "@/components/stripes-texture/config";
+import HeroGrid from "@/layouts/window-hero/_svg/Grid.svg?react";
 import type { IslandProps } from "@/types/island-props";
+import { REGISTER_URL } from "../data";
 import { CONNECT_HERO_RAIN_SHADER_SOURCE } from "../hero/hero-rain-config";
 import BadgeCustomizer from "./BadgeCustomizer";
 import {
@@ -85,7 +87,16 @@ export default function BadgePage(_props: IslandProps) {
     : "h-[900px] w-[640px]";
 
   return (
-    <div className="relative isolate mx-auto min-h-760 max-w-1200 overflow-hidden before:inside-border-b before:border-border-default">
+    <div className="relative mx-auto max-w-1200">
+      <Scramble
+        className="absolute top-0 left-full h-80 w-max px-40 py-30 text-decorative-small-high text-text-faint select-none"
+        text="Hero"
+      />
+      <Scramble
+        className="absolute top-0 right-full h-80 w-max px-40 py-30 text-decorative-small-high text-text-faint select-none"
+        group="sec"
+        text="SEC 0.{n}"
+      />
       <CornerDots count={4} faintClassName="z-30" />
 
       {hydrated ? (
@@ -120,50 +131,76 @@ export default function BadgePage(_props: IslandProps) {
         </div>
       ) : null}
 
-      <div className="absolute inset-0 z-0 max-lg:relative max-lg:h-520">
-        <Suspense fallback={null}>
-          {hydrated ? (
-            <BadgeLanyard
-              identity={{
-                accent: view.theme.accent,
-                company: view.company,
-                name: view.name,
-                role: view.role.label,
-                serial: view.serial,
-              }}
-              lowPower={lowPower}
-              rainCanvas={rainRef}
-              reducedMotion={reducedMotion}
-              shaderLive={shaderLive}
-              twizzlerCanvas={twizzlerRef}
-            />
-          ) : null}
-        </Suspense>
-      </div>
+      <div className="relative h-640 before:inside-border-b before:border-border-default max-lg:h-auto">
+        <HeroGrid
+          aria-hidden="true"
+          className="pointer-events-none absolute -top-0.5 -right-0.5 -z-10 h-641 w-401 text-border-default max-lg:hidden"
+        />
 
-      <div className="relative z-10 flex justify-between px-80 pt-80 pb-160 pointer-events-none max-lg:flex-col max-lg:gap-40 max-lg:px-24 max-lg:pt-32 max-lg:pb-80 max-lg:pointer-events-auto">
-        <div className="flex w-440 shrink-0 flex-col items-start pointer-events-auto max-lg:w-full">
-          <Eyebrow direction="left" title="Badge" variant="faint" />
-          <h1 className="mt-24 text-heading-hero text-text-base">
-            Your Connect 2026 badge
-          </h1>
-          <p className="mt-20 text-body-large text-text-base">
-            The hero Twizzler and rain, printed on the badge. Grab it and pull
-            — the lanyard wiggles back.
-          </p>
-          <div className="mt-40 text-label-x-small text-text-muted">
-            Color scheme
+        <div className="absolute top-0 right-0 h-640 w-560 max-lg:relative max-lg:h-520 max-lg:w-full">
+          <Suspense fallback={null}>
+            {hydrated ? (
+              <BadgeLanyard
+                identity={{
+                  accent: view.theme.accent,
+                  company: view.company,
+                  name: view.name,
+                  role: view.role.label,
+                  serial: view.serial,
+                }}
+                lowPower={lowPower}
+                rainCanvas={rainRef}
+                reducedMotion={reducedMotion}
+                shaderLive={shaderLive}
+                twizzlerCanvas={twizzlerRef}
+              />
+            ) : null}
+          </Suspense>
+        </div>
+
+        <div className="absolute bottom-80 left-80 flex w-520 flex-col gap-40 max-lg:static max-lg:w-full max-lg:px-24 max-lg:py-64">
+          <Scramble
+            className="text-decorative-small text-text-faint"
+            preset="eyebrow-hero"
+            segments={[
+              { text: "01 · ", className: "[word-spacing:4.75px]" },
+              { text: "BADGE", className: "text-orange-900" },
+            ]}
+          />
+
+          <div>
+            <h1 className="mb-16 text-heading-h1 text-text-base max-lg:[&_br]:hidden">
+              Your Connect 2026
+              <br />
+              badge
+            </h1>
+
+            <div className="flex flex-col gap-24 text-body-large text-text-base max-lg:[&_br]:hidden">
+              <p>
+                The hero Twizzler and rain, printed on the badge. <br />
+                Grab it and pull — the lanyard wiggles back.
+              </p>
+              <p>
+                Pick a color scheme, then copy the link to share <br />
+                your badge.
+              </p>
+              <BadgeCustomizer onChange={setParams} params={params} />
+            </div>
           </div>
-          <div className="mt-12">
-            <BadgeCustomizer onChange={setParams} params={params} />
+
+          <div className="flex gap-12 max-sm:flex-col">
+            <Button onClick={copy} size="large" type="button">
+              <CopyFeedbackIcon copied={copied} />
+              <span>{copied ? "Copied" : "Copy badge link"}</span>
+            </Button>
+            <Button href={REGISTER_URL} size="large" variant="secondary">
+              <span>Register now</span>
+            </Button>
           </div>
-          <Button className="mt-40" onClick={copy} size="large" type="button">
-            <CopyFeedbackIcon copied={copied} />
-            <span>{copied ? "Copied" : "Copy badge link"}</span>
-          </Button>
         </div>
       </div>
-      <div className="h-80 max-lg:hidden" />
+
+      <div className="h-80" />
     </div>
   );
 }
