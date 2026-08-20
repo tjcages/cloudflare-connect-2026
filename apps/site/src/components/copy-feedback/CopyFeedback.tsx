@@ -1,6 +1,6 @@
+import cn from "classnames";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import cn from "classnames";
 import Icon from "@/components/icon/Icon";
 
 const SWAP_TRANSITION = { duration: 0.25, ease: [0.6, 0.6, 0, 1] as const };
