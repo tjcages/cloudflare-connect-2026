@@ -17,7 +17,6 @@ import {
   MeshBasicMaterial,
   MeshPhysicalMaterial,
   MeshStandardMaterial,
-  PlaneGeometry,
   Quaternion,
   ShaderMaterial,
   Shape,
@@ -30,7 +29,7 @@ import {
 } from "three";
 
 const LANYARD_URL = "/connect/badge-lanyard.glb";
-const MODEL_SCALE = 14;
+const MODEL_SCALE = 16;
 const TEXTURE_W = 768;
 const TEXTURE_H = 1152;
 const TEXTURE_W_LOW = 384;
@@ -69,17 +68,18 @@ const ROLL_MAX = 0.2;
 const CARD_W = 0.1;
 const CARD_H = 0.158;
 const CARD_D = 0.003;
-const CARD_RADIUS = 0.007;
-const SHADER_INSET = 0.003;
+const CARD_RADIUS = 0.013;
+const SHADER_INSET = 0.0035;
 const CARD_OVERLAP = 0.006;
 const CARD_LOCAL_Y = -(CARD_H / 2) + CARD_OVERLAP;
 const HANG_Y = -CARD_LOCAL_Y * MODEL_SCALE;
-const WALL_Z = -0.022;
-const SHADOW_OPACITY = 0.34;
-const SHADOW_SOFT_OPACITY = 0.16;
-const SHADOW_INFLATE = 0.028;
-const SHADOW_LIGHT_DIR = new Vector3(-0.15, -0.22, -1).normalize();
-const SHADOW_NUDGE_LOCAL = new Vector3(-0.002, -0.003, 0);
+const HANG_LIFT = 0.38;
+const WALL_Z = -0.09;
+const SHADOW_OPACITY = 0.4;
+const SHADOW_SOFT_OPACITY = 0.2;
+const SHADOW_INFLATE = 0.032;
+const SHADOW_LIGHT_DIR = new Vector3(-0.55, -0.14, -1).normalize();
+const SHADOW_NUDGE_LOCAL = new Vector3(-0.01, -0.002, 0);
 
 const ACCENT = "#f46021";
 const METAL = ACCENT;
@@ -560,19 +560,38 @@ function createBadgeCard(
     lowPower
       ? new MeshStandardMaterial({
           color: "#ffffff",
-          metalness: 0.06,
-          roughness: 0.16,
+          emissive: "#ffffff",
+          emissiveIntensity: 0.32,
+          metalness: 0,
+          roughness: 0.22,
+          toneMapped: false,
         })
       : new MeshPhysicalMaterial({
           color: "#ffffff",
-          metalness: 0.04,
-          roughness: 0.12,
-          clearcoat: 1,
-          clearcoatRoughness: 0.06,
+          emissive: "#ffffff",
+          emissiveIntensity: 0.42,
+          metalness: 0,
+          roughness: 0.18,
+          clearcoat: 0.45,
+          clearcoatRoughness: 0.28,
+          envMapIntensity: 0.15,
+          toneMapped: false,
         })
   );
+  const faceWidth = CARD_W - SHADER_INSET * 2;
+  const faceHeight = CARD_H - SHADER_INSET * 2;
+  const faceRadius = Math.max(CARD_RADIUS - SHADER_INSET, 0.001);
+  const faceGeometry = new ExtrudeGeometry(
+    roundedRect(faceWidth, faceHeight, faceRadius),
+    {
+      depth: 0.0002,
+      bevelEnabled: false,
+      steps: 1,
+    }
+  );
+  faceGeometry.translate(0, 0, -0.0001);
   const face = new Mesh(
-    new PlaneGeometry(CARD_W - SHADER_INSET * 2, CARD_H - SHADER_INSET * 2),
+    faceGeometry,
     new MeshBasicMaterial({
       map: texture,
       toneMapped: false,
@@ -616,7 +635,7 @@ void main() {
   world.xy += nxy * uInflate;
   world.z = uWallZ;
 
-  vAlpha = uOpacity * (1.0 - smoothstep(0.0, 0.14, t));
+  vAlpha = uOpacity * (1.0 - smoothstep(2.2, 4.8, t));
   gl_Position = projectionMatrix * viewMatrix * world;
 }
 `;
@@ -1129,8 +1148,8 @@ function pointerToWorld(
 
 function rightColumnWorldX(width: number, viewportWidth: number) {
   if (width < 992) return 0;
-  const centerPx = width - 80 - 240;
-  return (centerPx / width - 0.5) * viewportWidth;
+  const columnCenterPx = width - 280;
+  return (columnCenterPx / width - 0.5) * viewportWidth;
 }
 
 function LanyardBadge({
@@ -1266,7 +1285,7 @@ function LanyardBadge({
     const hang = groupRef.current;
     if (hang) {
       hang.position.x = rightColumnWorldX(size.width, viewport.width);
-      hang.position.y = HANG_Y;
+      hang.position.y = HANG_Y + HANG_LIFT;
     }
     if (
       dragging.current ||
@@ -1305,7 +1324,7 @@ function LanyardBadge({
         gl.domElement.setPointerCapture(event.pointerId);
         invalidate();
       }}
-      position={[0, HANG_Y, 0]}
+      position={[0, HANG_Y + HANG_LIFT, 0]}
       ref={groupRef}
     >
       <group scale={MODEL_SCALE}>

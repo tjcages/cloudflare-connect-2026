@@ -20,6 +20,10 @@ import HeroGrid from "@/layouts/window-hero/_svg/Grid.svg?react";
 import type { IslandProps } from "@/types/island-props";
 import { REGISTER_URL } from "../data";
 import { CONNECT_HERO_RAIN_SHADER_SOURCE } from "../hero/hero-rain-config";
+import {
+  BADGE_BACKDROP_CONFIG,
+  BADGE_BACKDROP_SHADER_SOURCE,
+} from "./badge-backdrop-config";
 import BadgeCustomizer from "./BadgeCustomizer";
 import {
   prepareBadgeLogo,
@@ -139,6 +143,24 @@ export default function BadgePage(_props: IslandProps) {
   const logoCaptureClass = lowPower
     ? "h-[128px] w-[320px]"
     : "h-[256px] w-[640px]";
+  const backdropConfig = useMemo(() => {
+    if (!lowPower) {
+      return asThemedEngineConfig({
+        ...BADGE_BACKDROP_CONFIG,
+        maxFps: 30,
+      });
+    }
+    return asThemedEngineConfig({
+      ...BADGE_BACKDROP_CONFIG,
+      maxFps: 10,
+      background: {
+        ...BADGE_BACKDROP_CONFIG.background,
+        meteors: { enabled: false },
+      },
+      flames: { enabled: false },
+      frames: { enabled: false },
+    });
+  }, [lowPower]);
   const logoConfig = useMemo(
     () =>
       asThemedEngineConfig({
@@ -240,36 +262,65 @@ export default function BadgePage(_props: IslandProps) {
         </div>
       ) : null}
 
-      <div className="relative h-640 before:inside-border-b before:border-border-default max-lg:h-auto">
+      <div className="relative h-640 overflow-x-visible before:inside-border-b before:border-border-default max-lg:h-auto">
         <HeroGrid
           aria-hidden="true"
           className="pointer-events-none absolute -top-0.5 -right-0.5 -z-10 h-641 w-401 text-border-default max-lg:hidden"
         />
 
-        <div className="absolute top-0 right-0 h-640 w-560 max-lg:relative max-lg:h-520 max-lg:w-full">
-          <Suspense fallback={null}>
-            {hydrated ? (
-              <BadgeLanyard
-                identity={{
-                  accent: view.theme.accent,
-                  company: view.company,
-                  name: view.name,
-                  role: view.role.label,
-                  serial: view.serial,
+        <div className="absolute inset-0 max-lg:relative max-lg:h-520">
+          {hydrated ? (
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 z-0 overflow-visible"
+            >
+              <div
+                className="absolute top-0 right-0 h-full w-720 max-lg:w-full"
+                style={{
+                  maskImage:
+                    "radial-gradient(ellipse 62% 78% at 62% 44%, #000 16%, transparent 72%)",
+                  WebkitMaskImage:
+                    "radial-gradient(ellipse 62% 78% at 62% 44%, #000 16%, transparent 72%)",
                 }}
-                logoCanvas={logoRef}
-                logoMarkSrc={logo?.markUrl ?? null}
-                lowPower={lowPower}
-                rainCanvas={rainRef}
-                reducedMotion={reducedMotion}
-                shaderLive={shaderLive}
-                twizzlerCanvas={twizzlerRef}
-              />
-            ) : null}
-          </Suspense>
+              >
+                <StripesShader
+                  autoPlay={!reducedMotion && shaderLive}
+                  className="size-full"
+                  config={backdropConfig}
+                  label="badge-backdrop"
+                  maxDpr={lowPower ? 1 : 1.25}
+                  rootMargin="200px"
+                  shaderSource={BADGE_BACKDROP_SHADER_SOURCE}
+                />
+              </div>
+            </div>
+          ) : null}
+
+          <div className="absolute inset-0 z-[1]">
+            <Suspense fallback={null}>
+              {hydrated ? (
+                <BadgeLanyard
+                  identity={{
+                    accent: view.theme.accent,
+                    company: view.company,
+                    name: view.name,
+                    role: view.role.label,
+                    serial: view.serial,
+                  }}
+                  logoCanvas={logoRef}
+                  logoMarkSrc={logo?.markUrl ?? null}
+                  lowPower={lowPower}
+                  rainCanvas={rainRef}
+                  reducedMotion={reducedMotion}
+                  shaderLive={shaderLive}
+                  twizzlerCanvas={twizzlerRef}
+                />
+              ) : null}
+            </Suspense>
+          </div>
         </div>
 
-        <div className="absolute bottom-80 left-80 flex w-520 flex-col gap-40 max-lg:static max-lg:w-full max-lg:px-24 max-lg:py-64">
+        <div className="absolute bottom-80 left-80 z-20 flex w-520 flex-col gap-40 max-lg:static max-lg:w-full max-lg:px-24 max-lg:py-64">
           <Scramble
             className="text-decorative-small text-text-faint"
             preset="eyebrow-hero"
