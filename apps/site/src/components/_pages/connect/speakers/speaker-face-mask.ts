@@ -21,7 +21,7 @@ export const SPEAKER_FACE_MASK_DEFAULTS: SpeakerFaceMaskSettings = {
   enabled: true,
   x: 0.5,
   y: 0.32,
-  radius: 0.3,
+  radius: 0.36,
   softness: 0.68,
   blurPx: 14,
   strength: 1,

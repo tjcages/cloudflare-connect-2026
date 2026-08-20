@@ -15,7 +15,7 @@ describe("speaker face mask", () => {
     expect(SPEAKER_FACE_MASK_DEFAULTS.enabled).toBe(true);
     expect(circle.cx).toBe(40 + 200 * 0.5);
     expect(circle.cy).toBe(10 + 180 * 0.32);
-    expect(circle.radius).toBe(180 * 0.3);
+    expect(circle.radius).toBe(180 * 0.36);
     expect(circle.innerRadius).toBeLessThan(circle.radius);
     expect(circle.innerRadius).toBeGreaterThan(0);
   });
