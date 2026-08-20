@@ -3,6 +3,7 @@
 import { StripesShader } from "@necatikcl/stripes-engine/react";
 import { ConnectTwizzler } from "@tjcages/connect-twizzler/react";
 import { usePanel } from "@tjcages/panels/dev";
+import { AnimatePresence } from "motion/react";
 import {
   lazy,
   Suspense,
@@ -580,13 +581,16 @@ export default function BadgePage(_props: IslandProps) {
       </div>
 
       <div className="h-80" />
-      {sharePreview ? (
-        <BadgeShareDock
-          onDismiss={dismissShare}
-          src={sharePreview.src}
-          title={sharePreview.title}
-        />
-      ) : null}
+      <AnimatePresence>
+        {sharePreview ? (
+          <BadgeShareDock
+            key="badge-share"
+            onDismiss={dismissShare}
+            src={sharePreview.src}
+            title={sharePreview.title}
+          />
+        ) : null}
+      </AnimatePresence>
     </div>
   );
 }

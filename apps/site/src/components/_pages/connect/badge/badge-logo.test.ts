@@ -423,6 +423,8 @@ describe("badge logo SVG prep", () => {
     expect(dock).toContain("rounded-16");
     expect(dock).toContain("draggable");
     expect(dock).toContain("cross-small");
+    expect(dock).toContain('filter: "blur(6px)"');
+    expect(dock).toContain("scale: 0.88");
     expect(dock).not.toContain("hover:scale-105");
     expect(dock).not.toContain("Right-click the image to save");
     expect(dock).not.toContain("before:inside-border");
@@ -446,6 +448,11 @@ describe("badge logo SVG prep", () => {
     expect(lanyard).toContain("INTRO_DELAY_MS");
     expect(lanyard).toContain("visible={introVisible}");
     expect(lanyard).toContain("document.fonts.ready");
+    expect(page).toContain("AnimatePresence");
+    expect(page).toContain('key="badge-share"');
+    expect(lanyard).toContain("whiteLogoHalo");
+    expect(lanyard).toContain('fillStyle = "#ffffff"');
+    expect(lanyard).toContain("source-in");
     expect(page).not.toContain("src={logoMarkSrc");
     expect(page).not.toContain("<BadgeShaderSource");
     expect(page).not.toContain("<BadgeLogoUpload");

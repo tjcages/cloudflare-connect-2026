@@ -222,6 +222,25 @@ function rasterizeMark(image: HTMLImageElement) {
   return canvas;
 }
 
+function whiteLogoHalo(
+  mark: HTMLImageElement | HTMLCanvasElement,
+  width: number,
+  height: number
+) {
+  const blur = Math.max(10, Math.round(Math.min(width, height) * 0.2));
+  const pad = blur * 2;
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.ceil(width) + pad * 2);
+  canvas.height = Math.max(1, Math.ceil(height) + pad * 2);
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+  ctx.drawImage(mark, pad, pad, width, height);
+  ctx.globalCompositeOperation = "source-in";
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  return { canvas, pad, blur };
+}
+
 function drawCenteredLogo(
   ctx: CanvasRenderingContext2D,
   mark: HTMLImageElement | HTMLCanvasElement | null,
@@ -238,9 +257,17 @@ function drawCenteredLogo(
   const dx = field.x + (field.w - fit.w) / 2;
   const dy = field.y + field.h / 2 - fit.h / 2 + height * tune.logoPadY;
   ctx.save();
-  ctx.globalAlpha = tune.logoMarkOpacity;
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
+  const halo = whiteLogoHalo(mark, fit.w, fit.h);
+  if (halo) {
+    ctx.save();
+    ctx.filter = `blur(${halo.blur}px)`;
+    ctx.globalAlpha = 0.8 * tune.logoMarkOpacity;
+    ctx.drawImage(halo.canvas, dx - halo.pad, dy - halo.pad);
+    ctx.restore();
+  }
+  ctx.globalAlpha = tune.logoMarkOpacity;
   ctx.drawImage(mark, dx, dy, fit.w, fit.h);
   ctx.restore();
 }
