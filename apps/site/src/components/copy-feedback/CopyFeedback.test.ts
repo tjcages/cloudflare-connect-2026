@@ -12,6 +12,9 @@ describe("copy feedback", () => {
     expect(source).toContain("export function CopyFeedbackLabel");
     expect(source).toContain('mode="popLayout"');
     expect(source).toContain("invisible");
+    expect(source).toContain("copyFeedbackLabelClass");
+    expect(source).toContain("justify-items-start");
+    expect(source).toContain("justify-items-center");
     expect(source).toContain("inline-grid");
     expect(source).toContain("size-20");
   });

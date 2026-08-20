@@ -4,6 +4,19 @@ import Icon from "@/components/icon/Icon";
 
 const SWAP_TRANSITION = { duration: 0.25, ease: [0.6, 0.6, 0, 1] as const };
 
+function copyFeedbackLabelClass(align: "start" | "center"): string {
+  switch (align) {
+    case "center":
+      return "relative inline-grid justify-items-center overflow-hidden";
+    case "start":
+      return "relative inline-grid justify-items-start overflow-hidden";
+    default: {
+      const _exhaustive: never = align;
+      throw new Error(`Unhandled copy label align: ${_exhaustive}`);
+    }
+  }
+}
+
 export function useCopyFeedback(value: string) {
   const [copied, setCopied] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -54,17 +67,19 @@ export function CopyFeedbackIcon({
 }
 
 export function CopyFeedbackLabel({
+  align = "start",
   copied,
   idle,
   copiedLabel = "Copied",
 }: {
+  align?: "start" | "center";
   copied: boolean;
   idle: string;
   copiedLabel?: string;
 }) {
   const text = copied ? copiedLabel : idle;
   return (
-    <span className="relative inline-grid justify-items-start overflow-hidden">
+    <span className={copyFeedbackLabelClass(align)}>
       <span
         aria-hidden="true"
         className="invisible col-start-1 row-start-1 whitespace-nowrap"

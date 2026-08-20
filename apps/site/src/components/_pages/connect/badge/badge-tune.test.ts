@@ -20,7 +20,7 @@ describe("badge tune defaults", () => {
 
   it("uses the tuned badge and lanyard setup as the built-in default", () => {
     expect(BADGE_TUNE_DEFAULTS).toMatchObject({
-      hangX: -0.12,
+      hangX: -0.47,
       cardOverlap: -0.025,
       cardEmissive: 0.17,
       cardClearcoat: 1,
@@ -45,16 +45,16 @@ describe("badge tune defaults", () => {
       sourcePanX: 0.0015,
       sourcePanY: 0,
       sourceLight: 0.1,
-      modelScale: 15.8,
+      modelScale: 14.9,
       logoScale: 1.26,
     });
   });
 
   it("bakes the shared panel snapshot as defaults", () => {
     expect(BADGE_TUNE_DEFAULTS).toMatchObject({
-      modelScale: 15.8,
-      hangLift: 0.85,
-      hangX: -0.12,
+      modelScale: 14.9,
+      hangLift: 1.2,
+      hangX: -0.47,
       hangZ: 0,
       cardWidth: 0.1,
       cardHeight: 0.158,

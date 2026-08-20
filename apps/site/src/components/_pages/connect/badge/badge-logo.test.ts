@@ -377,7 +377,10 @@ describe("badge logo SVG prep", () => {
     );
     expect(page).toContain("plateSrc={plateSrc}");
     expect(page).toContain("printSrc={plateSrc}");
-    expect(page).toContain("h-760");
+    expect(page).toContain("h-800");
+    expect(page).toContain("h-801");
+    expect(page).toContain("BadgeGrid");
+    expect(page).not.toContain("HeroGrid");
     expect(page).toContain("sourceZoom");
     expect(page).toContain("readLogoFile");
     expect(page).toContain("badgeShaderPlateRaster");
@@ -395,6 +398,7 @@ describe("badge logo SVG prep", () => {
     expect(page).toContain("whitePoint: 0.8");
     expect(page).toContain("Copy shareable card");
     expect(page).toContain("CopyFeedbackLabel");
+    expect(page).toContain('align="center"');
     expect(page).toContain("<span>Share</span>");
     expect(page).not.toContain("Share on X");
     expect(page).toContain("badgeTweetUrl(badgeShareHeadline(view.name))");

@@ -119,6 +119,22 @@ describe("badge share copy", () => {
     expect(copy).not.toContain("Your Connect 2026 badge");
   });
 
+  it("extends the share grid by two square rows to the hero bottom", () => {
+    const grid = readFileSync(
+      resolve(
+        process.cwd(),
+        "src/components/_pages/connect/badge/_svg/Grid.svg"
+      ),
+      "utf8"
+    );
+    expect(grid).toContain('viewBox="0 0 401 801"');
+    expect(grid).toContain('height="800"');
+    expect(grid).toContain("M0.5 720.5H400.5");
+    expect(grid).toContain("M0.5 800.5H400.5");
+    expect(grid).toContain("V800.5");
+    expect(grid).not.toContain("V640.5");
+  });
+
   it("composites the share scene instead of screenshotting the live hero", () => {
     expect(BADGE_SHARE_SURFACE).toBe("#ffffff");
     const source = readFileSync(

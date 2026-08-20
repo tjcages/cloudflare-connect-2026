@@ -89,9 +89,9 @@ export const BADGE_LOGO_SCALE_MIN = 0.4;
 export const BADGE_LOGO_SCALE_MAX = 1.6;
 
 export const BADGE_TUNE_DEFAULTS: BadgeTune = {
-  modelScale: 15.8,
-  hangLift: 0.85,
-  hangX: -0.12,
+  modelScale: 14.9,
+  hangLift: 1.2,
+  hangX: -0.47,
   hangZ: 0,
   cardWidth: 0.1,
   cardHeight: 0.158,
@@ -393,4 +393,4 @@ export const BADGE_TUNE_FIELDS: PanelField<BadgeTune>[] = [
   slider("backdropMaskY", "Mask Y %", 0, 100, 1),
 ];
 
-export const BADGE_TUNE_PANEL_ID = "connect-badge-tune-v16";
+export const BADGE_TUNE_PANEL_ID = "connect-badge-tune-v17";

@@ -27,7 +27,6 @@ import {
 } from "@/components/_pages/case-studies/cards/texture-config";
 import Scramble from "@/components/scramble/Scramble";
 import { asThemedEngineConfig } from "@/components/stripes-texture/config";
-import HeroGrid from "@/layouts/window-hero/_svg/Grid.svg?react";
 import type { IslandProps } from "@/types/island-props";
 import { CONNECT_HERO_RAIN_SHADER_SOURCE } from "../hero/hero-rain-config";
 import {
@@ -40,6 +39,7 @@ import {
   BADGE_TUNE_PANEL_ID,
 } from "./badge-tune";
 import BadgeCustomizer from "./BadgeCustomizer";
+import BadgeGrid from "./_svg/Grid.svg?react";
 import {
   BADGE_PRINT_FIELD_SRC,
   badgeLogoPreviewSrc,
@@ -433,15 +433,15 @@ export default function BadgePage(_props: IslandProps) {
         />
       ) : null}
 
-      <div className="relative h-760 overflow-x-visible bg-background-base before:inside-border-b before:border-border-default max-lg:h-auto">
+      <div className="relative h-800 overflow-x-visible bg-background-base before:inside-border-b before:border-border-default max-lg:h-auto">
         <div
           className="absolute inset-0 z-0 max-lg:relative max-lg:h-640"
           data-share-scene=""
           ref={shareSceneRef}
         >
-          <HeroGrid
+          <BadgeGrid
             aria-hidden="true"
-            className="pointer-events-none absolute -top-0.5 -right-0.5 z-0 h-641 w-401 text-border-default max-lg:hidden"
+            className="pointer-events-none absolute -top-0.5 -right-0.5 z-0 h-801 w-401 text-border-default max-lg:hidden"
             data-share-grid=""
           />
 
@@ -562,6 +562,7 @@ export default function BadgePage(_props: IslandProps) {
             <Button onClick={onCopyShareable} size="large" type="button">
               <CopyFeedbackIcon copied={shareCopied} />
               <CopyFeedbackLabel
+                align="center"
                 copied={shareCopied}
                 idle="Copy shareable card"
               />
