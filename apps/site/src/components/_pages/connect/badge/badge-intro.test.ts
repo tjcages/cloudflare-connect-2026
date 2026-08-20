@@ -8,6 +8,7 @@ import {
   hangingRope,
   INTRO_PIN,
   INTRO_POSE,
+  INTRO_ROPE_POINTS,
   INTRO_TIP,
 } from "./badge-intro";
 
@@ -18,7 +19,8 @@ describe("badge intro pose", () => {
     expect(INTRO_POSE.tip.x).toBe(0.0839);
     expect(INTRO_POSE.drag?.y).toBe(-0.04);
     expect(INTRO_POSE.card.ry).toBe(-0.2934);
-    expect(INTRO_POSE.rope).toHaveLength(9);
+    expect(INTRO_POSE.rope).toHaveLength(INTRO_ROPE_POINTS);
+    expect(INTRO_ROPE_POINTS).toBe(5);
     expect(INTRO_POSE.rope[0]).toEqual(INTRO_TIP);
     expect(INTRO_POSE.rope.at(-1)).toEqual(INTRO_PIN);
     expect(INTRO_POSE.dragOffset.y).toBe(
@@ -28,10 +30,10 @@ describe("badge intro pose", () => {
   });
 
   it("builds an unbunched hanging rope from pin to tip", () => {
-    const rope = hangingRope(INTRO_TIP, INTRO_PIN, 9);
+    const rope = hangingRope(INTRO_TIP, INTRO_PIN, INTRO_ROPE_POINTS);
     expect(rope[0]).toEqual(INTRO_TIP);
     expect(rope.at(-1)).toEqual(INTRO_PIN);
-    const mid = rope[4]!;
+    const mid = rope[Math.floor((INTRO_ROPE_POINTS - 1) / 2)]!;
     expect(mid.y).toBeGreaterThan(INTRO_TIP.y);
     expect(mid.y).toBeLessThan(INTRO_PIN.y);
   });

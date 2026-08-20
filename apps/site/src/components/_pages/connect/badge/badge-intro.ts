@@ -1,6 +1,8 @@
+import { BADGE_ROPE_POINTS } from "./badge-rope";
+
 export const INTRO_DELAY_MS = 500;
 export const INTRO_FADE_MS = 800;
-export const INTRO_ROPE_POINTS = 9;
+export const INTRO_ROPE_POINTS = BADGE_ROPE_POINTS;
 
 export type BadgePosePoint = { x: number; y: number; z: number };
 
