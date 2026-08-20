@@ -83,6 +83,10 @@ export type BadgeTune = {
   backdropMaskY: number;
 } & BadgeTwizzlerOverlay;
 
+export const BADGE_SOURCE_PAN = 1;
+export const BADGE_LOGO_SCALE_MIN = 0.4;
+export const BADGE_LOGO_SCALE_MAX = 1.6;
+
 export const BADGE_TUNE_DEFAULTS: BadgeTune = {
   modelScale: 15.8,
   hangLift: 0.38,
@@ -216,8 +220,8 @@ export const BADGE_TUNE_FIELDS: PanelField<BadgeTune>[] = [
     0.01,
     "The upload stays a vector or PNG. Scale and pan it inside the stripe conversion."
   ),
-  slider("sourcePanX", "SVG X", -1, 1, 0.01),
-  slider("sourcePanY", "SVG Y", -1, 1, 0.01),
+  slider("sourcePanX", "SVG X", -BADGE_SOURCE_PAN, BADGE_SOURCE_PAN, 0.01),
+  slider("sourcePanY", "SVG Y", -BADGE_SOURCE_PAN, BADGE_SOURCE_PAN, 0.01),
   slider(
     "sourceLight",
     "SVG brightness",
@@ -251,7 +255,8 @@ export const BADGE_TUNE_FIELDS: PanelField<BadgeTune>[] = [
     type: "toggle",
     key: "printTwizzler",
     label: "Twizzler overlay",
-    description: "Adds the themed ribbon under the case-study print. Tune it below.",
+    description:
+      "Adds the themed ribbon under the case-study print. Tune it below.",
   },
   {
     type: "toggle",
@@ -284,7 +289,14 @@ export const BADGE_TUNE_FIELDS: PanelField<BadgeTune>[] = [
   slider("shadowSoftOpacity", "Soft opacity", 0, 0.5, 0.01),
   slider("wallZ", "Wall Z", -0.25, -0.01, 0.005),
   slider("lightX", "Light X", -1.2, 1.2, 0.01),
-  slider("lightY", "Light Y", -1.4, 0.4, 0.01, "Lower values push the shadow down."),
+  slider(
+    "lightY",
+    "Light Y",
+    -1.4,
+    0.4,
+    0.01,
+    "Lower values push the shadow down."
+  ),
   slider("lightZ", "Light Z", -2, -0.2, 0.01),
   slider("nudgeX", "Nudge X", -0.05, 0.05, 0.001),
   slider("nudgeY", "Nudge Y", -0.08, 0.04, 0.001),
@@ -325,7 +337,13 @@ export const BADGE_TUNE_FIELDS: PanelField<BadgeTune>[] = [
   slider("logoBand", "Mark height", 0.08, 0.7, 0.01),
   slider("logoPadX", "Pad X", 0, 0.28, 0.005),
   slider("logoPadY", "Mark Y", -0.2, 0.2, 0.005),
-  slider("logoScale", "Mark scale", 0.4, 1.6, 0.01),
+  slider(
+    "logoScale",
+    "Mark scale",
+    BADGE_LOGO_SCALE_MIN,
+    BADGE_LOGO_SCALE_MAX,
+    0.01
+  ),
   slider("logoPrintZoom", "Stripe zoom", 0.4, 3.5, 0.01),
   slider(
     "logoMarkOpacity",

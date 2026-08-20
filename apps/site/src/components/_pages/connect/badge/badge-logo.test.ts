@@ -7,8 +7,11 @@ import {
   BADGE_PLATE_VIEW_H,
   BADGE_PLATE_VIEW_W,
   BADGE_PRINT_FIELD_SRC,
+  LOGO_FILE_ACCEPT,
+  LOGO_FILE_ERROR,
   PNG_MAX_BYTES,
   SVG_MAX_BYTES,
+  badgeLogoPreviewSrc,
   badgeMarkSvg,
   badgePlateLitStops,
   badgePlateLogoRect,
@@ -17,8 +20,10 @@ import {
   extractSvgInner,
   paintSvgFills,
   paintSvgFillsWhite,
+  parseJpegSize,
   parsePngSize,
   parseSvgViewport,
+  parseWebpSize,
   prepareBadgeLogo,
   readLogoFile,
   readSvgFile,
@@ -126,7 +131,7 @@ describe("badge logo SVG prep", () => {
   it("rejects non-svg files and oversized uploads", async () => {
     await expect(
       readSvgFile(new File(["<svg></svg>"], "logo.png", { type: "image/png" }))
-    ).rejects.toThrow(/SVG or PNG/i);
+    ).rejects.toThrow(/SVG, PNG, JPEG, or WebP/i);
     await expect(
       readSvgFile(
         new File([new Uint8Array(SVG_MAX_BYTES + 1)], "logo.svg", {
@@ -174,8 +179,41 @@ describe("badge logo SVG prep", () => {
       )
     ).rejects.toThrow(/2 MB/);
     await expect(
-      readLogoFile(new File(["nope"], "logo.jpg", { type: "image/jpeg" }))
-    ).rejects.toThrow(/SVG or PNG/i);
+      readLogoFile(new File(["nope"], "logo.gif", { type: "image/gif" }))
+    ).rejects.toThrow(LOGO_FILE_ERROR);
+  });
+
+  it("reads JPEG and WebP headers for the landscape plate", async () => {
+    const jpeg = Uint8Array.from([
+      0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01,
+      0x01, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0xff, 0xc0, 0x00, 0x0b,
+      0x08, 0x00, 0x20, 0x00, 0x40, 0x01, 0x01, 0x11, 0x00, 0xff, 0xd9,
+    ]);
+    expect(parseJpegSize(jpeg)).toEqual({ w: 64, h: 32 });
+    const jpegLogo = await readLogoFile(
+      new File([jpeg], "mark.jpg", { type: "image/jpeg" })
+    );
+    expect(jpegLogo.kind).toBe("raster");
+    if (jpegLogo.kind !== "raster") return;
+    expect(jpegLogo.width).toBe(64);
+    expect(jpegLogo.height).toBe(32);
+    expect(jpegLogo.dataUrl.startsWith("data:image/jpeg;base64,")).toBe(true);
+
+    const webp = Uint8Array.from([
+      0x52, 0x49, 0x46, 0x46, 0x16, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50,
+      0x56, 0x50, 0x38, 0x58, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      0x1f, 0x00, 0x00, 0x0f, 0x00, 0x00,
+    ]);
+    expect(parseWebpSize(webp)).toEqual({ w: 32, h: 16 });
+    const webpLogo = await readLogoFile(
+      new File([webp], "mark.webp", { type: "image/webp" })
+    );
+    expect(webpLogo.kind).toBe("raster");
+    if (webpLogo.kind !== "raster") return;
+    expect(webpLogo.width).toBe(32);
+    expect(webpLogo.height).toBe(16);
+    expect(webpLogo.dataUrl.startsWith("data:image/webp;base64,")).toBe(true);
+    expect(badgeLogoPreviewSrc(webpLogo)).toBe(webpLogo.dataUrl);
   });
 
   it("prepares the seeded Cloudflare mark", () => {
@@ -218,7 +256,7 @@ describe("badge logo SVG prep", () => {
     );
     expect(rect).toContain("M0 0h40v20z");
     expect(rect).not.toContain("<circle");
-    expect(circle).toContain("<circle cx=\"20\"");
+    expect(circle).toContain('<circle cx="20"');
     expect(circle).not.toContain("M0 0h40v20z");
   });
 
@@ -257,16 +295,6 @@ describe("badge logo SVG prep", () => {
     expect(shader).toContain("blitPrintFrame");
     expect(shader).not.toContain("[canvasRef, height, maxDpr, src, width]");
 
-    const preview = readFileSync(
-      resolve(
-        process.cwd(),
-        "src/components/_pages/connect/badge/BadgeShaderSource.tsx"
-      ),
-      "utf8"
-    );
-    expect(preview).toContain("src={src}");
-    expect(preview).toContain("aspect-[4/3]");
-
     const upload = readFileSync(
       resolve(
         process.cwd(),
@@ -274,13 +302,27 @@ describe("badge logo SVG prep", () => {
       ),
       "utf8"
     );
-    expect(upload).toContain("BadgeShaderSource");
-    expect(upload).toContain("src={plateSrc}");
-    expect(upload).toContain("group/source");
-    expect(upload).toContain("group-hover/source:visible");
-    expect(upload).toContain('aria-label="Preview shader source"');
-    expect(upload).toContain("Upload logo");
-    expect(upload).toContain("image/png,.png");
+    expect(upload).toContain("Add company logo");
+    expect(upload).toContain("Drag to move");
+    expect(upload).toContain("Logo size");
+    expect(upload).toContain("Replace logo");
+    expect(upload).toContain("LOGO_FILE_ACCEPT");
+    expect(upload).toContain("sourcePanX");
+    expect(upload).toContain("logoScale");
+    expect(upload).toContain("Dropdown");
+    expect(upload).toContain("aspect-4/3");
+    expect(upload).not.toContain("Upload logo");
+
+    const customizer = readFileSync(
+      resolve(
+        process.cwd(),
+        "src/components/_pages/connect/badge/BadgeCustomizer.tsx"
+      ),
+      "utf8"
+    );
+    expect(customizer).toContain("BadgeLogoUpload");
+    expect(customizer).toContain('role="radiogroup"');
+    expect(customizer).toContain('className="contents"');
 
     const page = readFileSync(
       resolve(
@@ -295,7 +337,10 @@ describe("badge logo SVG prep", () => {
     expect(page).toContain("sourceZoom");
     expect(page).toContain("readLogoFile");
     expect(page).toContain("badgeShaderPlateRaster");
-    expect(page).toContain("SVG or PNG");
+    expect(page).toContain("JPEG, WebP, PNG, or SVG");
+    expect(page).toContain("setTune");
+    expect(page).toContain("onPanChange");
+    expect(page).toContain("onScaleChange");
     expect(page).toContain("applyBadgeTwizzlerOverlay");
     expect(page).toContain("cardTextureConfig");
     expect(page).toContain("cardStripes");
@@ -303,6 +348,8 @@ describe("badge logo SVG prep", () => {
     expect(page).toContain("whitePoint: 0.8");
     expect(page).toContain("400 : 800");
     expect(page).toContain("300 : 600");
+    expect(LOGO_FILE_ACCEPT).toContain("image/jpeg");
+    expect(LOGO_FILE_ACCEPT).toContain("image/webp");
 
     const lanyard = readFileSync(
       resolve(
@@ -314,5 +361,6 @@ describe("badge logo SVG prep", () => {
     expect(lanyard).toContain('"contain"');
     expect(page).not.toContain("src={logoMarkSrc");
     expect(page).not.toContain("<BadgeShaderSource");
+    expect(page).not.toContain("<BadgeLogoUpload");
   });
 });

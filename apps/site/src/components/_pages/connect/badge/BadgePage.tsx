@@ -33,6 +33,7 @@ import {
 import BadgeCustomizer from "./BadgeCustomizer";
 import {
   BADGE_PRINT_FIELD_SRC,
+  badgeLogoPreviewSrc,
   badgeMarkSvg,
   badgeShaderPlateRaster,
   badgeShaderPlateSvg,
@@ -40,7 +41,6 @@ import {
   readLogoFile,
   svgToBlobUrl,
 } from "./badge-logo";
-import BadgeLogoUpload from "./BadgeLogoUpload";
 import BadgePrintShader from "./BadgePrintShader";
 import {
   badgeSharePath,
@@ -87,7 +87,7 @@ function themeToStripeColors(theme: BadgeTheme): StripeColors {
 const BadgeLanyard = lazy(() => import("./BadgeLanyard"));
 
 export default function BadgePage(_props: IslandProps) {
-  const [tune] = usePanel({
+  const [tune, setTune] = usePanel({
     id: BADGE_TUNE_PANEL_ID,
     title: "Badge",
     defaults: BADGE_TUNE_DEFAULTS,
@@ -156,9 +156,7 @@ export default function BadgePage(_props: IslandProps) {
   );
   const printW = lowPower ? 400 : 800;
   const printH = lowPower ? 300 : 600;
-  const captureClass = lowPower
-    ? "h-[300px] w-[400px]"
-    : "h-[600px] w-[800px]";
+  const captureClass = lowPower ? "h-[300px] w-[400px]" : "h-[600px] w-[800px]";
   const backdropConfig = useMemo(() => {
     if (!lowPower) {
       return asThemedEngineConfig({
@@ -217,6 +215,11 @@ export default function BadgePage(_props: IslandProps) {
       }
     }
   }, [logo, tune.logoEnabled, view.theme]);
+
+  const logoPreviewSrc = useMemo(
+    () => (logo ? badgeLogoPreviewSrc(logo) : null),
+    [logo]
+  );
 
   const plateSrc = useMemo(() => {
     if (!logo) return BADGE_PRINT_FIELD_SRC;
@@ -305,7 +308,7 @@ export default function BadgePage(_props: IslandProps) {
       {hydrated && (tune.printTwizzler || tune.printRain) ? (
         <div
           aria-hidden="true"
-          className={`pointer-events-none fixed top-0 left-[-2000px] z-0 ${captureClass}`}
+          className={`pointer-events-none fixed top-0 -left-2000 z-0 ${captureClass}`}
         >
           {tune.printTwizzler ? (
             <ConnectTwizzler
@@ -384,7 +387,7 @@ export default function BadgePage(_props: IslandProps) {
             </div>
           ) : null}
 
-          <div className="absolute inset-0 z-[1]">
+          <div className="absolute inset-0 z-1">
             <Suspense fallback={null}>
               {hydrated ? (
                 <BadgeLanyard
@@ -434,19 +437,28 @@ export default function BadgePage(_props: IslandProps) {
                 Grab it and pull — the lanyard wiggles back.
               </p>
               <p>
-                Pick a color scheme — stripes and the logo follow it. Upload an
-                SVG or PNG to print your mark in the center.
+                Pick a color scheme — stripes and the logo follow it. Add your
+                mark as a JPEG, WebP, PNG, or SVG.
               </p>
-              <BadgeCustomizer onChange={setParams} params={params} />
-              <BadgeLogoUpload
+              <BadgeCustomizer
                 error={logoError}
                 fileName={logo?.fileName ?? null}
+                logoScale={tune.logoScale}
+                onChange={setParams}
                 onClear={() => {
                   replaceLogo(null);
                   setLogoError(null);
                 }}
                 onFile={onLogoFile}
+                onPanChange={(sourcePanX, sourcePanY) =>
+                  setTune({ ...tune, sourcePanX, sourcePanY })
+                }
+                onScaleChange={(logoScale) => setTune({ ...tune, logoScale })}
+                params={params}
                 plateSrc={plateSrc}
+                previewSrc={logoPreviewSrc}
+                sourcePanX={tune.sourcePanX}
+                sourcePanY={tune.sourcePanY}
               />
             </div>
           </div>

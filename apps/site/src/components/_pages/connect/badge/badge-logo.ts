@@ -1,5 +1,9 @@
 export const SVG_MAX_BYTES = 400_000;
-export const PNG_MAX_BYTES = 2_000_000;
+export const RASTER_MAX_BYTES = 2_000_000;
+export const PNG_MAX_BYTES = RASTER_MAX_BYTES;
+export const LOGO_FILE_ACCEPT =
+  "image/svg+xml,.svg,image/png,.png,image/jpeg,.jpg,.jpeg,image/webp,.webp";
+export const LOGO_FILE_ERROR = "Choose an SVG, PNG, JPEG, or WebP file.";
 /** 4:3 landscape — a bit wider than tall so the whole logo sits large and centered. */
 export const BADGE_PLATE_W = 1600;
 export const BADGE_PLATE_H = 1200;
@@ -42,9 +46,7 @@ export function parseSvgViewport(svgText: string): {
       h: Number(viewBox[4]),
     };
   }
-  const width = Number(
-    svgText.match(/<svg\b[^>]*\bwidth=["']([\d.]+)/i)?.[1]
-  );
+  const width = Number(svgText.match(/<svg\b[^>]*\bwidth=["']([\d.]+)/i)?.[1]);
   const height = Number(
     svgText.match(/<svg\b[^>]*\bheight=["']([\d.]+)/i)?.[1]
   );
@@ -80,7 +82,10 @@ export function svgRasterSize(
   const srcW = Math.max(viewport.w, 1);
   const srcH = Math.max(viewport.h, 1);
   if (srcW >= srcH) {
-    return { w: longEdge, h: Math.max(1, Math.round(longEdge * (srcH / srcW))) };
+    return {
+      w: longEdge,
+      h: Math.max(1, Math.round(longEdge * (srcH / srcW))),
+    };
   }
   return { w: Math.max(1, Math.round(longEdge * (srcW / srcH))), h: longEdge };
 }
@@ -154,10 +159,7 @@ export function badgeShaderPlateSvg(
   if (!(viewport.w > 0) || !(viewport.h > 0)) {
     throw new Error("That SVG has no size.");
   }
-  const inner = paintSvgFills(
-    extractSvgInner(safe),
-    "url(#badge-print-lit)"
-  );
+  const inner = paintSvgFills(extractSvgInner(safe), "url(#badge-print-lit)");
   if (!inner) throw new Error("That SVG is empty.");
   const slot = badgePlateLogoRect(viewport);
   const stroke = Math.max(viewport.w, viewport.h) * 0.012;
@@ -217,7 +219,7 @@ export function parsePngSize(bytes: Uint8Array): { w: number; h: number } {
   }
   for (let i = 0; i < PNG_SIGNATURE.length; i++) {
     if (bytes[i] !== PNG_SIGNATURE[i]) {
-      throw new Error("Choose an SVG or PNG file.");
+      throw new Error("That PNG is invalid.");
     }
   }
   const w =
@@ -236,14 +238,221 @@ export function parsePngSize(bytes: Uint8Array): { w: number; h: number } {
   return { w, h };
 }
 
+function fileNameIs(file: File, ...exts: string[]): boolean {
+  const name = file.name.toLowerCase();
+  return exts.some((ext) => name.endsWith(ext));
+}
+
 function isPngFile(file: File): boolean {
-  return file.type === "image/png" || file.name.toLowerCase().endsWith(".png");
+  return file.type === "image/png" || fileNameIs(file, ".png");
+}
+
+function isJpegFile(file: File): boolean {
+  return (
+    file.type === "image/jpeg" ||
+    file.type === "image/jpg" ||
+    fileNameIs(file, ".jpg", ".jpeg")
+  );
+}
+
+function isWebpFile(file: File): boolean {
+  return file.type === "image/webp" || fileNameIs(file, ".webp");
 }
 
 function isSvgFile(file: File): boolean {
+  return file.type === "image/svg+xml" || fileNameIs(file, ".svg");
+}
+
+function isRasterHint(file: File): boolean {
+  return isPngFile(file) || isJpegFile(file) || isWebpFile(file);
+}
+
+function ascii(bytes: Uint8Array, start: number, end: number): string {
+  return String.fromCharCode(...bytes.subarray(start, end));
+}
+
+function u16be(bytes: Uint8Array, offset: number): number {
+  return ((bytes[offset] ?? 0) << 8) | (bytes[offset + 1] ?? 0);
+}
+
+function u16le(bytes: Uint8Array, offset: number): number {
+  return (bytes[offset] ?? 0) | ((bytes[offset + 1] ?? 0) << 8);
+}
+
+function u24le(bytes: Uint8Array, offset: number): number {
   return (
-    file.type === "image/svg+xml" || file.name.toLowerCase().endsWith(".svg")
+    (bytes[offset] ?? 0) |
+    ((bytes[offset + 1] ?? 0) << 8) |
+    ((bytes[offset + 2] ?? 0) << 16)
   );
+}
+
+function u32le(bytes: Uint8Array, offset: number): number {
+  return (
+    (bytes[offset] ?? 0) |
+    ((bytes[offset + 1] ?? 0) << 8) |
+    ((bytes[offset + 2] ?? 0) << 16) |
+    ((bytes[offset + 3] ?? 0) << 24)
+  );
+}
+
+function hasPngSignature(bytes: Uint8Array): boolean {
+  if (bytes.length < PNG_SIGNATURE.length) return false;
+  return PNG_SIGNATURE.every((value, i) => bytes[i] === value);
+}
+
+function hasJpegSignature(bytes: Uint8Array): boolean {
+  return bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8;
+}
+
+function hasWebpSignature(bytes: Uint8Array): boolean {
+  return (
+    bytes.length >= 12 &&
+    ascii(bytes, 0, 4) === "RIFF" &&
+    ascii(bytes, 8, 12) === "WEBP"
+  );
+}
+
+type RasterFormat = "png" | "jpeg" | "webp";
+
+function detectRasterFormat(
+  file: File,
+  bytes: Uint8Array
+): RasterFormat | null {
+  if (hasPngSignature(bytes)) return "png";
+  if (hasJpegSignature(bytes)) return "jpeg";
+  if (hasWebpSignature(bytes)) return "webp";
+  if (isPngFile(file)) return "png";
+  if (isJpegFile(file)) return "jpeg";
+  if (isWebpFile(file)) return "webp";
+  return null;
+}
+
+function rasterMime(format: RasterFormat): string {
+  switch (format) {
+    case "png":
+      return "image/png";
+    case "jpeg":
+      return "image/jpeg";
+    case "webp":
+      return "image/webp";
+    default: {
+      const _exhaustive: never = format;
+      return _exhaustive;
+    }
+  }
+}
+
+function rasterSize(
+  format: RasterFormat,
+  bytes: Uint8Array
+): { w: number; h: number } {
+  switch (format) {
+    case "png":
+      return parsePngSize(bytes);
+    case "jpeg":
+      return parseJpegSize(bytes);
+    case "webp":
+      return parseWebpSize(bytes);
+    default: {
+      const _exhaustive: never = format;
+      return _exhaustive;
+    }
+  }
+}
+
+/** SOF0–SOF15 except DHT (C4), JPEG-JPG (C8), and DAC (CC). */
+function isJpegSofMarker(marker: number): boolean {
+  if (marker < 0xc0 || marker > 0xcf) return false;
+  return marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc;
+}
+
+export function parseJpegSize(bytes: Uint8Array): { w: number; h: number } {
+  if (!hasJpegSignature(bytes)) {
+    throw new Error("That JPEG is invalid.");
+  }
+  let i = 2;
+  while (i + 8 < bytes.length) {
+    if (bytes[i] !== 0xff) {
+      i += 1;
+      continue;
+    }
+    const marker = bytes[i + 1] ?? 0;
+    if (marker === 0xff) {
+      i += 1;
+      continue;
+    }
+    if (
+      marker === 0xd8 ||
+      marker === 0xd9 ||
+      (marker >= 0xd0 && marker <= 0xd7)
+    ) {
+      i += 2;
+      continue;
+    }
+    const length = u16be(bytes, i + 2);
+    if (length < 2 || i + 2 + length > bytes.length) {
+      throw new Error("That JPEG is invalid.");
+    }
+    if (isJpegSofMarker(marker)) {
+      const h = u16be(bytes, i + 5);
+      const w = u16be(bytes, i + 7);
+      if (!(w > 0) || !(h > 0)) {
+        throw new Error("That JPEG has no size.");
+      }
+      return { w, h };
+    }
+    i += 2 + length;
+  }
+  throw new Error("That JPEG has no size.");
+}
+
+export function parseWebpSize(bytes: Uint8Array): { w: number; h: number } {
+  if (!hasWebpSignature(bytes)) {
+    throw new Error("That WebP is invalid.");
+  }
+  let offset = 12;
+  while (offset + 8 <= bytes.length) {
+    const type = ascii(bytes, offset, offset + 4);
+    const size = u32le(bytes, offset + 4);
+    const data = offset + 8;
+    if (type === "VP8X" && data + 10 <= bytes.length) {
+      const w = 1 + u24le(bytes, data + 4);
+      const h = 1 + u24le(bytes, data + 7);
+      if (!(w > 0) || !(h > 0)) {
+        throw new Error("That WebP has no size.");
+      }
+      return { w, h };
+    }
+    if (type === "VP8 " && data + 10 <= bytes.length) {
+      if (
+        bytes[data + 3] === 0x9d &&
+        bytes[data + 4] === 0x01 &&
+        bytes[data + 5] === 0x2a
+      ) {
+        const w = u16le(bytes, data + 6) & 0x3fff;
+        const h = u16le(bytes, data + 8) & 0x3fff;
+        if (!(w > 0) || !(h > 0)) {
+          throw new Error("That WebP has no size.");
+        }
+        return { w, h };
+      }
+    }
+    if (type === "VP8L" && data + 5 <= bytes.length && bytes[data] === 0x2f) {
+      const b0 = bytes[data + 1] ?? 0;
+      const b1 = bytes[data + 2] ?? 0;
+      const b2 = bytes[data + 3] ?? 0;
+      const b3 = bytes[data + 4] ?? 0;
+      const w = 1 + (b0 | ((b1 & 0x3f) << 8));
+      const h = 1 + ((b1 >> 6) | (b2 << 2) | ((b3 & 0x0f) << 10));
+      if (!(w > 0) || !(h > 0)) {
+        throw new Error("That WebP has no size.");
+      }
+      return { w, h };
+    }
+    offset += 8 + size + (size & 1);
+  }
+  throw new Error("That WebP has no size.");
 }
 
 export type BadgeLogoFile =
@@ -258,7 +467,7 @@ export type BadgeLogoFile =
 
 export async function readSvgFile(file: File): Promise<string> {
   if (!isSvgFile(file)) {
-    throw new Error("Choose an SVG or PNG file.");
+    throw new Error(LOGO_FILE_ERROR);
   }
   if (file.size > SVG_MAX_BYTES) {
     throw new Error("SVG is too large (max 400 KB).");
@@ -267,22 +476,43 @@ export async function readSvgFile(file: File): Promise<string> {
 }
 
 export async function readLogoFile(file: File): Promise<BadgeLogoFile> {
-  if (isPngFile(file)) {
-    if (file.size > PNG_MAX_BYTES) {
-      throw new Error("PNG is too large (max 2 MB).");
-    }
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    const size = parsePngSize(bytes);
+  if (isSvgFile(file) && !isRasterHint(file)) {
+    const sourceSvg = await readSvgFile(file);
+    return { kind: "svg", fileName: file.name, sourceSvg };
+  }
+  if (file.size > RASTER_MAX_BYTES) {
+    throw new Error("Image is too large (max 2 MB).");
+  }
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const format = detectRasterFormat(file, bytes);
+  if (format) {
+    const size = rasterSize(format, bytes);
     return {
       kind: "raster",
       fileName: file.name,
-      dataUrl: bytesToDataUrl("image/png", bytes),
+      dataUrl: bytesToDataUrl(rasterMime(format), bytes),
       width: size.w,
       height: size.h,
     };
   }
-  const sourceSvg = await readSvgFile(file);
-  return { kind: "svg", fileName: file.name, sourceSvg };
+  if (isSvgFile(file)) {
+    const sourceSvg = await readSvgFile(file);
+    return { kind: "svg", fileName: file.name, sourceSvg };
+  }
+  throw new Error(LOGO_FILE_ERROR);
+}
+
+export function badgeLogoPreviewSrc(logo: BadgeLogoFile): string {
+  switch (logo.kind) {
+    case "raster":
+      return logo.dataUrl;
+    case "svg":
+      return svgToBlobUrl(logo.sourceSvg);
+    default: {
+      const _exhaustive: never = logo;
+      return _exhaustive;
+    }
+  }
 }
 
 function lumaTransfer(light: number): { slope: string; intercept: string } {
