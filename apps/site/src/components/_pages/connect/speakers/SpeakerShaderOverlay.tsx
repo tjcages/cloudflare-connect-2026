@@ -45,6 +45,7 @@ import {
   speakerWiperClockIsLive,
   speakerWiperShouldEnter,
   speakerWiperShouldLeave,
+  speakerWiperVisualOrder,
   SPEAKER_WIPER_ENTER_RATIO,
   SPEAKER_WIPER_SHADER_DELAY_MS,
   type SpeakerWiperClock,
@@ -368,7 +369,12 @@ export default function SpeakerShaderOverlay() {
         return;
       }
       lastFrameMs = nowMs;
-      commitPendingSpeakerWipers(wiperClock, nowMs, wiperStartDelayMs());
+      commitPendingSpeakerWipers(
+        wiperClock,
+        nowMs,
+        wiperStartDelayMs(),
+        speakerWiperVisualOrder(apertures.map(({ rect }) => rect)),
+      );
       wiperNowMs = nowMs;
       clock.set(nowMs);
       renderOnce();
