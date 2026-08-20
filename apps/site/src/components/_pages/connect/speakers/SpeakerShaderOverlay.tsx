@@ -10,9 +10,7 @@ import {
   loadSpeakerFrameSettings,
   SPEAKER_FRAME_DEFAULTS,
   SPEAKER_FRAME_SETTINGS_EVENT,
-  SPEAKER_POINTER_VARIANT,
   speakerSharedEngineConfig,
-  speakerVariantLook,
   type SpeakerFrameSettings,
 } from "./speaker-frame-controls";
 import {
@@ -65,25 +63,35 @@ const paintPartialFrameOutline = (
   const bottom = y + height;
   const corner = Math.min(12, width / 4, height / 4);
 
-  context.strokeStyle = stroke(0.42 * opacity);
-  context.lineWidth = 1;
-  context.strokeRect(x + 0.5, y + 0.5, width - 1, height - 1);
+  const drawRect = (color: string, lineWidth: number) => {
+    context.strokeStyle = color;
+    context.lineWidth = lineWidth;
+    context.strokeRect(x + 0.5, y + 0.5, width - 1, height - 1);
+  };
 
-  context.beginPath();
-  context.moveTo(x, y + corner);
-  context.lineTo(x, y);
-  context.lineTo(x + corner, y);
-  context.moveTo(right - corner, y);
-  context.lineTo(right, y);
-  context.lineTo(right, y + corner);
-  context.moveTo(right, bottom - corner);
-  context.lineTo(right, bottom);
-  context.lineTo(right, bottom - corner);
-  context.moveTo(x + corner, bottom);
-  context.lineTo(x, bottom);
-  context.lineTo(x, bottom - corner);
-  context.strokeStyle = stroke(0.95 * opacity);
-  context.stroke();
+  const drawCorners = (color: string, lineWidth: number) => {
+    context.beginPath();
+    context.moveTo(x, y + corner);
+    context.lineTo(x, y);
+    context.lineTo(x + corner, y);
+    context.moveTo(right - corner, y);
+    context.lineTo(right, y);
+    context.lineTo(right, y + corner);
+    context.moveTo(right, bottom - corner);
+    context.lineTo(right, bottom);
+    context.lineTo(right, bottom - corner);
+    context.moveTo(x + corner, bottom);
+    context.lineTo(x, bottom);
+    context.lineTo(x, bottom - corner);
+    context.strokeStyle = color;
+    context.lineWidth = lineWidth;
+    context.stroke();
+  };
+
+  drawRect("rgba(0, 0, 0, 0.45)", 3);
+  drawCorners("rgba(0, 0, 0, 0.55)", 3);
+  drawRect(stroke(0.7 * opacity), 1);
+  drawCorners(stroke(opacity), 2);
 };
 
 export default function SpeakerShaderOverlay() {
@@ -257,12 +265,16 @@ export default function SpeakerShaderOverlay() {
       if (!engine || frames.length === 0 || !overlayBlitContext) return;
       syncOverlayBlitSize();
       if (overlayBlitDirty) {
+        engine.setCursor(null);
         engine.setConfig(config);
         engine.renderFrame();
         overlayBlitContext.setTransform(1, 0, 0, 1, 0, 0);
         overlayBlitContext.clearRect(0, 0, overlayBlit.width, overlayBlit.height);
         overlayBlitContext.drawImage(renderCanvas, 0, 0);
         overlayBlitDirty = false;
+        if (pointerInside && !Number.isNaN(lastClientX)) {
+          updatePointer(lastClientX, lastClientY);
+        }
       }
       compositeLayer(frames, overlayBlit, false);
     };
@@ -301,21 +313,19 @@ export default function SpeakerShaderOverlay() {
         const paintOrder = ["orange", "grey"] as const;
         for (const variant of paintOrder) {
           const variantFrames = frames.filter((frame) => frame.variant === variant).map((frame) => frame.rect);
-          if (variant === SPEAKER_POINTER_VARIANT && pointerFrameRect) {
-            variantFrames.push(pointerFrameRect);
-          }
           const config = {
             ...speakerFramePaintConfig(settings, variant),
-            cursorTrail: variant === SPEAKER_POINTER_VARIANT ? overlayTrail : idleTrail,
+            cursorTrail: idleTrail,
           };
-          const liveOverlay = pointerInside && variant === SPEAKER_POINTER_VARIANT && !reducedMotion.matches;
           switch (variant) {
             case "orange":
               paintLayer(variantFrames, config);
               break;
             case "grey":
-              if (liveOverlay) paintLayer(variantFrames, config);
-              else paintOverlayLayer(variantFrames, config);
+              paintOverlayLayer(variantFrames, config);
+              if (pointerInside && pointerFrameRect && !reducedMotion.matches) {
+                paintLayer([pointerFrameRect], { ...config, cursorTrail: overlayTrail });
+              }
               break;
             default: {
               const unused: never = variant;
@@ -334,7 +344,7 @@ export default function SpeakerShaderOverlay() {
       for (const frame of frames) {
         if (frame.variant !== "grey") continue;
         paintPartialFrameOutline(outputContext, frame.rect, (opacity) =>
-          speakerFrameOutlineColor(speakerVariantLook(settings, frame.variant).bgColor, opacity),
+          speakerFrameOutlineColor("#ffffff", opacity),
         );
       }
       outputContext.restore();
