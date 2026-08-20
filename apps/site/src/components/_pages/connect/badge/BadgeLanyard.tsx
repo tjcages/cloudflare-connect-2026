@@ -38,13 +38,15 @@ const WING_CUT_X = 0.02;
 const LEFT_TASSEL_X = -0.02;
 const CHAIN_BONES = 8;
 const GRAVITY = -5.4;
-const DAMPING_XZ = 0.87;
-const DAMPING_Y = 0.72;
-const CONSTRAINT_ITERS = 8;
-const CONSTRAINT_STIFFNESS = 0.5;
-const DRAG_FOLLOW = 0.32;
-const REST_PULL = 0.09;
-const SLEEP_EPS = 0.0024;
+const DAMPING_TIP = 0.58;
+const DAMPING_CORD = 0.965;
+const DAMPING_Y = 0.7;
+const CONSTRAINT_ITERS = 4;
+const CONSTRAINT_STIFFNESS = 0.4;
+const DRAG_FOLLOW = 0.42;
+const REST_PULL = 0.26;
+const SWAY_FOLLOW = 0.1;
+const SLEEP_EPS = 0.0018;
 const DRAG_LIMIT_X = 0.22;
 const DRAG_LIMIT_UP = 0.07;
 const DRAG_LIMIT_DOWN = 0.13;
@@ -682,6 +684,18 @@ function projectInextensible(rope: RopeState) {
   }
 }
 
+function applySway(rope: RopeState) {
+  const last = rope.now.length - 1;
+  const tip = rope.now[0]!;
+  for (let index = 1; index < last; index += 1) {
+    const along = 1 - index / last;
+    const lag = along * along;
+    const point = rope.now[index]!;
+    point.x += (tip.x * lag - point.x) * SWAY_FOLLOW;
+    point.z += (tip.z * lag - point.z) * SWAY_FOLLOW;
+  }
+}
+
 function constrainRope(rope: RopeState, drag: Vector3 | null) {
   const last = rope.now.length - 1;
   for (let iter = 0; iter < CONSTRAINT_ITERS; iter += 1) {
@@ -729,9 +743,10 @@ function stepRope(
   for (let index = 0; index < last; index += 1) {
     const point = rope.now[index]!;
     const previous = rope.prev[index]!;
-    const vx = (point.x - previous.x) * DAMPING_XZ;
+    const damp = index === 0 ? DAMPING_TIP : DAMPING_CORD;
+    const vx = (point.x - previous.x) * damp;
     const vy = (point.y - previous.y) * DAMPING_Y;
-    const vz = (point.z - previous.z) * DAMPING_XZ;
+    const vz = (point.z - previous.z) * damp;
     previous.copy(point);
     point.x += vx;
     point.y += vy + gravity;
@@ -748,13 +763,12 @@ function stepRope(
   constrainRope(rope, drag);
 
   if (!drag) {
-    for (let index = 0; index < last; index += 1) {
-      const point = rope.now[index]!;
-      point.x += -point.x * REST_PULL;
-      point.z += -point.z * REST_PULL;
-    }
-    projectInextensible(rope);
+    const tip = rope.now[0]!;
+    tip.x += -tip.x * REST_PULL;
+    tip.z += -tip.z * REST_PULL;
   }
+  applySway(rope);
+  projectInextensible(rope);
   rope.now[last]!.copy(rope.pin);
 }
 
