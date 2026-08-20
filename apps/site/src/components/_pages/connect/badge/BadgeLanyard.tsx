@@ -250,6 +250,7 @@ function useHeroShaderTexture(
   tune: BadgeTune,
   faceCanvasRef?: RefObject<HTMLCanvasElement | null>
 ) {
+  const { invalidate } = useThree();
   const skip = useRef(0);
   const lastKey = useRef("");
   const bakedWhileFrozen = useRef(false);
@@ -297,17 +298,21 @@ function useHeroShaderTexture(
       if (generation !== markGeneration.current) return;
       markImage.current = rasterizeMark(image);
       markGeneration.current += 1;
+      bakedWhileFrozen.current = false;
+      invalidate();
     };
     image.onerror = () => {
       if (generation !== markGeneration.current) return;
       markGeneration.current += 1;
+      bakedWhileFrozen.current = false;
+      invalidate();
     };
     image.src = logoMarkSrc;
     return () => {
       image.onload = null;
       image.onerror = null;
     };
-  }, [logoMarkSrc]);
+  }, [invalidate, logoMarkSrc]);
 
   useFrame(() => {
     const printKey = [
@@ -353,18 +358,12 @@ function useHeroShaderTexture(
     ].join("|");
     const key = `${identityKey(identity, logoMarkSrc, printSrc, printKey)}|${markGeneration.current}`;
     const identityChanged = key !== lastKey.current;
-    const logoLive = Boolean(logoMarkSrc);
     skip.current += 1;
-    if (
-      !shaderLive &&
-      !logoLive &&
-      !identityChanged &&
-      bakedWhileFrozen.current
-    ) {
+    if (!shaderLive && !identityChanged && bakedWhileFrozen.current) {
       return;
     }
     if (
-      (shaderLive || logoLive) &&
+      shaderLive &&
       !identityChanged &&
       skip.current % (lowPower ? 4 : 2) !== 0
     ) {
@@ -1490,8 +1489,7 @@ function LanyardBadge({
     });
     if (
       dragging.current ||
-      shaderLive ||
-      Boolean(logoMarkSrc) ||
+      (shaderLive && !reducedMotion) ||
       !ropeIsAsleep(rig.rope)
     ) {
       state.invalidate();

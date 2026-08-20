@@ -125,7 +125,7 @@ export function serializeBadgeSearch(params: BadgeParams): string {
   if (name) search.set("name", name);
   if (company) search.set("company", company);
   if (params.theme === "custom") {
-    if (color !== DEFAULT_BADGE_COLOR) search.set("color", color.slice(1));
+    search.set("color", color.slice(1));
   } else if (params.theme !== DEFAULT_BADGE_THEME_ID) {
     search.set("theme", params.theme);
   }

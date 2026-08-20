@@ -331,13 +331,19 @@ export default function BadgePage(_props: IslandProps) {
   const onShareX = () => {
     if (sharing) return;
     setSharing(true);
+    const popup = window.open("about:blank", "_blank");
+    if (popup) popup.opener = null;
     void captureShareCard()
       .then((title) => {
-        window.open(
-          badgeTweetUrl(title, pageUrl),
-          "_blank",
-          "noopener,noreferrer"
-        );
+        const url = badgeTweetUrl(title, pageUrl);
+        if (popup && !popup.closed) {
+          popup.location.replace(url);
+          return;
+        }
+        window.open(url, "_blank", "noopener,noreferrer");
+      })
+      .catch(() => {
+        popup?.close();
       })
       .finally(() => setSharing(false));
   };
@@ -431,7 +437,7 @@ export default function BadgePage(_props: IslandProps) {
           config={logoConfig}
           height={printH}
           maxDpr={lowPower ? 1 : 1.5}
-          paused={reducedMotion}
+          paused={reducedMotion || !shaderLive}
           src={plateSrc}
           width={printW}
         />

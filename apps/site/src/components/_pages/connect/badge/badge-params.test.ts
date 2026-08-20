@@ -59,7 +59,7 @@ describe("badge URL params", () => {
     expect(parseBadgeHex("#1F7")).toBe("#11ff77");
   });
 
-  it("writes a custom hex to the share URL and omits the default coral", () => {
+  it("writes a custom hex to the share URL, including the default orange", () => {
     expect(
       serializeBadgeSearch({
         name: "Ada",
@@ -77,7 +77,21 @@ describe("badge URL params", () => {
         color: DEFAULT_BADGE_COLOR,
         role: "attendee",
       })
-    ).toBe("");
+    ).toBe("?color=f46021");
+    expect(parseBadgeSearch("?theme=custom")).toEqual({
+      name: "",
+      company: "",
+      theme: "custom",
+      color: DEFAULT_BADGE_COLOR,
+      role: "attendee",
+    });
+    expect(parseBadgeSearch("?color=f46021").theme).toBe("custom");
+    expect(resolveBadgeView(parseBadgeSearch("?color=f46021")).theme.id).toBe(
+      "custom"
+    );
+    expect(resolveBadgeView(parseBadgeSearch("")).theme.id).toBe(
+      DEFAULT_BADGE_THEME_ID
+    );
   });
 
   it("omits default theme and role from the share URL", () => {
