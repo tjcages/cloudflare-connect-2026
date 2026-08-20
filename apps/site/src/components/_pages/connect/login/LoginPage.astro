@@ -3,6 +3,8 @@ import ConnectHeroTwizzler from "../hero/ConnectHeroTwizzler";
 import DashboardLoginForm from "./DashboardLoginForm";
 import LoginPromo from "./LoginPromo.astro";
 import {
+  LOGIN_MOBILE_SCRIM,
+  LOGIN_MOBILE_TWIZZLER_DEFAULTS,
   LOGIN_PANEL_TARGETS,
   LOGIN_RAIN_DEFAULT,
   LOGIN_TWIZZLER_DEFAULTS,
@@ -100,12 +102,17 @@ const SIGN_UP_HREF = "https://dash.cloudflare.com/sign-up";
           <div class="pointer-events-none absolute inset-0 z-0 h-full w-full">
             <ConnectHeroTwizzler
               client:media="(max-width: 1023px)"
-              defaults={LOGIN_TWIZZLER_DEFAULTS}
+              defaults={LOGIN_MOBILE_TWIZZLER_DEFAULTS}
               hideTopFade={true}
               panelTargets={LOGIN_PANEL_TARGETS}
               rainDefaults={LOGIN_RAIN_DEFAULT}
             />
           </div>
+          <div
+            aria-hidden="true"
+            class="pointer-events-none absolute inset-0 z-[1]"
+            style={{ backgroundImage: LOGIN_MOBILE_SCRIM }}
+          />
           <LoginPromo layout="banner" />
         </section>
       </div>

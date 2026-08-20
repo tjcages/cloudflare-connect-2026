@@ -8,6 +8,9 @@ import { CONNECT_HERO_TWIZZLER_DEFAULTS } from "../hero/twizzler-defaults";
 import { LOGIN_OVERLAY_COPY } from "./login-copy";
 import {
   LOGIN_DARK_APPEARANCE,
+  LOGIN_MOBILE_SCRIM,
+  LOGIN_MOBILE_TWIZZLER_CROP,
+  LOGIN_MOBILE_TWIZZLER_DEFAULTS,
   LOGIN_PANEL_TARGETS,
   LOGIN_RAIN_DEFAULT,
   LOGIN_TWIZZLER_DEFAULTS,
@@ -100,9 +103,38 @@ describe("dashboard login shader", () => {
     expect(loginPageSource).toContain("px-16 pt-88 min-[1024px]:hidden");
     expect(loginPageSource).toContain('client:media="(max-width: 1023px)"');
     expect(loginPageSource).toContain('client:media="(min-width: 1024px)"');
+    expect(loginPageSource).toContain("defaults={LOGIN_MOBILE_TWIZZLER_DEFAULTS}");
+    expect(loginPageSource).toContain("LOGIN_MOBILE_SCRIM");
     expect(loginFormSource).toContain("pt-16 min-[1024px]:pt-96");
     expect(loginPromoSource).toContain("text-heading-h5");
     expect(loginPromoSource).toContain("text-body-small");
+  });
+
+  it("eases an orange left-to-right scrim over the mobile banner shader", () => {
+    expect(LOGIN_MOBILE_SCRIM).toContain("linear-gradient(to right");
+    expect(LOGIN_MOBILE_SCRIM).toContain("#f86a00");
+    expect(LOGIN_MOBILE_SCRIM).toContain("rgb(248 106 0 / 0)");
+  });
+
+  it("zooms and frames the Twizzler for the short mobile banner only", () => {
+    expect(LOGIN_MOBILE_TWIZZLER_DEFAULTS).toMatchObject({
+      ...LOGIN_DARK_APPEARANCE,
+      ...LOGIN_MOBILE_TWIZZLER_CROP,
+    });
+    expect(LOGIN_MOBILE_TWIZZLER_CROP.scale).toBeGreaterThan(
+      LOGIN_TWIZZLER_DEFAULTS.scale
+    );
+    expect(LOGIN_MOBILE_TWIZZLER_CROP.camDist).toBeLessThan(
+      LOGIN_TWIZZLER_DEFAULTS.camDist
+    );
+    expect(LOGIN_TWIZZLER_DEFAULTS.scale).toBe(
+      CONNECT_HERO_TWIZZLER_DEFAULTS.scale
+    );
+    expect(LOGIN_TWIZZLER_DEFAULTS.camDist).toBe(
+      CONNECT_HERO_TWIZZLER_DEFAULTS.camDist
+    );
+    expect(LOGIN_TWIZZLER_DEFAULTS.panX).toBe(0);
+    expect(loginPageSource).toContain("defaults={LOGIN_TWIZZLER_DEFAULTS}");
   });
 
   it("fills the promo pane with the homepage hero shader stack", () => {

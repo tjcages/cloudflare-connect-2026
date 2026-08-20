@@ -44,3 +44,26 @@ export const LOGIN_RAIN_DEFAULT: ConnectHeroRain = {
     transform: { fit: "cover", zoom: 1, panX: 0, panY: 0 },
   },
 };
+
+/**
+ * Short banner crop. `scale` is the panel Zoom; `camDist` sizes the moth in
+ * frame; pan parks it on the right so copy sits on the orange field.
+ */
+export const LOGIN_MOBILE_TWIZZLER_CROP = {
+  scale: 5.5,
+  camDist: 10.8,
+  panX: 240,
+  panY: 8,
+} as const;
+
+export const LOGIN_MOBILE_TWIZZLER_DEFAULTS: TwizzlerSettings = {
+  ...LOGIN_TWIZZLER_DEFAULTS,
+  ...LOGIN_MOBILE_TWIZZLER_CROP,
+};
+
+/**
+ * Ease-in (1 − t³) left → right scrim in Dark Appearance orange so banner
+ * type stays readable while the moth remains visible on the right.
+ */
+export const LOGIN_MOBILE_SCRIM =
+  "linear-gradient(to right, #f86a00 0%, rgb(248 106 0 / 0.99) 20%, rgb(248 106 0 / 0.94) 40%, rgb(248 106 0 / 0.78) 60%, rgb(248 106 0 / 0.49) 80%, rgb(248 106 0 / 0) 100%)";
