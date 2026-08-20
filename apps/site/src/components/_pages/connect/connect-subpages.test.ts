@@ -1,7 +1,6 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { connectNavItems } from "@/components/header/connect/connect-nav";
 import { connectResourceGroups } from "@/components/header/connect/resources-data";
 
 const read = (relativePath: string) =>
@@ -9,10 +8,13 @@ const read = (relativePath: string) =>
 
 describe("Connect subpage polish", () => {
   it("keeps Badge and Sessions out of the top nav", () => {
-    const labels = connectNavItems.map((item) => item.label);
-    expect(labels).toEqual(["Agenda", "Speakers", "Resources"]);
-
+    const nav = read("src/components/header/connect/connect-nav.ts");
     const mobileMenu = read("src/components/header/mobile/MobileMenu.tsx");
+    expect(nav).toContain('label: "Agenda"');
+    expect(nav).toContain('label: "Speakers"');
+    expect(nav).toContain('label: "Resources"');
+    expect(nav).not.toContain('label: "Badge"');
+    expect(nav).not.toContain('label: "Sessions"');
     expect(mobileMenu).not.toMatch(/label: "Badge"/);
     expect(mobileMenu).not.toMatch(/label: "Sessions"/);
   });
@@ -50,13 +52,17 @@ describe("Connect subpage polish", () => {
   it("adds agenda stripe accents to University schedule and Partner Summit cards", () => {
     const university = read("src/pages/connect/cloudflare-university.astro");
     const partner = read("src/pages/connect/partner-summit.astro");
+    const partnerData = read(
+      "src/components/_pages/connect/page-data/partner.ts"
+    );
     expect(university).toContain("AgendaStripeRoot");
     expect(university).toContain("AgendaStripeAperture");
     expect(university).toContain('slot="info"');
     expect(partner).toContain("AgendaStripeRoot");
     expect(partner).toContain("Partner Awards");
     expect(partner).toContain("Extend your stay");
-    expect(partner).toContain("Stay for Connect");
+    expect(partner).toContain("partnerStay");
+    expect(partnerData).toContain("Stay for Connect");
   });
 
   it("adds hero shaders to Sponsors and FAQ via the shared subpage hero", () => {
