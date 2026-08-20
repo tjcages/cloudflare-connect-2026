@@ -1631,6 +1631,7 @@ export default function BadgeLanyard({
         alpha: true,
         antialias: !lowPower,
         depth: true,
+        preserveDrawingBuffer: true,
         powerPreference: lowPower ? "low-power" : "high-performance",
         stencil: false,
       }}

@@ -1,10 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { badgeIdentityLayout } from "./badge-identity";
 import {
-  BADGE_SHARE_HEIGHT,
-  BADGE_SHARE_WIDTH,
   badgeShareHeadline,
   badgeTweetUrl,
+  keepShareNode,
 } from "./badge-share";
 
 describe("badge identity layout", () => {
@@ -30,7 +29,6 @@ describe("badge share copy", () => {
     expect(badgeShareHeadline("Tyler")).toBe("Tyler's Connect 2026 badge");
     expect(badgeShareHeadline("  Ada  ")).toBe("Ada's Connect 2026 badge");
     expect(badgeShareHeadline("")).toBe("My Connect 2026 badge");
-    expect(BADGE_SHARE_WIDTH / BADGE_SHARE_HEIGHT).toBeCloseTo(16 / 9, 5);
     const url = badgeTweetUrl(
       "Tyler's Connect 2026 badge",
       "https://example.com/connect/badge?name=Tyler"
@@ -40,5 +38,16 @@ describe("badge share copy", () => {
     expect(decodeURIComponent(url)).toContain(
       "https://example.com/connect/badge?name=Tyler"
     );
+  });
+
+  it("drops marked nodes from the hero screenshot", () => {
+    expect(keepShareNode({ hasAttribute: () => false } as HTMLElement)).toBe(
+      true
+    );
+    expect(
+      keepShareNode({
+        hasAttribute: (name: string) => name === "data-share-hide",
+      } as HTMLElement)
+    ).toBe(false);
   });
 });

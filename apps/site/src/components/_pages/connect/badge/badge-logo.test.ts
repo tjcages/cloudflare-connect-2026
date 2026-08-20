@@ -374,10 +374,11 @@ describe("badge logo SVG prep", () => {
     expect(page).toContain("Copy shareable card");
     expect(page).toContain("Share on X");
     expect(page).toContain("text-balance");
-    expect(page).toContain("composeBadgeShareCard");
+    expect(page).toContain("captureHeroShare");
     expect(page).toContain("BadgeShareDock");
-    expect(page).toContain("faceCanvasRef");
-    expect(page).toContain("backdropCanvasRef");
+    expect(page).toContain("heroRef");
+    expect(page).toContain("data-share-hide");
+    expect(page).toContain("justify-center");
     expect(page).not.toContain("Copy badge link");
     expect(page).not.toContain("Register now");
     expect(page).toContain("Your Connect 2026 badge");
@@ -392,6 +393,7 @@ describe("badge logo SVG prep", () => {
       "utf8"
     );
     expect(lanyard).toContain('"contain"');
+    expect(lanyard).toContain("preserveDrawingBuffer");
     expect(page).not.toContain("src={logoMarkSrc");
     expect(page).not.toContain("<BadgeShaderSource");
     expect(page).not.toContain("<BadgeLogoUpload");
