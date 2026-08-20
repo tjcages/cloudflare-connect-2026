@@ -15,6 +15,7 @@ import {
   MathUtils,
   Mesh,
   MeshBasicMaterial,
+  MeshPhysicalMaterial,
   MeshStandardMaterial,
   PlaneGeometry,
   Quaternion,
@@ -57,7 +58,7 @@ const ROLL_MAX = 0.2;
 
 const CARD_W = 0.1;
 const CARD_H = 0.158;
-const CARD_D = 0.012;
+const CARD_D = 0.003;
 const CARD_RADIUS = 0.007;
 const SHADER_INSET = 0.003;
 const CARD_OVERLAP = 0.006;
@@ -406,10 +407,12 @@ function createBadgeCard(texture: Texture, hookX: number): Group {
   bodyGeometry.translate(0, 0, -CARD_D / 2);
   const body = new Mesh(
     bodyGeometry,
-    new MeshStandardMaterial({
-      color: "#f4f1ea",
+    new MeshPhysicalMaterial({
+      color: "#ffffff",
       metalness: 0.04,
-      roughness: 0.32,
+      roughness: 0.12,
+      clearcoat: 1,
+      clearcoatRoughness: 0.06,
     })
   );
   const face = new Mesh(
