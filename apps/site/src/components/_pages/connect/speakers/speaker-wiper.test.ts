@@ -10,7 +10,7 @@ import {
   resolveWipingFrames,
   speakerFrameOutlineColor,
   speakerFramePaintConfig,
-  speakerOrangeCoverRect,
+  speakerOrangeMaskRects,
   speakerOverlayIrisRect,
   speakerWiperProgress,
   speakerWiperShouldEnter,
@@ -24,11 +24,22 @@ const aperture = { x: 40, y: 10, width: 200, height: 180 };
 const rest = { x: 40, y: 10, width: 200, height: 180 };
 
 describe("speaker frame wipers", () => {
-  it("keeps the orange field covering the portrait until the iris finishes", () => {
-    expect(speakerOrangeCoverRect(aperture, 0)).toEqual(aperture);
-    expect(speakerOrangeCoverRect(aperture, 0.5)).toEqual(aperture);
-    expect(speakerOrangeCoverRect(aperture, 1)).toBeNull();
-    expect(speakerWiperProgress(0, 0)).toBe(0);
+  it("masks orange to the region around a hole", () => {
+    expect(speakerOrangeMaskRects(aperture, null)).toEqual([aperture]);
+    expect(speakerOrangeMaskRects(aperture, { x: 140, y: 100, width: 0, height: 0 })).toEqual([aperture]);
+    expect(speakerOrangeMaskRects(aperture, aperture)).toEqual([]);
+
+    const hole = { x: 90, y: 50, width: 80, height: 60 };
+    const around = speakerOrangeMaskRects(aperture, hole);
+    expect(around).toHaveLength(4);
+    expect(around).toEqual(
+      expect.arrayContaining([
+        { x: 40, y: 10, width: 200, height: 40 },
+        { x: 40, y: 110, width: 200, height: 80 },
+        { x: 40, y: 50, width: 50, height: 60 },
+        { x: 170, y: 50, width: 70, height: 60 },
+      ]),
+    );
   });
 
   it("grows the overlay iris from the center with a strong ease-out", () => {
@@ -96,18 +107,32 @@ describe("speaker frame wipers", () => {
     expect(playing[0]?.rect).toEqual(aperture);
   });
 
-  it("grows the overlay from the center while orange stays full, then drops orange", () => {
+  it("grows the overlay from the center while orange stays around it", () => {
     const authored = resolveAuthoredFrames(
       [{ imageIndex: 0, x: 0, y: 0, width: 1, height: 1, span: false, variant: "grey" as const }],
       [aperture],
     );
     expect(resolveWipingFrames(authored, [aperture], [0], 0).map((frame) => frame.variant)).toEqual(["orange"]);
     const mid = resolveWipingFrames(authored, [aperture], [0], 300);
-    expect(mid.map((frame) => frame.variant)).toEqual(["orange", "grey"]);
-    expect(mid[0]?.rect).toEqual(aperture);
-    expect(mid[1]?.rect.width).toBeGreaterThan(0);
-    expect(mid[1]?.rect.width).toBeLessThan(aperture.width);
-    expect(mid[1]?.rect.x).toBeGreaterThan(aperture.x);
+    const overlay = mid.find((frame) => frame.variant === "grey");
+    const orange = mid.filter((frame) => frame.variant === "orange");
+    expect(overlay).toBeDefined();
+    expect(orange.length).toBeGreaterThan(1);
+    expect(overlay?.rect.width).toBeGreaterThan(0);
+    expect(overlay?.rect.width).toBeLessThan(aperture.width);
+    expect(overlay?.rect.x).toBeGreaterThan(aperture.x);
+    for (const frame of orange) {
+      const overlayRight = overlay!.rect.x + overlay!.rect.width;
+      const overlayBottom = overlay!.rect.y + overlay!.rect.height;
+      const orangeRight = frame.rect.x + frame.rect.width;
+      const orangeBottom = frame.rect.y + frame.rect.height;
+      const overlaps =
+        frame.rect.x < overlayRight &&
+        orangeRight > overlay!.rect.x &&
+        frame.rect.y < overlayBottom &&
+        orangeBottom > overlay!.rect.y;
+      expect(overlaps).toBe(false);
+    }
     expect(resolveWipingFrames(authored, [aperture], [0], 20_000).map((frame) => frame.variant)).toEqual(["grey"]);
   });
 

@@ -7,7 +7,7 @@ import {
   type SpeakerFrameVariantId,
 } from "./speaker-frame-controls";
 import { SPEAKER_SHADER_CONFIG } from "./speaker-shader-config";
-import type { Rect } from "./speaker-shader-geometry";
+import { intersectRects, type Rect } from "./speaker-shader-geometry";
 
 /** Rest layout is a full-bleed overlay; orange exists only during the intro. */
 export const SPEAKER_OVERLAY_REST_WIDTH = 1;
@@ -41,11 +41,50 @@ export const speakerWiperProgress = (elapsedMs: number, staggerMs: number): numb
   return clamp01(local / SPEAKER_WIPER_DURATION_MS);
 };
 
-/** Orange covers the portrait until the overlay iris finishes. */
-export const speakerOrangeCoverRect = (aperture: Rect, progress: number): Rect | null => {
-  if (progress >= 1) return null;
-  if (aperture.width < 0.5 || aperture.height < 0.5) return null;
-  return { x: aperture.x, y: aperture.y, width: aperture.width, height: aperture.height };
+const MIN_RECT_PX = 0.5;
+
+const pushRect = (rects: Rect[], rect: Rect) => {
+  if (rect.width >= MIN_RECT_PX && rect.height >= MIN_RECT_PX) rects.push(rect);
+};
+
+/** Orange remains only outside the overlay iris — a hole punched through the field. */
+export const speakerOrangeMaskRects = (aperture: Rect, hole: Rect | null): Rect[] => {
+  if (aperture.width < MIN_RECT_PX || aperture.height < MIN_RECT_PX) return [];
+  const clipped = hole && hole.width >= MIN_RECT_PX && hole.height >= MIN_RECT_PX ? intersectRects(aperture, hole) : null;
+  if (!clipped) return [{ x: aperture.x, y: aperture.y, width: aperture.width, height: aperture.height }];
+
+  const apertureRight = aperture.x + aperture.width;
+  const apertureBottom = aperture.y + aperture.height;
+  const holeRight = clipped.x + clipped.width;
+  const holeBottom = clipped.y + clipped.height;
+  const rects: Rect[] = [];
+
+  pushRect(rects, {
+    x: aperture.x,
+    y: aperture.y,
+    width: aperture.width,
+    height: clipped.y - aperture.y,
+  });
+  pushRect(rects, {
+    x: aperture.x,
+    y: holeBottom,
+    width: aperture.width,
+    height: apertureBottom - holeBottom,
+  });
+  pushRect(rects, {
+    x: aperture.x,
+    y: clipped.y,
+    width: clipped.x - aperture.x,
+    height: clipped.height,
+  });
+  pushRect(rects, {
+    x: holeRight,
+    y: clipped.y,
+    width: apertureRight - holeRight,
+    height: clipped.height,
+  });
+
+  return rects;
 };
 
 /**
@@ -110,8 +149,8 @@ type WipingFrame = {
 };
 
 /**
- * Orange fills each started portrait, then an overlay iris grows from the
- * center. When the iris completes, orange is gone.
+ * Orange fills each started portrait around the overlay iris. When the iris
+ * completes, orange is gone.
  */
 export const resolveWipingFrames = <T extends WipingFrame>(
   authored: readonly T[],
@@ -122,29 +161,35 @@ export const resolveWipingFrames = <T extends WipingFrame>(
 ): T[] => {
   const frames: T[] = [];
   const progressByImage = new Map<number, number>();
+  const irisByImage = new Map<number, Rect>();
 
   for (let imageIndex = 0; imageIndex < apertures.length; imageIndex += 1) {
-    const aperture = apertures[imageIndex];
-    if (!aperture) continue;
     const elapsedMs = frameElapsedMs(imageIndex, startedAtMs, nowMs, options);
     if (elapsedMs == null) continue;
-    const progress = frameProgress(elapsedMs, options);
-    progressByImage.set(imageIndex, progress);
-    const orange = speakerOrangeCoverRect(aperture, progress);
-    if (orange) {
-      frames.push({ imageIndex, variant: "orange", rect: orange } as T);
-    }
+    progressByImage.set(imageIndex, frameProgress(elapsedMs, options));
   }
 
   for (const frame of authored) {
     if (frame.variant !== "grey") continue;
-    const aperture = apertures[frame.imageIndex];
-    if (!aperture) continue;
     const progress = progressByImage.get(frame.imageIndex);
     if (progress == null) continue;
     const rect = speakerOverlayIrisRect(frame.rect, progress);
-    if (rect.width < 0.5 || rect.height < 0.5) continue;
+    const existing = irisByImage.get(frame.imageIndex);
+    if (!existing || rect.width * rect.height > existing.width * existing.height) {
+      irisByImage.set(frame.imageIndex, rect);
+    }
+    if (rect.width < MIN_RECT_PX || rect.height < MIN_RECT_PX) continue;
     frames.push({ ...frame, rect });
+  }
+
+  for (const [imageIndex, progress] of progressByImage) {
+    if (progress >= 1) continue;
+    const aperture = apertures[imageIndex];
+    if (!aperture) continue;
+    const hole = irisByImage.get(imageIndex) ?? null;
+    for (const rect of speakerOrangeMaskRects(aperture, hole)) {
+      frames.push({ imageIndex, variant: "orange", rect } as T);
+    }
   }
 
   return frames;
