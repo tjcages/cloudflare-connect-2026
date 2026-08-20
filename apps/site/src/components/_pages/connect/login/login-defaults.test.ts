@@ -101,7 +101,7 @@ describe("dashboard login shader", () => {
     expect(loginPageSource).toContain('layout="banner"');
     expect(loginPageSource).toContain("min-[1024px]:hidden");
     expect(loginPageSource).toContain("rounded-[12px]");
-    expect(loginPageSource).toContain("ring-1 ring-[#d6d6d6]");
+    expect(loginPageSource).toContain("ring-1 ring-[#fea700]");
     expect(loginPageSource).toContain("px-16 pt-88 min-[1024px]:hidden");
     expect(loginPageSource).toContain('client:media="(max-width: 1023px)"');
     expect(loginPageSource).toContain('client:media="(min-width: 1024px)"');
