@@ -62,8 +62,8 @@ export const LOGIN_MOBILE_TWIZZLER_DEFAULTS: TwizzlerSettings = {
 };
 
 /**
- * Ease-in (1 − t³) left → right scrim in Dark Appearance orange so banner
- * type stays readable while the moth remains visible on the right.
+ * Ease-in left → right scrim in Dark Appearance orange. Transparent by 68%
+ * so the moth stays visible on the right of the short banner.
  */
 export const LOGIN_MOBILE_SCRIM =
-  "linear-gradient(to right, #f86a00 0%, rgb(248 106 0 / 0.99) 20%, rgb(248 106 0 / 0.94) 40%, rgb(248 106 0 / 0.78) 60%, rgb(248 106 0 / 0.49) 80%, rgb(248 106 0 / 0) 100%)";
+  "linear-gradient(to right, #f86a00 0%, rgb(248 106 0 / 0.99) 12%, rgb(248 106 0 / 0.82) 30%, rgb(248 106 0 / 0.36) 50%, rgb(248 106 0 / 0) 68%)";

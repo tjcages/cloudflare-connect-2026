@@ -71,7 +71,8 @@ describe("dashboard login shader", () => {
     expect(LOGIN_OVERLAY_COPY).toEqual({
       eyebrow: "Connect 2026",
       titleLines: ["Where the Internet's", "builders connect"],
-      body: "October 19–21, 2026 · Moscone West, San Francisco",
+      bodyDate: "October 19–21, 2026",
+      bodyVenue: "Moscone West, San Francisco",
       register: "Register Now",
       registerHref: REGISTER_URL,
     });
@@ -108,12 +109,16 @@ describe("dashboard login shader", () => {
     expect(loginFormSource).toContain("pt-16 min-[1024px]:pt-96");
     expect(loginPromoSource).toContain("text-heading-h5");
     expect(loginPromoSource).toContain("text-body-small");
+    expect(loginPromoSource).toContain('name="arrow-right"');
+    expect(loginPromoSource).toContain("-rotate-45");
+    expect(loginPromoSource).toContain("LOGIN_OVERLAY_COPY.bodyVenue");
+    expect(loginPageSource).toContain(`href={LOGIN_OVERLAY_COPY.registerHref}`);
   });
 
   it("eases an orange left-to-right scrim over the mobile banner shader", () => {
     expect(LOGIN_MOBILE_SCRIM).toContain("linear-gradient(to right");
     expect(LOGIN_MOBILE_SCRIM).toContain("#f86a00");
-    expect(LOGIN_MOBILE_SCRIM).toContain("rgb(248 106 0 / 0)");
+    expect(LOGIN_MOBILE_SCRIM).toContain("rgb(248 106 0 / 0) 68%");
   });
 
   it("zooms and frames the Twizzler for the short mobile banner only", () => {

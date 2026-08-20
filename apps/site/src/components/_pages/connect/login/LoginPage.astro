@@ -2,6 +2,7 @@
 import ConnectHeroTwizzler from "../hero/ConnectHeroTwizzler";
 import DashboardLoginForm from "./DashboardLoginForm";
 import LoginPromo from "./LoginPromo.astro";
+import { LOGIN_OVERLAY_COPY } from "./login-copy";
 import {
   LOGIN_MOBILE_SCRIM,
   LOGIN_MOBILE_TWIZZLER_DEFAULTS,
@@ -95,9 +96,12 @@ const SIGN_UP_HREF = "https://dash.cloudflare.com/sign-up";
       <div
         class="w-full max-w-[28rem] px-16 pt-88 min-[1024px]:hidden"
       >
-        <section
-          aria-label="Cloudflare Connect 2026"
-          class="relative isolate overflow-hidden rounded-[12px] bg-[#f86a00] px-16 py-20 shadow-[0_1px_2px_rgb(0_0_0_/_0.05)] ring-1 ring-[#d6d6d6]"
+        <a
+          aria-label={LOGIN_OVERLAY_COPY.register}
+          class="group relative isolate block overflow-hidden rounded-[12px] bg-[#f86a00] px-16 py-20 no-underline shadow-[0_1px_2px_rgb(0_0_0_/_0.05)] ring-1 ring-[#d6d6d6]"
+          href={LOGIN_OVERLAY_COPY.registerHref}
+          rel="noreferrer"
+          target="_blank"
         >
           <div class="pointer-events-none absolute inset-0 z-0 h-full w-full">
             <ConnectHeroTwizzler
@@ -114,7 +118,7 @@ const SIGN_UP_HREF = "https://dash.cloudflare.com/sign-up";
             style={{ backgroundImage: LOGIN_MOBILE_SCRIM }}
           />
           <LoginPromo layout="banner" />
-        </section>
+        </a>
       </div>
       <div
         class="dash-login-chrome flex w-full min-w-0 flex-1 items-start justify-center"

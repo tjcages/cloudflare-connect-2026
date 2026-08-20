@@ -7,7 +7,8 @@ import { connectHero, REGISTER_URL } from "../data";
 export const LOGIN_OVERLAY_COPY = {
   eyebrow: connectHero.eyebrow,
   titleLines: connectHero.titleLines,
-  body: "October 19–21, 2026 · Moscone West, San Francisco",
+  bodyDate: "October 19–21, 2026",
+  bodyVenue: "Moscone West, San Francisco",
   register: connectHero.primaryCta.text,
   registerHref: REGISTER_URL,
 } as const;
