@@ -10,10 +10,10 @@ import {
   asThemedEngineConfig,
   type StripesTextureConfig,
 } from "@/components/stripes-texture/config";
-import { BADGE_PRINT_FIELD_SRC } from "./badge-logo";
 
 type BadgePrintShaderProps = {
   canvasRef: RefObject<HTMLCanvasElement | null>;
+  src: string;
   config: StripesTextureConfig;
   width: number;
   height: number;
@@ -29,6 +29,7 @@ type BadgePrintShaderProps = {
  */
 export default function BadgePrintShader({
   canvasRef,
+  src,
   config,
   width,
   height,
@@ -84,7 +85,7 @@ export default function BadgePrintShader({
     image.onerror = () => {
       if (!disposed) engine.triggerReveal();
     };
-    image.src = BADGE_PRINT_FIELD_SRC;
+    image.src = src;
 
     const tick = () => {
       raf = requestAnimationFrame(tick);
@@ -103,7 +104,7 @@ export default function BadgePrintShader({
       engineRef.current = null;
       if (canvasRef.current === outputCanvas) canvasRef.current = null;
     };
-  }, [canvasRef, height, maxDpr, width]);
+  }, [canvasRef, height, maxDpr, src, width]);
 
   useEffect(() => {
     engineRef.current?.setConfig(

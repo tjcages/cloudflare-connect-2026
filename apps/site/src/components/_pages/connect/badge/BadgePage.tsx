@@ -32,7 +32,9 @@ import {
 } from "./badge-tune";
 import BadgeCustomizer from "./BadgeCustomizer";
 import {
+  BADGE_PRINT_FIELD_SRC,
   badgeMarkSvg,
+  badgeShaderPlateSvg,
   prepareBadgeLogo,
   readSvgFile,
   svgToBlobUrl,
@@ -197,6 +199,15 @@ export default function BadgePage(_props: IslandProps) {
     }
   }, [logo, tune.logoEnabled, view.theme]);
 
+  const plateSrc = useMemo(() => {
+    if (!logo) return BADGE_PRINT_FIELD_SRC;
+    try {
+      return svgToBlobUrl(badgeShaderPlateSvg(logo.sourceSvg));
+    } catch {
+      return BADGE_PRINT_FIELD_SRC;
+    }
+  }, [logo]);
+
   const replaceLogo = (next: BadgeLogoSession | null) => {
     logoSessionRef.current = next;
     setLogo(next);
@@ -300,6 +311,7 @@ export default function BadgePage(_props: IslandProps) {
           height={printH}
           maxDpr={lowPower ? 1 : 1.5}
           paused={reducedMotion}
+          src={plateSrc}
           width={printW}
         />
       ) : null}
@@ -391,7 +403,7 @@ export default function BadgePage(_props: IslandProps) {
                 SVG to print your mark in the center.
               </p>
               <BadgeCustomizer onChange={setParams} params={params} />
-              <BadgeShaderSource />
+              <BadgeShaderSource src={plateSrc} />
               <BadgeLogoUpload
                 error={logoError}
                 fileName={logo?.fileName ?? null}

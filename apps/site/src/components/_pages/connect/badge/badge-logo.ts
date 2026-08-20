@@ -1,5 +1,7 @@
 export const SVG_MAX_BYTES = 400_000;
-/** Connect-cloud crop converted into the badge stripe shader. Not the upload. */
+export const BADGE_PLATE_W = 800;
+export const BADGE_PLATE_H = 1200;
+/** Fallback plate when no SVG is loaded. */
 export const BADGE_PRINT_FIELD_SRC = "/connect/badge-print-field.svg?v=cloud";
 
 const SCRIPT_RE = /<script\b[\s\S]*?<\/script>/gi;
@@ -71,6 +73,43 @@ export function wrapSvg(
   const markH = Math.max(1, Math.round(viewport.h));
   const fillAttr = fill ? ` fill="${fill}"` : "";
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${markW}" height="${markH}" viewBox="${viewBox}" color="#111111"${fillAttr}>${inner}</svg>`;
+}
+
+export function badgePlateCrop(viewport: {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}) {
+  const cropW = Math.max(viewport.w * 0.52, 1);
+  const cropH = cropW * (BADGE_PLATE_H / BADGE_PLATE_W);
+  return {
+    x: viewport.x + viewport.w * 0.36,
+    y: viewport.y + (viewport.h - cropH) * 0.32,
+    w: cropW,
+    h: cropH,
+  };
+}
+
+/** Tight rim-lit crop of the upload — this is what the stripe engine converts. */
+export function badgeShaderPlateSvg(svgText: string): string {
+  const safe = stripUnsafeSvg(svgText.trim());
+  if (!/<svg[\s>]/i.test(safe)) {
+    throw new Error("Upload an SVG file.");
+  }
+  const viewport = parseSvgViewport(safe);
+  if (!(viewport.w > 0) || !(viewport.h > 0)) {
+    throw new Error("That SVG has no size.");
+  }
+  const inner = paintSvgFills(
+    extractSvgInner(safe),
+    "url(#badge-print-lit)"
+  );
+  if (!inner) throw new Error("That SVG is empty.");
+  const crop = badgePlateCrop(viewport);
+  const stroke = Math.max(crop.w, crop.h) * 0.01;
+  const pad = Math.max(crop.w, crop.h) * 2;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${BADGE_PLATE_W}" height="${BADGE_PLATE_H}" viewBox="${crop.x} ${crop.y} ${crop.w} ${crop.h}" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="badge-print-lit" x1="0.15" y1="0" x2="0.9" y2="1"><stop offset="0" stop-color="#b4b4b4"/><stop offset="0.42" stop-color="#5a5a5a"/><stop offset="1" stop-color="#1f1f1f"/></linearGradient></defs><rect x="${crop.x - pad}" y="${crop.y - pad}" width="${crop.w + pad * 2}" height="${crop.h + pad * 2}" fill="#000000"/><g fill="url(#badge-print-lit)" stroke="#ffffff" stroke-width="${stroke}" paint-order="stroke fill">${inner}</g></svg>`;
 }
 
 export function prepareBadgeLogo(svgText: string): {

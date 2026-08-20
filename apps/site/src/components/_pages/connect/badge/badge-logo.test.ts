@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   BADGE_PRINT_FIELD_SRC,
   badgeMarkSvg,
+  badgeShaderPlateSvg,
   extractSvgInner,
   paintSvgFills,
   paintSvgFillsWhite,
@@ -30,7 +31,7 @@ describe("badge logo SVG prep", () => {
     expect(extractSvgInner(svg)).toBe(`<circle cx="10" cy="5" r="4"/>`);
   });
 
-  it("paints fills white without baking the upload into a texture plate", () => {
+  it("paints fills white and builds a cropped luminance plate from the upload", () => {
     const prepared = prepareBadgeLogo(
       `<svg viewBox="0 0 40 20"><path fill="#123456" d="M0 0h40v20z"/></svg>`
     );
@@ -39,7 +40,14 @@ describe("badge logo SVG prep", () => {
     expect(prepared.colorSvg).toContain('height="20"');
     expect(prepared.markSvg).toContain('fill="white"');
     expect(prepared.markSvg).not.toContain("#123456");
-    expect(prepared).not.toHaveProperty("textureSvg");
+    const plate = badgeShaderPlateSvg(
+      `<svg viewBox="0 0 40 20"><path fill="#123456" d="M0 0h40v20z"/></svg>`
+    );
+    expect(plate).toContain("M0 0h40v20z");
+    expect(plate).toContain('fill="#000000"');
+    expect(plate).toContain('stroke="#ffffff"');
+    expect(plate).toContain("url(#badge-print-lit)");
+    expect(plate).not.toContain("#123456");
     expect(paintSvgFillsWhite(`fill="#abc" stroke="#def"`)).toBe(
       `fill="white" stroke="white"`
     );
@@ -99,6 +107,7 @@ describe("badge logo SVG prep", () => {
     const prepared = prepareBadgeLogo(svg);
     expect(prepared.markSvg).toContain('fill="white"');
     expect(extractSvgInner(svg)).toContain("<path");
+    expect(badgeShaderPlateSvg(svg)).toContain("M29.818");
   });
 
   it("prepares a Discord-style wordmark with p3 fills", () => {
@@ -115,7 +124,20 @@ describe("badge logo SVG prep", () => {
     expect(prepared.markSvg).not.toContain("display-p3");
   });
 
-  it("uses a cropped Connect-cloud plate as the stripe source", () => {
+  it("rebuilds the shader plate when the SVG changes", () => {
+    const rect = badgeShaderPlateSvg(
+      `<svg viewBox="0 0 40 20"><path d="M0 0h40v20z"/></svg>`
+    );
+    const circle = badgeShaderPlateSvg(
+      `<svg viewBox="0 0 40 20"><circle cx="20" cy="10" r="8"/></svg>`
+    );
+    expect(rect).toContain("M0 0h40v20z");
+    expect(rect).not.toContain("<circle");
+    expect(circle).toContain("<circle cx=\"20\"");
+    expect(circle).not.toContain("M0 0h40v20z");
+  });
+
+  it("uses a cropped Connect-cloud plate as the fallback stripe source", () => {
     const fieldPath = resolve(
       process.cwd(),
       "public/connect/badge-print-field.svg"
@@ -140,9 +162,8 @@ describe("badge logo SVG prep", () => {
       ),
       "utf8"
     );
-    expect(shader).toContain("BADGE_PRINT_FIELD_SRC");
-    expect(shader).not.toContain("src: string");
-    expect(shader).toContain("image.src = BADGE_PRINT_FIELD_SRC");
+    expect(shader).toContain("src: string");
+    expect(shader).toContain("image.src = src");
 
     const preview = readFileSync(
       resolve(
@@ -151,7 +172,7 @@ describe("badge logo SVG prep", () => {
       ),
       "utf8"
     );
-    expect(preview).toContain("src={BADGE_PRINT_FIELD_SRC}");
+    expect(preview).toContain("src={src}");
 
     const page = readFileSync(
       resolve(
@@ -161,8 +182,8 @@ describe("badge logo SVG prep", () => {
       "utf8"
     );
     expect(page).toContain("BadgeShaderSource");
-    expect(page).not.toContain("textureUrl");
-    expect(page).not.toContain("src={logo");
+    expect(page).toContain("src={plateSrc}");
+    expect(page).toContain("badgeShaderPlateSvg");
     expect(page).not.toContain("src={logoMarkSrc");
   });
 });
