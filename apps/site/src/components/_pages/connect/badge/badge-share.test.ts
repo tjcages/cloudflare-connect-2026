@@ -160,6 +160,12 @@ describe("badge share copy", () => {
     expect(source).toContain("toDataURL");
     expect(source).toContain("destination-in");
     expect(source).not.toContain("stampShareTitle");
+    expect(source).toContain("withDesktopShareLayout");
+    expect(source).toContain("BADGE_SHARE_WIDTH");
+    expect(source).toContain("BADGE_SHARE_HEIGHT");
+    expect(source).toContain("shareCapturing");
+    expect(source).toContain("1200");
+    expect(source).toContain("800");
     expect(source).not.toContain("drawShareGrid");
   });
 });

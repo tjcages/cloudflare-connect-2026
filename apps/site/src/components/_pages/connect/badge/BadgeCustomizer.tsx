@@ -42,10 +42,10 @@ export default function BadgeCustomizer({
 
   return (
     <div className="flex flex-col gap-12">
-      <div className="flex flex-wrap items-center gap-8">
+      <div className="flex flex-nowrap items-center gap-8 max-lg:gap-4">
         <div
           aria-label="Color"
-          className="flex flex-wrap gap-8"
+          className="flex flex-nowrap gap-8 max-lg:gap-0"
           role="radiogroup"
         >
           <BadgeColorPicker onChange={onChange} params={params} />
@@ -56,7 +56,7 @@ export default function BadgeCustomizer({
                 aria-checked={selected}
                 aria-label={theme.label}
                 className={cn(
-                  "flex size-40 items-center justify-center rounded-full transition-transform",
+                  "flex size-40 max-lg:size-32 items-center justify-center rounded-full transition-transform",
                   selected
                     ? "shadow-[inset_0_0_0_2px_var(--color-orange-900)]"
                     : "hover:scale-105"
@@ -71,7 +71,7 @@ export default function BadgeCustomizer({
             );
           })}
         </div>
-        <div aria-hidden="true" className="mx-8 flex-center h-40">
+        <div aria-hidden="true" className="mx-8 flex-center h-40 max-lg:mx-4">
           <div className="h-13 w-px rounded-full bg-border-default" />
         </div>
         <BadgeLogoUpload

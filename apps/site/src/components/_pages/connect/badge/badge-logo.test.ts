@@ -340,7 +340,10 @@ describe("badge logo SVG prep", () => {
     expect(customizer).toContain("BadgeLogoUpload");
     expect(customizer).toContain("BadgeColorPicker");
     expect(customizer).toContain("BADGE_PRESET_THEMES");
-    expect(customizer).toContain('role="radiogroup"');
+    expect(customizer).toContain("flex-nowrap");
+    expect(customizer).toContain("max-lg:gap-0");
+    expect(customizer).toContain("max-lg:size-32");
+    expect(customizer).not.toContain("flex-wrap");
     expect(customizer).toContain("h-13 w-px rounded-full bg-border-default");
     expect(customizer).toContain("badgeMarkFill");
 
@@ -379,6 +382,10 @@ describe("badge logo SVG prep", () => {
     expect(page).toContain("printSrc={plateSrc}");
     expect(page).toContain("h-800");
     expect(page).toContain("h-801");
+    expect(page).toContain("max-lg:h-540");
+    expect(page).toContain("max-lg:pt-24");
+    expect(page).toContain("group/share");
+    expect(page).toContain("group-data-[share-capturing]/share:!block");
     expect(page).toContain("BadgeGrid");
     expect(page).not.toContain("HeroGrid");
     expect(page).toContain("sourceZoom");
@@ -483,6 +490,8 @@ describe("badge logo SVG prep", () => {
       ),
       "utf8"
     );
+    expect(lanyard).toContain("size.width < 992");
+    expect(lanyard).toContain("rightColumnWorldX");
     expect(lanyard).toContain("applyBadgeLook");
     expect(lanyard).toContain("BADGE_DPR_MAX");
     expect(lanyard).toContain("envMapIntensity: 0.85");

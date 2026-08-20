@@ -1,5 +1,7 @@
 export const BADGE_SHARE_SURFACE = "#ffffff";
 export const BADGE_SHARE_FILE = "connect-2026-badge.png";
+export const BADGE_SHARE_WIDTH = 1200;
+export const BADGE_SHARE_HEIGHT = 800;
 export const BADGE_SHARE_HEADLINE = "Let’s shape what’s\nnext together";
 export const BADGE_SHARE_VENUE = ["Moscone Center", "San Francisco"] as const;
 export const BADGE_SHARE_DATE = "October 20, 2026";
@@ -25,6 +27,39 @@ function waitTwoFrames() {
       requestAnimationFrame(() => resolve());
     });
   });
+}
+
+async function withDesktopShareLayout<T>(
+  scene: HTMLElement,
+  run: () => Promise<T>
+): Promise<T> {
+  if (window.innerWidth >= 992) return run();
+
+  const spacer = document.createElement("div");
+  spacer.dataset.shareCaptureSpacer = "";
+  spacer.style.height = `${scene.getBoundingClientRect().height}px`;
+  scene.parentElement?.insertBefore(spacer, scene);
+
+  const previousCss = scene.style.cssText;
+  scene.dataset.shareCapturing = "";
+  scene.style.position = "fixed";
+  scene.style.left = "0px";
+  scene.style.top = "0px";
+  scene.style.width = `${BADGE_SHARE_WIDTH}px`;
+  scene.style.height = `${BADGE_SHARE_HEIGHT}px`;
+  scene.style.zIndex = "-1";
+  scene.style.opacity = "0";
+  scene.style.pointerEvents = "none";
+  scene.style.maxHeight = "none";
+  try {
+    await waitTwoFrames();
+    await waitTwoFrames();
+    return await run();
+  } finally {
+    delete scene.dataset.shareCapturing;
+    scene.style.cssText = previousCss;
+    spacer.remove();
+  }
 }
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
@@ -400,20 +435,22 @@ export async function captureHeroShare(
       // Stamp with whatever face is already available.
     }
   }
-  await waitForBackdrop(scene);
-  const rect = scene.getBoundingClientRect();
-  const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.max(1, Math.round(rect.width * pixelRatio));
-  canvas.height = Math.max(1, Math.round(rect.height * pixelRatio));
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return canvas;
-  ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-  ctx.fillStyle = BADGE_SHARE_SURFACE;
-  ctx.fillRect(0, 0, rect.width, rect.height);
-  await stampHeroLayers(ctx, scene, rect, 1, 1);
-  await stampShareCopy(ctx, scene, rect);
-  return canvas;
+  return withDesktopShareLayout(scene, async () => {
+    await waitForBackdrop(scene);
+    const rect = scene.getBoundingClientRect();
+    const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(rect.width * pixelRatio));
+    canvas.height = Math.max(1, Math.round(rect.height * pixelRatio));
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return canvas;
+    ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+    ctx.fillStyle = BADGE_SHARE_SURFACE;
+    ctx.fillRect(0, 0, rect.width, rect.height);
+    await stampHeroLayers(ctx, scene, rect, 1, 1);
+    await stampShareCopy(ctx, scene, rect);
+    return canvas;
+  });
 }
 
 export async function copyCanvasImage(

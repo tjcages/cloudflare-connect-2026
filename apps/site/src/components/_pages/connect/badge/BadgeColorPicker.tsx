@@ -54,7 +54,7 @@ export default function BadgeColorPicker({
           aria-checked={selected}
           aria-label="Custom color"
           className={cn(
-            "flex size-40 items-center justify-center rounded-full transition-transform",
+            "flex size-40 max-lg:size-32 items-center justify-center rounded-full transition-transform",
             open || selected
               ? "shadow-[inset_0_0_0_2px_var(--color-orange-900)]"
               : "hover:scale-105"

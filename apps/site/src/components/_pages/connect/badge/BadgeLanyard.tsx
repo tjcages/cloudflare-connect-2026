@@ -1430,7 +1430,9 @@ function LanyardBadge({
     rig.card.position.z = CARD_FRONT_Z;
     if (hang) {
       hang.position.x =
-        rightColumnWorldX(size.width, viewport.width) + tune.hangX;
+        size.width < 992
+          ? 0
+          : rightColumnWorldX(size.width, viewport.width) + tune.hangX;
       hang.position.y = -localY * tune.modelScale + tune.hangLift;
       hang.position.z = tune.hangZ;
     }

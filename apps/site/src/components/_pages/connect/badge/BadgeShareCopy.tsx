@@ -13,7 +13,7 @@ export default function BadgeShareCopy() {
 
   return (
     <div
-      className="flex h-full flex-col justify-between py-80 text-left text-orange-900 opacity-0 max-lg:py-48"
+      className="flex h-full flex-col justify-between py-80 text-left text-orange-900 opacity-0 max-lg:py-48 group-data-[share-capturing]/share:max-lg:py-80"
       data-share-copy=""
     >
       <div className="flex items-center gap-16">

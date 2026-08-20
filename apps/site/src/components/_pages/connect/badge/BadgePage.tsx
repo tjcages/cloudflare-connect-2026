@@ -435,13 +435,13 @@ export default function BadgePage(_props: IslandProps) {
 
       <div className="relative h-800 overflow-x-visible bg-background-base before:inside-border-b before:border-border-default max-lg:h-auto">
         <div
-          className="absolute inset-0 z-0 max-lg:relative max-lg:h-640"
+          className="group/share absolute inset-0 z-0 max-lg:relative max-lg:h-540"
           data-share-scene=""
           ref={shareSceneRef}
         >
           <BadgeGrid
             aria-hidden="true"
-            className="pointer-events-none absolute -top-0.5 -right-0.5 z-0 h-801 w-401 text-border-default max-lg:hidden"
+            className="pointer-events-none absolute -top-0.5 -right-0.5 z-0 h-801 w-401 text-border-default max-lg:hidden group-data-[share-capturing]/share:!block"
             data-share-grid=""
           />
 
@@ -451,7 +451,7 @@ export default function BadgePage(_props: IslandProps) {
               className="pointer-events-none absolute inset-0 z-0 overflow-visible"
             >
               <div
-                className="absolute top-0 right-0 h-full w-720 max-lg:w-full"
+                className="absolute top-0 right-0 h-full w-720 max-lg:w-full group-data-[share-capturing]/share:!w-720"
                 data-share-layer="behind"
                 data-share-mask={`${tune.backdropMaskW} ${tune.backdropMaskH} ${tune.backdropMaskX} ${tune.backdropMaskY}`}
                 style={{
@@ -504,13 +504,13 @@ export default function BadgePage(_props: IslandProps) {
 
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute inset-y-0 left-80 z-10 w-520 max-lg:left-24 max-lg:w-auto max-lg:pr-24"
+            className="pointer-events-none absolute inset-y-0 left-80 z-10 w-520 max-lg:left-24 max-lg:w-auto max-lg:pr-24 group-data-[share-capturing]/share:!left-80 group-data-[share-capturing]/share:!w-520 group-data-[share-capturing]/share:!pr-0"
           >
             <BadgeShareCopy />
           </div>
         </div>
 
-        <div className="absolute inset-y-0 left-80 z-20 flex w-520 flex-col justify-center gap-40 max-lg:static max-lg:w-full max-lg:px-24 max-lg:py-64">
+        <div className="absolute inset-y-0 left-80 z-20 flex w-520 flex-col justify-center gap-40 max-lg:static max-lg:w-full max-lg:px-24 max-lg:pt-24 max-lg:pb-48">
           <Scramble
             className="text-decorative-small text-text-faint"
             preset="eyebrow-hero"
