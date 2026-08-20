@@ -32,7 +32,7 @@ import {
   createPrintFaceGeometry,
   roundedRect,
 } from "./badge-card-geometry";
-import { badgePrintFieldRect, type BadgePrintFieldRect } from "./badge-print-layout";
+import { badgePrintFieldRect, fadePrintField, type BadgePrintFieldRect } from "./badge-print-layout";
 import { BADGE_TUNE_DEFAULTS, type BadgeTune } from "./badge-tune";
 
 const LANYARD_URL = "/connect/badge-lanyard.glb";
@@ -227,50 +227,6 @@ function drawCenteredLogo(
   ctx.restore();
 }
 
-function fadeFieldToWhite(
-  ctx: CanvasRenderingContext2D,
-  field: BadgePrintFieldRect,
-  feather: number
-) {
-  const fade = Math.max(
-    1,
-    Math.round(Math.min(field.w, field.h) * Math.max(feather, 0))
-  );
-  const left = ctx.createLinearGradient(field.x, 0, field.x + fade, 0);
-  left.addColorStop(0, "#ffffff");
-  left.addColorStop(1, "rgba(255,255,255,0)");
-  ctx.fillStyle = left;
-  ctx.fillRect(field.x, field.y, fade, field.h);
-
-  const right = ctx.createLinearGradient(
-    field.x + field.w,
-    0,
-    field.x + field.w - fade,
-    0
-  );
-  right.addColorStop(0, "#ffffff");
-  right.addColorStop(1, "rgba(255,255,255,0)");
-  ctx.fillStyle = right;
-  ctx.fillRect(field.x + field.w - fade, field.y, fade, field.h);
-
-  const top = ctx.createLinearGradient(0, field.y, 0, field.y + fade);
-  top.addColorStop(0, "#ffffff");
-  top.addColorStop(1, "rgba(255,255,255,0)");
-  ctx.fillStyle = top;
-  ctx.fillRect(field.x, field.y, field.w, fade);
-
-  const bottom = ctx.createLinearGradient(
-    0,
-    field.y + field.h - fade,
-    0,
-    field.y + field.h
-  );
-  bottom.addColorStop(0, "rgba(255,255,255,0)");
-  bottom.addColorStop(1, "#ffffff");
-  ctx.fillStyle = bottom;
-  ctx.fillRect(field.x, field.y + field.h - fade, field.w, fade);
-}
-
 function useHeroShaderTexture(
   twizzlerCanvas: RefObject<HTMLCanvasElement | null>,
   rainCanvas: RefObject<HTMLCanvasElement | null>,
@@ -341,6 +297,9 @@ function useHeroShaderTexture(
       tune.printPadX,
       tune.printPadTop,
       tune.printFeather,
+      tune.sourceZoom,
+      tune.sourcePanX,
+      tune.sourcePanY,
       tune.logoBand,
       tune.logoPadX,
       tune.logoPadY,
@@ -417,7 +376,7 @@ function useHeroShaderTexture(
         tune.printPanY
       );
     }
-    fadeFieldToWhite(ctx, field, tune.printFeather);
+    fadePrintField(ctx, field, tune.printFeather);
     drawCenteredLogo(ctx, markImage.current, field, canvas.height, tune);
     drawIdentity(ctx, identity, canvas.width, canvas.height, tune.footerBand);
     texture.needsUpdate = true;

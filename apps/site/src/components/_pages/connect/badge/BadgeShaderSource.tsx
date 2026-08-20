@@ -6,7 +6,7 @@ export default function BadgeShaderSource({ src }: { src: string }) {
       </figcaption>
       <img
         alt="Luminance plate converted into the badge stripe shader"
-        className="h-180 w-120 rounded-8 bg-black object-cover"
+        className="h-180 w-120 rounded-8 bg-black object-contain"
         src={src}
       />
     </figure>

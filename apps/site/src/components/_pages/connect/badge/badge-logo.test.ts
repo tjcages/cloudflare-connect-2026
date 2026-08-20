@@ -31,7 +31,7 @@ describe("badge logo SVG prep", () => {
     expect(extractSvgInner(svg)).toBe(`<circle cx="10" cy="5" r="4"/>`);
   });
 
-  it("paints fills white and builds a cropped luminance plate from the upload", () => {
+  it("paints fills white and builds a full stylized SVG plate from the upload", () => {
     const prepared = prepareBadgeLogo(
       `<svg viewBox="0 0 40 20"><path fill="#123456" d="M0 0h40v20z"/></svg>`
     );
@@ -44,6 +44,8 @@ describe("badge logo SVG prep", () => {
       `<svg viewBox="0 0 40 20"><path fill="#123456" d="M0 0h40v20z"/></svg>`
     );
     expect(plate).toContain("M0 0h40v20z");
+    expect(plate).toContain('viewBox="0 0 40 20"');
+    expect(plate).toContain('preserveAspectRatio="xMidYMid meet"');
     expect(plate).toContain('fill="#000000"');
     expect(plate).toContain('stroke="#ffffff"');
     expect(plate).toContain("url(#badge-print-lit)");
@@ -137,7 +139,7 @@ describe("badge logo SVG prep", () => {
     expect(circle).not.toContain("M0 0h40v20z");
   });
 
-  it("uses a cropped Connect-cloud plate as the fallback stripe source", () => {
+  it("uses the full Connect-cloud SVG as the fallback stripe source", () => {
     const fieldPath = resolve(
       process.cwd(),
       "public/connect/badge-print-field.svg"
@@ -150,10 +152,12 @@ describe("badge logo SVG prep", () => {
     expect(field).toContain('fill="#000000"');
     expect(field).toContain('stroke="#ffffff"');
     expect(field).toContain("url(#badge-print-lit)");
+    expect(field).toContain('viewBox="0 0 276 122"');
+    expect(field).toContain('preserveAspectRatio="xMidYMid meet"');
     expect(field).toContain("M226.32 47.1364");
     expect(overlay).toContain("M29.818");
     expect(field).not.toContain("M29.818");
-    expect(BADGE_PRINT_FIELD_SRC).toBe("/connect/badge-print-field.svg?v=cloud");
+    expect(BADGE_PRINT_FIELD_SRC).toBe("/connect/badge-print-field.svg?v=full");
 
     const shader = readFileSync(
       resolve(
@@ -200,7 +204,8 @@ describe("badge logo SVG prep", () => {
     expect(page).toContain("plateSrc={plateSrc}");
     expect(page).toContain("printSrc={plateSrc}");
     expect(page).toContain("h-760");
-    expect(page).toContain("badgeShaderPlateSvg");
+    expect(page).toContain("sourceZoom");
+    expect(page).toContain("fit: \"contain\"");
     expect(page).not.toContain("src={logoMarkSrc");
     expect(page).not.toContain("<BadgeShaderSource");
   });

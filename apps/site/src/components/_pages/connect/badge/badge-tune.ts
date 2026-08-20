@@ -26,6 +26,9 @@ export type BadgeTune = {
   printPadX: number;
   printPadTop: number;
   printFeather: number;
+  sourceZoom: number;
+  sourcePanX: number;
+  sourcePanY: number;
   shadowOpacity: number;
   shadowSoftOpacity: number;
   wallZ: number;
@@ -97,9 +100,12 @@ export const BADGE_TUNE_DEFAULTS: BadgeTune = {
   printPanY: 0,
   printTwizzler: false,
   printRain: false,
-  printPadX: 0.09,
-  printPadTop: 0.075,
+  printPadX: 0,
+  printPadTop: 0,
   printFeather: 0.08,
+  sourceZoom: 1,
+  sourcePanX: 0,
+  sourcePanY: 0,
   shadowOpacity: 0.01,
   shadowSoftOpacity: 0,
   wallZ: -0.015,
@@ -193,20 +199,38 @@ export const BADGE_TUNE_FIELDS: PanelField<BadgeTune>[] = [
   slider("cameraX", "Camera X", -3, 3, 0.01),
   slider("cameraY", "Camera Y", -1.5, 2, 0.01),
   slider("cameraZ", "Camera Z", 4, 14, 0.05),
+  { type: "section", title: "Shader SVG" },
+  slider(
+    "sourceZoom",
+    "SVG scale",
+    0.4,
+    2.8,
+    0.01,
+    "The upload stays an SVG. Scale and pan it inside the stripe conversion."
+  ),
+  slider("sourcePanX", "SVG X", -1, 1, 0.01),
+  slider("sourcePanY", "SVG Y", -1, 1, 0.01),
   { type: "section", title: "Print" },
   slider(
     "printZoom",
-    "Shader zoom",
+    "Field zoom",
     0.2,
     1.8,
     0.01,
-    "Case-study stripes fill the badge. Below 1 shows more of the field."
+    "How the converted field sits on the badge."
   ),
-  slider("printPanX", "Pan X", -0.4, 0.4, 0.005),
-  slider("printPanY", "Pan Y", -0.4, 0.4, 0.005),
-  slider("printPadX", "Shader pad X", 0.02, 0.2, 0.005),
-  slider("printPadTop", "Shader pad top", 0.02, 0.2, 0.005),
-  slider("printFeather", "Shader feather", 0.02, 0.2, 0.005),
+  slider("printPanX", "Field pan X", -0.4, 0.4, 0.005),
+  slider("printPanY", "Field pan Y", -0.4, 0.4, 0.005),
+  slider("printPadX", "Pad X", 0, 0.2, 0.005),
+  slider("printPadTop", "Pad top", 0, 0.2, 0.005),
+  slider(
+    "printFeather",
+    "Bottom fade",
+    0,
+    0.2,
+    0.005,
+    "Feather into the footer. Sides and top stay sharp."
+  ),
   {
     type: "toggle",
     key: "printTwizzler",
@@ -284,4 +308,4 @@ export const BADGE_TUNE_FIELDS: PanelField<BadgeTune>[] = [
   slider("backdropMaskY", "Mask Y %", 0, 100, 1),
 ];
 
-export const BADGE_TUNE_PANEL_ID = "connect-badge-tune-v6";
+export const BADGE_TUNE_PANEL_ID = "connect-badge-tune-v7";

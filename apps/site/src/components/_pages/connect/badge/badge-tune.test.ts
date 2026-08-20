@@ -13,7 +13,8 @@ describe("badge tune defaults", () => {
     expect(BADGE_TUNE_DEFAULTS.lightY).toBeLessThan(-0.3);
     expect(BADGE_TUNE_DEFAULTS.logoEnabled).toBe(true);
     expect(BADGE_TUNE_DEFAULTS.logoMarkOpacity).toBe(1);
-    expect(BADGE_TUNE_DEFAULTS.cardOverlap).toBeLessThan(0);
+    expect(BADGE_TUNE_DEFAULTS.printPadX).toBe(0);
+    expect(BADGE_TUNE_DEFAULTS.printPadTop).toBe(0);
   });
 
   it("uses the tuned badge and lanyard setup as the built-in default", () => {
@@ -30,9 +31,12 @@ describe("badge tune defaults", () => {
       logoBand: 0.42,
       logoPadX: 0.08,
       footerBand: 0.205,
-      printPadX: 0.09,
-      printPadTop: 0.075,
+      printPadX: 0,
+      printPadTop: 0,
       printFeather: 0.08,
+      sourceZoom: 1,
+      sourcePanX: 0,
+      sourcePanY: 0,
     });
   });
 
@@ -43,6 +47,21 @@ describe("badge tune defaults", () => {
     expect(overlap?.type).toBe("slider");
     if (overlap?.type !== "slider") return;
     expect(overlap.min).toBeLessThan(0);
+  });
+
+  it("exposes SVG pan and scale for the shader source", () => {
+    const scale = BADGE_TUNE_FIELDS.find(
+      (field) => field.type === "slider" && field.key === "sourceZoom"
+    );
+    const panX = BADGE_TUNE_FIELDS.find(
+      (field) => field.type === "slider" && field.key === "sourcePanX"
+    );
+    expect(scale?.type).toBe("slider");
+    expect(panX?.type).toBe("slider");
+    if (scale?.type !== "slider" || panX?.type !== "slider") return;
+    expect(scale.min).toBeLessThan(1);
+    expect(panX.min).toBeLessThan(0);
+    expect(panX.max).toBeGreaterThan(0);
   });
 
   it("exposes a field for every tune key", () => {

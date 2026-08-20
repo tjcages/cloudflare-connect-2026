@@ -180,13 +180,16 @@ export default function BadgePage(_props: IslandProps) {
       cursorTrail: { enabled: false as const },
       reveal: { enabled: false as const },
       edgeMask: {
-        enabled: true as const,
-        start: 0,
-        end: 0.18,
-        power: 1.1,
+        enabled: false as const,
+      },
+      transform: {
+        fit: "contain" as const,
+        zoom: tune.sourceZoom,
+        panX: tune.sourcePanX,
+        panY: tune.sourcePanY,
       },
     }),
-    [lowPower, view.theme]
+    [lowPower, tune.sourcePanX, tune.sourcePanY, tune.sourceZoom, view.theme]
   );
 
   const logoMarkSrc = useMemo(() => {
