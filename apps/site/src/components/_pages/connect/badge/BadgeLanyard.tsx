@@ -1641,11 +1641,13 @@ export default function BadgeLanyard({
         alpha: true,
         antialias: !lowPower,
         depth: true,
+        premultipliedAlpha: true,
         preserveDrawingBuffer: true,
         powerPreference: lowPower ? "low-power" : "high-performance",
         stencil: false,
       }}
       onCreated={({ gl }) => {
+        gl.setClearColor(0x000000, 0);
         gl.domElement.dataset.shareStamp = "";
       }}
       performance={

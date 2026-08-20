@@ -399,6 +399,7 @@ describe("badge logo SVG prep", () => {
     expect(page).toContain('data-share-layer="behind"');
     expect(page).toContain("data-share-grid");
     expect(page).toContain("data-share-mask");
+    expect(page).toContain("shareBackdrop");
     expect(page).toContain("justify-center");
     expect(page).not.toContain("Copy badge link");
     expect(page).not.toContain("Register now");
@@ -437,6 +438,7 @@ describe("badge logo SVG prep", () => {
     );
     expect(lanyard).toContain('"contain"');
     expect(lanyard).toContain("preserveDrawingBuffer");
+    expect(lanyard).toContain("setClearColor");
     expect(lanyard).toContain("dataset.shareStamp");
     expect(lanyard).toContain("bakedWhileFrozen.current = false");
     expect(lanyard).not.toContain("Boolean(logoMarkSrc)");

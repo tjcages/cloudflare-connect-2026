@@ -97,6 +97,41 @@ function drawLayer(
   );
 }
 
+function backdropCanvases(hero: HTMLElement): HTMLCanvasElement[] {
+  const marked = Array.from(
+    hero.querySelectorAll<HTMLCanvasElement>("canvas[data-share-backdrop]")
+  );
+  if (marked.length > 0) return marked;
+  return Array.from(
+    hero.querySelectorAll<HTMLElement>("[data-share-layer='behind']")
+  )
+    .map((layer) => layer.querySelector("canvas"))
+    .filter((node): node is HTMLCanvasElement => Boolean(node));
+}
+
+async function snapshotCanvas(
+  source: HTMLCanvasElement
+): Promise<HTMLCanvasElement | null> {
+  if (source.width < 2 || source.height < 2) return null;
+  const copy = document.createElement("canvas");
+  copy.width = source.width;
+  copy.height = source.height;
+  const ctx = copy.getContext("2d");
+  if (!ctx) return null;
+  try {
+    const image = await loadImage(source.toDataURL("image/png"));
+    ctx.drawImage(image, 0, 0);
+    return copy;
+  } catch {
+    try {
+      ctx.drawImage(source, 0, 0);
+      return copy;
+    } catch {
+      return null;
+    }
+  }
+}
+
 function maskBehindCanvas(
   source: HTMLCanvasElement,
   mask: { w: number; h: number; x: number; y: number }
@@ -109,8 +144,8 @@ function maskBehindCanvas(
   ctx.drawImage(source, 0, 0);
   const gx = (mask.x / 100) * canvas.width;
   const gy = (mask.y / 100) * canvas.height;
-  const rx = Math.max(1, (mask.w / 100) * canvas.width * 0.5);
-  const ry = Math.max(1, (mask.h / 100) * canvas.height * 0.5);
+  const rx = Math.max(1, (mask.w / 100) * canvas.width);
+  const ry = Math.max(1, (mask.h / 100) * canvas.height);
   ctx.save();
   ctx.globalCompositeOperation = "destination-in";
   ctx.translate(gx, gy);
@@ -124,23 +159,40 @@ function maskBehindCanvas(
   return canvas;
 }
 
-function stampShareCanvases(
+async function waitForBackdrop(hero: HTMLElement) {
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    const ready = backdropCanvases(hero).some((node) => {
+      if (node.width < 2 || node.height < 2) return false;
+      try {
+        return node.toDataURL("image/png").length > 800;
+      } catch {
+        return true;
+      }
+    });
+    if (ready) return;
+    await waitTwoFrames();
+  }
+}
+
+async function stampBackdrop(
   ctx: CanvasRenderingContext2D,
   hero: HTMLElement,
   rect: DOMRect,
   scaleX: number,
   scaleY: number
 ) {
-  const behind = Array.from(
+  const layers = Array.from(
     hero.querySelectorAll<HTMLElement>("[data-share-layer='behind']")
   );
-  const behindCanvases = new Set<HTMLCanvasElement>();
-  for (const layer of behind) {
-    const source = layer.querySelector("canvas");
-    if (!source || source.width < 2 || source.height < 2) continue;
-    behindCanvases.add(source);
+  for (const layer of layers) {
+    const source =
+      layer.querySelector<HTMLCanvasElement>("canvas[data-share-backdrop]") ??
+      layer.querySelector("canvas");
+    if (!source) continue;
+    const snapshot = await snapshotCanvas(source);
+    if (!snapshot) continue;
     const masked = maskBehindCanvas(
-      source,
+      snapshot,
       parseMask(layer.dataset.shareMask) ?? {
         w: 62,
         h: 78,
@@ -148,9 +200,18 @@ function stampShareCanvases(
         y: 44,
       }
     );
-    drawLayer(ctx, masked, source.getBoundingClientRect(), rect, scaleX, scaleY);
+    drawLayer(ctx, masked, layer.getBoundingClientRect(), rect, scaleX, scaleY);
   }
+}
 
+function stampLanyard(
+  ctx: CanvasRenderingContext2D,
+  hero: HTMLElement,
+  rect: DOMRect,
+  scaleX: number,
+  scaleY: number
+) {
+  const behind = new Set(backdropCanvases(hero));
   const nodes = Array.from(hero.querySelectorAll("canvas"));
   const stamped = nodes.filter(
     (node) => "shareStamp" in node.dataset && node.width > 1 && node.height > 1
@@ -161,9 +222,7 @@ function stampShareCanvases(
       : nodes
           .filter(
             (node) =>
-              node.width > 1 &&
-              node.height > 1 &&
-              !behindCanvases.has(node)
+              node.width > 1 && node.height > 1 && !behind.has(node)
           )
           .sort((a, b) => b.width * b.height - a.width * a.height)
           .slice(0, 1);
@@ -213,7 +272,8 @@ async function stampHeroLayers(
   scaleY: number
 ) {
   await stampHeroGrid(ctx, hero, rect, scaleX, scaleY);
-  stampShareCanvases(ctx, hero, rect, scaleX, scaleY);
+  await stampBackdrop(ctx, hero, rect, scaleX, scaleY);
+  stampLanyard(ctx, hero, rect, scaleX, scaleY);
 }
 
 async function captureHeroShareFallback(
@@ -250,7 +310,7 @@ async function captureHeroShareFallback(
 export async function captureHeroShare(
   hero: HTMLElement
 ): Promise<HTMLCanvasElement> {
-  await waitTwoFrames();
+  await waitForBackdrop(hero);
   const rect = hero.getBoundingClientRect();
   try {
     const canvas = await withTimeout(

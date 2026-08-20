@@ -469,6 +469,9 @@ export default function BadgePage(_props: IslandProps) {
                   config={backdropConfig}
                   label="badge-backdrop"
                   maxDpr={lowPower ? 1 : 1.25}
+                  ref={(node) => {
+                    if (node) node.dataset.shareBackdrop = "";
+                  }}
                   rootMargin="200px"
                   shaderSource={BADGE_BACKDROP_SHADER_SOURCE}
                 />
