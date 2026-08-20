@@ -433,6 +433,8 @@ describe("badge logo SVG prep", () => {
     expect(lanyard).toContain("bakedWhileFrozen.current = false");
     expect(lanyard).not.toContain("Boolean(logoMarkSrc)");
     expect(lanyard).toContain("shaderLive && !reducedMotion");
+    expect(lanyard).toContain("kickIntroSwing(rig.rope)");
+    expect(lanyard).toContain("INTRO_SPIN");
     expect(page).not.toContain("src={logoMarkSrc");
     expect(page).not.toContain("<BadgeShaderSource");
     expect(page).not.toContain("<BadgeLogoUpload");

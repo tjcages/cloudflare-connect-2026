@@ -2,7 +2,13 @@
 
 import { PerspectiveCamera, useGLTF } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useMemo, useRef, type RefObject } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  type RefObject,
+} from "react";
 import type { BufferGeometry, Camera, Texture } from "three";
 import {
   Bone,
@@ -1362,6 +1368,12 @@ function LanyardBadge({
     tintLanyardMetal(rig.materials, identity.accent);
     invalidate();
   }, [identity.accent, invalidate, rig]);
+
+  useLayoutEffect(() => {
+    if (!rig || reducedMotion) return;
+    kickIntroSwing(rig.rope);
+    invalidate();
+  }, [invalidate, reducedMotion, rig]);
 
   useEffect(() => {
     invalidate();
