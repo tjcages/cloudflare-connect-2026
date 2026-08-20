@@ -267,7 +267,7 @@ function useHeroShaderTexture(
   const onReadyRef = useRef(onReady);
   onReadyRef.current = onReady;
   const baked = useRef(false);
-  const markPending = useRef(Boolean(logoMarkSrc));
+  const markPending = useRef(logoMarkSrc != null);
   const readyNotified = useRef(false);
   const notifyReady = () => {
     if (readyNotified.current || !baked.current || markPending.current) return;
@@ -308,7 +308,7 @@ function useHeroShaderTexture(
   useEffect(() => {
     markImage.current = null;
     markGeneration.current += 1;
-    markPending.current = Boolean(logoMarkSrc);
+    markPending.current = logoMarkSrc != null;
     const generation = markGeneration.current;
     if (!logoMarkSrc) {
       notifyReady();
