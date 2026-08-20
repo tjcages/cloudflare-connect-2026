@@ -13,6 +13,8 @@ import {
   speakerOrangeMaskRects,
   speakerOverlayIrisRect,
   speakerWiperProgress,
+  speakerWiperClockIsLive,
+  speakerWiperNeedsLiveClock,
   speakerWiperShouldEnter,
   speakerWiperShouldLeave,
   speakerWiperStaggerMs,
@@ -91,9 +93,7 @@ describe("speaker frame wipers", () => {
 
   it("covers with orange before the overlay iris exists", () => {
     const authored = resolveAuthoredFrames(
-      [
-        { imageIndex: 0, x: 0, y: 0, width: 1, height: 1, span: false, variant: "grey" as const },
-      ],
+      [{ imageIndex: 0, x: 0, y: 0, width: 1, height: 1, span: false, variant: "grey" as const }],
       [aperture],
     );
 
@@ -238,11 +238,25 @@ describe("speaker frame wipers", () => {
     expect(clock.startedAtMs[0]).toBe(840);
   });
 
-  it("enters a wipe at 28% visibility and keeps it until the portrait is fully gone", () => {
+  it("enters a wipe at 28% visibility and only marks leave when fully gone", () => {
     expect(speakerWiperShouldEnter(0.27)).toBe(false);
     expect(speakerWiperShouldEnter(0.28)).toBe(true);
     expect(speakerWiperShouldLeave(0.01)).toBe(false);
     expect(speakerWiperShouldLeave(0)).toBe(true);
+  });
+
+  it("keeps a live clock through orange hold and iris, then rests", () => {
+    expect(speakerWiperNeedsLiveClock(null, 100, true)).toBe(true);
+    expect(speakerWiperNeedsLiveClock(1_000, 1_000, false)).toBe(true);
+    expect(speakerWiperNeedsLiveClock(1_000, 1_000 + SPEAKER_WIPER_DURATION_MS - 1, false)).toBe(true);
+    expect(speakerWiperNeedsLiveClock(1_000, 1_000 + SPEAKER_WIPER_DURATION_MS, false)).toBe(false);
+    expect(speakerWiperNeedsLiveClock(null, 100, false)).toBe(false);
+
+    const clock = { startedAtMs: [0, null], pending: new Set<number>() };
+    expect(speakerWiperClockIsLive(clock, 100)).toBe(true);
+    expect(speakerWiperClockIsLive(clock, 20_000)).toBe(false);
+    clock.pending.add(1);
+    expect(speakerWiperClockIsLive(clock, 20_000)).toBe(true);
   });
 
   it("runs the iris clip in 900ms", () => {

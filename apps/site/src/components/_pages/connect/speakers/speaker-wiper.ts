@@ -50,7 +50,8 @@ const pushRect = (rects: Rect[], rect: Rect) => {
 /** Orange remains only outside the overlay iris — a hole punched through the field. */
 export const speakerOrangeMaskRects = (aperture: Rect, hole: Rect | null): Rect[] => {
   if (aperture.width < MIN_RECT_PX || aperture.height < MIN_RECT_PX) return [];
-  const clipped = hole && hole.width >= MIN_RECT_PX && hole.height >= MIN_RECT_PX ? intersectRects(aperture, hole) : null;
+  const clipped =
+    hole && hole.width >= MIN_RECT_PX && hole.height >= MIN_RECT_PX ? intersectRects(aperture, hole) : null;
   if (!clipped) return [{ x: aperture.x, y: aperture.y, width: aperture.width, height: aperture.height }];
 
   const apertureRight = aperture.x + aperture.width;
@@ -134,10 +135,7 @@ const frameElapsedMs = (
   return nowMs - startedAt;
 };
 
-const frameProgress = (
-  elapsedMs: number,
-  options: { reducedMotion?: boolean; progressOverride?: number },
-): number => {
+const frameProgress = (elapsedMs: number, options: { reducedMotion?: boolean; progressOverride?: number }): number => {
   if (options.reducedMotion) return 1;
   return speakerWiperProgress(elapsedMs, 0);
 };
@@ -236,15 +234,35 @@ export const parseSpeakerWiperOverride = (search: string): number | undefined =>
 export const SPEAKER_WIPER_ENTER_RATIO = 0.28;
 
 /** True once a portrait is far enough on-screen to start (or resume) its wipe. */
-export const speakerWiperShouldEnter = (intersectionRatio: number) =>
-  intersectionRatio >= SPEAKER_WIPER_ENTER_RATIO;
+export const speakerWiperShouldEnter = (intersectionRatio: number) => intersectionRatio >= SPEAKER_WIPER_ENTER_RATIO;
 
-/** Keep the rest overlay until the portrait has fully left the viewport. */
+/**
+ * Tracking helper only: the portrait is fully offscreen. Do not reset the
+ * overlay when this becomes true — footer/agenda shaders keep their last
+ * frame, and speakers should too. Leaving just stops counting the card as
+ * in-view so a later enter can arm a portrait that never started.
+ */
 export const speakerWiperShouldLeave = (intersectionRatio: number) => intersectionRatio <= 0;
+
+/** True while orange hold or iris growth still needs a live clock. */
+export const speakerWiperNeedsLiveClock = (
+  startedAtMs: number | null | undefined,
+  nowMs: number,
+  pending: boolean,
+): boolean => {
+  if (pending) return true;
+  if (startedAtMs == null) return false;
+  return nowMs < startedAtMs + SPEAKER_WIPER_DURATION_MS;
+};
 
 export type SpeakerWiperClock = {
   startedAtMs: (number | null)[];
   pending: Set<number>;
+};
+
+export const speakerWiperClockIsLive = (clock: SpeakerWiperClock, nowMs: number): boolean => {
+  if (clock.pending.size > 0) return true;
+  return clock.startedAtMs.some((startedAt) => speakerWiperNeedsLiveClock(startedAt, nowMs, false));
 };
 
 /**

@@ -3,6 +3,7 @@ import Container from "@/components/Container.astro";
 import SectionEyebrow from "@/components/SectionEyebrow.astro";
 import { connectSpeakers } from "../data";
 import SpeakerShaderOverlay from "./SpeakerShaderOverlay";
+import { SPEAKER_SHADER_HYDRATE_ROOT_MARGIN } from "./speaker-shader-quality";
 ---
 
 <Container class="scroll-mt-80" id="speakers">
@@ -47,7 +48,7 @@ import SpeakerShaderOverlay from "./SpeakerShaderOverlay";
       </div>
     ))}
     <div class="pointer-events-none absolute inset-0 z-10">
-      <SpeakerShaderOverlay client:visible={{ rootMargin: "240px" }} />
+      <SpeakerShaderOverlay client:visible={{ rootMargin: SPEAKER_SHADER_HYDRATE_ROOT_MARGIN }} />
     </div>
   </div>
 
