@@ -343,9 +343,11 @@ describe("badge logo SVG prep", () => {
     expect(customizer).toContain("flex-nowrap");
     expect(customizer).toContain("max-lg:gap-0");
     expect(customizer).toContain("max-lg:justify-between");
-    expect(customizer).toContain("max-lg:flex-1");
-    expect(customizer).toContain("max-lg:w-full");
+    expect(customizer).toContain("max-lg:contents");
     expect(customizer).toContain("max-lg:size-32");
+    expect(customizer).toContain(
+      "mx-8 flex h-40 w-40 shrink-0 items-center justify-center max-lg:mx-0 max-lg:size-32"
+    );
     expect(customizer).not.toContain("flex-wrap");
     expect(customizer).toContain("h-13 w-px rounded-full bg-border-default");
     expect(customizer).toContain("badgeMarkFill");

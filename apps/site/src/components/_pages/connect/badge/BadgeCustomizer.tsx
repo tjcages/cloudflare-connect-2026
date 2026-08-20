@@ -45,7 +45,7 @@ export default function BadgeCustomizer({
       <div className="flex w-full flex-nowrap items-center gap-8 max-lg:justify-between max-lg:gap-0">
         <div
           aria-label="Color"
-          className="flex flex-nowrap gap-8 max-lg:w-full max-lg:min-w-0 max-lg:flex-1 max-lg:justify-between max-lg:gap-0"
+          className="flex flex-nowrap gap-8 max-lg:contents"
           role="radiogroup"
         >
           <BadgeColorPicker onChange={onChange} params={params} />
@@ -71,22 +71,27 @@ export default function BadgeCustomizer({
             );
           })}
         </div>
-        <div aria-hidden="true" className="mx-8 flex h-40 shrink-0 items-center max-lg:mx-0">
+        <div
+          aria-hidden="true"
+          className="mx-8 flex h-40 w-40 shrink-0 items-center justify-center max-lg:mx-0 max-lg:size-32"
+        >
           <div className="h-13 w-px rounded-full bg-border-default" />
         </div>
-        <BadgeLogoUpload
-          fileName={fileName}
-          logoScale={logoScale}
-          markFill={badgeMarkFill(viewTheme)}
-          onClear={onClear}
-          onFile={onFile}
-          onPanChange={onPanChange}
-          onScaleChange={onScaleChange}
-          plateSrc={plateSrc}
-          previewSrc={previewSrc}
-          sourcePanX={sourcePanX}
-          sourcePanY={sourcePanY}
-        />
+        <div className="flex size-40 shrink-0 items-center justify-center max-lg:size-32">
+          <BadgeLogoUpload
+            fileName={fileName}
+            logoScale={logoScale}
+            markFill={badgeMarkFill(viewTheme)}
+            onClear={onClear}
+            onFile={onFile}
+            onPanChange={onPanChange}
+            onScaleChange={onScaleChange}
+            plateSrc={plateSrc}
+            previewSrc={previewSrc}
+            sourcePanX={sourcePanX}
+            sourcePanY={sourcePanY}
+          />
+        </div>
       </div>
       {error ? (
         <p className="text-body-small text-text-muted">{error}</p>
