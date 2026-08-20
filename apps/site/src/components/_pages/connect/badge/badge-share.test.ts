@@ -90,6 +90,8 @@ describe("badge share copy", () => {
     );
     expect(source).toContain("toCanvas(hero");
     expect(source).toContain("shareStamp");
+    expect(source).toContain("captureHeroShareFallback");
+    expect(source).toContain("BADGE_SHARE_FILE");
     expect(source).not.toContain("drawShareGrid");
   });
 });

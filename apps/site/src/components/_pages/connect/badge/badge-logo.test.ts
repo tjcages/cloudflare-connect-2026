@@ -403,6 +403,23 @@ describe("badge logo SVG prep", () => {
     expect(LOGO_FILE_ACCEPT).toContain("image/jpeg");
     expect(LOGO_FILE_ACCEPT).toContain("image/webp");
 
+    const dock = readFileSync(
+      resolve(
+        process.cwd(),
+        "src/components/_pages/connect/badge/BadgeShareDock.tsx"
+      ),
+      "utf8"
+    );
+    expect(dock).toContain("createPortal");
+    expect(dock).toContain("z-10000");
+    expect(dock).toContain("size-44");
+    expect(dock).toContain("shadow-elevation-default");
+    expect(dock).toContain("before:inside-border");
+    expect(dock).toContain("rounded-16");
+    expect(dock).toContain("draggable");
+    expect(dock).toContain("cross-small");
+    expect(dock).toContain("Right-click the image to save");
+
     const lanyard = readFileSync(
       resolve(
         process.cwd(),

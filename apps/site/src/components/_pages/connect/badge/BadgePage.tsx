@@ -325,7 +325,9 @@ export default function BadgePage(_props: IslandProps) {
   const onCopyShareable = () => {
     if (sharing) return;
     setSharing(true);
-    void captureShareCard().finally(() => setSharing(false));
+    void captureShareCard()
+      .catch(() => undefined)
+      .finally(() => setSharing(false));
   };
 
   const onShareX = () => {
