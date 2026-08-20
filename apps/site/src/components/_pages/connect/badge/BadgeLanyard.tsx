@@ -5,6 +5,7 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -73,6 +74,7 @@ import {
   ropeIsAsleep,
   stepRope,
 } from "./badge-rope";
+import { BADGE_SHARE_WIDTH } from "./badge-share";
 import { BADGE_TUNE_DEFAULTS, type BadgeTune } from "./badge-tune";
 
 const LANYARD_URL = "/connect/badge-lanyard.glb";
@@ -1206,6 +1208,17 @@ function rightColumnWorldX(width: number, viewportWidth: number) {
   return (columnCenterPx / width - 0.5) * viewportWidth;
 }
 
+function hangWorldX(
+  width: number,
+  viewportWidth: number,
+  hangX: number,
+  capturing: boolean
+) {
+  if (!capturing && width < 992) return 0;
+  const layoutWidth = capturing ? Math.max(width, BADGE_SHARE_WIDTH) : width;
+  return rightColumnWorldX(layoutWidth, viewportWidth) + hangX;
+}
+
 function LanyardBadge({
   twizzlerCanvas,
   rainCanvas,
@@ -1249,6 +1262,47 @@ function LanyardBadge({
     const id = window.setTimeout(() => setPrintReady(true), 4000);
     return () => window.clearTimeout(id);
   }, []);
+
+  const applyHang = useCallback(() => {
+    const hang = groupRef.current;
+    if (!hang) return;
+    const capturing = Boolean(gl.domElement.closest("[data-share-capturing]"));
+    const localY = cardLocalY(tune.cardHeight, tune.cardOverlap);
+    hang.position.x = hangWorldX(
+      size.width,
+      viewport.width,
+      tune.hangX,
+      capturing
+    );
+    hang.position.y = -localY * tune.modelScale + tune.hangLift;
+    hang.position.z = tune.hangZ;
+  }, [
+    gl.domElement,
+    size.width,
+    tune.cardHeight,
+    tune.cardOverlap,
+    tune.hangLift,
+    tune.hangX,
+    tune.hangZ,
+    tune.modelScale,
+    viewport.width,
+  ]);
+
+  useLayoutEffect(() => {
+    applyHang();
+    invalidate();
+    const sceneEl = gl.domElement.closest("[data-share-scene]");
+    if (!sceneEl) return;
+    const observer = new MutationObserver(() => {
+      applyHang();
+      invalidate();
+    });
+    observer.observe(sceneEl, {
+      attributes: true,
+      attributeFilter: ["data-share-capturing"],
+    });
+    return () => observer.disconnect();
+  }, [applyHang, gl.domElement, invalidate]);
 
   const rig = useMemo(() => {
     let source: Mesh | null = null;
@@ -1429,10 +1483,12 @@ function LanyardBadge({
     rig.card.position.y = localY;
     rig.card.position.z = CARD_FRONT_Z;
     if (hang) {
-      hang.position.x =
-        size.width < 992
-          ? 0
-          : rightColumnWorldX(size.width, viewport.width) + tune.hangX;
+      hang.position.x = hangWorldX(
+        size.width,
+        viewport.width,
+        tune.hangX,
+        Boolean(gl.domElement.closest("[data-share-capturing]"))
+      );
       hang.position.y = -localY * tune.modelScale + tune.hangLift;
       hang.position.z = tune.hangZ;
     }

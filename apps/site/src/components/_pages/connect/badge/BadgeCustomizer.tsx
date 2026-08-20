@@ -41,11 +41,11 @@ export default function BadgeCustomizer({
   const viewTheme = resolveBadgeTheme(params.theme, params.color);
 
   return (
-    <div className="flex flex-col gap-12">
-      <div className="flex flex-nowrap items-center gap-8 max-lg:gap-4">
+    <div className="flex w-full flex-col gap-12">
+      <div className="flex w-full flex-nowrap items-center gap-8 max-lg:justify-between max-lg:gap-0">
         <div
           aria-label="Color"
-          className="flex flex-nowrap gap-8 max-lg:gap-0"
+          className="flex flex-nowrap gap-8 max-lg:w-full max-lg:min-w-0 max-lg:flex-1 max-lg:justify-between max-lg:gap-0"
           role="radiogroup"
         >
           <BadgeColorPicker onChange={onChange} params={params} />
@@ -71,7 +71,7 @@ export default function BadgeCustomizer({
             );
           })}
         </div>
-        <div aria-hidden="true" className="mx-8 flex-center h-40 max-lg:mx-4">
+        <div aria-hidden="true" className="mx-8 flex h-40 shrink-0 items-center max-lg:mx-0">
           <div className="h-13 w-px rounded-full bg-border-default" />
         </div>
         <BadgeLogoUpload

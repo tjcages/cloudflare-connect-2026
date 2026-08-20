@@ -510,7 +510,7 @@ export default function BadgePage(_props: IslandProps) {
           </div>
         </div>
 
-        <div className="absolute inset-y-0 left-80 z-20 flex w-520 flex-col justify-center gap-40 max-lg:static max-lg:w-full max-lg:px-24 max-lg:pt-24 max-lg:pb-48">
+        <div className="absolute inset-y-0 left-80 z-20 flex w-520 flex-col justify-center gap-40 max-lg:static max-lg:-mt-80 max-lg:w-full max-lg:px-24 max-lg:pt-0 max-lg:pb-48">
           <Scramble
             className="text-decorative-small text-text-faint"
             preset="eyebrow-hero"

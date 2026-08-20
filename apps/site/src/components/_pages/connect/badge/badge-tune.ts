@@ -102,7 +102,7 @@ export const BADGE_TUNE_DEFAULTS: BadgeTune = {
   cardEmissive: 0.17,
   cardRoughness: 0.18,
   cardClearcoat: 1,
-  cardPitch: -0.12,
+  cardPitch: -0.08,
   cameraFov: 30,
   cameraX: 0,
   cameraY: 0.15,
@@ -393,4 +393,4 @@ export const BADGE_TUNE_FIELDS: PanelField<BadgeTune>[] = [
   slider("backdropMaskY", "Mask Y %", 0, 100, 1),
 ];
 
-export const BADGE_TUNE_PANEL_ID = "connect-badge-tune-v17";
+export const BADGE_TUNE_PANEL_ID = "connect-badge-tune-v18";

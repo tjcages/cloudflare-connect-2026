@@ -24,10 +24,19 @@ const FULL_RADIUS = 8;
 
 export type BadgeLightboxItem = { src: string; video?: boolean };
 
+function flipFromOrigin(origin: DOMRect, base: DOMRect) {
+  return {
+    x: origin.left + origin.width / 2 - (base.left + base.width / 2),
+    y: origin.top + origin.height / 2 - (base.top + base.height / 2),
+    scale: origin.width / base.width,
+  };
+}
+
 export default function BadgeLightbox({
   items,
   index,
   originRect,
+  originRef,
   onClose,
   onPrev,
   onNext,
@@ -36,6 +45,7 @@ export default function BadgeLightbox({
   items: BadgeLightboxItem[];
   index: number;
   originRect?: DOMRect;
+  originRef?: { readonly current: HTMLElement | null };
   onClose: () => void;
   onPrev: () => void;
   onNext: () => void;
@@ -47,6 +57,7 @@ export default function BadgeLightbox({
   const closing = useRef(false);
   const navigated = useRef(false);
   const [ready, setReady] = useState(false);
+  const [closingUi, setClosingUi] = useState(false);
   const startIndex = useRef(index);
   const rootRef = useRef<HTMLDivElement>(null);
   const wheelEnd = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -63,6 +74,10 @@ export default function BadgeLightbox({
     return () => control.stop();
   }, [overlay]);
 
+  function liveOrigin() {
+    return originRef?.current?.getBoundingClientRect() ?? originRect;
+  }
+
   function runOpen() {
     const el = imgRef.current;
     if (!el || ranOpen.current) return;
@@ -73,24 +88,21 @@ export default function BadgeLightbox({
     if (!sized) return;
     ranOpen.current = true;
 
+    x.set(0);
+    y.set(0);
+    scale.set(1);
+    radius.set(FULL_RADIUS);
     void el.offsetWidth;
     const base = el.getBoundingClientRect();
     baseRef.current = base;
 
-    if (originRect && base.width > 0) {
-      const startScale = originRect.width / base.width;
-      x.set(
-        originRect.left +
-          originRect.width / 2 -
-          (base.left + base.width / 2)
-      );
-      y.set(
-        originRect.top +
-          originRect.height / 2 -
-          (base.top + base.height / 2)
-      );
-      scale.set(startScale);
-      radius.set(TILE_RADIUS / startScale);
+    const origin = liveOrigin();
+    if (origin && base.width > 0) {
+      const start = flipFromOrigin(origin, base);
+      x.set(start.x);
+      y.set(start.y);
+      scale.set(start.scale);
+      radius.set(TILE_RADIUS / start.scale);
     } else {
       scale.set(0.92);
     }
@@ -116,33 +128,29 @@ export default function BadgeLightbox({
   function close() {
     if (closing.current) return;
     closing.current = true;
+    setClosingUi(true);
     const base = baseRef.current;
-    if (originRect && base && !navigated.current && ranOpen.current) {
-      const startScale = originRect.width / base.width;
-      animate(
-        x,
-        originRect.left +
-          originRect.width / 2 -
-          (base.left + base.width / 2),
-        CLOSE_SPRING
-      );
-      animate(
-        y,
-        originRect.top +
-          originRect.height / 2 -
-          (base.top + base.height / 2),
-        CLOSE_SPRING
-      );
-      animate(scale, startScale, CLOSE_SPRING);
-      animate(radius, TILE_RADIUS / startScale, CLOSE_SPRING);
+    const origin = liveOrigin();
+    const canFlip = Boolean(
+      origin && base && !navigated.current && ranOpen.current
+    );
+    if (origin && base && canFlip) {
+      const end = flipFromOrigin(origin, base);
+      animate(x, end.x, CLOSE_SPRING);
+      animate(y, end.y, CLOSE_SPRING);
+      animate(scale, end.scale, { ...CLOSE_SPRING, onComplete: onClose });
+      animate(radius, TILE_RADIUS / end.scale, CLOSE_SPRING);
     } else {
-      animate(scale, scale.get() * 0.9, CLOSE_SPRING);
+      animate(scale, scale.get() * 0.9, {
+        ...CLOSE_SPRING,
+        onComplete: onClose,
+      });
     }
-    animate(imgOpacity, 0, { duration: 0.2 });
-    animate(overlay, 0, { duration: 0.2, onComplete: onClose });
+    animate(overlay, 0, CLOSE_SPRING);
   }
 
   function handleDrag() {
+    if (closing.current) return;
     const distance = Math.hypot(x.get(), y.get());
     scale.set(Math.max(0.55, 1 - distance / 1400));
     overlay.set(Math.max(0, 1 - distance / 650));
@@ -150,6 +158,7 @@ export default function BadgeLightbox({
   }
 
   function handleDragEnd() {
+    if (closing.current) return;
     const dx = x.get();
     const dy = y.get();
     if (
@@ -240,7 +249,7 @@ export default function BadgeLightbox({
       role="dialog"
     >
       <motion.div
-        className="absolute inset-0 bg-black/90"
+        className="absolute inset-0 bg-black/35 backdrop-blur-[24px]"
         onClick={close}
         style={{ opacity: overlay }}
       />
@@ -250,7 +259,7 @@ export default function BadgeLightbox({
           <motion.video
             autoPlay
             className={mediaClassName}
-            drag={ready && !closing.current}
+            drag={ready && !closingUi}
             dragElastic={0.9}
             dragMomentum={false}
             key={current.src}
@@ -269,7 +278,7 @@ export default function BadgeLightbox({
           <motion.img
             alt=""
             className={mediaClassName}
-            drag={ready && !closing.current}
+            drag={ready && !closingUi}
             dragElastic={0.9}
             dragMomentum={false}
             draggable={false}

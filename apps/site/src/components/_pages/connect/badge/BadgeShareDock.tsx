@@ -1,5 +1,6 @@
 "use no memo";
 
+import cn from "classnames";
 import { motion } from "motion/react";
 import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -36,31 +37,28 @@ export default function BadgeShareDock({
           initial={{ filter: "blur(6px)", opacity: 0, scale: 0.88, y: 16 }}
           transition={{ duration: 0.35, ease: SHARE_EASE }}
         >
-          <div className="relative overflow-hidden rounded-16 bg-background-base shadow-elevation-default-drops">
+          <div
+            className="relative cursor-zoom-in overflow-hidden rounded-16 bg-background-base shadow-elevation-default-drops"
+            onClick={openLightbox}
+          >
             <button
               aria-label="Dismiss shareable card"
               className="absolute top-8 right-8 z-3 flex size-32 cursor-pointer items-center justify-center rounded-full bg-background-base text-icon-muted opacity-40 transition-opacity hover:bg-background-faint hover:text-icon-base hover:opacity-100 focus-visible:bg-background-ghost focus-visible:opacity-100 focus-visible:shadow-button-tertiary-focus focus-visible:outline-none"
-              onClick={onDismiss}
+              onClick={(event) => {
+                event.stopPropagation();
+                onDismiss();
+              }}
               type="button"
             >
               <Icon name="cross-small" size={20} />
             </button>
             <img
               alt={title}
-              className="block w-full cursor-zoom-in"
+              className={cn("block w-full", lightbox && "opacity-0")}
               draggable
-              onClick={openLightbox}
               ref={imgRef}
               src={src}
             />
-            <button
-              aria-label="Open shareable card"
-              className="absolute bottom-8 left-1/2 z-3 flex size-32 -translate-x-1/2 cursor-pointer items-center justify-center rounded-full bg-background-base text-icon-muted opacity-40 transition-opacity hover:bg-background-faint hover:text-icon-base hover:opacity-100 focus-visible:bg-background-ghost focus-visible:opacity-100 focus-visible:shadow-button-tertiary-focus focus-visible:outline-none"
-              onClick={openLightbox}
-              type="button"
-            >
-              <Icon name="arrows-zoom" size={20} />
-            </button>
           </div>
         </motion.div>
       </div>
@@ -72,6 +70,7 @@ export default function BadgeShareDock({
           onNext={() => undefined}
           onPrev={() => undefined}
           originRect={lightbox.rect}
+          originRef={imgRef}
         />
       ) : null}
     </>,

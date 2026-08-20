@@ -342,6 +342,9 @@ describe("badge logo SVG prep", () => {
     expect(customizer).toContain("BADGE_PRESET_THEMES");
     expect(customizer).toContain("flex-nowrap");
     expect(customizer).toContain("max-lg:gap-0");
+    expect(customizer).toContain("max-lg:justify-between");
+    expect(customizer).toContain("max-lg:flex-1");
+    expect(customizer).toContain("max-lg:w-full");
     expect(customizer).toContain("max-lg:size-32");
     expect(customizer).not.toContain("flex-wrap");
     expect(customizer).toContain("h-13 w-px rounded-full bg-border-default");
@@ -383,7 +386,8 @@ describe("badge logo SVG prep", () => {
     expect(page).toContain("h-800");
     expect(page).toContain("h-801");
     expect(page).toContain("max-lg:h-540");
-    expect(page).toContain("max-lg:pt-24");
+    expect(page).toContain("max-lg:-mt-80");
+    expect(page).not.toContain("max-lg:pt-24");
     expect(page).toContain("group/share");
     expect(page).toContain("group-data-[share-capturing]/share:!block");
     expect(page).toContain("BadgeGrid");
@@ -453,11 +457,13 @@ describe("badge logo SVG prep", () => {
     expect(dock).toContain("rounded-16");
     expect(dock).toContain("draggable");
     expect(dock).toContain("cross-small");
-    expect(dock).toContain("arrows-zoom");
-    expect(dock).toContain("Open shareable card");
+    expect(dock).not.toContain("arrows-zoom");
+    expect(dock).not.toContain("Open shareable card");
     expect(dock).toContain("cursor-zoom-in");
+    expect(dock).toContain("stopPropagation");
     expect(dock).toContain("BadgeLightbox");
     expect(dock).toContain("originRect");
+    expect(dock).toContain("originRef");
     expect(dock).toContain('filter: "blur(6px)"');
     expect(dock).toContain("scale: 0.88");
     expect(dock).not.toContain("hover:scale-105");
@@ -479,8 +485,13 @@ describe("badge logo SVG prep", () => {
     expect(lightbox).toContain("ArrowLeft");
     expect(lightbox).toContain("Escape");
     expect(lightbox).toContain("originRect");
+    expect(lightbox).toContain("originRef");
+    expect(lightbox).toContain("flipFromOrigin");
     expect(lightbox).toContain("handleDragEnd");
-    expect(lightbox).toContain("bg-black/90");
+    expect(lightbox).toContain("backdrop-blur-[24px]");
+    expect(lightbox).not.toContain("bg-black/90");
+    expect(lightbox).not.toContain("animate(imgOpacity, 0");
+    expect(lightbox).toContain("closingUi");
     expect(lightbox).toContain("role=\"dialog\"");
 
     const lanyard = readFileSync(
@@ -490,8 +501,11 @@ describe("badge logo SVG prep", () => {
       ),
       "utf8"
     );
-    expect(lanyard).toContain("size.width < 992");
+    expect(lanyard).toContain("width < 992");
     expect(lanyard).toContain("rightColumnWorldX");
+    expect(lanyard).toContain("hangWorldX");
+    expect(lanyard).toContain("data-share-capturing");
+    expect(lanyard).toContain("BADGE_SHARE_WIDTH");
     expect(lanyard).toContain("applyBadgeLook");
     expect(lanyard).toContain("BADGE_DPR_MAX");
     expect(lanyard).toContain("envMapIntensity: 0.85");

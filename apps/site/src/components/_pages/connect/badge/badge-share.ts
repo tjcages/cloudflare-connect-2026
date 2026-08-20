@@ -29,6 +29,30 @@ function waitTwoFrames() {
   });
 }
 
+async function waitForDesktopShareSize(scene: HTMLElement) {
+  const slack = 2;
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    const rect = scene.getBoundingClientRect();
+    const canvas =
+      scene.querySelector<HTMLCanvasElement>("canvas[data-share-stamp]") ??
+      scene.querySelector("canvas");
+    const canvasW = canvas?.clientWidth ?? 0;
+    const canvasH = canvas?.clientHeight ?? 0;
+    if (
+      rect.width >= BADGE_SHARE_WIDTH - slack &&
+      rect.height >= BADGE_SHARE_HEIGHT - slack &&
+      canvasW >= BADGE_SHARE_WIDTH - slack &&
+      canvasH >= BADGE_SHARE_HEIGHT - slack
+    ) {
+      window.dispatchEvent(new Event("resize"));
+      await waitTwoFrames();
+      await waitTwoFrames();
+      return;
+    }
+    await waitTwoFrames();
+  }
+}
+
 async function withDesktopShareLayout<T>(
   scene: HTMLElement,
   run: () => Promise<T>
@@ -52,8 +76,7 @@ async function withDesktopShareLayout<T>(
   scene.style.pointerEvents = "none";
   scene.style.maxHeight = "none";
   try {
-    await waitTwoFrames();
-    await waitTwoFrames();
+    await waitForDesktopShareSize(scene);
     return await run();
   } finally {
     delete scene.dataset.shareCapturing;

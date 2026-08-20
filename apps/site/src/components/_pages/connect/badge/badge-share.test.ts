@@ -161,6 +161,7 @@ describe("badge share copy", () => {
     expect(source).toContain("destination-in");
     expect(source).not.toContain("stampShareTitle");
     expect(source).toContain("withDesktopShareLayout");
+    expect(source).toContain("waitForDesktopShareSize");
     expect(source).toContain("BADGE_SHARE_WIDTH");
     expect(source).toContain("BADGE_SHARE_HEIGHT");
     expect(source).toContain("shareCapturing");

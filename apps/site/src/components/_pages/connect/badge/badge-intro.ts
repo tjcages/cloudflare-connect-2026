@@ -87,7 +87,7 @@ export const INTRO_POSE: BadgePoseSnapshot = {
   tip: INTRO_TIP,
   prev: posePoint(INTRO_TIP.x, INTRO_TIP.y + 0.0001, INTRO_TIP.z),
   stretch: hangingStretch(INTRO_TIP, INTRO_PIN),
-  card: { x: 0, y: -0.104, z: 0.006, rx: -0.12, ry: -0.2934, rz: 0.0352 },
+  card: { x: 0, y: -0.104, z: 0.006, rx: -0.08, ry: -0.2934, rz: 0.0352 },
   rope: INTRO_ROPE,
 };
 
