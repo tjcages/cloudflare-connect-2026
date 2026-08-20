@@ -12,11 +12,13 @@ import {
   ExtrudeGeometry,
   Float32BufferAttribute,
   Group,
+  InstancedMesh,
   MathUtils,
   Mesh,
   MeshBasicMaterial,
   MeshPhysicalMaterial,
   MeshStandardMaterial,
+  Object3D,
   PlaneGeometry,
   Quaternion,
   Shape,
@@ -29,8 +31,10 @@ import {
 
 const LANYARD_URL = "/connect/badge-lanyard.glb";
 const MODEL_SCALE = 14;
-const TEXTURE_W = 1024;
-const TEXTURE_H = 1536;
+const TEXTURE_W = 768;
+const TEXTURE_H = 1152;
+const TEXTURE_W_LOW = 384;
+const TEXTURE_H_LOW = 576;
 const TAG_CUT_Y = 0.105;
 const CLIP_CLUSTER_Y0 = 0.118;
 const CLIP_CLUSTER_Y1 = 0.135;
@@ -71,12 +75,8 @@ const CARD_OVERLAP = 0.006;
 const CARD_LOCAL_Y = -(CARD_H / 2) + CARD_OVERLAP;
 const HANG_Y = -CARD_LOCAL_Y * MODEL_SCALE;
 const WALL_Z = -0.022;
-const SHADOW_OPACITY = 0.5;
-const SHADOW_PLANE_W = 0.66;
-const SHADOW_PLANE_H = 0.54;
-const SHADOW_PLANE_Y = 0.02;
-const SHADOW_MAP_W = 512;
-const SHADOW_MAP_H = 420;
+const SHADOW_OPACITY = 0.38;
+const SHADOW_STRAP_COUNT = CHAIN_BONES + 1;
 
 const ACCENT = "#f46021";
 const METAL = ACCENT;
@@ -86,6 +86,10 @@ const WEBBING = ACCENT;
 
 const Y_UP = new Vector3(0, 1, 0);
 const CARD_WORLD = new Vector3();
+const CARD_QUAT = new Quaternion();
+const CARD_UP = new Vector3();
+const CARD_NORMAL = new Vector3();
+const SHADOW_DUMMY = new Object3D();
 
 export type BadgeCardIdentity = {
   name: string;
@@ -156,39 +160,49 @@ function drawIdentity(
   ctx.fillStyle = fade;
   ctx.fillRect(0, top, width, footer);
 
+  const s = width / 1024;
   const pad = width * 0.08;
   ctx.fillStyle = "#1a1a1a";
   ctx.textBaseline = "top";
-  ctx.font = '400 72px "STK Bureau Sans", sans-serif';
-  ctx.fillText(identity.name, pad, top + 28, width - pad * 2);
-  ctx.font = '300 40px "STK Bureau Sans", sans-serif';
+  ctx.font = `400 ${Math.round(72 * s)}px "STK Bureau Sans", sans-serif`;
+  ctx.fillText(identity.name, pad, top + 28 * s, width - pad * 2);
+  ctx.font = `300 ${Math.round(40 * s)}px "STK Bureau Sans", sans-serif`;
   ctx.fillStyle = "#5c5c5c";
-  ctx.fillText(identity.company, pad, top + 112, width - pad * 2);
-  ctx.font = '400 28px "Paper Mono", ui-monospace, monospace';
+  ctx.fillText(identity.company, pad, top + 112 * s, width - pad * 2);
+  ctx.font = `400 ${Math.round(28 * s)}px "Paper Mono", ui-monospace, monospace`;
   ctx.fillStyle = identity.accent;
   ctx.fillText(
     `${identity.role.toUpperCase()}  ·  ${identity.serial}`,
     pad,
-    top + 168,
+    top + 168 * s,
     width - pad * 2
   );
+}
+
+function identityKey(identity: BadgeCardIdentity) {
+  return `${identity.name}|${identity.company}|${identity.role}|${identity.serial}|${identity.accent}`;
 }
 
 function useHeroShaderTexture(
   twizzlerCanvas: RefObject<HTMLCanvasElement | null>,
   rainCanvas: RefObject<HTMLCanvasElement | null>,
-  identity: BadgeCardIdentity
+  identity: BadgeCardIdentity,
+  lowPower: boolean,
+  shaderLive: boolean
 ) {
+  const skip = useRef(0);
+  const lastKey = useRef("");
+  const bakedWhileFrozen = useRef(false);
   const texture = useMemo(() => {
     const canvas = document.createElement("canvas");
-    canvas.width = TEXTURE_W;
-    canvas.height = TEXTURE_H;
+    canvas.width = lowPower ? TEXTURE_W_LOW : TEXTURE_W;
+    canvas.height = lowPower ? TEXTURE_H_LOW : TEXTURE_H;
     const map = new CanvasTexture(canvas);
     map.colorSpace = SRGBColorSpace;
-    map.anisotropy = 16;
+    map.anisotropy = lowPower ? 1 : 4;
     map.needsUpdate = true;
     return map;
-  }, []);
+  }, [lowPower]);
 
   useEffect(() => {
     return () => {
@@ -196,7 +210,18 @@ function useHeroShaderTexture(
     };
   }, [texture]);
 
+  useEffect(() => {
+    if (shaderLive) bakedWhileFrozen.current = false;
+  }, [shaderLive]);
+
   useFrame(() => {
+    const key = identityKey(identity);
+    const identityChanged = key !== lastKey.current;
+    skip.current += 1;
+    if (!shaderLive && !identityChanged && bakedWhileFrozen.current) return;
+    if (shaderLive && !identityChanged && skip.current % (lowPower ? 4 : 2) !== 0) {
+      return;
+    }
     const canvas = texture.image as HTMLCanvasElement;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
@@ -208,6 +233,8 @@ function useHeroShaderTexture(
     if (rain) drawCover(ctx, rain, 0, 0, canvas.width, canvas.height);
     drawIdentity(ctx, identity, canvas.width, canvas.height);
     texture.needsUpdate = true;
+    lastKey.current = key;
+    if (!shaderLive) bakedWhileFrozen.current = true;
   });
 
   return texture;
@@ -406,7 +433,7 @@ function hookXFromMetal(geometry: BufferGeometry): number {
   return count === 0 ? 0 : sum / count;
 }
 
-function createBadgeCard(texture: Texture, hookX: number): Group {
+function createBadgeCard(texture: Texture, hookX: number, lowPower: boolean): Group {
   const card = new Group();
   card.position.set(hookX, CARD_LOCAL_Y, 0);
 
@@ -418,13 +445,19 @@ function createBadgeCard(texture: Texture, hookX: number): Group {
   bodyGeometry.translate(0, 0, -CARD_D / 2);
   const body = new Mesh(
     bodyGeometry,
-    new MeshPhysicalMaterial({
-      color: "#ffffff",
-      metalness: 0.04,
-      roughness: 0.12,
-      clearcoat: 1,
-      clearcoatRoughness: 0.06,
-    })
+    lowPower
+      ? new MeshStandardMaterial({
+          color: "#ffffff",
+          metalness: 0.06,
+          roughness: 0.16,
+        })
+      : new MeshPhysicalMaterial({
+          color: "#ffffff",
+          metalness: 0.04,
+          roughness: 0.12,
+          clearcoat: 1,
+          clearcoatRoughness: 0.06,
+        })
   );
   const face = new Mesh(
     new PlaneGeometry(CARD_W - SHADER_INSET * 2, CARD_H - SHADER_INSET * 2),
@@ -461,92 +494,141 @@ function traceRoundRect(
   ctx.closePath();
 }
 
-function createWallShadow(): { mesh: Mesh; canvas: HTMLCanvasElement } {
+function paintSoftDisc() {
+  const size = 64;
   const canvas = document.createElement("canvas");
-  canvas.width = SHADOW_MAP_W;
-  canvas.height = SHADOW_MAP_H;
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Could not create strap shadow.");
+  const gradient = ctx.createRadialGradient(
+    size / 2,
+    size / 2,
+    2,
+    size / 2,
+    size / 2,
+    size / 2
+  );
+  gradient.addColorStop(0, "rgba(0,0,0,0.55)");
+  gradient.addColorStop(0.45, "rgba(0,0,0,0.22)");
+  gradient.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, size, size);
   const map = new CanvasTexture(canvas);
   map.needsUpdate = true;
-  const material = new MeshBasicMaterial({
-    map,
+  return map;
+}
+
+function paintSoftCard() {
+  const width = 160;
+  const height = 240;
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Could not create card shadow.");
+  ctx.clearRect(0, 0, width, height);
+  ctx.shadowColor = "rgba(0,0,0,0.8)";
+  ctx.shadowBlur = 18;
+  ctx.fillStyle = "rgba(0,0,0,0.5)";
+  const inset = 28;
+  traceRoundRect(
+    ctx,
+    inset,
+    inset,
+    width - inset * 2,
+    height - inset * 2,
+    18
+  );
+  ctx.fill();
+  const map = new CanvasTexture(canvas);
+  map.needsUpdate = true;
+  return map;
+}
+
+function createWallShadows(): {
+  cardShadow: Mesh;
+  strapShadow: InstancedMesh;
+} {
+  const cardMaterial = new MeshBasicMaterial({
+    map: paintSoftCard(),
     transparent: true,
     depthWrite: false,
     opacity: SHADOW_OPACITY,
     toneMapped: false,
     color: "#000000",
   });
-  const mesh = new Mesh(
-    new PlaneGeometry(SHADOW_PLANE_W, SHADOW_PLANE_H),
-    material
+  const cardShadow = new Mesh(
+    new PlaneGeometry(CARD_W * 1.55, CARD_H * 1.55),
+    cardMaterial
   );
-  mesh.position.set(0, SHADOW_PLANE_Y, WALL_Z);
-  mesh.renderOrder = -1;
-  mesh.frustumCulled = false;
-  return { mesh, canvas };
+  cardShadow.position.z = WALL_Z;
+  cardShadow.renderOrder = -1;
+  cardShadow.frustumCulled = false;
+
+  const strapMaterial = new MeshBasicMaterial({
+    map: paintSoftDisc(),
+    transparent: true,
+    depthWrite: false,
+    opacity: SHADOW_OPACITY * 0.85,
+    toneMapped: false,
+    color: "#000000",
+  });
+  const strapShadow = new InstancedMesh(
+    new PlaneGeometry(0.034, 0.034),
+    strapMaterial,
+    SHADOW_STRAP_COUNT
+  );
+  strapShadow.position.z = WALL_Z;
+  strapShadow.renderOrder = -1;
+  strapShadow.frustumCulled = false;
+  return { cardShadow, strapShadow };
 }
 
 function applyWallShadow(rig: LanyardRig) {
-  const canvas = rig.shadowCanvas;
-  const ctx = canvas.getContext("2d");
-  const map = (rig.shadow.material as MeshBasicMaterial).map;
-  if (!ctx || !map) return;
-
   rig.card.getWorldPosition(CARD_WORLD);
   rig.group.worldToLocal(CARD_WORLD);
+  rig.card.getWorldQuaternion(CARD_QUAT);
+  CARD_UP.set(0, 1, 0).applyQuaternion(CARD_QUAT);
+  CARD_NORMAL.set(0, 0, 1).applyQuaternion(CARD_QUAT);
   const lift = MathUtils.clamp((CARD_WORLD.z - WALL_Z) / 0.09, 0, 1);
-  const shiftX = -0.007 - lift * 0.014;
-  const shiftY = -0.01 - lift * 0.012;
-  const toX = (x: number) =>
-    ((x + shiftX) / SHADOW_PLANE_W + 0.5) * canvas.width;
-  const toY = (y: number) =>
-    (0.5 - (y + shiftY - SHADOW_PLANE_Y) / SHADOW_PLANE_H) * canvas.height;
-  const px = canvas.width / SHADOW_PLANE_W;
-
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.filter = `blur(${11 + lift * 16}px)`;
-  ctx.globalAlpha = 0.72 * (1 - lift * 0.42);
-  ctx.fillStyle = "#000000";
-  ctx.strokeStyle = "#000000";
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
-
-  const points = rig.rope.now;
-  ctx.lineWidth = 0.015 * px;
-  ctx.beginPath();
-  for (let index = points.length - 1; index >= 0; index -= 1) {
-    const point = points[index]!;
-    const x = toX(point.x);
-    const y = toY(point.y);
-    if (index === points.length - 1) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
-  }
-  ctx.stroke();
-
-  ctx.lineWidth = 0.028 * px;
-  const clip = points[0]!;
-  const clipX = toX(clip.x);
-  const clipY = toY(clip.y);
-  ctx.beginPath();
-  ctx.moveTo(clipX, clipY);
-  const next = points[1] ?? clip;
-  ctx.lineTo(toX(next.x * 0.35 + clip.x * 0.65), toY(next.y * 0.35 + clip.y * 0.65));
-  ctx.stroke();
-
-  const cardW = CARD_W * px;
-  const cardH = CARD_H * (canvas.height / SHADOW_PLANE_H);
-  ctx.save();
-  ctx.translate(toX(CARD_WORLD.x), toY(CARD_WORLD.y));
-  ctx.rotate(-rig.card.rotation.z);
-  ctx.scale(Math.max(0.32, Math.abs(Math.cos(rig.card.rotation.y))), 1);
-  traceRoundRect(ctx, -cardW / 2, -cardH / 2, cardW, cardH, CARD_RADIUS * px);
-  ctx.fill();
-  ctx.restore();
-
-  ctx.filter = "none";
-  ctx.globalAlpha = 1;
-  map.needsUpdate = true;
-  (rig.shadow.material as MeshBasicMaterial).opacity =
+  const facing = Math.max(0.28, Math.abs(CARD_NORMAL.z));
+  const tilt = Math.atan2(CARD_UP.x, CARD_UP.y);
+  rig.cardShadow.position.set(
+    CARD_WORLD.x - 0.007 - lift * 0.012,
+    CARD_WORLD.y - 0.01 - lift * 0.01,
+    WALL_Z
+  );
+  rig.cardShadow.rotation.set(0, 0, tilt);
+  const size = 1.05 + lift * 0.22;
+  rig.cardShadow.scale.set(size * facing, size, 1);
+  (rig.cardShadow.material as MeshBasicMaterial).opacity =
     SHADOW_OPACITY * (1 - lift * 0.4);
+
+  const blob = 1 + lift * 0.35;
+  const lastShadow = SHADOW_STRAP_COUNT - 1;
+  for (let index = 0; index < SHADOW_STRAP_COUNT; index += 1) {
+    const point = rig.rope.now[index]!;
+    const other =
+      rig.rope.now[index === lastShadow ? index - 1 : index + 1]!;
+    const nearClip = 1 - index / lastShadow;
+    SHADOW_DUMMY.position.set(
+      point.x - 0.005 - lift * 0.01,
+      point.y - 0.006 - lift * 0.008,
+      0
+    );
+    SHADOW_DUMMY.rotation.set(0, 0, Math.atan2(other.x - point.x, other.y - point.y));
+    SHADOW_DUMMY.scale.set(
+      0.42 * blob,
+      (0.85 + nearClip * 0.55) * blob,
+      1
+    );
+    SHADOW_DUMMY.updateMatrix();
+    rig.strapShadow.setMatrixAt(index, SHADOW_DUMMY.matrix);
+  }
+  rig.strapShadow.instanceMatrix.needsUpdate = true;
+  (rig.strapShadow.material as MeshBasicMaterial).opacity =
+    SHADOW_OPACITY * 0.8 * (1 - lift * 0.4);
 }
 
 type RopeState = {
@@ -565,12 +647,23 @@ type LanyardRig = {
   meshes: SkinnedMesh[];
   materials: Record<LanyardPart, MeshStandardMaterial>;
   card: Group;
-  shadow: Mesh;
-  shadowCanvas: HTMLCanvasElement;
+  cardShadow: Mesh;
+  strapShadow: InstancedMesh;
   rope: RopeState;
 };
 
-function buildLanyardRig(source: Mesh, texture: Texture): LanyardRig {
+function disposeTexturedMesh(mesh: Mesh | InstancedMesh) {
+  mesh.geometry.dispose();
+  const material = mesh.material as MeshBasicMaterial;
+  material.map?.dispose();
+  material.dispose();
+}
+
+function buildLanyardRig(
+  source: Mesh,
+  texture: Texture,
+  lowPower: boolean
+): LanyardRig {
   const geometry = (source.geometry as BufferGeometry).clone();
   source.updateWorldMatrix(true, false);
   geometry.applyMatrix4(source.matrixWorld);
@@ -603,10 +696,10 @@ function buildLanyardRig(source: Mesh, texture: Texture): LanyardRig {
   const parts = splitByPart(geometry);
   const sourceMaterial = source.material as MeshStandardMaterial;
   const materials: Record<LanyardPart, MeshStandardMaterial> = {
-    metal: makePartMaterial(sourceMaterial, METAL, 0.48, 0.28, true, 0.2),
-    plastic: makePartMaterial(sourceMaterial, PLASTIC, 0.08, 0.5, true),
-    webbing: makePartMaterial(sourceMaterial, WEBBING, 0.4, 0.32, true, 0.14),
-    cord: makePartMaterial(sourceMaterial, CORD, 0.36, 0.34, true, 0.12),
+    metal: makePartMaterial(sourceMaterial, METAL, 0.48, 0.28, !lowPower, 0.2),
+    plastic: makePartMaterial(sourceMaterial, PLASTIC, 0.08, 0.5, !lowPower),
+    webbing: makePartMaterial(sourceMaterial, WEBBING, 0.4, 0.32, !lowPower, 0.14),
+    cord: makePartMaterial(sourceMaterial, CORD, 0.36, 0.34, !lowPower, 0.12),
   };
 
   const segment = cordLength / CHAIN_BONES;
@@ -633,10 +726,10 @@ function buildLanyardRig(source: Mesh, texture: Texture): LanyardRig {
   }
 
   const hookX = hookXFromMetal(parts.metal);
-  const card = createBadgeCard(texture, hookX);
+  const card = createBadgeCard(texture, hookX, lowPower);
   root.add(card);
-  const wallShadow = createWallShadow();
-  group.add(wallShadow.mesh);
+  const { cardShadow, strapShadow } = createWallShadows();
+  group.add(cardShadow, strapShadow);
 
   const now: Vector3[] = [];
   const prev: Vector3[] = [];
@@ -655,8 +748,8 @@ function buildLanyardRig(source: Mesh, texture: Texture): LanyardRig {
     meshes,
     materials,
     card,
-    shadow: wallShadow.mesh,
-    shadowCanvas: wallShadow.canvas,
+    cardShadow,
+    strapShadow,
     rope: {
       now,
       prev,
@@ -939,19 +1032,29 @@ function LanyardBadge({
   rainCanvas,
   reducedMotion,
   identity,
+  lowPower,
+  shaderLive,
 }: {
   twizzlerCanvas: RefObject<HTMLCanvasElement | null>;
   rainCanvas: RefObject<HTMLCanvasElement | null>;
   reducedMotion: boolean;
   identity: BadgeCardIdentity;
+  lowPower: boolean;
+  shaderLive: boolean;
 }) {
-  const { gl, camera, viewport, size } = useThree();
+  const { gl, camera, viewport, size, invalidate } = useThree();
   const { scene } = useGLTF(LANYARD_URL);
   const groupRef = useRef<Group>(null);
   const dragging = useRef(false);
   const dragOffset = useRef(new Vector3());
   const dragTarget = useRef(new Vector3());
-  const texture = useHeroShaderTexture(twizzlerCanvas, rainCanvas, identity);
+  const texture = useHeroShaderTexture(
+    twizzlerCanvas,
+    rainCanvas,
+    identity,
+    lowPower,
+    shaderLive
+  );
 
   const rig = useMemo(() => {
     let source: Mesh | null = null;
@@ -959,18 +1062,20 @@ function LanyardBadge({
       if (!source && (child as Mesh).isMesh) source = child as Mesh;
     });
     if (!source) return null;
-    return buildLanyardRig(source, texture);
-  }, [scene, texture]);
+    return buildLanyardRig(source, texture, lowPower);
+  }, [lowPower, scene, texture]);
 
   useEffect(() => {
     if (!rig) return;
     tintLanyardMetal(rig.materials, identity.accent);
-  }, [identity.accent, rig]);
+    invalidate();
+  }, [identity.accent, invalidate, rig]);
 
   useEffect(() => {
     if (!rig || reducedMotion) return;
     kickIntroSwing(rig.rope);
-  }, [reducedMotion, rig]);
+    invalidate();
+  }, [invalidate, reducedMotion, rig]);
 
   useEffect(() => {
     if (!rig) return;
@@ -989,10 +1094,8 @@ function LanyardBadge({
           material.dispose();
         }
       });
-      rig.shadow.geometry.dispose();
-      const shadowMaterial = rig.shadow.material as MeshBasicMaterial;
-      shadowMaterial.map?.dispose();
-      shadowMaterial.dispose();
+      disposeTexturedMesh(rig.cardShadow);
+      disposeTexturedMesh(rig.strapShadow);
     };
   }, [rig]);
 
@@ -1023,12 +1126,14 @@ function LanyardBadge({
         DRAG_LIMIT_UP
       );
       dragTarget.current.set(x, y, -x * INWARD_Z);
+      invalidate();
     };
 
     const onUp = () => {
       if (!dragging.current) return;
       dragging.current = false;
       canvas.style.cursor = "grab";
+      invalidate();
     };
 
     canvas.addEventListener("pointermove", onMove, { passive: false });
@@ -1041,9 +1146,9 @@ function LanyardBadge({
       canvas.removeEventListener("pointercancel", onUp);
       canvas.removeEventListener("pointerleave", onUp);
     };
-  }, [camera, gl, rig]);
+  }, [camera, gl, invalidate, rig]);
 
-  useFrame((_, delta) => {
+  useFrame((state, delta) => {
     if (!rig) return;
     const dt = Math.min(delta, 1 / 30);
     stepRope(
@@ -1059,6 +1164,9 @@ function LanyardBadge({
     if (hang) {
       hang.position.x = rightColumnWorldX(size.width, viewport.width);
       hang.position.y = HANG_Y;
+    }
+    if (dragging.current || shaderLive || !ropeIsAsleep(rig.rope)) {
+      state.invalidate();
     }
   });
 
@@ -1087,6 +1195,7 @@ function LanyardBadge({
         dragTarget.current.set(tip.x, tip.y, -tip.x * INWARD_Z);
         gl.domElement.style.cursor = "grabbing";
         gl.domElement.setPointerCapture(event.pointerId);
+        invalidate();
       }}
       position={[0, HANG_Y, 0]}
       ref={groupRef}
@@ -1103,28 +1212,40 @@ function BadgeScene({
   rainCanvas,
   reducedMotion,
   identity,
+  lowPower,
+  shaderLive,
 }: {
   twizzlerCanvas: RefObject<HTMLCanvasElement | null>;
   rainCanvas: RefObject<HTMLCanvasElement | null>;
   reducedMotion: boolean;
   identity: BadgeCardIdentity;
+  lowPower: boolean;
+  shaderLive: boolean;
 }) {
   return (
     <>
       <PerspectiveCamera makeDefault fov={30} position={[0, 0.15, 8]} />
-      <ambientLight intensity={0.58} />
-      <hemisphereLight args={["#fff1e4", "#1a1a1a", 0.5]} />
-      <directionalLight intensity={1.45} position={[5, 7, 8]} />
-      <directionalLight intensity={0.7} position={[-6, 3, 5]} />
-      <directionalLight
-        color={identity.accent}
-        intensity={0.7}
-        position={[2, -1, 6]}
-      />
+      <ambientLight intensity={lowPower ? 0.78 : 0.58} />
+      {lowPower ? (
+        <directionalLight intensity={1.2} position={[5, 7, 8]} />
+      ) : (
+        <>
+          <hemisphereLight args={["#fff1e4", "#1a1a1a", 0.5]} />
+          <directionalLight intensity={1.45} position={[5, 7, 8]} />
+          <directionalLight intensity={0.7} position={[-6, 3, 5]} />
+          <directionalLight
+            color={identity.accent}
+            intensity={0.7}
+            position={[2, -1, 6]}
+          />
+        </>
+      )}
       <LanyardBadge
         identity={identity}
+        lowPower={lowPower}
         rainCanvas={rainCanvas}
         reducedMotion={reducedMotion}
+        shaderLive={shaderLive}
         twizzlerCanvas={twizzlerCanvas}
       />
     </>
@@ -1138,23 +1259,41 @@ export default function BadgeLanyard({
   rainCanvas,
   reducedMotion,
   identity,
+  lowPower,
+  shaderLive,
 }: {
   twizzlerCanvas: RefObject<HTMLCanvasElement | null>;
   rainCanvas: RefObject<HTMLCanvasElement | null>;
   reducedMotion: boolean;
   identity: BadgeCardIdentity;
+  lowPower: boolean;
+  shaderLive: boolean;
 }) {
   return (
     <Canvas
       camera={{ fov: 30, position: [0, 0.15, 8] }}
-      dpr={[1, 1.5]}
-      gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}
+      dpr={lowPower ? 1 : [1, 1.5]}
+      frameloop="demand"
+      gl={{
+        alpha: true,
+        antialias: !lowPower,
+        depth: true,
+        powerPreference: lowPower ? "low-power" : "high-performance",
+        stencil: false,
+      }}
+      performance={
+        lowPower
+          ? { min: 0.4, max: 0.7, debounce: 200 }
+          : { min: 0.5, max: 1, debounce: 200 }
+      }
       style={{ height: "100%", touchAction: "none", width: "100%" }}
     >
       <BadgeScene
         identity={identity}
+        lowPower={lowPower}
         rainCanvas={rainCanvas}
         reducedMotion={reducedMotion}
+        shaderLive={shaderLive}
         twizzlerCanvas={twizzlerCanvas}
       />
     </Canvas>
