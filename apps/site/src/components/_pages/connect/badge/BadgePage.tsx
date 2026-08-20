@@ -125,6 +125,7 @@ export default function BadgePage(_props: IslandProps) {
           {hydrated ? (
             <BadgeLanyard
               identity={{
+                accent: view.theme.accent,
                 company: view.company,
                 name: view.name,
                 role: view.role.label,

@@ -143,4 +143,15 @@ describe("badge lab color schemes", () => {
     expect(theme.stripeHexes[theme.stripeHexes.length - 1]).toBe("#f46021");
     expect(applyThemeToTwizzler(theme).color).toBe("#f46021");
   });
+
+  it("exposes a metallic accent hex on every scheme", () => {
+    for (const theme of BADGE_THEMES) {
+      expect(theme.accent).toMatch(/^#[0-9a-fA-F]{6}$/);
+    }
+    expect(findBadgeTheme("coral-classic").accent).toBe("#f46021");
+    expect(findBadgeTheme("blue").accent).toBe("#1f72ff");
+    expect(findBadgeTheme("purple").accent).toBe(
+      findBadgeTheme("purple").twizzler.colorNear
+    );
+  });
 });
