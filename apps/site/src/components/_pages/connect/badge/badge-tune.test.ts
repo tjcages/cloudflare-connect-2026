@@ -11,6 +11,16 @@ describe("badge tune defaults", () => {
     expect(BADGE_TUNE_DEFAULTS.lightY).toBeLessThan(-0.3);
     expect(BADGE_TUNE_DEFAULTS.logoEnabled).toBe(true);
     expect(BADGE_TUNE_DEFAULTS.logoMarkOpacity).toBe(0);
+    expect(BADGE_TUNE_DEFAULTS.cardOverlap).toBeLessThan(0.006);
+  });
+
+  it("lets hook overlap go negative", () => {
+    const overlap = BADGE_TUNE_FIELDS.find(
+      (field) => field.type === "slider" && field.key === "cardOverlap"
+    );
+    expect(overlap?.type).toBe("slider");
+    if (overlap?.type !== "slider") return;
+    expect(overlap.min).toBeLessThan(0);
   });
 
   it("exposes a field for every tune key", () => {

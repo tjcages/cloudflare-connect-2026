@@ -33,12 +33,20 @@ describe("badge logo SVG prep", () => {
     );
     expect(prepared.markSvg).toContain('fill="white"');
     expect(prepared.markSvg).not.toContain("#123456");
+    expect(prepared.markSvg).toContain('width="40"');
+    expect(prepared.markSvg).toContain('height="20"');
     expect(prepared.textureSvg).toContain('fill="black"');
     expect(prepared.textureSvg).toContain('width="800"');
     expect(prepared.textureSvg).toContain('height="320"');
     expect(paintSvgFillsWhite(`fill="#abc" stroke="#def"`)).toBe(
       `fill="white" stroke="white"`
     );
+    expect(
+      paintSvgFillsWhite(
+        `fill="#5865F2" style="fill:#5865F2;fill:color(display-p3 0.3451 0.3961 0.9490);"`
+      )
+    ).not.toContain("#5865F2");
+    expect(paintSvgFillsWhite(`fill="currentColor"`)).toBe(`fill="white"`);
   });
 
   it("rejects non-svg markup", () => {
@@ -74,5 +82,18 @@ describe("badge logo SVG prep", () => {
     expect(prepared.markSvg).toContain('fill="white"');
     expect(prepared.textureSvg).toContain('fill="black"');
     expect(extractSvgInner(svg)).toContain("<path");
+  });
+
+  it("prepares a Discord-style wordmark with p3 fills", () => {
+    const svg = readFileSync(
+      resolve(process.cwd(), "src/components/logo-cloud/_svg/logo-discord.svg"),
+      "utf8"
+    );
+    const prepared = prepareBadgeLogo(svg);
+    expect(prepared.markSvg).toContain('width="106"');
+    expect(prepared.markSvg).toContain('height="16"');
+    expect(prepared.markSvg).toContain('fill="white"');
+    expect(prepared.markSvg).not.toMatch(/#5865F2/i);
+    expect(prepared.markSvg).not.toContain("display-p3");
   });
 });

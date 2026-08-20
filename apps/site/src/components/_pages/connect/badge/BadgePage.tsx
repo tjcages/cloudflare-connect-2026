@@ -34,6 +34,7 @@ import BadgeCustomizer from "./BadgeCustomizer";
 import {
   prepareBadgeLogo,
   readSvgFile,
+  revokeLogoUrl,
   svgToBlobUrl,
 } from "./badge-logo";
 import BadgeLogoUpload from "./BadgeLogoUpload";
@@ -60,8 +61,8 @@ type BadgeLogoSession = {
 
 function revokeLogo(session: BadgeLogoSession | null) {
   if (!session) return;
-  URL.revokeObjectURL(session.textureUrl);
-  URL.revokeObjectURL(session.markUrl);
+  revokeLogoUrl(session.textureUrl);
+  revokeLogoUrl(session.markUrl);
 }
 
 function themeToStripeColors(theme: BadgeTheme): StripeColors {
@@ -186,6 +187,7 @@ export default function BadgePage(_props: IslandProps) {
         maxFps: lowPower ? 10 : 30,
         clickWave: { enabled: false },
         cursorTrail: { enabled: false },
+        reveal: { enabled: false },
       }),
     [lowPower, view.theme]
   );
@@ -286,7 +288,7 @@ export default function BadgePage(_props: IslandProps) {
       {hydrated && logo && tune.logoEnabled ? (
         <div
           aria-hidden="true"
-          className={`pointer-events-none fixed top-[1200px] left-[-2000px] z-0 ${logoCaptureClass}`}
+          className={`pointer-events-none fixed top-0 left-[-2000px] z-0 ${logoCaptureClass}`}
         >
           <StripesShader
             autoPlay={!reducedMotion}
@@ -295,6 +297,7 @@ export default function BadgePage(_props: IslandProps) {
             label="badge-logo"
             maxDpr={lowPower ? 1 : 1.5}
             mediaKind="image"
+            preloadRootMargin="4000px"
             ref={logoRef}
             rootMargin="4000px"
             src={logo.textureUrl}

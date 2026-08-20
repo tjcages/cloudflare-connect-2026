@@ -212,45 +212,70 @@ function getLogoScratch(width: number, height: number) {
   return logoScratch;
 }
 
+function markSize(mark: HTMLImageElement) {
+  const w = mark.naturalWidth || mark.width;
+  const h = mark.naturalHeight || mark.height;
+  return { w, h };
+}
+
+function canvasHasInk(canvas: HTMLCanvasElement) {
+  if (canvas.width < 2 || canvas.height < 2) return false;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  if (!ctx) return false;
+  const sampleW = Math.min(canvas.width, 16);
+  const sampleH = Math.min(canvas.height, 16);
+  const data = ctx.getImageData(0, 0, sampleW, sampleH).data;
+  for (let i = 3; i < data.length; i += 4) {
+    if (data[i] > 12) return true;
+  }
+  return false;
+}
+
 function drawLogoBand(
   ctx: CanvasRenderingContext2D,
   shader: HTMLCanvasElement | null,
   mark: HTMLImageElement | null,
   width: number,
   height: number,
-  tune: BadgeTune
+  tune: BadgeTune,
+  fallbackFill: string
 ) {
-  if (!tune.logoEnabled || !mark || mark.naturalWidth < 1) return;
+  if (!tune.logoEnabled || !mark) return;
+  const size = markSize(mark);
+  if (size.w < 1 || size.h < 1) return;
   const bandH = Math.round(height * tune.logoBand);
   const padX = width * tune.logoPadX;
   const padY = height * tune.logoPadY;
   const maxW = (width - padX * 2) * tune.logoScale;
   const maxH = Math.max(bandH - padY, 1) * tune.logoScale;
-  const fit = containSize(mark.naturalWidth, mark.naturalHeight, maxW, maxH);
+  const fit = containSize(size.w, size.h, maxW, maxH);
   const dx = (width - fit.w) / 2;
   const dy = padY + (maxH - fit.h) / 2;
-  if (shader && shader.width > 1) {
-    const scratch = getLogoScratch(width, bandH);
-    const scratchCtx = scratch.getContext("2d");
-    if (scratchCtx) {
-      scratchCtx.setTransform(1, 0, 0, 1, 0, 0);
-      scratchCtx.globalCompositeOperation = "source-over";
-      scratchCtx.clearRect(0, 0, width, bandH);
-      drawCover(
-        scratchCtx,
-        shader,
-        dx,
-        dy,
-        fit.w,
-        fit.h,
-        tune.logoPrintZoom
-      );
-      scratchCtx.globalCompositeOperation = "destination-in";
-      scratchCtx.drawImage(mark, dx, dy, fit.w, fit.h);
-      scratchCtx.globalCompositeOperation = "source-over";
-      ctx.drawImage(scratch, 0, 0);
-    }
+  const scratch = getLogoScratch(width, bandH);
+  const scratchCtx = scratch.getContext("2d");
+  if (!scratchCtx) return;
+  scratchCtx.setTransform(1, 0, 0, 1, 0, 0);
+  scratchCtx.globalCompositeOperation = "source-over";
+  scratchCtx.clearRect(0, 0, width, bandH);
+  const stripeReady = Boolean(shader && shader.width > 1 && canvasHasInk(shader));
+  if (stripeReady && shader) {
+    drawCover(
+      scratchCtx,
+      shader,
+      dx,
+      dy,
+      fit.w,
+      fit.h,
+      tune.logoPrintZoom
+    );
+  } else {
+    scratchCtx.fillStyle = fallbackFill;
+    scratchCtx.fillRect(dx, dy, fit.w, fit.h);
   }
+  scratchCtx.globalCompositeOperation = "destination-in";
+  scratchCtx.drawImage(mark, dx, dy, fit.w, fit.h);
+  scratchCtx.globalCompositeOperation = "source-over";
+  ctx.drawImage(scratch, 0, 0);
   if (tune.logoMarkOpacity > 0) {
     ctx.save();
     ctx.globalAlpha = Math.min(tune.logoMarkOpacity, 1);
@@ -307,9 +332,14 @@ function useHeroShaderTexture(
       markImage.current = image;
       markGeneration.current += 1;
     };
+    image.onerror = () => {
+      if (generation !== markGeneration.current) return;
+      markGeneration.current += 1;
+    };
     image.src = logoMarkSrc;
     return () => {
       image.onload = null;
+      image.onerror = null;
     };
   }, [logoMarkSrc]);
 
@@ -381,7 +411,8 @@ function useHeroShaderTexture(
       markImage.current,
       canvas.width,
       canvas.height,
-      tune
+      tune,
+      identity.accent
     );
     drawIdentity(ctx, identity, canvas.width, canvas.height, tune.footerBand);
     texture.needsUpdate = true;
@@ -1271,7 +1302,6 @@ function LanyardBadge({
     tune.cardWidth,
     tune.cardHeight,
     tune.cardDepth,
-    tune.cardOverlap,
     tune.shaderInset,
   ]);
 
@@ -1371,6 +1401,7 @@ function LanyardBadge({
     applyWallShadow(rig, tune);
     const hang = groupRef.current;
     const localY = cardLocalY(tune.cardHeight, tune.cardOverlap);
+    rig.card.position.y = localY;
     if (hang) {
       hang.position.x =
         rightColumnWorldX(size.width, viewport.width) + tune.hangX;

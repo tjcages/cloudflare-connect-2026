@@ -50,8 +50,8 @@ export function paintSvgFillsWhite(markup: string): string {
   return markup
     .replace(/\bfill="(?!none)[^"]*"/gi, 'fill="white"')
     .replace(/\bstroke="(?!none)[^"]*"/gi, 'stroke="white"')
-    .replace(/fill:\s*(?!none)[^;"]+/gi, "fill:white")
-    .replace(/stroke:\s*(?!none)[^;"]+/gi, "stroke:white");
+    .replace(/fill:\s*(?!none)[^;"}]+/gi, "fill:white")
+    .replace(/stroke:\s*(?!none)[^;"}]+/gi, "stroke:white");
 }
 
 export function prepareBadgeLogo(svgText: string): {
@@ -69,7 +69,9 @@ export function prepareBadgeLogo(svgText: string): {
   const inner = paintSvgFillsWhite(extractSvgInner(safe));
   if (!inner) throw new Error("That SVG is empty.");
   const viewBox = `${viewport.x} ${viewport.y} ${viewport.w} ${viewport.h}`;
-  const markSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}" fill="white">${inner}</svg>`;
+  const markW = Math.max(1, Math.round(viewport.w));
+  const markH = Math.max(1, Math.round(viewport.h));
+  const markSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="${markW}" height="${markH}" viewBox="${viewBox}" fill="white">${inner}</svg>`;
   const innerW = LOGO_TEXTURE_W * (1 - LOGO_PAD * 2);
   const innerH = LOGO_TEXTURE_H * (1 - LOGO_PAD * 2);
   const scale = Math.min(innerW / viewport.w, innerH / viewport.h);
@@ -82,7 +84,11 @@ export function prepareBadgeLogo(svgText: string): {
 }
 
 export function svgToBlobUrl(svgText: string): string {
-  return URL.createObjectURL(new Blob([svgText], { type: "image/svg+xml" }));
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgText)}`;
+}
+
+export function revokeLogoUrl(url: string) {
+  if (url.startsWith("blob:")) URL.revokeObjectURL(url);
 }
 
 export async function readSvgFile(file: File): Promise<string> {
