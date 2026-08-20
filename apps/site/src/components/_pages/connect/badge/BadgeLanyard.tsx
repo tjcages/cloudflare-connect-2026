@@ -12,6 +12,7 @@ import {
 } from "react";
 import type { BufferGeometry, Camera, Texture } from "three";
 import {
+  AdditiveBlending,
   Bone,
   CanvasTexture,
   Color,
@@ -35,6 +36,7 @@ import {
   Vector3,
 } from "three";
 import {
+  BADGE_COAT_MESH_NAME,
   BADGE_PRINT_MESH_NAME,
   createPrintFaceGeometry,
   roundedRect,
@@ -763,27 +765,38 @@ function createBadgeCard(
   const faceRadius = Math.max(tune.cardRadius - tune.shaderInset, 0.001);
   const face = new Mesh(
     createPrintFaceGeometry(faceWidth, faceHeight, faceRadius),
-    lowPower
-      ? new MeshBasicMaterial({
-          map: texture,
-          toneMapped: false,
-        })
-      : new MeshPhysicalMaterial({
-          map: texture,
-          roughness: BADGE_PRINT_ROUGHNESS,
-          metalness: 0,
-          clearcoat: BADGE_PRINT_CLEARCOAT,
-          clearcoatRoughness: BADGE_PRINT_CLEARCOAT_ROUGHNESS,
-          envMapIntensity: BADGE_PRINT_ENV,
-          ior: 1.5,
-          toneMapped: false,
-        })
+    new MeshBasicMaterial({
+      map: texture,
+      toneMapped: false,
+    })
   );
   face.name = BADGE_PRINT_MESH_NAME;
   face.renderOrder = 1;
   face.position.z = tune.cardDepth / 2 + 0.0008;
   card.add(body);
   card.add(face);
+  if (!lowPower) {
+    const coat = new Mesh(
+      createPrintFaceGeometry(faceWidth, faceHeight, faceRadius),
+      new MeshPhysicalMaterial({
+        color: "#000000",
+        roughness: BADGE_PRINT_ROUGHNESS,
+        metalness: 0,
+        clearcoat: BADGE_PRINT_CLEARCOAT,
+        clearcoatRoughness: BADGE_PRINT_CLEARCOAT_ROUGHNESS,
+        envMapIntensity: BADGE_PRINT_ENV,
+        ior: 1.5,
+        transparent: true,
+        depthWrite: false,
+        blending: AdditiveBlending,
+        toneMapped: true,
+      })
+    );
+    coat.name = BADGE_COAT_MESH_NAME;
+    coat.renderOrder = 2;
+    coat.position.z = tune.cardDepth / 2 + 0.0012;
+    card.add(coat);
+  }
   return { card, body };
 }
 
@@ -1629,6 +1642,7 @@ function LanyardBadge({
     rig.card.traverse((child) => {
       if (!(child instanceof Mesh)) return;
       if (child.name === BADGE_PRINT_MESH_NAME) return;
+      if (child.name === BADGE_COAT_MESH_NAME) return;
       if (rig.shadows.includes(child)) return;
       const material = child.material;
       if (Array.isArray(material) || !material) return;
@@ -1828,7 +1842,7 @@ export default function BadgeLanyard({
         performance={
           lowPower
             ? { min: 0.4, max: 0.7, debounce: 200 }
-            : { min: 0.5, max: 1, debounce: 200 }
+            : { min: 0.75, max: 1, debounce: 200 }
         }
         style={{ height: "100%", touchAction: "none", width: "100%" }}
       >

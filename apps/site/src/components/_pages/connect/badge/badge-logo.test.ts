@@ -459,6 +459,9 @@ describe("badge logo SVG prep", () => {
     expect(lanyard).toContain("envMapIntensity: 0.85");
     expect(lanyard).toContain("BADGE_ACCENT_LIGHTS");
     expect(lanyard).toContain("BADGE_PRINT_ROUGHNESS");
+    expect(lanyard).toContain("BADGE_COAT_MESH_NAME");
+    expect(lanyard).toContain("AdditiveBlending");
+    expect(lanyard).toContain("MeshBasicMaterial");
     expect(lanyard).not.toContain("EffectComposer");
     expect(lanyard).not.toContain("Bloom");
     expect(lanyard).toContain('"contain"');

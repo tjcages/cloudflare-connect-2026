@@ -6,6 +6,7 @@ import {
 } from "three";
 
 export const BADGE_PRINT_MESH_NAME = "badge-print";
+export const BADGE_COAT_MESH_NAME = "badge-print-coat";
 
 export function roundedRect(width: number, height: number, radius: number) {
   const shape = new Shape();

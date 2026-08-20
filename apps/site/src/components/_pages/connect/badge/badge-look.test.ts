@@ -12,7 +12,7 @@ import {
 
 describe("badge look", () => {
   it("uses a one-shot studio environment, not a post stack", () => {
-    expect(BADGE_DPR_MAX).toBe(2);
+    expect(BADGE_DPR_MAX).toBe(1.5);
     expect(BADGE_ANISOTROPY).toBe(8);
     expect(BADGE_ENV_INTENSITY).toBeGreaterThan(0.3);
     expect(BADGE_PRINT_ROUGHNESS).toBeLessThan(0.2);
@@ -22,9 +22,11 @@ describe("badge look", () => {
       resolve(process.cwd(), "src/components/_pages/connect/badge/badge-look.ts"),
       "utf8"
     );
-    expect(source).toContain("RoomEnvironment");
+    expect(source).toContain("STUDIO_PANELS");
+    expect(source).toContain("PlaneGeometry");
     expect(source).toContain("ACESFilmicToneMapping");
     expect(source).toContain("PMREMGenerator");
+    expect(source).not.toContain("RoomEnvironment");
     expect(source).not.toContain("EffectComposer");
     expect(source).not.toContain("Bloom");
     expect(source).not.toContain("SSAO");
