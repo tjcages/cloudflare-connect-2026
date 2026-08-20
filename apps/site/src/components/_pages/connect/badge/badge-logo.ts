@@ -1,5 +1,7 @@
 export const SVG_MAX_BYTES = 400_000;
 export const BADGE_PLATE_W = 800;
+/** Pixel size of the longest edge when rasterizing the centered color mark. */
+export const BADGE_MARK_RASTER = 2048;
 /** Fallback plate when no SVG is loaded. */
 export const BADGE_PRINT_FIELD_SRC = "/connect/badge-print-field.svg?v=full";
 
@@ -62,16 +64,29 @@ export function paintSvgFillsWhite(markup: string): string {
   return paintSvgFills(markup, "white");
 }
 
+export function svgRasterSize(
+  viewport: { w: number; h: number },
+  longEdge = BADGE_MARK_RASTER
+): { w: number; h: number } {
+  const srcW = Math.max(viewport.w, 1);
+  const srcH = Math.max(viewport.h, 1);
+  if (srcW >= srcH) {
+    return { w: longEdge, h: Math.max(1, Math.round(longEdge * (srcH / srcW))) };
+  }
+  return { w: Math.max(1, Math.round(longEdge * (srcW / srcH))), h: longEdge };
+}
+
 export function wrapSvg(
   inner: string,
   viewport: { x: number; y: number; w: number; h: number },
-  fill?: string
+  fill?: string,
+  pixelSize?: { w: number; h: number }
 ): string {
   const viewBox = `${viewport.x} ${viewport.y} ${viewport.w} ${viewport.h}`;
-  const markW = Math.max(1, Math.round(viewport.w));
-  const markH = Math.max(1, Math.round(viewport.h));
+  const markW = Math.max(1, Math.round(pixelSize?.w ?? viewport.w));
+  const markH = Math.max(1, Math.round(pixelSize?.h ?? viewport.h));
   const fillAttr = fill ? ` fill="${fill}"` : "";
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${markW}" height="${markH}" viewBox="${viewBox}" color="#111111"${fillAttr}>${inner}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${markW}" height="${markH}" viewBox="${viewBox}" color="#111111" shape-rendering="geometricPrecision"${fillAttr}>${inner}</svg>`;
 }
 
 /** Stylized SVG the stripe engine converts — full artwork, not a baked crop. */
@@ -126,7 +141,7 @@ export function badgeMarkSvg(svgText: string, fill: string): string {
   const viewport = parseSvgViewport(safe);
   const inner = paintSvgFills(extractSvgInner(safe), fill);
   if (!inner) throw new Error("That SVG is empty.");
-  return wrapSvg(inner, viewport, fill);
+  return wrapSvg(inner, viewport, fill, svgRasterSize(viewport));
 }
 
 export function svgToBlobUrl(svgText: string): string {

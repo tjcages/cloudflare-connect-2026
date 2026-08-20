@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  BADGE_MARK_RASTER,
   BADGE_PRINT_FIELD_SRC,
   badgeMarkSvg,
   badgeShaderPlateSvg,
@@ -12,6 +13,7 @@ import {
   prepareBadgeLogo,
   readSvgFile,
   stripUnsafeSvg,
+  svgRasterSize,
   SVG_MAX_BYTES,
 } from "./badge-logo";
 
@@ -75,6 +77,9 @@ describe("badge logo SVG prep", () => {
     );
     expect(mark).toContain("#2563fe");
     expect(mark).not.toContain("#123456");
+    expect(mark).toContain('width="2048"');
+    expect(mark).toContain('height="1024"');
+    expect(mark).toContain('viewBox="0 0 40 20"');
   });
 
   it("rejects non-svg markup", () => {
@@ -110,6 +115,12 @@ describe("badge logo SVG prep", () => {
     expect(prepared.markSvg).toContain('fill="white"');
     expect(extractSvgInner(svg)).toContain("<path");
     expect(badgeShaderPlateSvg(svg)).toContain("M29.818");
+    const mark = badgeMarkSvg(svg, "#f46021");
+    expect(mark).toContain(`width="${BADGE_MARK_RASTER}"`);
+    expect(svgRasterSize({ w: 37, h: 17 })).toEqual({
+      w: BADGE_MARK_RASTER,
+      h: Math.round(BADGE_MARK_RASTER * (17 / 37)),
+    });
   });
 
   it("prepares a Discord-style wordmark with p3 fills", () => {

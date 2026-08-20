@@ -32,6 +32,7 @@ import {
   createPrintFaceGeometry,
   roundedRect,
 } from "./badge-card-geometry";
+import { svgRasterSize } from "./badge-logo";
 import { badgePrintFieldRect, fadePrintField, type BadgePrintFieldRect } from "./badge-print-layout";
 import { BADGE_TUNE_DEFAULTS, type BadgeTune } from "./badge-tune";
 
@@ -198,11 +199,19 @@ function markSize(mark: HTMLImageElement | HTMLCanvasElement) {
 
 function rasterizeMark(image: HTMLImageElement) {
   const size = markSize(image);
+  const raster = svgRasterSize({
+    w: Math.max(size.w, 1),
+    h: Math.max(size.h, 1),
+  });
   const canvas = document.createElement("canvas");
-  canvas.width = Math.max(1, Math.round(size.w));
-  canvas.height = Math.max(1, Math.round(size.h));
+  canvas.width = raster.w;
+  canvas.height = raster.h;
   const ctx = canvas.getContext("2d");
-  if (ctx) ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+  if (ctx) {
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+  }
   return canvas;
 }
 
@@ -223,6 +232,8 @@ function drawCenteredLogo(
   const dy = field.y + field.h / 2 - fit.h / 2 + height * tune.logoPadY;
   ctx.save();
   ctx.globalAlpha = tune.logoMarkOpacity;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
   ctx.drawImage(mark, dx, dy, fit.w, fit.h);
   ctx.restore();
 }
