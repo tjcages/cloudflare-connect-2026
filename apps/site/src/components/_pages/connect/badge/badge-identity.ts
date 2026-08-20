@@ -15,14 +15,14 @@ export function badgeIdentityLayout(
   const footer = Math.round(height * footerBand);
   const top = height - footer;
   const pad = width * 0.08;
-  const nameSize = Math.round(140 * s);
+  const nameSize = Math.round(116 * s);
   const companySize = Math.round(72 * s);
   const roleSize = Math.round(36 * s);
-  const nameY = top + 44 * s;
-  const companyY = nameY + nameSize + 20 * s;
+  const nameY = top + 28 * s;
+  const companyY = nameY + nameSize + 16 * s;
   const roleBoxPadX = 18 * s;
   const roleBoxPadY = 14 * s;
-  const roleBoxY = companyY + companySize + 32 * s;
+  const roleBoxY = companyY + companySize + 28 * s;
   const roleBoxH = roleBoxPadY * 2 + roleSize;
   return {
     s,
@@ -87,11 +87,11 @@ export function drawIdentity(
   ctx.fillText(identity.name, layout.pad, layout.nameY, maxText);
 
   ctx.fillStyle = "#5c5c5c";
-  ctx.font = `300 ${layout.companySize}px "STK Bureau Sans", sans-serif`;
+  ctx.font = `600 ${layout.companySize}px "STK Bureau Sans", sans-serif`;
   ctx.fillText(identity.company, layout.pad, layout.companyY, maxText);
 
-  const roleLine = `${identity.role.toUpperCase()}  ·  ${identity.serial}`;
-  ctx.font = `400 ${layout.roleSize}px "Paper Mono", ui-monospace, monospace`;
+  const roleLine = `${identity.role.toUpperCase()} · ${identity.serial}`;
+  ctx.font = `600 ${layout.roleSize}px "Paper Mono", ui-monospace, monospace`;
   const roleWidth = Math.min(
     ctx.measureText(roleLine).width,
     maxText - layout.roleBoxPadX * 2

@@ -23,25 +23,6 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
-function PanelGrip() {
-  return (
-    <svg
-      aria-hidden="true"
-      fill="currentColor"
-      height={14}
-      viewBox="0 0 24 24"
-      width={14}
-    >
-      <circle cx="9" cy="6" r="1.4" />
-      <circle cx="15" cy="6" r="1.4" />
-      <circle cx="9" cy="12" r="1.4" />
-      <circle cx="15" cy="12" r="1.4" />
-      <circle cx="9" cy="18" r="1.4" />
-      <circle cx="15" cy="18" r="1.4" />
-    </svg>
-  );
-}
-
 function LogoThumb({ src, fill }: { src?: string; fill: string }) {
   if (!src) {
     return (
@@ -240,53 +221,36 @@ export default function BadgeLogoUpload({
           </span>
         </div>
 
-        <div className="flex flex-col gap-8 p-12">
-          <div
-            className="bg-black relative aspect-4/3 cursor-grab touch-none overflow-hidden rounded-8 select-none active:cursor-grabbing"
-            onKeyDown={(event) => event.stopPropagation()}
-            onPointerCancel={onPadPointerUp}
-            onPointerDown={onPadPointerDown}
-            onPointerMove={onPadPointerMove}
-            onPointerUp={onPadPointerUp}
-          >
-            <img
-              alt=""
-              className="pointer-events-none absolute inset-0 size-full object-cover"
-              src={plateSrc}
-              style={{
-                transform: `translate(${sourcePanX * 50}%, ${sourcePanY * -50}%)`,
-              }}
-            />
-            <span
-              aria-hidden="true"
-              className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
-              style={{ color: markFill }}
+        <div
+          className="flex flex-col gap-8 p-12"
+          onKeyDown={(event) => event.stopPropagation()}
+          onPointerDown={(event) => event.stopPropagation()}
+        >
+          <div className="bg-black overflow-hidden rounded-8">
+            <div
+              className="bg-black relative aspect-4/3 cursor-grab touch-none overflow-hidden select-none active:cursor-grabbing"
+              onPointerCancel={onPadPointerUp}
+              onPointerDown={onPadPointerDown}
+              onPointerMove={onPadPointerMove}
+              onPointerUp={onPadPointerUp}
             >
-              <PanelGrip />
-            </span>
-          </div>
-
-          <div
-            className="flex flex-col gap-8"
-            onKeyDown={(event) => event.stopPropagation()}
-            onPointerDown={(event) => event.stopPropagation()}
-          >
-            <BadgeInspectorField
-              active={logoScale !== BADGE_TUNE_DEFAULTS.logoScale}
-              label="Size"
-              max={Math.round(BADGE_LOGO_SCALE_MAX * 100)}
-              min={Math.round(BADGE_LOGO_SCALE_MIN * 100)}
-              onChange={(next) => onScaleChange(next / 100)}
-              suffix="%"
-              value={Math.round(logoScale * 100)}
-            />
-            <div className="grid min-w-0 grid-cols-2 gap-8">
+              <img
+                alt=""
+                className="pointer-events-none absolute inset-0 m-auto size-[72%] object-contain"
+                src={plateSrc}
+                style={{
+                  transform: `translate(${sourcePanX * 50}%, ${sourcePanY * -50}%)`,
+                }}
+              />
+            </div>
+            <div className="grid min-w-0 grid-cols-2 gap-8 px-8 pb-8">
               <BadgeInspectorField
                 active={sourcePanX !== 0}
                 label="X"
                 max={Math.round(BADGE_SOURCE_PAN * 100)}
                 min={Math.round(-BADGE_SOURCE_PAN * 100)}
                 onChange={(next) => onPanChange(next / 100, sourcePanY)}
+                tone="dark"
                 value={Math.round(sourcePanX * 100)}
               />
               <BadgeInspectorField
@@ -295,10 +259,20 @@ export default function BadgeLogoUpload({
                 max={Math.round(BADGE_SOURCE_PAN * 100)}
                 min={Math.round(-BADGE_SOURCE_PAN * 100)}
                 onChange={(next) => onPanChange(sourcePanX, next / 100)}
+                tone="dark"
                 value={Math.round(sourcePanY * 100)}
               />
             </div>
           </div>
+          <BadgeInspectorField
+            active={logoScale !== BADGE_TUNE_DEFAULTS.logoScale}
+            label="Logo size"
+            max={Math.round(BADGE_LOGO_SCALE_MAX * 100)}
+            min={Math.round(BADGE_LOGO_SCALE_MIN * 100)}
+            onChange={(next) => onScaleChange(next / 100)}
+            suffix="%"
+            value={Math.round(logoScale * 100)}
+          />
         </div>
 
         <div className="flex items-center justify-between border-t border-border-muted px-4">

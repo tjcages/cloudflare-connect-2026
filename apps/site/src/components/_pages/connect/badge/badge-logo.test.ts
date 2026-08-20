@@ -304,7 +304,10 @@ describe("badge logo SVG prep", () => {
     );
     expect(upload).toContain("Add company logo");
     expect(upload).toContain("DashedCircle");
-    expect(upload).toContain("PanelGrip");
+    expect(upload).not.toContain("PanelGrip");
+    expect(upload).toContain("Logo size");
+    expect(upload).toContain("object-contain");
+    expect(upload).toContain('tone="dark"');
     expect(upload).toContain('side="top"');
     expect(upload).toContain("scroll={false}");
     expect(upload).toContain("maskImage");
