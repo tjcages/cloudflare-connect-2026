@@ -56,7 +56,6 @@ import {
   copyCanvasImage,
 } from "./badge-share";
 import {
-  badgeSharePath,
   DEFAULT_BADGE_PARAMS,
   parseBadgeSearch,
   resolveBadgeView,
@@ -163,11 +162,6 @@ export default function BadgePage(_props: IslandProps) {
   }, [lowPower, params]);
 
   const view = useMemo(() => resolveBadgeView(params), [params]);
-  const sharePath = badgeSharePath(params);
-  const pageUrl =
-    typeof window === "undefined"
-      ? sharePath
-      : `${window.location.origin}${sharePath}`;
   const twizzler = useMemo(
     () => applyBadgeTwizzlerOverlay(applyThemeToTwizzler(view.theme), tune),
     [tune, view.theme]
@@ -333,7 +327,7 @@ export default function BadgePage(_props: IslandProps) {
   const onShareX = () => {
     if (sharing) return;
     window.open(
-      badgeTweetUrl(badgeShareHeadline(view.name), pageUrl),
+      badgeTweetUrl(badgeShareHeadline(view.name)),
       "_blank",
       "noopener,noreferrer"
     );

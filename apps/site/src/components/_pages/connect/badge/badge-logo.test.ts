@@ -382,9 +382,7 @@ describe("badge logo SVG prep", () => {
     expect(page).toContain("whitePoint: 0.8");
     expect(page).toContain("Copy shareable card");
     expect(page).toContain("Share on X");
-    expect(page).toContain(
-      "badgeTweetUrl(badgeShareHeadline(view.name), pageUrl)"
-    );
+    expect(page).toContain("badgeTweetUrl(badgeShareHeadline(view.name))");
     expect(page).toContain("noopener,noreferrer");
     expect(page).not.toContain('window.open("about:blank"');
     expect(page).toContain("paused={reducedMotion || !shaderLive}");
@@ -445,6 +443,9 @@ describe("badge logo SVG prep", () => {
     expect(lanyard).toContain("shaderLive && !reducedMotion");
     expect(lanyard).toContain("kickIntroSwing(rig.rope)");
     expect(lanyard).toContain("INTRO_SPIN");
+    expect(lanyard).toContain("INTRO_DELAY_MS");
+    expect(lanyard).toContain("visible={introVisible}");
+    expect(lanyard).toContain("document.fonts.ready");
     expect(page).not.toContain("src={logoMarkSrc");
     expect(page).not.toContain("<BadgeShaderSource");
     expect(page).not.toContain("<BadgeLogoUpload");

@@ -51,15 +51,11 @@ describe("badge share copy", () => {
     expect(badgeShareHeadline("Tyler")).toBe("Tyler's Connect 2026 badge");
     expect(badgeShareHeadline("  Ada  ")).toBe("Ada's Connect 2026 badge");
     expect(badgeShareHeadline("")).toBe("My Connect 2026 badge");
-    const url = badgeTweetUrl(
-      "Tyler's Connect 2026 badge",
-      "https://example.com/connect/badge?name=Tyler"
-    );
+    const url = badgeTweetUrl("Tyler's Connect 2026 badge");
     expect(url.startsWith("https://x.com/intent/post?text=")).toBe(true);
-    expect(decodeURIComponent(url)).toContain("Tyler's Connect 2026 badge");
-    expect(decodeURIComponent(url)).toContain(
-      "https://example.com/connect/badge?name=Tyler"
-    );
+    const text = decodeURIComponent(new URL(url).searchParams.get("text") ?? "");
+    expect(text).toBe("Tyler's Connect 2026 badge");
+    expect(text).not.toContain("http");
   });
 
   it("drops marked nodes and canvases from the hero screenshot", () => {

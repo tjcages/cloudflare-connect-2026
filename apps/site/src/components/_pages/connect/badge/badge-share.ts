@@ -9,9 +9,8 @@ export function badgeShareHeadline(name: string): string {
   return `${trimmed}'s Connect 2026 badge`;
 }
 
-export function badgeTweetUrl(headline: string, pageUrl: string): string {
-  const text = `${headline}\n${pageUrl}`;
-  return `https://x.com/intent/post?text=${encodeURIComponent(text)}`;
+export function badgeTweetUrl(headline: string): string {
+  return `https://x.com/intent/post?text=${encodeURIComponent(headline)}`;
 }
 
 export function keepShareNode(node: HTMLElement): boolean {

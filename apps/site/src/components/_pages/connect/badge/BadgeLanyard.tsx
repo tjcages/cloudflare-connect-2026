@@ -4,9 +4,9 @@ import { PerspectiveCamera, useGLTF } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import {
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
+  useState,
   type RefObject,
 } from "react";
 import type { BufferGeometry, Camera, Texture } from "three";
@@ -65,6 +65,7 @@ const STRETCH_RETURN = 0.1;
 const INTRO_X = 0.1;
 const INTRO_Z = -0.018;
 const INTRO_SPIN = 0.006;
+const INTRO_DELAY_MS = 500;
 
 const SHADOW_OPACITY = BADGE_TUNE_DEFAULTS.shadowOpacity;
 const SHADOW_SOFT_OPACITY = BADGE_TUNE_DEFAULTS.shadowSoftOpacity;
@@ -254,7 +255,8 @@ function useHeroShaderTexture(
   logoMarkSrc: string | null,
   printSrc: string,
   tune: BadgeTune,
-  faceCanvasRef?: RefObject<HTMLCanvasElement | null>
+  faceCanvasRef?: RefObject<HTMLCanvasElement | null>,
+  onReady?: () => void
 ) {
   const { invalidate } = useThree();
   const skip = useRef(0);
@@ -262,6 +264,16 @@ function useHeroShaderTexture(
   const bakedWhileFrozen = useRef(false);
   const markImage = useRef<HTMLCanvasElement | null>(null);
   const markGeneration = useRef(0);
+  const onReadyRef = useRef(onReady);
+  onReadyRef.current = onReady;
+  const baked = useRef(false);
+  const markPending = useRef(Boolean(logoMarkSrc));
+  const readyNotified = useRef(false);
+  const notifyReady = () => {
+    if (readyNotified.current || !baked.current || markPending.current) return;
+    readyNotified.current = true;
+    onReadyRef.current?.();
+  };
   const texture = useMemo(() => {
     const canvas = document.createElement("canvas");
     canvas.width = lowPower ? TEXTURE_W_LOW : TEXTURE_W;
@@ -296,8 +308,12 @@ function useHeroShaderTexture(
   useEffect(() => {
     markImage.current = null;
     markGeneration.current += 1;
+    markPending.current = Boolean(logoMarkSrc);
     const generation = markGeneration.current;
-    if (!logoMarkSrc) return;
+    if (!logoMarkSrc) {
+      notifyReady();
+      return;
+    }
     const image = new Image();
     image.decoding = "async";
     image.onload = () => {
@@ -305,12 +321,16 @@ function useHeroShaderTexture(
       markImage.current = rasterizeMark(image);
       markGeneration.current += 1;
       bakedWhileFrozen.current = false;
+      markPending.current = false;
+      notifyReady();
       invalidate();
     };
     image.onerror = () => {
       if (generation !== markGeneration.current) return;
       markGeneration.current += 1;
       bakedWhileFrozen.current = false;
+      markPending.current = false;
+      notifyReady();
       invalidate();
     };
     image.src = logoMarkSrc;
@@ -437,6 +457,8 @@ function useHeroShaderTexture(
     drawIdentity(ctx, identity, canvas.width, canvas.height, tune.footerBand);
     texture.needsUpdate = true;
     lastKey.current = key;
+    baked.current = true;
+    notifyReady();
     if (!shaderLive) bakedWhileFrozen.current = true;
   });
 
@@ -1332,6 +1354,9 @@ function LanyardBadge({
   const dragging = useRef(false);
   const dragOffset = useRef(new Vector3());
   const dragTarget = useRef(new Vector3());
+  const introKicked = useRef(false);
+  const [printReady, setPrintReady] = useState(false);
+  const [introVisible, setIntroVisible] = useState(reducedMotion);
   const texture = useHeroShaderTexture(
     twizzlerCanvas,
     rainCanvas,
@@ -1342,8 +1367,14 @@ function LanyardBadge({
     logoMarkSrc,
     printSrc,
     tune,
-    faceCanvasRef
+    faceCanvasRef,
+    () => setPrintReady(true)
   );
+
+  useEffect(() => {
+    const id = window.setTimeout(() => setPrintReady(true), 4000);
+    return () => window.clearTimeout(id);
+  }, []);
 
   const rig = useMemo(() => {
     let source: Mesh | null = null;
@@ -1369,11 +1400,44 @@ function LanyardBadge({
     invalidate();
   }, [identity.accent, invalidate, rig]);
 
-  useLayoutEffect(() => {
-    if (!rig || reducedMotion) return;
-    kickIntroSwing(rig.rope);
-    invalidate();
-  }, [invalidate, reducedMotion, rig]);
+  useEffect(() => {
+    if (reducedMotion) {
+      setIntroVisible(true);
+      invalidate();
+      return;
+    }
+    if (!rig || !printReady || introKicked.current) return;
+    let cancelled = false;
+    const startIntro = async () => {
+      try {
+        if (document.fonts?.status !== "loaded") await document.fonts.ready;
+      } catch {
+        // Fallback fonts still let the print bake.
+      }
+      try {
+        gl.compile(rig.group, camera);
+      } catch {
+        // First visible frame still uploads programs.
+      }
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => resolve());
+        });
+      });
+      await new Promise((resolve) => {
+        window.setTimeout(resolve, INTRO_DELAY_MS);
+      });
+      if (cancelled || introKicked.current) return;
+      kickIntroSwing(rig.rope);
+      introKicked.current = true;
+      setIntroVisible(true);
+      invalidate();
+    };
+    void startIntro();
+    return () => {
+      cancelled = true;
+    };
+  }, [camera, gl, invalidate, printReady, reducedMotion, rig]);
 
   useEffect(() => {
     invalidate();
@@ -1542,6 +1606,7 @@ function LanyardBadge({
         tune.hangZ,
       ]}
       ref={groupRef}
+      visible={introVisible}
     >
       <group ref={scaleRef} scale={tune.modelScale}>
         <primitive object={rig.group} />
