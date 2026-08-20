@@ -1633,6 +1633,9 @@ export default function BadgeLanyard({
         powerPreference: lowPower ? "low-power" : "high-performance",
         stencil: false,
       }}
+      onCreated={({ gl }) => {
+        gl.domElement.dataset.shareStamp = "";
+      }}
       performance={
         lowPower
           ? { min: 0.4, max: 0.7, debounce: 200 }

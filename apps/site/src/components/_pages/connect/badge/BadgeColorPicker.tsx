@@ -2,6 +2,7 @@ import { HexColorInput, HexColorPicker } from "react-colorful";
 import cn from "classnames";
 import { useState } from "react";
 import Dropdown from "@/components/dropdown/Dropdown";
+import Icon from "@/components/icon/Icon";
 import type { BadgeParams } from "./badge-params";
 import {
   DEFAULT_BADGE_COLOR,
@@ -54,14 +55,29 @@ export default function BadgeColorPicker({
           aria-label="Custom color"
           className={cn(
             "flex size-40 items-center justify-center rounded-full transition-transform",
-            selected
+            open || selected
               ? "shadow-[inset_0_0_0_2px_var(--color-orange-900)]"
               : "hover:scale-105"
           )}
           role="radio"
           type="button"
         >
-          <BadgeThemeSwatch theme={swatch} />
+          {open ? (
+            <BadgeThemeSwatch theme={swatch} />
+          ) : (
+            <span
+              aria-hidden="true"
+              className="relative flex size-28 items-center justify-center rounded-full"
+              style={{
+                background:
+                  "conic-gradient(#f46021, #f9b73b, #2e9d51, #38c5f6, #1f72ff, #9038fc, #f46021)",
+              }}
+            >
+              <span className="flex size-16 items-center justify-center rounded-full bg-background-base text-icon-muted">
+                <Icon name="plus-small" size={16} />
+              </span>
+            </span>
+          )}
         </button>
       }
     >

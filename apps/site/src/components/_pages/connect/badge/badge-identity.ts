@@ -22,8 +22,8 @@ export function badgeIdentityLayout(
   const companyY = nameY + nameSize + 16 * s;
   const roleBoxPadX = 18 * s;
   const roleBoxPadY = 14 * s;
-  const roleBoxY = companyY + companySize + 28 * s;
   const roleBoxH = roleBoxPadY * 2 + roleSize;
+  const roleBoxY = height - pad - roleBoxH;
   return {
     s,
     pad,

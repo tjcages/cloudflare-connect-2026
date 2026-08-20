@@ -307,7 +307,9 @@ describe("badge logo SVG prep", () => {
     expect(upload).not.toContain("PanelGrip");
     expect(upload).toContain("Logo size");
     expect(upload).toContain("object-contain");
-    expect(upload).toContain('tone="dark"');
+    expect(upload).toContain("bg-black");
+    expect(upload).toContain("previewSrc ?? plateSrc");
+    expect(upload).not.toContain('tone="dark"');
     expect(upload).toContain('side="top"');
     expect(upload).toContain("scroll={false}");
     expect(upload).toContain("maskImage");
@@ -351,6 +353,8 @@ describe("badge logo SVG prep", () => {
     expect(picker).toContain("HexColorPicker");
     expect(picker).toContain("HexColorInput");
     expect(picker).toContain("Custom color");
+    expect(picker).toContain("conic-gradient");
+    expect(picker).toContain("plus-small");
 
     const page = readFileSync(
       resolve(
@@ -381,6 +385,8 @@ describe("badge logo SVG prep", () => {
     expect(page).toContain("paused={reducedMotion || !shaderLive}");
     expect(page).toContain("text-balance");
     expect(page).toContain("captureHeroShare");
+    expect(page).toContain("captureHeroShare(hero, title)");
+    expect(page).toContain("text-left");
     expect(page).toContain("BadgeShareDock");
     expect(page).toContain("heroRef");
     expect(page).toContain("data-share-hide");
@@ -400,6 +406,7 @@ describe("badge logo SVG prep", () => {
     );
     expect(lanyard).toContain('"contain"');
     expect(lanyard).toContain("preserveDrawingBuffer");
+    expect(lanyard).toContain("dataset.shareStamp");
     expect(lanyard).toContain("bakedWhileFrozen.current = false");
     expect(lanyard).not.toContain("Boolean(logoMarkSrc)");
     expect(lanyard).toContain("shaderLive && !reducedMotion");

@@ -226,43 +226,39 @@ export default function BadgeLogoUpload({
           onKeyDown={(event) => event.stopPropagation()}
           onPointerDown={(event) => event.stopPropagation()}
         >
-          <div className="bg-black overflow-hidden rounded-8">
-            <div
-              className="bg-black relative aspect-4/3 cursor-grab touch-none overflow-hidden select-none active:cursor-grabbing"
-              onPointerCancel={onPadPointerUp}
-              onPointerDown={onPadPointerDown}
-              onPointerMove={onPadPointerMove}
-              onPointerUp={onPadPointerUp}
-            >
-              <img
-                alt=""
-                className="pointer-events-none absolute inset-0 m-auto size-[72%] object-contain"
-                src={plateSrc}
-                style={{
-                  transform: `translate(${sourcePanX * 50}%, ${sourcePanY * -50}%)`,
-                }}
-              />
-            </div>
-            <div className="grid min-w-0 grid-cols-2 gap-8 px-8 pb-8">
-              <BadgeInspectorField
-                active={sourcePanX !== 0}
-                label="X"
-                max={Math.round(BADGE_SOURCE_PAN * 100)}
-                min={Math.round(-BADGE_SOURCE_PAN * 100)}
-                onChange={(next) => onPanChange(next / 100, sourcePanY)}
-                tone="dark"
-                value={Math.round(sourcePanX * 100)}
-              />
-              <BadgeInspectorField
-                active={sourcePanY !== 0}
-                label="Y"
-                max={Math.round(BADGE_SOURCE_PAN * 100)}
-                min={Math.round(-BADGE_SOURCE_PAN * 100)}
-                onChange={(next) => onPanChange(sourcePanX, next / 100)}
-                tone="dark"
-                value={Math.round(sourcePanY * 100)}
-              />
-            </div>
+          <div
+            className="bg-black relative aspect-4/3 cursor-grab touch-none overflow-hidden rounded-8 select-none active:cursor-grabbing"
+            onPointerCancel={onPadPointerUp}
+            onPointerDown={onPadPointerDown}
+            onPointerMove={onPadPointerMove}
+            onPointerUp={onPadPointerUp}
+          >
+            <img
+              alt=""
+              className="pointer-events-none absolute inset-24 size-[calc(100%-48px)] object-contain"
+              src={previewSrc ?? plateSrc}
+              style={{
+                transform: `translate(${sourcePanX * 50}%, ${sourcePanY * -50}%)`,
+              }}
+            />
+          </div>
+          <div className="grid min-w-0 grid-cols-2 gap-8">
+            <BadgeInspectorField
+              active={sourcePanX !== 0}
+              label="X"
+              max={Math.round(BADGE_SOURCE_PAN * 100)}
+              min={Math.round(-BADGE_SOURCE_PAN * 100)}
+              onChange={(next) => onPanChange(next / 100, sourcePanY)}
+              value={Math.round(sourcePanX * 100)}
+            />
+            <BadgeInspectorField
+              active={sourcePanY !== 0}
+              label="Y"
+              max={Math.round(BADGE_SOURCE_PAN * 100)}
+              min={Math.round(-BADGE_SOURCE_PAN * 100)}
+              onChange={(next) => onPanChange(sourcePanX, next / 100)}
+              value={Math.round(sourcePanY * 100)}
+            />
           </div>
           <BadgeInspectorField
             active={logoScale !== BADGE_TUNE_DEFAULTS.logoScale}

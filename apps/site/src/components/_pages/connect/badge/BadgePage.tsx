@@ -13,6 +13,7 @@ import {
   useState,
 } from "react";
 import { flushSync } from "react-dom";
+import cn from "classnames";
 import Button from "@/components/Button";
 import { CopyFeedbackIcon } from "@/components/copy-feedback/CopyFeedback";
 import CornerDots from "@/components/CornerDots";
@@ -303,7 +304,7 @@ export default function BadgePage(_props: IslandProps) {
     if (!hero) throw new Error("Could not capture the badge.");
     flushSync(() => setShareCapture(true));
     try {
-      const canvas = await captureHeroShare(hero);
+      const canvas = await captureHeroShare(hero, title);
       const next = await copyCanvasImage(canvas);
       if (shareUrlRef.current) URL.revokeObjectURL(shareUrlRef.current);
       shareUrlRef.current = next.url;
@@ -507,18 +508,23 @@ export default function BadgePage(_props: IslandProps) {
         </div>
 
         <div className="absolute inset-y-0 left-80 z-20 flex w-520 flex-col justify-center gap-40 max-lg:static max-lg:w-full max-lg:px-24 max-lg:py-64">
-          <Scramble
-            className="text-decorative-small text-text-faint"
-            preset="eyebrow-hero"
-            segments={[
-              { text: "01 · ", className: "[word-spacing:4.75px]" },
-              { text: "BADGE", className: "text-orange-900" },
-            ]}
-          />
+          <div data-share-hide="" hidden={shareCapture}>
+            <Scramble
+              className="text-decorative-small text-text-faint"
+              preset="eyebrow-hero"
+              segments={[
+                { text: "01 · ", className: "[word-spacing:4.75px]" },
+                { text: "BADGE", className: "text-orange-900" },
+              ]}
+            />
+          </div>
 
           <div>
             <h1
-              className="mb-16 text-heading-h1 text-balance text-text-base"
+              className={cn(
+                "text-left text-heading-h1 text-balance text-text-base",
+                !shareCapture && "mb-16"
+              )}
               data-share-title=""
             >
               {shareCapture

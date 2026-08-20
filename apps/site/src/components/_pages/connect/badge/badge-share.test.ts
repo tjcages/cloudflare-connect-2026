@@ -3,6 +3,9 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { badgeIdentityLayout } from "./badge-identity";
 import {
+  BADGE_SHARE_GRID,
+  BADGE_SHARE_GRID_LINE,
+  BADGE_SHARE_SURFACE,
   badgeShareHeadline,
   badgeTweetUrl,
   keepShareNode,
@@ -24,7 +27,7 @@ describe("badge identity layout", () => {
       layout.companyY + layout.companySize
     );
     expect(layout.roleBoxH).toBeGreaterThan(layout.roleSize);
-    expect(layout.roleBoxY + layout.roleBoxH).toBeLessThan(1152);
+    expect(layout.roleBoxY + layout.roleBoxH).toBeCloseTo(1152 - layout.pad);
   });
 
   it("sets name and company in STK Bureau and tightens the speaker chip", () => {
@@ -70,5 +73,22 @@ describe("badge share copy", () => {
         hasAttribute: (name: string) => name === "data-share-hide",
       } as HTMLElement)
     ).toBe(false);
+  });
+
+  it("uses a white field and the Connect grey grid for the share card", () => {
+    expect(BADGE_SHARE_SURFACE).toBe("#ffffff");
+    expect(BADGE_SHARE_GRID_LINE).toBe("#f4f4f4");
+    expect(BADGE_SHARE_GRID).toBe(80);
+    const source = readFileSync(
+      resolve(
+        process.cwd(),
+        "src/components/_pages/connect/badge/badge-share.ts"
+      ),
+      "utf8"
+    );
+    expect(source).toContain("drawShareGrid");
+    expect(source).toContain("shareStamp");
+    expect(source).toContain("headline");
+    expect(source).toContain("[data-share-title]");
   });
 });
