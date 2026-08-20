@@ -1,5 +1,5 @@
 export const INTRO_DELAY_MS = 500;
-export const POSE_LOG_MS = 1000;
+export const INTRO_FADE_MS = 800;
 
 export type BadgePosePoint = { x: number; y: number; z: number };
 
@@ -20,6 +20,29 @@ export type BadgePoseSnapshot = {
   stretch: number;
   card: BadgePosePoint & { rx: number; ry: number; rz: number };
   rope: BadgePosePoint[];
+};
+
+export const INTRO_POSE: BadgePoseSnapshot = {
+  event: "hold",
+  heldMs: 7072,
+  drag: { x: 0.28, y: 0, z: -0.056 },
+  dragOffset: { x: 0.0271, y: 0.1385, z: 0 },
+  hang: { x: 1.7925, y: 2.0232, z: 0 },
+  tip: { x: 0.0839, y: 0.0536, z: -0.0168 },
+  prev: { x: 0.0839, y: 0.0535, z: -0.0168 },
+  stretch: 1,
+  card: { x: 0, y: -0.104, z: 0.006, rx: 0, ry: -0.2934, rz: 0.0352 },
+  rope: [
+    { x: 0.0839, y: 0.0536, z: -0.0168 },
+    { x: 0.0689, y: 0.0571, z: -0.0138 },
+    { x: 0.0539, y: 0.0607, z: -0.0108 },
+    { x: 0.0391, y: 0.065, z: -0.0078 },
+    { x: 0.0249, y: 0.071, z: -0.005 },
+    { x: 0.0132, y: 0.0812, z: -0.0026 },
+    { x: 0.0055, y: 0.0948, z: -0.0011 },
+    { x: 0.0014, y: 0.11, z: -0.0003 },
+    { x: 0, y: 0.1256, z: 0 },
+  ],
 };
 
 export function roundPose(value: number): number {
@@ -86,6 +109,11 @@ export function applyPoseToRope(
     rope.prev[index]!.y = point.y;
     rope.prev[index]!.z = point.z;
   }
+  if (rope.prev[0]) {
+    rope.prev[0].x = pose.prev.x;
+    rope.prev[0].y = pose.prev.y;
+    rope.prev[0].z = pose.prev.z;
+  }
   rope.stretch = pose.stretch;
 }
 
@@ -101,33 +129,14 @@ export function applyPoseToCard(
   card.rotation.z = pose.card.rz;
 }
 
-export function logBadgePose(snapshot: BadgePoseSnapshot) {
-  console.log("[badge-pose]", JSON.stringify(snapshot));
-}
-
-export function introDragTip(
-  dragLimitX: number,
-  inwardZ: number
-): { x: number; z: number } {
-  return { x: dragLimitX, z: -dragLimitX * inwardZ };
-}
-
-export function introHeldTwist(
-  dragX: number,
-  tune: {
-    twistPos: number;
-    twistMax: number;
-    rollPos: number;
-    rollMax: number;
-  }
-): { y: number; z: number } {
-  const twist = Math.max(
-    -tune.twistMax,
-    Math.min(tune.twistMax, -dragX * tune.twistPos)
-  );
-  const roll = Math.max(
-    -tune.rollMax,
-    Math.min(tune.rollMax, dragX * tune.rollPos)
-  );
-  return { y: twist, z: roll };
+export function applyIntroPose(
+  rope: {
+    now: BadgePoseVec3[];
+    prev: BadgePoseVec3[];
+    stretch: number;
+  },
+  card: { position: BadgePoseVec3; rotation: BadgePoseVec3 }
+) {
+  applyPoseToRope(rope, INTRO_POSE);
+  applyPoseToCard(card, INTRO_POSE);
 }

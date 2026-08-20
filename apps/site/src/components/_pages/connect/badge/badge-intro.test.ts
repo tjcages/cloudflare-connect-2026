@@ -1,27 +1,43 @@
 import { describe, expect, it } from "vitest";
 import {
+  applyIntroPose,
   applyPoseToCard,
   applyPoseToRope,
   captureBadgePose,
-  introDragTip,
-  introHeldTwist,
+  INTRO_POSE,
 } from "./badge-intro";
-import { BADGE_TUNE_DEFAULTS } from "./badge-tune";
 
 describe("badge intro pose", () => {
-  it("matches a full drag to the right, then a release", () => {
-    const tip = introDragTip(
-      BADGE_TUNE_DEFAULTS.dragLimitX,
-      BADGE_TUNE_DEFAULTS.inwardZ
-    );
-    expect(tip.x).toBe(BADGE_TUNE_DEFAULTS.dragLimitX);
-    expect(tip.z).toBeCloseTo(
-      -BADGE_TUNE_DEFAULTS.dragLimitX * BADGE_TUNE_DEFAULTS.inwardZ
-    );
-    const held = introHeldTwist(tip.x, BADGE_TUNE_DEFAULTS);
-    expect(held.y).toBeCloseTo(-BADGE_TUNE_DEFAULTS.twistMax);
-    expect(held.z).toBeGreaterThan(0);
-    expect(held.z).toBeLessThanOrEqual(BADGE_TUNE_DEFAULTS.rollMax);
+  it("bakes the captured hold as the intro start", () => {
+    expect(INTRO_POSE.event).toBe("hold");
+    expect(INTRO_POSE.drag).toEqual({ x: 0.28, y: 0, z: -0.056 });
+    expect(INTRO_POSE.tip).toEqual({ x: 0.0839, y: 0.0536, z: -0.0168 });
+    expect(INTRO_POSE.card.ry).toBe(-0.2934);
+    expect(INTRO_POSE.card.rz).toBe(0.0352);
+    expect(INTRO_POSE.rope).toHaveLength(9);
+    expect(INTRO_POSE.rope[0]).toEqual(INTRO_POSE.tip);
+    expect(INTRO_POSE.rope.at(-1)).toEqual({ x: 0, y: 0.1256, z: 0 });
+  });
+
+  it("applies that hold onto the rope and card", () => {
+    const rope = {
+      now: INTRO_POSE.rope.map(() => ({ x: 0, y: 0, z: 0 })),
+      prev: INTRO_POSE.rope.map(() => ({ x: 1, y: 1, z: 1 })),
+      stretch: 0,
+    };
+    const card = {
+      position: { x: 9, y: 9, z: 9 },
+      rotation: { x: 9, y: 9, z: 9 },
+    };
+    applyIntroPose(rope, card);
+    expect(rope.now[0]).toEqual(INTRO_POSE.tip);
+    expect(rope.prev[0]).toEqual(INTRO_POSE.prev);
+    expect(rope.stretch).toBe(1);
+    expect(card.rotation).toEqual({
+      x: INTRO_POSE.card.rx,
+      y: INTRO_POSE.card.ry,
+      z: INTRO_POSE.card.rz,
+    });
   });
 
   it("round-trips a dragged hold snapshot onto the rope and card", () => {
@@ -72,7 +88,7 @@ describe("badge intro pose", () => {
     applyPoseToRope(rope, snapshot);
     applyPoseToCard(card, snapshot);
     expect(rope.now[0]).toEqual(snapshot.tip);
-    expect(rope.prev[0]).toEqual(snapshot.tip);
+    expect(rope.prev[0]).toEqual(snapshot.prev);
     expect(rope.stretch).toBe(0.0123);
     expect(card.rotation.y).toBe(-0.4321);
     expect(card.position.z).toBe(0.006);

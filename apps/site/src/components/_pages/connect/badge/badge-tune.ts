@@ -114,7 +114,7 @@ export const BADGE_TUNE_DEFAULTS: BadgeTune = {
   printPadTop: 0,
   printFeather: 0.065,
   sourceZoom: 1.18,
-  sourcePanX: 0.001,
+  sourcePanX: 0.0015,
   sourcePanY: 0,
   sourceLight: BADGE_PLATE_LIGHT_DEFAULT,
   shadowOpacity: 0.01,
@@ -383,4 +383,4 @@ export const BADGE_TUNE_FIELDS: PanelField<BadgeTune>[] = [
   slider("backdropMaskY", "Mask Y %", 0, 100, 1),
 ];
 
-export const BADGE_TUNE_PANEL_ID = "connect-badge-tune-v14";
+export const BADGE_TUNE_PANEL_ID = "connect-badge-tune-v15";
