@@ -98,26 +98,28 @@ const SIGN_UP_HREF = "https://dash.cloudflare.com/sign-up";
       >
         <a
           aria-label="Cloudflare Connect"
-          class="group relative isolate block overflow-hidden rounded-[12px] bg-[#f86a00] px-16 py-20 no-underline shadow-[0_1px_2px_rgb(0_0_0_/_0.05)] ring-1 ring-[#fea700]"
+          class="group relative isolate block rounded-[12px] border-2 border-[#fea700] bg-[#f86a00] no-underline shadow-[0_1px_2px_rgb(0_0_0_/_0.05)]"
           href={LOGIN_OVERLAY_COPY.bannerHref}
           rel="noreferrer"
           target="_blank"
         >
-          <div class="pointer-events-none absolute inset-0 z-0 h-full w-full">
-            <ConnectHeroTwizzler
-              client:media="(max-width: 1023px)"
-              defaults={LOGIN_MOBILE_TWIZZLER_DEFAULTS}
-              hideTopFade={true}
-              panelTargets={LOGIN_PANEL_TARGETS}
-              rainDefaults={LOGIN_RAIN_DEFAULT}
+          <div class="relative overflow-hidden rounded-[10px] px-16 py-20">
+            <div class="pointer-events-none absolute inset-0 z-0 h-full w-full">
+              <ConnectHeroTwizzler
+                client:media="(max-width: 1023px)"
+                defaults={LOGIN_MOBILE_TWIZZLER_DEFAULTS}
+                hideTopFade={true}
+                panelTargets={LOGIN_PANEL_TARGETS}
+                rainDefaults={LOGIN_RAIN_DEFAULT}
+              />
+            </div>
+            <div
+              aria-hidden="true"
+              class="pointer-events-none absolute inset-0 z-[1]"
+              style={{ backgroundImage: LOGIN_MOBILE_SCRIM }}
             />
+            <LoginPromo layout="banner" />
           </div>
-          <div
-            aria-hidden="true"
-            class="pointer-events-none absolute inset-0 z-[1]"
-            style={{ backgroundImage: LOGIN_MOBILE_SCRIM }}
-          />
-          <LoginPromo layout="banner" />
         </a>
       </div>
       <div
