@@ -11,7 +11,25 @@ describe("badge tune defaults", () => {
     expect(BADGE_TUNE_DEFAULTS.lightY).toBeLessThan(-0.3);
     expect(BADGE_TUNE_DEFAULTS.logoEnabled).toBe(true);
     expect(BADGE_TUNE_DEFAULTS.logoMarkOpacity).toBe(0);
-    expect(BADGE_TUNE_DEFAULTS.cardOverlap).toBeLessThan(0.006);
+    expect(BADGE_TUNE_DEFAULTS.cardOverlap).toBeLessThan(0);
+  });
+
+  it("uses the tuned badge and lanyard setup as the built-in default", () => {
+    expect(BADGE_TUNE_DEFAULTS).toMatchObject({
+      hangX: -0.61,
+      cardOverlap: -0.025,
+      cardEmissive: 0.17,
+      cardClearcoat: 1,
+      printZoom: 0.39,
+      shadowOpacity: 0.01,
+      shadowSoftOpacity: 0,
+      wallZ: -0.015,
+      dragLimitDown: 0.047,
+      twistPos: 3.5,
+      logoBand: 0.23,
+      logoPadX: 0.095,
+      footerBand: 0.205,
+    });
   });
 
   it("lets hook overlap go negative", () => {

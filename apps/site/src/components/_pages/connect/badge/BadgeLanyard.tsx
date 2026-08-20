@@ -20,7 +20,6 @@ import {
   PerspectiveCamera as ThreePerspectiveCamera,
   Quaternion,
   ShaderMaterial,
-  Shape,
   Skeleton,
   SkinnedMesh,
   SRGBColorSpace,
@@ -28,6 +27,11 @@ import {
   Vector2,
   Vector3,
 } from "three";
+import {
+  BADGE_PRINT_MESH_NAME,
+  createPrintFaceGeometry,
+  roundedRect,
+} from "./badge-card-geometry";
 import { BADGE_TUNE_DEFAULTS, type BadgeTune } from "./badge-tune";
 
 const LANYARD_URL = "/connect/badge-lanyard.glb";
@@ -97,23 +101,6 @@ type LanyardPart = "metal" | "plastic" | "webbing" | "cord";
 
 function cardLocalY(height: number, overlap: number) {
   return -(height / 2) + overlap;
-}
-
-function roundedRect(width: number, height: number, radius: number) {
-  const shape = new Shape();
-  const x = -width / 2;
-  const y = -height / 2;
-  const r = Math.min(radius, width / 2, height / 2);
-  shape.moveTo(x + r, y);
-  shape.lineTo(x + width - r, y);
-  shape.quadraticCurveTo(x + width, y, x + width, y + r);
-  shape.lineTo(x + width, y + height - r);
-  shape.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
-  shape.lineTo(x + r, y + height);
-  shape.quadraticCurveTo(x, y + height, x, y + height - r);
-  shape.lineTo(x, y + r);
-  shape.quadraticCurveTo(x, y, x + r, y);
-  return shape;
 }
 
 function drawCover(
@@ -637,22 +624,15 @@ function createBadgeCard(
   const faceWidth = tune.cardWidth - tune.shaderInset * 2;
   const faceHeight = tune.cardHeight - tune.shaderInset * 2;
   const faceRadius = Math.max(tune.cardRadius - tune.shaderInset, 0.001);
-  const faceGeometry = new ExtrudeGeometry(
-    roundedRect(faceWidth, faceHeight, faceRadius),
-    {
-      depth: 0.0002,
-      bevelEnabled: false,
-      steps: 1,
-    }
-  );
-  faceGeometry.translate(0, 0, -0.0001);
   const face = new Mesh(
-    faceGeometry,
+    createPrintFaceGeometry(faceWidth, faceHeight, faceRadius),
     new MeshBasicMaterial({
       map: texture,
       toneMapped: false,
     })
   );
+  face.name = BADGE_PRINT_MESH_NAME;
+  face.renderOrder = 1;
   face.position.z = tune.cardDepth / 2 + 0.0008;
   card.add(body);
   card.add(face);
@@ -1389,6 +1369,8 @@ function LanyardBadge({
     if (scaled) scaled.scale.setScalar(tune.modelScale);
     rig.card.traverse((child) => {
       if (!(child instanceof Mesh)) return;
+      if (child.name === BADGE_PRINT_MESH_NAME) return;
+      if (rig.shadows.includes(child)) return;
       const material = child.material;
       if (Array.isArray(material) || !material) return;
       if ("emissiveIntensity" in material) {
