@@ -14,6 +14,7 @@ import {
   speakerOverlayIrisRect,
   speakerWiperProgress,
   speakerWiperShouldEnter,
+  speakerWiperShouldLeave,
   speakerWiperStaggerMs,
   SPEAKER_OVERLAY_REST_WIDTH,
   SPEAKER_WIPER_DURATION_MS,
@@ -237,9 +238,11 @@ describe("speaker frame wipers", () => {
     expect(clock.startedAtMs[0]).toBe(840);
   });
 
-  it("enters a wipe at 28% visibility and resets when it drops back below that", () => {
+  it("enters a wipe at 28% visibility and keeps it until the portrait is fully gone", () => {
     expect(speakerWiperShouldEnter(0.27)).toBe(false);
     expect(speakerWiperShouldEnter(0.28)).toBe(true);
+    expect(speakerWiperShouldLeave(0.01)).toBe(false);
+    expect(speakerWiperShouldLeave(0)).toBe(true);
   });
 
   it("runs the iris clip in 900ms", () => {

@@ -239,6 +239,9 @@ export const SPEAKER_WIPER_ENTER_RATIO = 0.28;
 export const speakerWiperShouldEnter = (intersectionRatio: number) =>
   intersectionRatio >= SPEAKER_WIPER_ENTER_RATIO;
 
+/** Keep the rest overlay until the portrait has fully left the viewport. */
+export const speakerWiperShouldLeave = (intersectionRatio: number) => intersectionRatio <= 0;
+
 export type SpeakerWiperClock = {
   startedAtMs: (number | null)[];
   pending: Set<number>;

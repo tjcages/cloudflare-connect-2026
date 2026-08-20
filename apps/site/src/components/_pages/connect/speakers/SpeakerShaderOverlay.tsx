@@ -38,6 +38,7 @@ import {
   speakerFrameOutlineColor,
   speakerFramePaintConfig,
   speakerWiperShouldEnter,
+  speakerWiperShouldLeave,
   SPEAKER_WIPER_DURATION_MS,
   SPEAKER_WIPER_ENTER_RATIO,
   SPEAKER_WIPER_SHADER_DELAY_MS,
@@ -135,22 +136,6 @@ export default function SpeakerShaderOverlay() {
     let lastClientY = Number.NaN;
     let cursorFrame: CursorFrameSeed | null = null;
     let cursorTarget: Point | null = null;
-    const overlayBlit = document.createElement("canvas");
-    const overlayBlitContext = overlayBlit.getContext("2d");
-    let overlayBlitDirty = true;
-
-    const invalidateOverlayBlit = () => {
-      overlayBlitDirty = true;
-    };
-
-    const syncOverlayBlitSize = () => {
-      const pixelWidth = outputCanvas.width;
-      const pixelHeight = outputCanvas.height;
-      if (overlayBlit.width === pixelWidth && overlayBlit.height === pixelHeight) return;
-      overlayBlit.width = Math.max(1, pixelWidth);
-      overlayBlit.height = Math.max(1, pixelHeight);
-      overlayBlitDirty = true;
-    };
 
     const wiperClock: SpeakerWiperClock = {
       startedAtMs: apertureElements.map(() => null),
@@ -225,7 +210,6 @@ export default function SpeakerShaderOverlay() {
       }
 
       engine?.setSource(sourceCanvas);
-      invalidateOverlayBlit();
     };
 
     const compositeLayer = (frames: Rect[], source: CanvasImageSource, includeDecorative: boolean) => {
@@ -261,24 +245,6 @@ export default function SpeakerShaderOverlay() {
       compositeLayer(frames, renderCanvas, true);
     };
 
-    const paintOverlayLayer = (frames: Rect[], config: Partial<EngineConfig>) => {
-      if (!engine || frames.length === 0 || !overlayBlitContext) return;
-      syncOverlayBlitSize();
-      if (overlayBlitDirty) {
-        engine.setCursor(null);
-        engine.setConfig(config);
-        engine.renderFrame();
-        overlayBlitContext.setTransform(1, 0, 0, 1, 0, 0);
-        overlayBlitContext.clearRect(0, 0, overlayBlit.width, overlayBlit.height);
-        overlayBlitContext.drawImage(renderCanvas, 0, 0);
-        overlayBlitDirty = false;
-        if (pointerInside && !Number.isNaN(lastClientX)) {
-          updatePointer(lastClientX, lastClientY);
-        }
-      }
-      compositeLayer(frames, overlayBlit, false);
-    };
-
     const paint = () => {
       const settings = settingsRef.current;
       const apertureRects = apertures.map(({ rect }) => rect);
@@ -310,10 +276,12 @@ export default function SpeakerShaderOverlay() {
           pushStrengthPx: settings.trailPush,
         };
         const idleTrail = { ...overlayTrail, particleAlpha: 0, pushStrengthPx: 0 };
+        engine.setCursor(null);
         const paintOrder = ["orange", "grey"] as const;
         for (const variant of paintOrder) {
           const variantFrames = frames.filter((frame) => frame.variant === variant).map((frame) => frame.rect);
           const config = {
+            ...speakerSharedEngineConfig(settings),
             ...speakerFramePaintConfig(settings, variant),
             cursorTrail: idleTrail,
           };
@@ -322,8 +290,9 @@ export default function SpeakerShaderOverlay() {
               paintLayer(variantFrames, config);
               break;
             case "grey":
-              paintOverlayLayer(variantFrames, config);
+              paintLayer(variantFrames, config);
               if (pointerInside && pointerFrameRect && !reducedMotion.matches) {
+                if (!Number.isNaN(lastClientX)) updatePointer(lastClientX, lastClientY);
                 paintLayer([pointerFrameRect], { ...config, cursorTrail: overlayTrail });
               }
               break;
@@ -428,7 +397,6 @@ export default function SpeakerShaderOverlay() {
       cursorFrame = null;
       cursorTarget = null;
       drawSource();
-      invalidateOverlayBlit();
       if (visible && reducedMotion.matches) renderOnce();
     };
 
@@ -490,7 +458,6 @@ export default function SpeakerShaderOverlay() {
           pushStrengthPx: settings.trailPush,
         },
       });
-      invalidateOverlayBlit();
       if (visible && reducedMotion.matches) renderOnce();
     };
 
@@ -545,6 +512,7 @@ export default function SpeakerShaderOverlay() {
             armWiper(index);
             continue;
           }
+          if (!speakerWiperShouldLeave(entry.intersectionRatio)) continue;
           const wasTracking = intersectingWipers.delete(index);
           if (!wasTracking) continue;
           resetSpeakerWiper(wiperClock, index);
@@ -553,7 +521,7 @@ export default function SpeakerShaderOverlay() {
           if (visible && reducedMotion.matches) renderOnce();
         }
       },
-      { threshold: [0, SPEAKER_WIPER_ENTER_RATIO], rootMargin: "0px 0px -10% 0px" },
+      { threshold: [0, SPEAKER_WIPER_ENTER_RATIO] },
     );
     const imageLoadHandlers = images.map((image, index) => {
       if (!image) return null;
