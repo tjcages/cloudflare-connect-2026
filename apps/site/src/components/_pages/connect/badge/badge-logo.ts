@@ -1,6 +1,8 @@
 export const LOGO_TEXTURE_W = 800;
 export const LOGO_TEXTURE_H = 1200;
 export const SVG_MAX_BYTES = 400_000;
+/** Logo-free luminance plate. The stripe engine must never see an upload. */
+export const BADGE_PRINT_FIELD_SRC = "/connect/badge-print-field.svg";
 
 const SCRIPT_RE = /<script\b[\s\S]*?<\/script>/gi;
 const FOREIGN_RE = /<foreignObject\b[\s\S]*?<\/foreignObject>/gi;
@@ -76,7 +78,6 @@ export function wrapSvg(
 export function prepareBadgeLogo(svgText: string): {
   colorSvg: string;
   markSvg: string;
-  textureSvg: string;
 } {
   const safe = stripUnsafeSvg(svgText.trim());
   if (!/<svg[\s>]/i.test(safe)) {
@@ -91,8 +92,7 @@ export function prepareBadgeLogo(svgText: string): {
   const whiteInner = paintSvgFillsWhite(colorInner);
   const colorSvg = wrapSvg(colorInner, viewport);
   const markSvg = wrapSvg(whiteInner, viewport, "white");
-  const textureSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="${LOGO_TEXTURE_W}" height="${LOGO_TEXTURE_H}" viewBox="0 0 ${LOGO_TEXTURE_W} ${LOGO_TEXTURE_H}">${badgeTextureFieldMarkup(LOGO_TEXTURE_W, LOGO_TEXTURE_H)}</svg>`;
-  return { colorSvg, markSvg, textureSvg };
+  return { colorSvg, markSvg };
 }
 
 /** Soft white orbs on black — the same luminance field case-study cards feed the stripe shader. */
@@ -104,6 +104,10 @@ export function badgeTextureFieldMarkup(width: number, height: number): string {
     `<circle cx="${Math.round(width * 0.9)}" cy="${Math.round(height * -0.05)}" r="${Math.round(width * 0.58)}" fill="white" opacity="0.18"/>`,
     `<circle cx="${Math.round(width * 0.7)}" cy="${Math.round(height * 0.82)}" r="${Math.round(width * 0.64)}" fill="white" opacity="0.24"/>`,
   ].join("");
+}
+
+export function badgePrintFieldSvg(): string {
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${LOGO_TEXTURE_W}" height="${LOGO_TEXTURE_H}" viewBox="0 0 ${LOGO_TEXTURE_W} ${LOGO_TEXTURE_H}">${badgeTextureFieldMarkup(LOGO_TEXTURE_W, LOGO_TEXTURE_H)}</svg>`;
 }
 
 export function badgeMarkSvg(svgText: string, fill: string): string {
@@ -119,14 +123,6 @@ export function badgeMarkSvg(svgText: string, fill: string): string {
 
 export function svgToBlobUrl(svgText: string): string {
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgText)}`;
-}
-
-export function svgToObjectUrl(svgText: string): string {
-  return URL.createObjectURL(new Blob([svgText], { type: "image/svg+xml" }));
-}
-
-export function revokeLogoUrl(url: string) {
-  if (url.startsWith("blob:")) URL.revokeObjectURL(url);
 }
 
 export async function readSvgFile(file: File): Promise<string> {

@@ -35,9 +35,7 @@ import {
   badgeMarkSvg,
   prepareBadgeLogo,
   readSvgFile,
-  revokeLogoUrl,
   svgToBlobUrl,
-  svgToObjectUrl,
 } from "./badge-logo";
 import BadgeLogoUpload from "./BadgeLogoUpload";
 import BadgePrintShader from "./BadgePrintShader";
@@ -59,14 +57,8 @@ import {
 
 type BadgeLogoSession = {
   fileName: string;
-  textureUrl: string;
   sourceSvg: string;
 };
-
-function revokeLogo(session: BadgeLogoSession | null) {
-  if (!session) return;
-  revokeLogoUrl(session.textureUrl);
-}
 
 function themeToStripeColors(theme: BadgeTheme): StripeColors {
   const hexes = theme.stripeHexes;
@@ -138,10 +130,6 @@ export default function BadgePage(_props: IslandProps) {
     return () => window.clearTimeout(id);
   }, [lowPower, params]);
 
-  useEffect(() => {
-    return () => revokeLogo(logoSessionRef.current);
-  }, []);
-
   const view = useMemo(() => resolveBadgeView(params), [params]);
   const sharePath = badgeSharePath(params);
   const shareUrl =
@@ -203,7 +191,6 @@ export default function BadgePage(_props: IslandProps) {
   }, [logo, tune.logoEnabled, view.theme]);
 
   const replaceLogo = (next: BadgeLogoSession | null) => {
-    revokeLogo(logoSessionRef.current);
     logoSessionRef.current = next;
     setLogo(next);
   };
@@ -212,11 +199,10 @@ export default function BadgePage(_props: IslandProps) {
     void (async () => {
       try {
         const sourceSvg = await readSvgFile(file);
-        const prepared = prepareBadgeLogo(sourceSvg);
+        prepareBadgeLogo(sourceSvg);
         replaceLogo({
           fileName: file.name,
           sourceSvg,
-          textureUrl: svgToObjectUrl(prepared.textureSvg),
         });
         setLogoError(null);
       } catch (error) {
@@ -236,12 +222,11 @@ export default function BadgePage(_props: IslandProps) {
         const response = await fetch("/connect/badge-demo-logo.svg");
         if (!response.ok) return;
         const sourceSvg = await response.text();
-        const prepared = prepareBadgeLogo(sourceSvg);
+        prepareBadgeLogo(sourceSvg);
         if (cancelled || logoSessionRef.current) return;
         replaceLogo({
           fileName: "Cloudflare.svg",
           sourceSvg,
-          textureUrl: svgToObjectUrl(prepared.textureSvg),
         });
       } catch {
         // Upload still works without the demo mark.
@@ -301,14 +286,13 @@ export default function BadgePage(_props: IslandProps) {
         </div>
       ) : null}
 
-      {hydrated && logo ? (
+      {hydrated ? (
         <BadgePrintShader
           canvasRef={logoRef}
           config={logoConfig}
           height={printH}
           maxDpr={lowPower ? 1 : 1.5}
           paused={reducedMotion}
-          src={logo.textureUrl}
           width={printW}
         />
       ) : null}

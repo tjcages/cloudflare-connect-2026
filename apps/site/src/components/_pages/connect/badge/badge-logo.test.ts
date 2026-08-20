@@ -2,7 +2,9 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  BADGE_PRINT_FIELD_SRC,
   badgeMarkSvg,
+  badgePrintFieldSvg,
   extractSvgInner,
   paintSvgFills,
   paintSvgFillsWhite,
@@ -12,6 +14,10 @@ import {
   stripUnsafeSvg,
   SVG_MAX_BYTES,
 } from "./badge-logo";
+
+function compactSvg(svg: string) {
+  return svg.replace(/\s+/g, "");
+}
 
 describe("badge logo SVG prep", () => {
   it("strips scripts, foreignObject, and on* handlers", () => {
@@ -29,7 +35,7 @@ describe("badge logo SVG prep", () => {
     expect(extractSvgInner(svg)).toBe(`<circle cx="10" cy="5" r="4"/>`);
   });
 
-  it("paints fills white and wraps a black texture plate", () => {
+  it("paints fills white without baking the upload into a texture plate", () => {
     const prepared = prepareBadgeLogo(
       `<svg viewBox="0 0 40 20"><path fill="#123456" d="M0 0h40v20z"/></svg>`
     );
@@ -38,11 +44,7 @@ describe("badge logo SVG prep", () => {
     expect(prepared.colorSvg).toContain('height="20"');
     expect(prepared.markSvg).toContain('fill="white"');
     expect(prepared.markSvg).not.toContain("#123456");
-    expect(prepared.textureSvg).toContain('fill="black"');
-    expect(prepared.textureSvg).toContain('width="800"');
-    expect(prepared.textureSvg).toContain('height="1200"');
-    expect(prepared.textureSvg).toContain("<circle");
-    expect(prepared.textureSvg).not.toContain("M0 0h40v20z");
+    expect(prepared).not.toHaveProperty("textureSvg");
     expect(paintSvgFillsWhite(`fill="#abc" stroke="#def"`)).toBe(
       `fill="white" stroke="white"`
     );
@@ -101,7 +103,6 @@ describe("badge logo SVG prep", () => {
     );
     const prepared = prepareBadgeLogo(svg);
     expect(prepared.markSvg).toContain('fill="white"');
-    expect(prepared.textureSvg).toContain('fill="black"');
     expect(extractSvgInner(svg)).toContain("<path");
   });
 
@@ -117,5 +118,41 @@ describe("badge logo SVG prep", () => {
     expect(prepared.markSvg).toContain('fill="white"');
     expect(prepared.markSvg).not.toMatch(/#5865F2/i);
     expect(prepared.markSvg).not.toContain("display-p3");
+  });
+
+  it("keeps a logo-free luminance field for the stripe engine", () => {
+    const fieldPath = resolve(
+      process.cwd(),
+      "public/connect/badge-print-field.svg"
+    );
+    const field = readFileSync(fieldPath, "utf8");
+    expect(compactSvg(field)).toBe(compactSvg(badgePrintFieldSvg()));
+    expect(field).not.toMatch(/<path\b/i);
+    expect(field).not.toMatch(/\bd=/);
+    expect(field).toContain("<circle");
+    expect(field).toContain('fill="black"');
+    expect(BADGE_PRINT_FIELD_SRC).toBe("/connect/badge-print-field.svg");
+
+    const shader = readFileSync(
+      resolve(
+        process.cwd(),
+        "src/components/_pages/connect/badge/BadgePrintShader.tsx"
+      ),
+      "utf8"
+    );
+    expect(shader).toContain("BADGE_PRINT_FIELD_SRC");
+    expect(shader).not.toContain("src: string");
+    expect(shader).toContain("image.src = BADGE_PRINT_FIELD_SRC");
+
+    const page = readFileSync(
+      resolve(
+        process.cwd(),
+        "src/components/_pages/connect/badge/BadgePage.tsx"
+      ),
+      "utf8"
+    );
+    expect(page).not.toContain("textureUrl");
+    expect(page).not.toContain("src={logo");
+    expect(page).not.toContain("src={logoMarkSrc");
   });
 });
