@@ -41,8 +41,11 @@ import {
 import { drawIdentity, type BadgeCardIdentity } from "./badge-identity";
 import {
   INTRO_DELAY_MS,
+  POSE_LOG_MS,
+  captureBadgePose,
   introDragTip,
   introHeldTwist,
+  logBadgePose,
 } from "./badge-intro";
 import { svgRasterSize } from "./badge-logo";
 import {
@@ -1413,6 +1416,8 @@ function LanyardBadge({
   const dragOffset = useRef(new Vector3());
   const dragTarget = useRef(new Vector3());
   const introKicked = useRef(false);
+  const poseHoldStartedAt = useRef(0);
+  const lastPoseLogAt = useRef(0);
   const [printReady, setPrintReady] = useState(false);
   const [introVisible, setIntroVisible] = useState(reducedMotion);
   const texture = useHeroShaderTexture(
@@ -1557,6 +1562,20 @@ function LanyardBadge({
 
     const onUp = () => {
       if (!dragging.current) return;
+      if (rig) {
+        const hang = groupRef.current?.position ?? { x: 0, y: 0, z: 0 };
+        logBadgePose(
+          captureBadgePose({
+            event: "up",
+            heldMs: performance.now() - poseHoldStartedAt.current,
+            drag: dragTarget.current,
+            dragOffset: dragOffset.current,
+            hang,
+            card: rig.card,
+            rope: rig.rope,
+          })
+        );
+      }
       dragging.current = false;
       canvas.style.cursor = "grab";
       invalidate();
@@ -1604,6 +1623,23 @@ function LanyardBadge({
         rightColumnWorldX(size.width, viewport.width) + tune.hangX;
       hang.position.y = -localY * tune.modelScale + tune.hangLift;
       hang.position.z = tune.hangZ;
+    }
+    if (dragging.current) {
+      const now = performance.now();
+      if (now - lastPoseLogAt.current >= POSE_LOG_MS) {
+        logBadgePose(
+          captureBadgePose({
+            event: "hold",
+            heldMs: now - poseHoldStartedAt.current,
+            drag: dragTarget.current,
+            dragOffset: dragOffset.current,
+            hang: hang?.position ?? { x: 0, y: 0, z: 0 },
+            card: rig.card,
+            rope: rig.rope,
+          })
+        );
+        lastPoseLogAt.current = now;
+      }
     }
     const scaled = scaleRef.current;
     if (scaled) scaled.scale.setScalar(tune.modelScale);
@@ -1656,6 +1692,20 @@ function LanyardBadge({
         );
         const tip = rig.rope.now[0]!;
         dragTarget.current.set(tip.x, tip.y, -tip.x * tune.inwardZ);
+        poseHoldStartedAt.current = performance.now();
+        lastPoseLogAt.current = poseHoldStartedAt.current;
+        const hang = groupRef.current?.position ?? { x: 0, y: 0, z: 0 };
+        logBadgePose(
+          captureBadgePose({
+            event: "down",
+            heldMs: 0,
+            drag: dragTarget.current,
+            dragOffset: dragOffset.current,
+            hang,
+            card: rig.card,
+            rope: rig.rope,
+          })
+        );
         gl.domElement.style.cursor = "grabbing";
         gl.domElement.setPointerCapture(event.pointerId);
         invalidate();

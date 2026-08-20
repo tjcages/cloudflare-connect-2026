@@ -454,6 +454,9 @@ describe("badge logo SVG prep", () => {
     expect(lanyard).toContain("introDragTip");
     expect(lanyard).toContain("introHeldTwist");
     expect(lanyard).toContain("INTRO_DELAY_MS");
+    expect(lanyard).toContain("logBadgePose");
+    expect(lanyard).toContain("captureBadgePose");
+    expect(lanyard).toContain("POSE_LOG_MS");
     expect(lanyard).not.toContain("INTRO_YAW");
     expect(lanyard).not.toContain("INTRO_ROLL");
     expect(lanyard).not.toContain("introRopePoint");
