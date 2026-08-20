@@ -36,21 +36,22 @@ const CLIP_CLUSTER_Y1 = 0.135;
 const WING_CUT_X = 0.02;
 const LEFT_TASSEL_X = -0.02;
 const CHAIN_BONES = 8;
-const GRAVITY = -7.2;
-const DAMPING = 0.984;
-const CONSTRAINT_ITERS = 5;
-const CONSTRAINT_STIFFNESS = 0.38;
-const DRAG_FOLLOW = 0.38;
-const REST_PULL = 0.003;
-const SLEEP_EPS = 0.00045;
+const GRAVITY = -5.4;
+const DAMPING_XZ = 0.993;
+const DAMPING_Y = 0.78;
+const CONSTRAINT_ITERS = 8;
+const CONSTRAINT_STIFFNESS = 0.5;
+const DRAG_FOLLOW = 0.32;
+const REST_PULL = 0.004;
+const SLEEP_EPS = 0.0007;
 const DRAG_LIMIT_X = 0.22;
 const DRAG_LIMIT_UP = 0.07;
 const DRAG_LIMIT_DOWN = 0.13;
 const INWARD_Z = 0.28;
 const TWIST_POS = 5.8;
-const TWIST_VEL = 26;
+const TWIST_VEL = 16;
 const TWIST_MAX = 0.72;
-const TWIST_SMOOTH = 0.16;
+const TWIST_SMOOTH = 0.09;
 const ROLL_POS = 0.42;
 const ROLL_MAX = 0.2;
 
@@ -547,8 +548,8 @@ function ropeIsAsleep(rope: RopeState) {
     const prev = rope.prev[index]!;
     maxOff = Math.max(
       maxOff,
-      Math.hypot(now.x - rest.x, now.y - rest.y, now.z - rest.z),
-      Math.hypot(now.x - prev.x, now.y - prev.y, now.z - prev.z)
+      Math.hypot(now.x - rest.x, now.z - rest.z),
+      Math.hypot(now.x - prev.x, now.z - prev.z)
     );
   }
   return maxOff < SLEEP_EPS;
@@ -583,6 +584,23 @@ function solveDistance(
   }
 }
 
+function projectInextensible(rope: RopeState) {
+  const last = rope.now.length - 1;
+  rope.now[last]!.copy(rope.pin);
+  for (let index = last - 1; index >= 0; index -= 1) {
+    const point = rope.now[index]!;
+    const parent = rope.now[index + 1]!;
+    const dx = point.x - parent.x;
+    const dy = point.y - parent.y;
+    const dz = point.z - parent.z;
+    const dist = Math.hypot(dx, dy, dz) || 0.0001;
+    const scale = rope.rest / dist;
+    point.x = parent.x + dx * scale;
+    point.y = parent.y + dy * scale;
+    point.z = parent.z + dz * scale;
+  }
+}
+
 function constrainRope(rope: RopeState, drag: Vector3 | null) {
   const last = rope.now.length - 1;
   for (let iter = 0; iter < CONSTRAINT_ITERS; iter += 1) {
@@ -598,10 +616,14 @@ function constrainRope(rope: RopeState, drag: Vector3 | null) {
     rope.now[last]!.copy(rope.pin);
     if (drag) {
       const tip = rope.now[0]!;
-      tip.x += (drag.x - tip.x) * 0.22;
-      tip.y += (drag.y - tip.y) * 0.22;
-      tip.z += (drag.z - tip.z) * 0.22;
+      tip.x += (drag.x - tip.x) * 0.18;
+      tip.y += (drag.y - tip.y) * 0.12;
+      tip.z += (drag.z - tip.z) * 0.18;
     }
+  }
+  projectInextensible(rope);
+  for (let index = 0; index < last; index += 1) {
+    rope.prev[index]!.y = rope.now[index]!.y;
   }
 }
 
@@ -626,20 +648,19 @@ function stepRope(
   for (let index = 0; index < last; index += 1) {
     const point = rope.now[index]!;
     const previous = rope.prev[index]!;
-    const vx = (point.x - previous.x) * DAMPING;
-    const vy = (point.y - previous.y) * DAMPING;
-    const vz = (point.z - previous.z) * DAMPING;
+    const vx = (point.x - previous.x) * DAMPING_XZ;
+    const vy = (point.y - previous.y) * DAMPING_Y;
+    const vz = (point.z - previous.z) * DAMPING_XZ;
     previous.copy(point);
-    const weight = index === 0 ? 1.45 : 1;
     point.x += vx;
-    point.y += vy + gravity * weight;
+    point.y += vy + gravity;
     point.z += vz;
   }
 
   if (drag) {
     const tip = rope.now[0]!;
     tip.x += (drag.x - tip.x) * DRAG_FOLLOW;
-    tip.y += (drag.y - tip.y) * DRAG_FOLLOW;
+    tip.y += (drag.y - tip.y) * DRAG_FOLLOW * 0.55;
     tip.z += (drag.z - tip.z) * DRAG_FOLLOW;
   }
 
@@ -651,6 +672,7 @@ function stepRope(
       point.x += -point.x * REST_PULL;
       point.z += -point.z * REST_PULL;
     }
+    projectInextensible(rope);
   }
   rope.now[last]!.copy(rope.pin);
 }
