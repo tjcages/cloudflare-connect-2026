@@ -1,0 +1,23 @@
+---
+import RegisterCta from "@/components/_pages/connect/cta/RegisterCta.astro";
+import BadgePage from "@/components/_pages/connect/badge/BadgePage";
+import Layout from "@/layouts/Layout.astro";
+---
+
+<Layout
+  title="Badge - Cloudflare Connect 2026 | Cloudflare"
+  description="Cloudflare Connect 2026 badge — case-study stripes and your logo on a 3D lanyard, with switchable lab color schemes."
+  cta={false}
+  nav="connect"
+>
+  <BadgePage client:only="react">
+    <div
+      class="relative mx-auto max-w-1200 bg-background-base before:inside-border-b before:border-border-default"
+      slot="fallback"
+    >
+      <div class="h-760 max-lg:h-640"></div>
+      <div class="h-80"></div>
+    </div>
+  </BadgePage>
+  <RegisterCta />
+</Layout>

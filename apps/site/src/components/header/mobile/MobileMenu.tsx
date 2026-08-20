@@ -41,9 +41,10 @@ const defaultSections: MobileNavSection[] = [
 ];
 
 const connectSections: MobileNavSection[] = [
-  { label: "Agenda", href: "#agenda" },
-  { label: "Speakers", href: "#speakers" },
-  { label: "Sessions", href: "#agenda" },
+  { label: "Agenda", href: "/connect#agenda" },
+  { label: "Speakers", href: "/connect#speakers" },
+  { label: "Badge", href: "/connect/badge" },
+  { label: "Sessions", href: "/connect#agenda" },
   {
     label: "Resources",
     groups: connectResourceGroups,

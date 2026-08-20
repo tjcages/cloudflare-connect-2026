@@ -36,6 +36,12 @@ export const connectResourceGroups: ConnectResourceGroup[] = [
         description: "Meet the partners powering Connect 2026",
         href: "/connect/sponsors",
       },
+      {
+        iconName: "agents",
+        label: "Badge",
+        description: "A unique 3D Connect badge for every attendee",
+        href: "/connect/badge",
+      },
     ],
   },
   {

@@ -11,6 +11,9 @@ export default function Dropdown({
   open,
   onOpenChange,
   panelClassName,
+  side = "bottom",
+  align = "start",
+  scroll = true,
   children,
 }: {
   label: string;
@@ -20,6 +23,9 @@ export default function Dropdown({
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   panelClassName?: string | string[];
+  side?: Menu.Positioner.Props["side"];
+  align?: Menu.Positioner.Props["align"];
+  scroll?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -28,7 +34,7 @@ export default function Dropdown({
 
       <Menu.Portal>
         <Menu.Positioner
-          align="start"
+          align={align}
           anchor={anchor}
           className="z-60 outline-none"
           collisionAvoidance={{
@@ -36,7 +42,7 @@ export default function Dropdown({
             fallbackAxisSide: "none",
             side: "shift",
           }}
-          side="bottom"
+          side={side}
           sideOffset={8}
         >
           <Menu.Popup
@@ -44,15 +50,21 @@ export default function Dropdown({
             className={cn(
               "origin-(--transform-origin) bg-background-base shadow-elevation-default outline-none",
               "transition-[opacity,translate] duration-200 ease-[cubic-bezier(0.165,0.84,0.44,1)]",
-              "data-starting-style:-translate-y-4 data-starting-style:opacity-0",
-              "data-ending-style:-translate-y-4 data-ending-style:opacity-0",
+              "data-ending-style:opacity-0 data-starting-style:opacity-0",
+              side === "top"
+                ? "data-ending-style:translate-y-4 data-starting-style:translate-y-4"
+                : "data-ending-style:-translate-y-4 data-starting-style:-translate-y-4",
               panelClassName
             )}
             finalFocus={finalFocus}
           >
-            <ScrollArea viewportClassName="max-h-352">
-              <div className="flex flex-col p-4">{children}</div>
-            </ScrollArea>
+            {scroll ? (
+              <ScrollArea viewportClassName="max-h-352">
+                <div className="flex flex-col p-4">{children}</div>
+              </ScrollArea>
+            ) : (
+              children
+            )}
           </Menu.Popup>
         </Menu.Positioner>
       </Menu.Portal>
