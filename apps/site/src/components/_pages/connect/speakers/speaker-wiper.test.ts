@@ -10,62 +10,56 @@ import {
   resolveWipingFrames,
   speakerFrameOutlineColor,
   speakerFramePaintConfig,
-  speakerFrameWiperRect,
-  speakerPortraitOpacity,
+  speakerOrangeCoverRect,
+  speakerOverlayIrisRect,
   speakerWiperProgress,
   speakerWiperShouldEnter,
   speakerWiperStaggerMs,
-  SPEAKER_IMAGE_FADE_MS,
   SPEAKER_OVERLAY_REST_WIDTH,
   SPEAKER_WIPER_DURATION_MS,
-  SPEAKER_WIPER_REST_WIDTH,
   SPEAKER_WIPER_SHADER_DELAY_MS,
 } from "./speaker-wiper";
 
 const aperture = { x: 40, y: 10, width: 200, height: 180 };
-const rest = { x: 40, y: 10, width: 40, height: 180 };
+const rest = { x: 40, y: 10, width: 200, height: 180 };
 
 describe("speaker frame wipers", () => {
-  it("starts covering the portrait at full size", () => {
-    expect(speakerFrameWiperRect(aperture, rest, 0)).toEqual({
-      x: 40,
-      y: 10,
-      width: 200,
-      height: 180,
-    });
+  it("keeps the orange field covering the portrait until the iris finishes", () => {
+    expect(speakerOrangeCoverRect(aperture, 0)).toEqual(aperture);
+    expect(speakerOrangeCoverRect(aperture, 0.5)).toEqual(aperture);
+    expect(speakerOrangeCoverRect(aperture, 1)).toBeNull();
     expect(speakerWiperProgress(0, 0)).toBe(0);
   });
 
-  it("keeps full coverage while the start is still in the future", () => {
-    expect(speakerWiperProgress(-50, 0)).toBe(0);
-    const authored = resolveAuthoredFrames(
-      [{ imageIndex: 0, x: 0.8, y: 0, width: 0.2, height: 1, span: false, variant: "orange" as const }],
-      [aperture],
-    );
-    expect(resolveWipingFrames(authored, [aperture], [1_000], 500)[0]?.rect.width).toBe(200);
-  });
-
-  it("collapses the authored frame from the top-left toward the bottom-right rest rect", () => {
-    const mid = speakerFrameWiperRect(aperture, { x: 200, y: 10, width: 40, height: 180 }, 0.35);
-    expect(mid.x).toBeGreaterThan(aperture.x);
-    expect(mid.y).toBeGreaterThan(aperture.y);
-    expect(mid.width).toBeLessThan(aperture.width);
-    expect(mid.height).toBeLessThan(aperture.height);
-    expect(mid.x + mid.width).toBeLessThanOrEqual(aperture.x + aperture.width + 0.01);
-    expect(mid.y + mid.height).toBeLessThanOrEqual(aperture.y + aperture.height + 0.01);
+  it("grows the overlay iris from the center with a strong ease-out", () => {
+    expect(speakerOverlayIrisRect(rest, 0)).toEqual({
+      x: 140,
+      y: 100,
+      width: 0,
+      height: 0,
+    });
+    const mid = speakerOverlayIrisRect(rest, 0.35);
+    expect(mid.width).toBeGreaterThan(0);
+    expect(mid.height).toBeGreaterThan(0);
+    expect(mid.width).toBeLessThan(rest.width);
+    expect(mid.height).toBeLessThan(rest.height);
+    expect(mid.x).toBeGreaterThan(rest.x);
+    expect(mid.y).toBeGreaterThan(rest.y);
+    expect(mid.x + mid.width).toBeCloseTo(rest.x + rest.width - (mid.x - rest.x));
+    expect(speakerOverlayIrisRect(rest, 1)).toEqual(rest);
   });
 
   it("settles into the authored rest rect", () => {
-    expect(speakerFrameWiperRect(aperture, rest, 1)).toEqual(rest);
-    expect(speakerFrameWiperRect(aperture, { x: 60, y: 10, width: 40, height: 180 }, 1)).toEqual({
+    expect(speakerOverlayIrisRect(rest, 1)).toEqual(rest);
+    expect(speakerOverlayIrisRect({ x: 60, y: 20, width: 80, height: 40 }, 1)).toEqual({
       x: 60,
-      y: 10,
-      width: 40,
-      height: 180,
+      y: 20,
+      width: 80,
+      height: 40,
     });
   });
 
-  it("defaults to an 80% overlay plus a 20% orange pane on the right edge", () => {
+  it("defaults to a full-bleed overlay with no rest orange pane", () => {
     const placements = defaultSpeakerFramePlacements();
     const byImage = new Map<number, typeof placements>();
     for (const placement of placements) {
@@ -76,71 +70,61 @@ describe("speaker frame wipers", () => {
 
     expect(byImage.size).toBe(6);
     for (const frames of byImage.values()) {
-      expect(frames).toHaveLength(2);
+      expect(frames).toHaveLength(1);
       expect(frames[0]?.variant).toBe("grey");
-      expect(frames[1]?.variant).toBe("orange");
       expect(frames[0]?.x).toBe(0);
       expect(frames[0]?.width).toBe(SPEAKER_OVERLAY_REST_WIDTH);
-      expect(frames[1]?.x).toBe(0.8);
-      expect(frames[1]?.width).toBe(SPEAKER_WIPER_REST_WIDTH);
     }
   });
 
-  it("animates authored frames only after that image has started", () => {
+  it("covers with orange before the overlay iris exists", () => {
     const authored = resolveAuthoredFrames(
       [
-        { imageIndex: 0, x: 0, y: 0, width: 0.8, height: 1, span: false, variant: "grey" as const },
-        { imageIndex: 0, x: 0.8, y: 0, width: 0.2, height: 1, span: false, variant: "orange" as const },
+        { imageIndex: 0, x: 0, y: 0, width: 1, height: 1, span: false, variant: "grey" as const },
       ],
       [aperture],
     );
 
     expect(resolveWipingFrames(authored, [aperture], [null], 1_000)).toEqual([]);
 
+    const waiting = resolveWipingFrames(authored, [aperture], [1_000], 500);
+    expect(waiting.map((frame) => frame.variant)).toEqual(["orange"]);
+    expect(waiting[0]?.rect).toEqual(aperture);
+
     const playing = resolveWipingFrames(authored, [aperture], [0], 20_000);
-    expect(playing.map((frame) => frame.variant)).toEqual(["grey", "orange"]);
-    expect(playing[0]?.rect).toEqual({ x: 40, y: 10, width: 160, height: 180 });
-    expect(playing[1]?.rect).toEqual({ x: 200, y: 10, width: 40, height: 180 });
+    expect(playing.map((frame) => frame.variant)).toEqual(["grey"]);
+    expect(playing[0]?.rect).toEqual(aperture);
   });
 
-  it("opens from full coverage into the rest rect while the clip plays", () => {
+  it("grows the overlay from the center while orange stays full, then drops orange", () => {
     const authored = resolveAuthoredFrames(
-      [{ imageIndex: 0, x: 0.8, y: 0, width: 0.2, height: 1, span: false, variant: "orange" as const }],
+      [{ imageIndex: 0, x: 0, y: 0, width: 1, height: 1, span: false, variant: "grey" as const }],
       [aperture],
     );
-    expect(resolveWipingFrames(authored, [aperture], [0], 0)[0]?.rect).toEqual(aperture);
-    const mid = resolveWipingFrames(authored, [aperture], [0], 300)[0]?.rect;
-    expect(mid?.width).toBeLessThan(aperture.width);
-    expect(mid?.height).toBeLessThan(aperture.height);
-    expect(mid?.x).toBeGreaterThan(aperture.x);
-    expect(mid?.y).toBeGreaterThan(aperture.y);
-    expect(resolveWipingFrames(authored, [aperture], [0], 20_000)[0]?.rect.width).toBe(40);
-    expect(resolveWipingFrames(authored, [aperture], [0], 20_000)[0]?.rect.height).toBe(180);
+    expect(resolveWipingFrames(authored, [aperture], [0], 0).map((frame) => frame.variant)).toEqual(["orange"]);
+    const mid = resolveWipingFrames(authored, [aperture], [0], 300);
+    expect(mid.map((frame) => frame.variant)).toEqual(["orange", "grey"]);
+    expect(mid[0]?.rect).toEqual(aperture);
+    expect(mid[1]?.rect.width).toBeGreaterThan(0);
+    expect(mid[1]?.rect.width).toBeLessThan(aperture.width);
+    expect(mid[1]?.rect.x).toBeGreaterThan(aperture.x);
+    expect(resolveWipingFrames(authored, [aperture], [0], 20_000).map((frame) => frame.variant)).toEqual(["grey"]);
   });
 
-  it("starts collapsing every pane together so opaque strips do not sit at full width", () => {
+  it("starts the overlay and orange iris together", () => {
     expect(speakerWiperStaggerMs("grey")).toBe(0);
     expect(speakerWiperStaggerMs("orange")).toBe(0);
     expect(speakerWiperProgress(16, 0)).toBeGreaterThan(0);
   });
 
-  it("finishes fading portraits before the orange pane starts collapsing", () => {
-    expect(speakerPortraitOpacity(-SPEAKER_IMAGE_FADE_MS)).toBe(0);
-    expect(speakerPortraitOpacity(-SPEAKER_IMAGE_FADE_MS - 10)).toBe(0);
-    expect(speakerPortraitOpacity(0)).toBe(1);
-    expect(speakerPortraitOpacity(16)).toBe(1);
-    const mid = speakerPortraitOpacity(-SPEAKER_IMAGE_FADE_MS / 2);
-    expect(mid).toBeGreaterThan(0);
-    expect(mid).toBeLessThan(1);
-  });
-
   it("jumps authored frames to rest when reduced motion is on", () => {
     const authored = resolveAuthoredFrames(
-      [{ imageIndex: 0, x: 0.8, y: 0, width: 0.2, height: 1, span: false, variant: "orange" as const }],
+      [{ imageIndex: 0, x: 0, y: 0, width: 1, height: 1, span: false, variant: "grey" as const }],
       [aperture],
     );
     const frames = resolveWipingFrames(authored, [aperture], [9_000], 9_010, { reducedMotion: true });
-    expect(frames[0]?.rect.width).toBe(40);
+    expect(frames.map((frame) => frame.variant)).toEqual(["grey"]);
+    expect(frames[0]?.rect).toEqual(aperture);
   });
 
   it("paints orange uninverted, with an independent overlay palette", () => {
@@ -211,7 +195,7 @@ describe("speaker frame wipers", () => {
     expect(clock.startedAtMs[0]).toBe(400);
   });
 
-  it("delays the committed start until after the shader reveal", () => {
+  it("delays the iris until after the shader reveal", () => {
     const clock = { startedAtMs: [null], pending: new Set<number>() };
     armSpeakerWiper(clock, 0, { imageReady: true, reducedMotion: false, nowMs: 80 });
     commitPendingSpeakerWipers(clock, 120, SPEAKER_WIPER_SHADER_DELAY_MS);
@@ -219,7 +203,7 @@ describe("speaker frame wipers", () => {
     expect(SPEAKER_WIPER_SHADER_DELAY_MS).toBe(950);
   });
 
-  it("replays the same full-width settle from the start", () => {
+  it("replays the same orange-then-iris settle from the start", () => {
     const clock = { startedAtMs: [0], pending: new Set<number>() };
     expect(replaySpeakerWiper(clock, 0, { imageReady: true, reducedMotion: false, nowMs: 800 })).toBe("armed");
     expect(clock.startedAtMs[0]).toBeNull();
@@ -233,7 +217,7 @@ describe("speaker frame wipers", () => {
     expect(speakerWiperShouldEnter(0.28)).toBe(true);
   });
 
-  it("runs the settle clip in 900ms", () => {
+  it("runs the iris clip in 900ms", () => {
     expect(SPEAKER_WIPER_DURATION_MS).toBe(900);
     expect(speakerWiperProgress(450, 0)).toBe(0.5);
   });

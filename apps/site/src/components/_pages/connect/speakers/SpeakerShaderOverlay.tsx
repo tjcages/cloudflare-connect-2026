@@ -10,7 +10,6 @@ import {
   loadSpeakerFrameSettings,
   SPEAKER_FRAME_DEFAULTS,
   SPEAKER_FRAME_SETTINGS_EVENT,
-  SPEAKER_FRAME_VARIANT_IDS,
   SPEAKER_POINTER_VARIANT,
   speakerSharedEngineConfig,
   speakerVariantLook,
@@ -40,7 +39,6 @@ import {
   resolveWipingFrames,
   speakerFrameOutlineColor,
   speakerFramePaintConfig,
-  speakerPortraitOpacity,
   speakerWiperShouldEnter,
   SPEAKER_WIPER_DURATION_MS,
   SPEAKER_WIPER_ENTER_RATIO,
@@ -168,13 +166,9 @@ export default function SpeakerShaderOverlay() {
           return;
         }
         const startedAt = wiperClock.startedAtMs[index];
-        const elapsedMs =
-          typeof wiperProgressOverride === "number"
-            ? wiperProgressOverride * SPEAKER_WIPER_DURATION_MS
-            : startedAt == null
-              ? null
-              : wiperNowMs - startedAt;
-        image.style.opacity = elapsedMs == null ? "0" : String(speakerPortraitOpacity(elapsedMs));
+        const visibleUnderIris =
+          typeof wiperProgressOverride === "number" || (startedAt != null && wiperNowMs - startedAt >= 0);
+        image.style.opacity = visibleUnderIris ? "1" : "0";
       });
     };
 
@@ -304,7 +298,8 @@ export default function SpeakerShaderOverlay() {
           pushStrengthPx: settings.trailPush,
         };
         const idleTrail = { ...overlayTrail, particleAlpha: 0, pushStrengthPx: 0 };
-        for (const variant of SPEAKER_FRAME_VARIANT_IDS) {
+        const paintOrder = ["orange", "grey"] as const;
+        for (const variant of paintOrder) {
           const variantFrames = frames.filter((frame) => frame.variant === variant).map((frame) => frame.rect);
           if (variant === SPEAKER_POINTER_VARIANT && pointerFrameRect) {
             variantFrames.push(pointerFrameRect);
@@ -315,12 +310,12 @@ export default function SpeakerShaderOverlay() {
           };
           const liveOverlay = pointerInside && variant === SPEAKER_POINTER_VARIANT && !reducedMotion.matches;
           switch (variant) {
+            case "orange":
+              paintLayer(variantFrames, config);
+              break;
             case "grey":
               if (liveOverlay) paintLayer(variantFrames, config);
               else paintOverlayLayer(variantFrames, config);
-              break;
-            case "orange":
-              paintLayer(variantFrames, config);
               break;
             default: {
               const unused: never = variant;
@@ -337,6 +332,7 @@ export default function SpeakerShaderOverlay() {
       }
       outputContext.clip();
       for (const frame of frames) {
+        if (frame.variant !== "grey") continue;
         paintPartialFrameOutline(outputContext, frame.rect, (opacity) =>
           speakerFrameOutlineColor(speakerVariantLook(settings, frame.variant).bgColor, opacity),
         );

@@ -126,8 +126,9 @@ export type SpeakerFrameSettings = {
 
 export const SPEAKER_IMAGE_COUNT = connectSpeakers.length;
 export const MAX_SPEAKER_FRAME_PLACEMENTS = 48;
-export const SPEAKER_FRAME_PANEL_ID = "connect-speaker-frames-v7";
+export const SPEAKER_FRAME_PANEL_ID = "connect-speaker-frames-v8";
 export const LEGACY_SPEAKER_FRAME_PANEL_IDS = [
+  "connect-speaker-frames-v7",
   "connect-speaker-frames-v6",
   "connect-speaker-frames-v5",
   "connect-speaker-frames-v4",
@@ -289,19 +290,16 @@ const placement = (
 });
 
 export const defaultSpeakerFramePlacements = (): SpeakerFramePlacement[] =>
-  connectSpeakers.flatMap((_, imageIndex) => [
-    placement(`${imageIndex}-overlay`, imageIndex, "grey", 0, 0, 0.8, 1),
-    placement(`${imageIndex}-inverted`, imageIndex, "orange", 0.8, 0, 0.2, 1),
-  ]);
+  connectSpeakers.flatMap((_, imageIndex) => [placement(`${imageIndex}-overlay`, imageIndex, "grey", 0, 0, 1, 1)]);
 
 export const createSpeakerFramePlacement = (imageIndex = 0): SpeakerFramePlacement =>
   placement(
     `frame-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
     imageIndex,
-    "orange",
-    0.8,
+    "grey",
     0,
-    0.2,
+    0,
+    1,
     1,
   );
 
@@ -598,18 +596,29 @@ const isRawThreeFrameWithDark = (value: unknown) => {
   });
 };
 
-const expandOrangeAfterDroppedDark = (placements: SpeakerFramePlacement[]) => {
+const isLeftoverStripPairLayout = (placements: SpeakerFramePlacement[]) => {
   const byImage = new Map<number, SpeakerFramePlacement[]>();
   for (const placement of placements) {
     const list = byImage.get(placement.imageIndex) ?? [];
     list.push(placement);
     byImage.set(placement.imageIndex, list);
   }
-  if (![...byImage.values()].every((list) => list.length === 2)) return placements;
-  return placements.map((placement) => {
-    if (placement.variant !== "orange" || placement.x !== 0.8 || placement.width !== 0.1) return placement;
-    if (placement.y !== 0 || placement.height !== 1 || placement.span) return placement;
-    return { ...placement, width: 0.2 };
+  if (byImage.size !== SPEAKER_IMAGE_COUNT) return false;
+  if (![...byImage.values()].every((list) => list.length === 2)) return false;
+  return [...byImage.values()].every((list) => {
+    const overlay = list.find(
+      (item) => item.variant === "grey" && item.x === 0 && item.width === 0.8 && item.y === 0 && item.height === 1 && !item.span,
+    );
+    const orange = list.find(
+      (item) =>
+        item.variant === "orange" &&
+        item.x === 0.8 &&
+        (item.width === 0.1 || item.width === 0.2) &&
+        item.y === 0 &&
+        item.height === 1 &&
+        !item.span,
+    );
+    return Boolean(overlay && orange);
   });
 };
 
@@ -794,12 +803,13 @@ export const loadSpeakerFrameSettings = (): SpeakerFrameSettings => {
     if (!parsed || typeof parsed !== "object") return settings;
     const record = parsed as Record<string, unknown>;
     mergeSharedSettings(settings, record);
-    const resetPlacements = isRawFactoryTwoPaneWipers(record.placements) || isRawThreeFrameWithDark(record.placements);
-    if (resetPlacements) {
-      settings.placements = defaultSpeakerFramePlacements();
-    } else {
-      settings.placements = expandOrangeAfterDroppedDark(sanitizeSpeakerFramePlacements(record.placements));
-    }
+    const resetPlacements =
+      isRawFactoryTwoPaneWipers(record.placements) ||
+      isRawThreeFrameWithDark(record.placements);
+    const placements = resetPlacements
+      ? defaultSpeakerFramePlacements()
+      : sanitizeSpeakerFramePlacements(record.placements);
+    settings.placements = isLeftoverStripPairLayout(placements) ? defaultSpeakerFramePlacements() : placements;
     if (record.orange && typeof record.orange === "object") {
       settings.orange = sanitizeVariantLook(record.orange, settings.orange);
     } else {

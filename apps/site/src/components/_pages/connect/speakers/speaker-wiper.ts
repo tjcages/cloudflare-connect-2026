@@ -9,22 +9,18 @@ import {
 import { SPEAKER_SHADER_CONFIG } from "./speaker-shader-config";
 import type { Rect } from "./speaker-shader-geometry";
 
-/** Rest width of the orange pane, as a fraction of the portrait. */
-export const SPEAKER_WIPER_REST_WIDTH = 0.2;
-export const SPEAKER_OVERLAY_REST_WIDTH = 0.8;
-/** Collapse from full-width coverage into the rest rect. */
+/** Rest layout is a full-bleed overlay; orange exists only during the intro. */
+export const SPEAKER_OVERLAY_REST_WIDTH = 1;
+/** Grow the overlay iris from the portrait center. */
 export const SPEAKER_WIPER_DURATION_MS = 900;
 export const SPEAKER_WIPER_STAGGER_MS = 0;
-/** Hold full coverage until the water reveal has played. */
+/** Hold the orange field until the water reveal has played. */
 export const SPEAKER_WIPER_SHADER_DELAY_MS = SPEAKER_SHADER_CONFIG.reveal.water.durationMs;
-/** Portraits finish fading during the wait, before the orange pane starts collapsing. */
-export const SPEAKER_IMAGE_FADE_MS = 280;
 
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
 
-const lerp = (from: number, to: number, t: number) => from + (to - from) * t;
-
-const easeOutCubic = (t: number) => 1 - (1 - t) ** 3;
+/** Strong ease-out so the iris launches fast and settles gently onto the portrait. */
+const easeOutQuint = (t: number) => 1 - (1 - t) ** 5;
 
 const unusedVariant = (value: never): never => {
   throw new Error(`Unhandled speaker frame variant: ${String(value)}`);
@@ -45,39 +41,41 @@ export const speakerWiperProgress = (elapsedMs: number, staggerMs: number): numb
   return clamp01(local / SPEAKER_WIPER_DURATION_MS);
 };
 
-/**
- * `elapsedMs` is wipe-local: negative while waiting for the shader delay,
- * 0 when the orange pane starts collapsing. Opacity reaches 1 at 0.
- */
-export const speakerPortraitOpacity = (elapsedMs: number): number => {
-  if (elapsedMs >= 0) return 1;
-  if (elapsedMs <= -SPEAKER_IMAGE_FADE_MS) return 0;
-  return easeOutCubic((elapsedMs + SPEAKER_IMAGE_FADE_MS) / SPEAKER_IMAGE_FADE_MS);
+/** Orange covers the portrait until the overlay iris finishes. */
+export const speakerOrangeCoverRect = (aperture: Rect, progress: number): Rect | null => {
+  if (progress >= 1) return null;
+  if (aperture.width < 0.5 || aperture.height < 0.5) return null;
+  return { x: aperture.x, y: aperture.y, width: aperture.width, height: aperture.height };
 };
 
 /**
- * The authored frame itself is the wiper: it starts covering the portrait,
- * then collapses toward the bottom-right into its rest rect.
+ * Reverse frame: starts at zero in the rest rect's center and grows to that
+ * rest size. Default rest is the full portrait.
  */
-export const speakerFrameWiperRect = (aperture: Rect, rest: Rect, progress: number): Rect => {
-  if (aperture.width <= 0 || aperture.height <= 0) {
-    return { x: aperture.x, y: aperture.y, width: 0, height: 0 };
+export const speakerOverlayIrisRect = (rest: Rect, progress: number): Rect => {
+  if (rest.width <= 0 || rest.height <= 0) {
+    return { x: rest.x, y: rest.y, width: 0, height: 0 };
   }
 
   if (progress <= 0) {
-    return { x: aperture.x, y: aperture.y, width: aperture.width, height: aperture.height };
+    return {
+      x: rest.x + rest.width / 2,
+      y: rest.y + rest.height / 2,
+      width: 0,
+      height: 0,
+    };
   }
 
-  const u = easeOutCubic(Math.min(1, progress));
-  const fromX = aperture.x + aperture.width * u;
-  const fromY = aperture.y + aperture.height * u;
-  const fromWidth = aperture.width * (1 - u);
-  const fromHeight = aperture.height * (1 - u);
+  if (progress >= 1) return rest;
+
+  const u = easeOutQuint(Math.min(1, progress));
+  const width = rest.width * u;
+  const height = rest.height * u;
   return {
-    x: lerp(fromX, rest.x, u),
-    y: lerp(fromY, rest.y, u),
-    width: lerp(fromWidth, rest.width, u),
-    height: lerp(fromHeight, rest.height, u),
+    x: rest.x + (rest.width - width) / 2,
+    y: rest.y + (rest.height - height) / 2,
+    width,
+    height,
   };
 };
 
@@ -99,11 +97,10 @@ const frameElapsedMs = (
 
 const frameProgress = (
   elapsedMs: number,
-  variant: SpeakerFrameVariantId,
   options: { reducedMotion?: boolean; progressOverride?: number },
 ): number => {
   if (options.reducedMotion) return 1;
-  return speakerWiperProgress(elapsedMs, speakerWiperStaggerMs(variant));
+  return speakerWiperProgress(elapsedMs, 0);
 };
 
 type WipingFrame = {
@@ -112,7 +109,10 @@ type WipingFrame = {
   variant: SpeakerFrameVariantId;
 };
 
-/** Animates each authored frame from full coverage into its rest rect. */
+/**
+ * Orange fills each started portrait, then an overlay iris grows from the
+ * center. When the iris completes, orange is gone.
+ */
 export const resolveWipingFrames = <T extends WipingFrame>(
   authored: readonly T[],
   apertures: readonly Rect[],
@@ -121,14 +121,28 @@ export const resolveWipingFrames = <T extends WipingFrame>(
   options: { reducedMotion?: boolean; progressOverride?: number } = {},
 ): T[] => {
   const frames: T[] = [];
+  const progressByImage = new Map<number, number>();
+
+  for (let imageIndex = 0; imageIndex < apertures.length; imageIndex += 1) {
+    const aperture = apertures[imageIndex];
+    if (!aperture) continue;
+    const elapsedMs = frameElapsedMs(imageIndex, startedAtMs, nowMs, options);
+    if (elapsedMs == null) continue;
+    const progress = frameProgress(elapsedMs, options);
+    progressByImage.set(imageIndex, progress);
+    const orange = speakerOrangeCoverRect(aperture, progress);
+    if (orange) {
+      frames.push({ imageIndex, variant: "orange", rect: orange } as T);
+    }
+  }
 
   for (const frame of authored) {
+    if (frame.variant !== "grey") continue;
     const aperture = apertures[frame.imageIndex];
     if (!aperture) continue;
-    const elapsedMs = frameElapsedMs(frame.imageIndex, startedAtMs, nowMs, options);
-    if (elapsedMs == null) continue;
-    const progress = frameProgress(elapsedMs, frame.variant, options);
-    const rect = speakerFrameWiperRect(aperture, frame.rect, progress);
+    const progress = progressByImage.get(frame.imageIndex);
+    if (progress == null) continue;
+    const rect = speakerOverlayIrisRect(frame.rect, progress);
     if (rect.width < 0.5 || rect.height < 0.5) continue;
     frames.push({ ...frame, rect });
   }
@@ -217,7 +231,7 @@ export const resetSpeakerWiper = (clock: SpeakerWiperClock, index: number) => {
   clock.pending.delete(index);
 };
 
-/** Drop the current clip and arm the same full-width settle again. */
+/** Drop the current clip and arm the same orange-then-iris settle again. */
 export const replaySpeakerWiper = (
   clock: SpeakerWiperClock,
   index: number,

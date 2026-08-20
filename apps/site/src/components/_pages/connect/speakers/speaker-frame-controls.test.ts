@@ -31,18 +31,16 @@ describe("speaker frame controls", () => {
     memory.clear();
   });
 
-  it("authors an 80% image overlay plus a 20% orange pane on the right edge", () => {
+  it("authors a full-bleed overlay with no rest orange pane", () => {
     const placements = defaultSpeakerFramePlacements();
     const byImage = new Map<number, number>();
     for (const placement of placements) {
       byImage.set(placement.imageIndex, (byImage.get(placement.imageIndex) ?? 0) + 1);
     }
 
-    expect(placements.some((placement) => placement.variant === "grey")).toBe(true);
-    expect(placements.some((placement) => placement.variant === "orange")).toBe(true);
-    expect([...byImage.values()].every((count) => count === 2)).toBe(true);
-    expect(placements[0]).toMatchObject({ variant: "grey", x: 0, width: 0.8, y: 0, height: 1 });
-    expect(placements[1]).toMatchObject({ variant: "orange", x: 0.8, width: 0.2, y: 0, height: 1 });
+    expect(placements.every((placement) => placement.variant === "grey")).toBe(true);
+    expect([...byImage.values()].every((count) => count === 1)).toBe(true);
+    expect(placements[0]).toMatchObject({ variant: "grey", x: 0, width: 1, y: 0, height: 1 });
   });
 
   it("routes the pointer viewfinder through the overlay look", () => {
@@ -192,7 +190,7 @@ describe("speaker frame controls", () => {
     expect(loaded.orange.stripes[0]?.color).not.toBe("#112233");
   });
 
-  it("rewrites leftover left-edge factory wipers onto the right edge", () => {
+  it("rewrites leftover factory two-pane wipers onto a full-bleed overlay", () => {
     localStorage.setItem(
       "panels:connect-speaker-frames-v4",
       JSON.stringify({
@@ -216,12 +214,11 @@ describe("speaker frame controls", () => {
     );
 
     const loaded = loadSpeakerFrameSettings();
-    expect(loaded.placements.filter((placement) => placement.imageIndex === 0)).toHaveLength(2);
-    expect(loaded.placements[0]).toMatchObject({ variant: "grey", x: 0, width: 0.8 });
-    expect(loaded.placements[1]).toMatchObject({ variant: "orange", x: 0.8, width: 0.2 });
+    expect(loaded.placements).toEqual(defaultSpeakerFramePlacements());
+    expect(loaded.placements[0]).toMatchObject({ variant: "grey", x: 0, width: 1 });
   });
 
-  it("rewrites leftover overlay + orange + dark triples onto overlay + orange", () => {
+  it("rewrites leftover overlay + orange + dark triples onto a full-bleed overlay", () => {
     localStorage.setItem(
       "panels:connect-speaker-frames-v6",
       JSON.stringify({
@@ -229,6 +226,22 @@ describe("speaker frame controls", () => {
           { id: `${imageIndex}-overlay`, imageIndex, variant: "grey", x: 0, y: 0, width: 0.8, height: 1, span: false },
           { id: `${imageIndex}-inverted`, imageIndex, variant: "orange", x: 0.8, y: 0, width: 0.1, height: 1, span: false },
           { id: `${imageIndex}-dark`, imageIndex, variant: "dark", x: 0.9, y: 0, width: 0.1, height: 1, span: false },
+        ]).flat(),
+        orange: SPEAKER_FRAME_DEFAULTS.orange,
+        grey: SPEAKER_FRAME_DEFAULTS.grey,
+      }),
+    );
+
+    expect(loadSpeakerFrameSettings().placements).toEqual(defaultSpeakerFramePlacements());
+  });
+
+  it("rewrites leftover 80/20 overlay-plus-orange strips onto a full-bleed overlay", () => {
+    localStorage.setItem(
+      "panels:connect-speaker-frames-v7",
+      JSON.stringify({
+        placements: Array.from({ length: 6 }, (_, imageIndex) => [
+          { id: `${imageIndex}-overlay`, imageIndex, variant: "grey", x: 0, y: 0, width: 0.8, height: 1, span: false },
+          { id: `${imageIndex}-inverted`, imageIndex, variant: "orange", x: 0.8, y: 0, width: 0.2, height: 1, span: false },
         ]).flat(),
         orange: SPEAKER_FRAME_DEFAULTS.orange,
         grey: SPEAKER_FRAME_DEFAULTS.grey,
