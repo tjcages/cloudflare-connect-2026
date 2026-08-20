@@ -214,7 +214,7 @@ export const BADGE_TUNE_FIELDS: PanelField<BadgeTune>[] = [
     0.4,
     2.8,
     0.01,
-    "The upload stays an SVG. Scale and pan it inside the stripe conversion."
+    "The upload stays a vector or PNG. Scale and pan it inside the stripe conversion."
   ),
   slider("sourcePanX", "SVG X", -1, 1, 0.01),
   slider("sourcePanY", "SVG Y", -1, 1, 0.01),
@@ -333,7 +333,7 @@ export const BADGE_TUNE_FIELDS: PanelField<BadgeTune>[] = [
     0,
     1,
     0.01,
-    "Centered SVG on top of the case-study shader."
+    "Centered mark on top of the case-study shader."
   ),
   { type: "section", title: "Identity" },
   slider("footerBand", "Footer height", 0.1, 0.36, 0.005),

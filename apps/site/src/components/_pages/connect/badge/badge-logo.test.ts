@@ -7,19 +7,23 @@ import {
   BADGE_PLATE_VIEW_H,
   BADGE_PLATE_VIEW_W,
   BADGE_PRINT_FIELD_SRC,
+  PNG_MAX_BYTES,
+  SVG_MAX_BYTES,
   badgeMarkSvg,
   badgePlateLitStops,
   badgePlateLogoRect,
+  badgeShaderPlateRaster,
   badgeShaderPlateSvg,
   extractSvgInner,
   paintSvgFills,
   paintSvgFillsWhite,
+  parsePngSize,
   parseSvgViewport,
   prepareBadgeLogo,
+  readLogoFile,
   readSvgFile,
   stripUnsafeSvg,
   svgRasterSize,
-  SVG_MAX_BYTES,
 } from "./badge-logo";
 
 describe("badge logo SVG prep", () => {
@@ -122,7 +126,7 @@ describe("badge logo SVG prep", () => {
   it("rejects non-svg files and oversized uploads", async () => {
     await expect(
       readSvgFile(new File(["<svg></svg>"], "logo.png", { type: "image/png" }))
-    ).rejects.toThrow(/SVG/i);
+    ).rejects.toThrow(/SVG or PNG/i);
     await expect(
       readSvgFile(
         new File([new Uint8Array(SVG_MAX_BYTES + 1)], "logo.svg", {
@@ -137,6 +141,41 @@ describe("badge logo SVG prep", () => {
         })
       )
     ).resolves.toContain("<svg");
+  });
+
+  it("reads a PNG and builds a dimmed landscape plate from it", async () => {
+    const png = Uint8Array.from(
+      atob(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+      ),
+      (char) => char.charCodeAt(0)
+    );
+    expect(parsePngSize(png)).toEqual({ w: 1, h: 1 });
+    const file = new File([png], "mark.png", { type: "image/png" });
+    const logo = await readLogoFile(file);
+    expect(logo.kind).toBe("raster");
+    if (logo.kind !== "raster") return;
+    expect(logo.width).toBe(1);
+    expect(logo.height).toBe(1);
+    expect(logo.dataUrl.startsWith("data:image/png;base64,")).toBe(true);
+    const plate = badgeShaderPlateRaster(logo.dataUrl, {
+      w: logo.width,
+      h: logo.height,
+    });
+    expect(plate).toContain('viewBox="0 0 800 600"');
+    expect(plate).toContain("<image href=");
+    expect(plate).toContain("badge-print-dim");
+    expect(plate).toContain('fill="#000000"');
+    await expect(
+      readLogoFile(
+        new File([new Uint8Array(PNG_MAX_BYTES + 1)], "huge.png", {
+          type: "image/png",
+        })
+      )
+    ).rejects.toThrow(/2 MB/);
+    await expect(
+      readLogoFile(new File(["nope"], "logo.jpg", { type: "image/jpeg" }))
+    ).rejects.toThrow(/SVG or PNG/i);
   });
 
   it("prepares the seeded Cloudflare mark", () => {
@@ -240,6 +279,8 @@ describe("badge logo SVG prep", () => {
     expect(upload).toContain("group/source");
     expect(upload).toContain("group-hover/source:visible");
     expect(upload).toContain('aria-label="Preview shader source"');
+    expect(upload).toContain("Upload logo");
+    expect(upload).toContain("image/png,.png");
 
     const page = readFileSync(
       resolve(
@@ -252,7 +293,9 @@ describe("badge logo SVG prep", () => {
     expect(page).toContain("printSrc={plateSrc}");
     expect(page).toContain("h-760");
     expect(page).toContain("sourceZoom");
-    expect(page).toContain("sourceLight");
+    expect(page).toContain("readLogoFile");
+    expect(page).toContain("badgeShaderPlateRaster");
+    expect(page).toContain("SVG or PNG");
     expect(page).toContain("applyBadgeTwizzlerOverlay");
     expect(page).toContain("cardTextureConfig");
     expect(page).toContain("cardStripes");

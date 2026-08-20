@@ -1,4 +1,5 @@
 export const SVG_MAX_BYTES = 400_000;
+export const PNG_MAX_BYTES = 2_000_000;
 /** 4:3 landscape — a bit wider than tall so the whole logo sits large and centered. */
 export const BADGE_PLATE_W = 1600;
 export const BADGE_PLATE_H = 1200;
@@ -199,13 +200,108 @@ export function svgToBlobUrl(svgText: string): string {
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgText)}`;
 }
 
+export function bytesToDataUrl(mime: string, bytes: Uint8Array): string {
+  const chunk = 0x8000;
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return `data:${mime};base64,${btoa(binary)}`;
+}
+
+const PNG_SIGNATURE = [137, 80, 78, 71, 13, 10, 26, 10];
+
+export function parsePngSize(bytes: Uint8Array): { w: number; h: number } {
+  if (bytes.length < 24) {
+    throw new Error("That PNG is invalid.");
+  }
+  for (let i = 0; i < PNG_SIGNATURE.length; i++) {
+    if (bytes[i] !== PNG_SIGNATURE[i]) {
+      throw new Error("Choose an SVG or PNG file.");
+    }
+  }
+  const w =
+    ((bytes[16] ?? 0) << 24) |
+    ((bytes[17] ?? 0) << 16) |
+    ((bytes[18] ?? 0) << 8) |
+    (bytes[19] ?? 0);
+  const h =
+    ((bytes[20] ?? 0) << 24) |
+    ((bytes[21] ?? 0) << 16) |
+    ((bytes[22] ?? 0) << 8) |
+    (bytes[23] ?? 0);
+  if (!(w > 0) || !(h > 0)) {
+    throw new Error("That PNG has no size.");
+  }
+  return { w, h };
+}
+
+function isPngFile(file: File): boolean {
+  return file.type === "image/png" || file.name.toLowerCase().endsWith(".png");
+}
+
+function isSvgFile(file: File): boolean {
+  return (
+    file.type === "image/svg+xml" || file.name.toLowerCase().endsWith(".svg")
+  );
+}
+
+export type BadgeLogoFile =
+  | { kind: "svg"; fileName: string; sourceSvg: string }
+  | {
+      kind: "raster";
+      fileName: string;
+      dataUrl: string;
+      width: number;
+      height: number;
+    };
+
 export async function readSvgFile(file: File): Promise<string> {
-  const namedSvg = file.name.toLowerCase().endsWith(".svg");
-  if (file.type !== "image/svg+xml" && !namedSvg) {
-    throw new Error("Choose an SVG file.");
+  if (!isSvgFile(file)) {
+    throw new Error("Choose an SVG or PNG file.");
   }
   if (file.size > SVG_MAX_BYTES) {
     throw new Error("SVG is too large (max 400 KB).");
   }
   return file.text();
+}
+
+export async function readLogoFile(file: File): Promise<BadgeLogoFile> {
+  if (isPngFile(file)) {
+    if (file.size > PNG_MAX_BYTES) {
+      throw new Error("PNG is too large (max 2 MB).");
+    }
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const size = parsePngSize(bytes);
+    return {
+      kind: "raster",
+      fileName: file.name,
+      dataUrl: bytesToDataUrl("image/png", bytes),
+      width: size.w,
+      height: size.h,
+    };
+  }
+  const sourceSvg = await readSvgFile(file);
+  return { kind: "svg", fileName: file.name, sourceSvg };
+}
+
+function lumaTransfer(light: number): { slope: string; intercept: string } {
+  const lit = badgePlateLitStops(light);
+  const lo = Number.parseInt(lit.lo.slice(1, 3), 16) / 255;
+  const hi = Number.parseInt(lit.hi.slice(1, 3), 16) / 255;
+  return {
+    slope: (hi - lo).toFixed(4),
+    intercept: lo.toFixed(4),
+  };
+}
+
+/** Landscape plate with a PNG (or other raster) contained and dimmed. */
+export function badgeShaderPlateRaster(
+  dataUrl: string,
+  viewport: { w: number; h: number },
+  light = BADGE_PLATE_LIGHT_DEFAULT
+): string {
+  const slot = badgePlateLogoRect(viewport);
+  const transfer = lumaTransfer(light);
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${BADGE_PLATE_W}" height="${BADGE_PLATE_H}" viewBox="0 0 ${BADGE_PLATE_VIEW_W} ${BADGE_PLATE_VIEW_H}" preserveAspectRatio="xMidYMid meet"><defs><filter id="badge-print-dim" color-interpolation-filters="sRGB"><feColorMatrix type="saturate" values="0"/><feComponentTransfer><feFuncR type="linear" slope="${transfer.slope}" intercept="${transfer.intercept}"/><feFuncG type="linear" slope="${transfer.slope}" intercept="${transfer.intercept}"/><feFuncB type="linear" slope="${transfer.slope}" intercept="${transfer.intercept}"/></feComponentTransfer></filter></defs><rect width="${BADGE_PLATE_VIEW_W}" height="${BADGE_PLATE_VIEW_H}" fill="#000000"/><image href="${dataUrl}" x="${slot.x}" y="${slot.y}" width="${slot.w}" height="${slot.h}" preserveAspectRatio="xMidYMid meet" filter="url(#badge-print-dim)"/></svg>`;
 }

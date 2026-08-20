@@ -28,7 +28,7 @@ export default function BadgeLogoUpload({
           type="button"
           variant="secondary"
         >
-          <span className="max-w-240 truncate">{fileName ?? "Upload SVG"}</span>
+          <span className="max-w-240 truncate">{fileName ?? "Upload logo"}</span>
         </Button>
         <div className="group/source relative">
           <Button
@@ -49,7 +49,7 @@ export default function BadgeLogoUpload({
           </Button>
         ) : null}
         <input
-          accept="image/svg+xml,.svg"
+          accept="image/svg+xml,.svg,image/png,.png"
           className="hidden"
           onChange={(event) => {
             const file = event.target.files?.[0];

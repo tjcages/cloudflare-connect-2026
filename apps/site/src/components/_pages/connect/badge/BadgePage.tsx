@@ -34,9 +34,10 @@ import BadgeCustomizer from "./BadgeCustomizer";
 import {
   BADGE_PRINT_FIELD_SRC,
   badgeMarkSvg,
+  badgeShaderPlateRaster,
   badgeShaderPlateSvg,
   prepareBadgeLogo,
-  readSvgFile,
+  readLogoFile,
   svgToBlobUrl,
 } from "./badge-logo";
 import BadgeLogoUpload from "./BadgeLogoUpload";
@@ -58,10 +59,15 @@ import {
 } from "./badge-themes";
 import { applyBadgeTwizzlerOverlay } from "./badge-twizzler-overlay";
 
-type BadgeLogoSession = {
-  fileName: string;
-  sourceSvg: string;
-};
+type BadgeLogoSession =
+  | { kind: "svg"; fileName: string; sourceSvg: string }
+  | {
+      kind: "raster";
+      fileName: string;
+      dataUrl: string;
+      width: number;
+      height: number;
+    };
 
 function themeToStripeColors(theme: BadgeTheme): StripeColors {
   const hexes = theme.stripeHexes;
@@ -194,17 +200,45 @@ export default function BadgePage(_props: IslandProps) {
 
   const logoMarkSrc = useMemo(() => {
     if (!logo || !tune.logoEnabled) return null;
-    try {
-      return svgToBlobUrl(badgeMarkSvg(logo.sourceSvg, badgeMarkFill(view.theme)));
-    } catch {
-      return null;
+    switch (logo.kind) {
+      case "raster":
+        return logo.dataUrl;
+      case "svg":
+        try {
+          return svgToBlobUrl(
+            badgeMarkSvg(logo.sourceSvg, badgeMarkFill(view.theme))
+          );
+        } catch {
+          return null;
+        }
+      default: {
+        const _exhaustive: never = logo;
+        return _exhaustive;
+      }
     }
   }, [logo, tune.logoEnabled, view.theme]);
 
   const plateSrc = useMemo(() => {
     if (!logo) return BADGE_PRINT_FIELD_SRC;
     try {
-      return svgToBlobUrl(badgeShaderPlateSvg(logo.sourceSvg, tune.sourceLight));
+      switch (logo.kind) {
+        case "raster":
+          return svgToBlobUrl(
+            badgeShaderPlateRaster(
+              logo.dataUrl,
+              { w: logo.width, h: logo.height },
+              tune.sourceLight
+            )
+          );
+        case "svg":
+          return svgToBlobUrl(
+            badgeShaderPlateSvg(logo.sourceSvg, tune.sourceLight)
+          );
+        default: {
+          const _exhaustive: never = logo;
+          return _exhaustive;
+        }
+      }
     } catch {
       return BADGE_PRINT_FIELD_SRC;
     }
@@ -218,16 +252,13 @@ export default function BadgePage(_props: IslandProps) {
   const onLogoFile = (file: File) => {
     void (async () => {
       try {
-        const sourceSvg = await readSvgFile(file);
-        prepareBadgeLogo(sourceSvg);
-        replaceLogo({
-          fileName: file.name,
-          sourceSvg,
-        });
+        const next = await readLogoFile(file);
+        if (next.kind === "svg") prepareBadgeLogo(next.sourceSvg);
+        replaceLogo(next);
         setLogoError(null);
       } catch (error) {
         setLogoError(
-          error instanceof Error ? error.message : "Could not read that SVG."
+          error instanceof Error ? error.message : "Could not read that file."
         );
       }
     })();
@@ -245,6 +276,7 @@ export default function BadgePage(_props: IslandProps) {
         prepareBadgeLogo(sourceSvg);
         if (cancelled || logoSessionRef.current) return;
         replaceLogo({
+          kind: "svg",
           fileName: "Cloudflare.svg",
           sourceSvg,
         });
@@ -398,12 +430,12 @@ export default function BadgePage(_props: IslandProps) {
             <div className="flex flex-col gap-24 text-body-large text-text-base max-lg:[&_br]:hidden">
               <p>
                 The case-study stripe shader, printed on the badge from your
-                SVG. <br />
+                logo. <br />
                 Grab it and pull — the lanyard wiggles back.
               </p>
               <p>
                 Pick a color scheme — stripes and the logo follow it. Upload an
-                SVG to print your mark in the center.
+                SVG or PNG to print your mark in the center.
               </p>
               <BadgeCustomizer onChange={setParams} params={params} />
               <BadgeLogoUpload
