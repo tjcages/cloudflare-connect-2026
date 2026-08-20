@@ -1,14 +1,15 @@
 export const SVG_MAX_BYTES = 400_000;
+/** 4:3 landscape — a bit wider than tall so the whole logo sits large and centered. */
 export const BADGE_PLATE_W = 1600;
-export const BADGE_PLATE_H = 640;
+export const BADGE_PLATE_H = 1200;
 export const BADGE_PLATE_VIEW_W = 800;
-export const BADGE_PLATE_VIEW_H = 320;
+export const BADGE_PLATE_VIEW_H = 600;
 /** Inset so the upload fills most of the landscape plate without clipping. */
-export const BADGE_PLATE_LOGO_PAD = 0.08;
+export const BADGE_PLATE_LOGO_PAD = 0.05;
 /** Pixel size of the longest edge when rasterizing the centered color mark. */
 export const BADGE_MARK_RASTER = 2048;
 /** Fallback plate when no SVG is loaded. */
-export const BADGE_PRINT_FIELD_SRC = "/connect/badge-print-field.svg?v=wide";
+export const BADGE_PRINT_FIELD_SRC = "/connect/badge-print-field.svg?v=43";
 
 const SCRIPT_RE = /<script\b[\s\S]*?<\/script>/gi;
 const FOREIGN_RE = /<foreignObject\b[\s\S]*?<\/foreignObject>/gi;
@@ -94,7 +95,7 @@ export function wrapSvg(
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${markW}" height="${markH}" viewBox="${viewBox}" color="#111111" shape-rendering="geometricPrecision"${fillAttr}>${inner}</svg>`;
 }
 
-/** Place the upload large and centered in the landscape case-study plate. */
+/** Place the upload large and centered in the 4:3 landscape plate. */
 export function badgePlateLogoRect(viewport: { w: number; h: number }): {
   x: number;
   y: number;

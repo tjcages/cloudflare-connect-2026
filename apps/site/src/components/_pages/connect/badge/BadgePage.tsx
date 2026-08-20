@@ -148,10 +148,10 @@ export default function BadgePage(_props: IslandProps) {
     [view.hash, view.theme]
   );
   const printW = lowPower ? 400 : 800;
-  const printH = lowPower ? 160 : 320;
+  const printH = lowPower ? 300 : 600;
   const captureClass = lowPower
-    ? "h-[160px] w-[400px]"
-    : "h-[320px] w-[800px]";
+    ? "h-[300px] w-[400px]"
+    : "h-[600px] w-[800px]";
   const backdropConfig = useMemo(() => {
     if (!lowPower) {
       return asThemedEngineConfig({
@@ -174,14 +174,15 @@ export default function BadgePage(_props: IslandProps) {
     () => ({
       ...cardTextureConfig({
         stripes: cardStripes(themeToStripeColors(view.theme)),
-        whitePoint: 0.81,
+        whitePoint: 0.8,
       }),
       maxFps: lowPower ? 10 : 30,
       clickWave: { enabled: false as const },
       cursorTrail: { enabled: false as const },
       reveal: { enabled: false as const },
       transform: {
-        fit: "cover" as const,
+        // Case-study lab renders used fit:width on the stripe stack.
+        fit: "width" as const,
         zoom: tune.sourceZoom,
         panX: tune.sourcePanX,
         panY: tune.sourcePanY,

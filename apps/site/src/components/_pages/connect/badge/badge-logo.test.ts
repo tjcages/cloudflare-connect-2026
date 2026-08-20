@@ -50,8 +50,8 @@ describe("badge logo SVG prep", () => {
     );
     expect(plate).toContain("M0 0h40v20z");
     expect(plate).toContain('width="1600"');
-    expect(plate).toContain('height="640"');
-    expect(plate).toContain('viewBox="0 0 800 320"');
+    expect(plate).toContain('height="1200"');
+    expect(plate).toContain('viewBox="0 0 800 600"');
     expect(plate).toContain('viewBox="0 0 40 20"');
     expect(plate).toContain('preserveAspectRatio="xMidYMid meet"');
     expect(plate).toContain('fill="#000000"');
@@ -76,10 +76,10 @@ describe("badge logo SVG prep", () => {
     expect(paintSvgFillsWhite(`fill="currentColor"`)).toBe(`fill="white"`);
   });
 
-  it("centers a landscape logo large in the 800×320 plate", () => {
+  it("centers a landscape logo large in the 4:3 plate", () => {
+    expect(BADGE_PLATE_VIEW_W / BADGE_PLATE_VIEW_H).toBeCloseTo(4 / 3, 5);
     const slot = badgePlateLogoRect({ w: 40, h: 20 });
-    expect(slot.w).toBeGreaterThan(BADGE_PLATE_VIEW_W * 0.6);
-    expect(slot.h).toBeGreaterThan(BADGE_PLATE_VIEW_H * 0.7);
+    expect(slot.w).toBeGreaterThan(BADGE_PLATE_VIEW_W * 0.8);
     expect(slot.x + slot.w / 2).toBeCloseTo(BADGE_PLATE_VIEW_W / 2, 5);
     expect(slot.y + slot.h / 2).toBeCloseTo(BADGE_PLATE_VIEW_H / 2, 5);
   });
@@ -178,13 +178,13 @@ describe("badge logo SVG prep", () => {
     expect(field).toContain('stroke="#ffffff"');
     expect(field).toContain("url(#badge-print-lit)");
     expect(field).toContain('width="1600"');
-    expect(field).toContain('height="640"');
-    expect(field).toContain('viewBox="0 0 800 320"');
+    expect(field).toContain('height="1200"');
+    expect(field).toContain('viewBox="0 0 800 600"');
     expect(field).toContain('preserveAspectRatio="xMidYMid meet"');
     expect(field).toContain("M226.32 47.1364");
     expect(overlay).toContain("M29.818");
     expect(field).not.toContain("M29.818");
-    expect(BADGE_PRINT_FIELD_SRC).toBe("/connect/badge-print-field.svg?v=wide");
+    expect(BADGE_PRINT_FIELD_SRC).toBe("/connect/badge-print-field.svg?v=43");
 
     const shader = readFileSync(
       resolve(
@@ -207,6 +207,7 @@ describe("badge logo SVG prep", () => {
       "utf8"
     );
     expect(preview).toContain("src={src}");
+    expect(preview).toContain("aspect-[4/3]");
 
     const upload = readFileSync(
       resolve(
@@ -232,9 +233,12 @@ describe("badge logo SVG prep", () => {
     expect(page).toContain("printSrc={plateSrc}");
     expect(page).toContain("h-760");
     expect(page).toContain("sourceZoom");
-    expect(page).toContain('fit: "cover"');
-    expect(page).toContain("whitePoint: 0.81");
+    expect(page).toContain("cardTextureConfig");
+    expect(page).toContain("cardStripes");
+    expect(page).toContain('fit: "width"');
+    expect(page).toContain("whitePoint: 0.8");
     expect(page).toContain("400 : 800");
+    expect(page).toContain("300 : 600");
 
     const lanyard = readFileSync(
       resolve(

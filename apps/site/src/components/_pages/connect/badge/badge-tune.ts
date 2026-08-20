@@ -308,4 +308,4 @@ export const BADGE_TUNE_FIELDS: PanelField<BadgeTune>[] = [
   slider("backdropMaskY", "Mask Y %", 0, 100, 1),
 ];
 
-export const BADGE_TUNE_PANEL_ID = "connect-badge-tune-v8";
+export const BADGE_TUNE_PANEL_ID = "connect-badge-tune-v9";
