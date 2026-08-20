@@ -2,7 +2,9 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  badgeMarkSvg,
   extractSvgInner,
+  paintSvgFills,
   paintSvgFillsWhite,
   parseSvgViewport,
   prepareBadgeLogo,
@@ -38,16 +40,32 @@ describe("badge logo SVG prep", () => {
     expect(prepared.markSvg).not.toContain("#123456");
     expect(prepared.textureSvg).toContain('fill="black"');
     expect(prepared.textureSvg).toContain('width="800"');
-    expect(prepared.textureSvg).toContain('height="320"');
+    expect(prepared.textureSvg).toContain('height="1200"');
     expect(paintSvgFillsWhite(`fill="#abc" stroke="#def"`)).toBe(
       `fill="white" stroke="white"`
     );
     expect(
-      paintSvgFillsWhite(
-        `fill="#5865F2" style="fill:#5865F2;fill:color(display-p3 0.3451 0.3961 0.9490);"`
+      paintSvgFills(
+        `fill="#5865F2" style="fill:#5865F2;fill:color(display-p3 0.3451 0.3961 0.9490);"`,
+        "#f46021"
+      )
+    ).toContain("#f46021");
+    expect(
+      paintSvgFills(
+        `fill="#5865F2" style="fill:#5865F2;fill:color(display-p3 0.3451 0.3961 0.9490);"`,
+        "#f46021"
       )
     ).not.toContain("#5865F2");
     expect(paintSvgFillsWhite(`fill="currentColor"`)).toBe(`fill="white"`);
+  });
+
+  it("tints a mark to the theme fill", () => {
+    const mark = badgeMarkSvg(
+      `<svg viewBox="0 0 40 20"><path fill="#123456" d="M0 0h40v20z"/></svg>`,
+      "#2563fe"
+    );
+    expect(mark).toContain("#2563fe");
+    expect(mark).not.toContain("#123456");
   });
 
   it("rejects non-svg markup", () => {

@@ -188,26 +188,14 @@ function containSize(srcW: number, srcH: number, maxW: number, maxH: number) {
   return { w: srcW * scale, h: srcH * scale };
 }
 
-let logoScratch: HTMLCanvasElement | null = null;
-
-function getLogoScratch(width: number, height: number) {
-  if (!logoScratch) logoScratch = document.createElement("canvas");
-  if (logoScratch.width !== width || logoScratch.height !== height) {
-    logoScratch.width = width;
-    logoScratch.height = height;
-  }
-  return logoScratch;
-}
-
 function markSize(mark: HTMLImageElement) {
   const w = mark.naturalWidth || mark.width;
   const h = mark.naturalHeight || mark.height;
   return { w, h };
 }
 
-function drawLogoBand(
+function drawCenteredLogo(
   ctx: CanvasRenderingContext2D,
-  shader: HTMLCanvasElement | null,
   mark: HTMLImageElement | null,
   width: number,
   height: number,
@@ -216,37 +204,16 @@ function drawLogoBand(
   if (!tune.logoEnabled || !mark) return;
   const size = markSize(mark);
   if (size.w < 1 || size.h < 1) return;
-  const bandH = Math.round(height * tune.logoBand);
-  const padX = width * tune.logoPadX;
-  const padY = height * tune.logoPadY;
-  const maxW = (width - padX * 2) * tune.logoScale;
-  const maxH = Math.max(bandH - padY, 1) * tune.logoScale;
+  const contentH = height * (1 - tune.footerBand);
+  const maxW = (width - width * tune.logoPadX * 2) * tune.logoScale;
+  const maxH = Math.max(contentH * tune.logoBand, 1) * tune.logoScale;
   const fit = containSize(size.w, size.h, maxW, maxH);
   const dx = (width - fit.w) / 2;
-  const dy = padY + (maxH - fit.h) / 2;
-  if (shader && shader.width > 1) {
-    const scratch = getLogoScratch(width, bandH);
-    const scratchCtx = scratch.getContext("2d");
-    if (scratchCtx) {
-      scratchCtx.setTransform(1, 0, 0, 1, 0, 0);
-      scratchCtx.globalCompositeOperation = "source-over";
-      scratchCtx.clearRect(0, 0, width, bandH);
-      drawCover(
-        scratchCtx,
-        shader,
-        dx,
-        dy,
-        fit.w,
-        fit.h,
-        tune.logoPrintZoom
-      );
-      scratchCtx.globalCompositeOperation = "destination-in";
-      scratchCtx.drawImage(mark, dx, dy, fit.w, fit.h);
-      scratchCtx.globalCompositeOperation = "source-over";
-      ctx.drawImage(scratch, 0, 0);
-    }
-  }
+  const dy = contentH / 2 - fit.h / 2 + height * tune.logoPadY;
+  ctx.save();
+  ctx.globalAlpha = tune.logoMarkOpacity;
   ctx.drawImage(mark, dx, dy, fit.w, fit.h);
+  ctx.restore();
 }
 
 function useHeroShaderTexture(
@@ -344,6 +311,7 @@ function useHeroShaderTexture(
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     const twizzler = twizzlerCanvas.current;
     const rain = rainCanvas.current;
+    const logoShader = logoCanvas.current;
     if (tune.printTwizzler && twizzler) {
       drawCover(
         ctx,
@@ -370,9 +338,21 @@ function useHeroShaderTexture(
         tune.printPanY
       );
     }
-    drawLogoBand(
+    if (logoShader) {
+      drawCover(
+        ctx,
+        logoShader,
+        0,
+        0,
+        canvas.width,
+        canvas.height,
+        tune.printZoom * tune.logoPrintZoom,
+        tune.printPanX,
+        tune.printPanY
+      );
+    }
+    drawCenteredLogo(
       ctx,
-      logoCanvas.current,
       markImage.current,
       canvas.width,
       canvas.height,

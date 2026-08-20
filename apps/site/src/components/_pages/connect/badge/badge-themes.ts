@@ -308,6 +308,20 @@ export function hexToColorInt(hex: string): number {
   return Number.parseInt(hex.replace(/^#/, ""), 16) || 0;
 }
 
+export function hexLuma(hex: string): number {
+  const raw = hex.replace(/^#/, "");
+  if (raw.length < 6) return 0;
+  const r = Number.parseInt(raw.slice(0, 2), 16) / 255;
+  const g = Number.parseInt(raw.slice(2, 4), 16) / 255;
+  const b = Number.parseInt(raw.slice(4, 6), 16) / 255;
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/** Saturated accents tint the mark. Light accents fall back to the deep token. */
+export function badgeMarkFill(theme: BadgeTheme): string {
+  return hexLuma(theme.accent) > 0.65 ? theme.deep : theme.accent;
+}
+
 export function applyThemeToTwizzler(themeEntry: BadgeTheme): TwizzlerSettings {
   const ink = themeEntry.twizzler;
   return {

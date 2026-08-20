@@ -4,13 +4,15 @@ import { BADGE_TUNE_DEFAULTS, BADGE_TUNE_FIELDS } from "./badge-tune";
 const SKIP_FIELD_TYPES = new Set(["section", "presets", "action"]);
 
 describe("badge tune defaults", () => {
-  it("starts zoomed out with a faint, lower shadow", () => {
-    expect(BADGE_TUNE_DEFAULTS.printZoom).toBeLessThan(1);
+  it("prints the case-study shader with a faint, lower shadow", () => {
+    expect(BADGE_TUNE_DEFAULTS.printTwizzler).toBe(false);
+    expect(BADGE_TUNE_DEFAULTS.printRain).toBe(false);
+    expect(BADGE_TUNE_DEFAULTS.printZoom).toBe(1);
     expect(BADGE_TUNE_DEFAULTS.shadowOpacity).toBeLessThan(0.2);
     expect(BADGE_TUNE_DEFAULTS.nudgeY).toBeLessThan(-0.01);
     expect(BADGE_TUNE_DEFAULTS.lightY).toBeLessThan(-0.3);
     expect(BADGE_TUNE_DEFAULTS.logoEnabled).toBe(true);
-    expect(BADGE_TUNE_DEFAULTS.logoMarkOpacity).toBe(0);
+    expect(BADGE_TUNE_DEFAULTS.logoMarkOpacity).toBe(1);
     expect(BADGE_TUNE_DEFAULTS.cardOverlap).toBeLessThan(0);
   });
 
@@ -20,14 +22,13 @@ describe("badge tune defaults", () => {
       cardOverlap: -0.025,
       cardEmissive: 0.17,
       cardClearcoat: 1,
-      printZoom: 0.39,
       shadowOpacity: 0.01,
       shadowSoftOpacity: 0,
       wallZ: -0.015,
       dragLimitDown: 0.047,
       twistPos: 3.5,
-      logoBand: 0.23,
-      logoPadX: 0.095,
+      logoBand: 0.32,
+      logoPadX: 0.12,
       footerBand: 0.205,
     });
   });

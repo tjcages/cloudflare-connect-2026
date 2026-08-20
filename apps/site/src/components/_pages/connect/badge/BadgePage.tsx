@@ -32,6 +32,7 @@ import {
 } from "./badge-tune";
 import BadgeCustomizer from "./BadgeCustomizer";
 import {
+  badgeMarkSvg,
   prepareBadgeLogo,
   readSvgFile,
   revokeLogoUrl,
@@ -49,6 +50,7 @@ import {
 import {
   applyThemeToRain,
   applyThemeToTwizzler,
+  badgeMarkFill,
   hexToColorInt,
   type BadgeTheme,
 } from "./badge-themes";
@@ -56,13 +58,12 @@ import {
 type BadgeLogoSession = {
   fileName: string;
   textureUrl: string;
-  colorUrl: string;
+  sourceSvg: string;
 };
 
 function revokeLogo(session: BadgeLogoSession | null) {
   if (!session) return;
   revokeLogoUrl(session.textureUrl);
-  revokeLogoUrl(session.colorUrl);
 }
 
 function themeToStripeColors(theme: BadgeTheme): StripeColors {
@@ -156,10 +157,7 @@ export default function BadgePage(_props: IslandProps) {
   );
   const captureClass = lowPower
     ? "h-[450px] w-[300px]"
-    : "h-[900px] w-[640px]";
-  const logoCaptureClass = lowPower
-    ? "h-[128px] w-[320px]"
-    : "h-[256px] w-[640px]";
+    : "h-[960px] w-[640px]";
   const backdropConfig = useMemo(() => {
     if (!lowPower) {
       return asThemedEngineConfig({
@@ -192,6 +190,15 @@ export default function BadgePage(_props: IslandProps) {
     [lowPower, view.theme]
   );
 
+  const logoMarkSrc = useMemo(() => {
+    if (!logo || !tune.logoEnabled) return null;
+    try {
+      return svgToBlobUrl(badgeMarkSvg(logo.sourceSvg, badgeMarkFill(view.theme)));
+    } catch {
+      return null;
+    }
+  }, [logo, tune.logoEnabled, view.theme]);
+
   const replaceLogo = (next: BadgeLogoSession | null) => {
     revokeLogo(logoSessionRef.current);
     logoSessionRef.current = next;
@@ -201,10 +208,11 @@ export default function BadgePage(_props: IslandProps) {
   const onLogoFile = (file: File) => {
     void (async () => {
       try {
-        const prepared = prepareBadgeLogo(await readSvgFile(file));
+        const sourceSvg = await readSvgFile(file);
+        const prepared = prepareBadgeLogo(sourceSvg);
         replaceLogo({
           fileName: file.name,
-          colorUrl: svgToBlobUrl(prepared.colorSvg),
+          sourceSvg,
           textureUrl: svgToBlobUrl(prepared.textureSvg),
         });
         setLogoError(null);
@@ -224,11 +232,12 @@ export default function BadgePage(_props: IslandProps) {
       try {
         const response = await fetch("/connect/badge-demo-logo.svg");
         if (!response.ok) return;
-        const prepared = prepareBadgeLogo(await response.text());
+        const sourceSvg = await response.text();
+        const prepared = prepareBadgeLogo(sourceSvg);
         if (cancelled || logoSessionRef.current) return;
         replaceLogo({
           fileName: "Cloudflare.svg",
-          colorUrl: svgToBlobUrl(prepared.colorSvg),
+          sourceSvg,
           textureUrl: svgToBlobUrl(prepared.textureSvg),
         });
       } catch {
@@ -253,42 +262,46 @@ export default function BadgePage(_props: IslandProps) {
       />
       <CornerDots count={4} faintClassName="z-30" />
 
-      {hydrated ? (
+      {hydrated && (tune.printTwizzler || tune.printRain) ? (
         <div
           aria-hidden="true"
           className={`pointer-events-none fixed top-0 left-[-2000px] z-0 ${captureClass}`}
         >
-          <ConnectTwizzler
-            canvasClassName="size-full"
-            className="size-full"
-            maxDpr={lowPower ? 1 : 1.5}
-            maxFps={lowPower ? 10 : 30}
-            paused={reducedMotion || !shaderLive}
-            posterSrc="/connect/twizzler-poster.png"
-            ref={twizzlerRef}
-            rootMargin="4000px"
-            settings={twizzler}
-          />
-          <StripesShader
-            autoPlay={!reducedMotion && shaderLive}
-            className="absolute inset-0 size-full"
-            config={asThemedEngineConfig({
-              ...rainConfig,
-              maxFps: lowPower ? 10 : 30,
-            })}
-            label="badge-rain"
-            maxDpr={lowPower ? 1 : 1.5}
-            ref={rainRef}
-            rootMargin="4000px"
-            shaderSource={CONNECT_HERO_RAIN_SHADER_SOURCE}
-          />
+          {tune.printTwizzler ? (
+            <ConnectTwizzler
+              canvasClassName="size-full"
+              className="size-full"
+              maxDpr={lowPower ? 1 : 1.5}
+              maxFps={lowPower ? 10 : 30}
+              paused={reducedMotion || !shaderLive}
+              posterSrc="/connect/twizzler-poster.png"
+              ref={twizzlerRef}
+              rootMargin="4000px"
+              settings={twizzler}
+            />
+          ) : null}
+          {tune.printRain ? (
+            <StripesShader
+              autoPlay={!reducedMotion && shaderLive}
+              className="absolute inset-0 size-full"
+              config={asThemedEngineConfig({
+                ...rainConfig,
+                maxFps: lowPower ? 10 : 30,
+              })}
+              label="badge-rain"
+              maxDpr={lowPower ? 1 : 1.5}
+              ref={rainRef}
+              rootMargin="4000px"
+              shaderSource={CONNECT_HERO_RAIN_SHADER_SOURCE}
+            />
+          ) : null}
         </div>
       ) : null}
 
-      {hydrated && logo && tune.logoEnabled ? (
+      {hydrated && logo ? (
         <div
           aria-hidden="true"
-          className={`pointer-events-none fixed top-0 left-[-2000px] z-0 ${logoCaptureClass}`}
+          className={`pointer-events-none fixed top-0 left-[-2000px] z-0 ${captureClass}`}
         >
           <StripesShader
             autoPlay={!reducedMotion}
@@ -351,9 +364,7 @@ export default function BadgePage(_props: IslandProps) {
                     serial: view.serial,
                   }}
                   logoCanvas={logoRef}
-                  logoMarkSrc={
-                    tune.logoEnabled ? (logo?.colorUrl ?? null) : null
-                  }
+                  logoMarkSrc={logoMarkSrc}
                   lowPower={lowPower}
                   rainCanvas={rainRef}
                   reducedMotion={reducedMotion}
@@ -385,12 +396,13 @@ export default function BadgePage(_props: IslandProps) {
 
             <div className="flex flex-col gap-24 text-body-large text-text-base max-lg:[&_br]:hidden">
               <p>
-                The hero Twizzler and rain, printed on the badge. <br />
+                The case-study stripe shader, printed on the badge from your
+                SVG. <br />
                 Grab it and pull — the lanyard wiggles back.
               </p>
               <p>
-                Pick a color scheme. Upload an SVG to print your logo on the
-                badge in its own colors.
+                Pick a color scheme — stripes and the logo follow it. Upload an
+                SVG to print your mark in the center.
               </p>
               <BadgeCustomizer onChange={setParams} params={params} />
               <BadgeLogoUpload
