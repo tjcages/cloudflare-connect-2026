@@ -415,12 +415,16 @@ describe("badge logo SVG prep", () => {
     );
     expect(dock).toContain("createPortal");
     expect(dock).toContain("z-10000");
-    expect(dock).toContain("size-44");
+    expect(dock).toContain("size-32");
     expect(dock).toContain("max-w-280");
+    expect(dock).toContain("overflow-hidden");
+    expect(dock).toContain("opacity-40");
+    expect(dock).toContain("hover:opacity-100");
     expect(dock).toContain("shadow-elevation-default-drops");
     expect(dock).toContain("rounded-16");
     expect(dock).toContain("draggable");
     expect(dock).toContain("cross-small");
+    expect(dock).not.toContain("hover:scale-105");
     expect(dock).not.toContain("Right-click the image to save");
     expect(dock).not.toContain("before:inside-border");
 
