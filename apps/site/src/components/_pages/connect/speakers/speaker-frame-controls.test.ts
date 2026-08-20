@@ -31,7 +31,7 @@ describe("speaker frame controls", () => {
     memory.clear();
   });
 
-  it("authors an 80% image overlay plus two 10% frames on the right edge", () => {
+  it("authors an 80% image overlay plus a 20% orange pane on the right edge", () => {
     const placements = defaultSpeakerFramePlacements();
     const byImage = new Map<number, number>();
     for (const placement of placements) {
@@ -40,11 +40,9 @@ describe("speaker frame controls", () => {
 
     expect(placements.some((placement) => placement.variant === "grey")).toBe(true);
     expect(placements.some((placement) => placement.variant === "orange")).toBe(true);
-    expect(placements.some((placement) => placement.variant === "dark")).toBe(true);
-    expect([...byImage.values()].every((count) => count === 3)).toBe(true);
+    expect([...byImage.values()].every((count) => count === 2)).toBe(true);
     expect(placements[0]).toMatchObject({ variant: "grey", x: 0, width: 0.8, y: 0, height: 1 });
-    expect(placements[1]).toMatchObject({ variant: "orange", x: 0.8, width: 0.1, y: 0, height: 1 });
-    expect(placements[2]).toMatchObject({ variant: "dark", x: 0.9, width: 0.1, y: 0, height: 1 });
+    expect(placements[1]).toMatchObject({ variant: "orange", x: 0.8, width: 0.2, y: 0, height: 1 });
   });
 
   it("routes the pointer viewfinder through the overlay look", () => {
@@ -58,19 +56,7 @@ describe("speaker frame controls", () => {
     );
   });
 
-  it("authors orange and dark panes with lab ramps on a shared 7×7 vertical grid", () => {
-    expect(SPEAKER_FRAME_DEFAULTS.dark.stripes.map((stripe) => stripe.color)).toEqual([
-      "#261106",
-      "#331607",
-      "#44200d",
-      "#5b260e",
-      "#8a2b01",
-      "#b33806",
-      "#f46021",
-      "#f86a00",
-      "#ff8839",
-      "#ffa05b",
-    ]);
+  it("authors the orange pane with a lab ramp on a 7×7 vertical grid", () => {
     expect(SPEAKER_FRAME_DEFAULTS.orange.stripes.map((stripe) => stripe.color)).toEqual([
       "#fc682b",
       "#ff6800",
@@ -83,24 +69,11 @@ describe("speaker frame controls", () => {
       "#ffbc15",
       "#ffcd63",
     ]);
-    expect(SPEAKER_FRAME_DEFAULTS.dark.stripes[0]).toMatchObject({ startFrom: 0, width: 0.5, opacity: 1 });
-    expect(SPEAKER_FRAME_DEFAULTS.dark.stripes[9]).toMatchObject({ startFrom: 0.8, width: 4, opacity: 1 });
-    expect(SPEAKER_FRAME_DEFAULTS.dark.bgColor).toBe("#141414");
+    expect(SPEAKER_FRAME_DEFAULTS.orange.stripes[0]).toMatchObject({ startFrom: 0, width: 0.5, opacity: 1 });
     expect(SPEAKER_FRAME_DEFAULTS.orange.bgColor).toBe("#f46021");
 
-    const dark = speakerVariantEngineConfig(SPEAKER_FRAME_DEFAULTS, "dark");
     const orange = speakerVariantEngineConfig(SPEAKER_FRAME_DEFAULTS, "orange");
     const overlay = speakerVariantEngineConfig(SPEAKER_FRAME_DEFAULTS, "grey");
-    expect(dark.grid).toMatchObject({
-      cellWidth: 7,
-      cellHeight: 7,
-      gapX: 0,
-      gapY: 0,
-      orientation: "vertical",
-      angleDeg: 0,
-      overlapAmount: 1.2,
-    });
-    expect(dark.fieldScale).toBe(1);
     expect(orange.grid).toMatchObject({
       cellWidth: 7,
       cellHeight: 7,
@@ -113,7 +86,6 @@ describe("speaker frame controls", () => {
       cellHeight: SPEAKER_FRAME_DEFAULTS.gridCellHeight,
       angleDeg: SPEAKER_FRAME_DEFAULTS.gridAngle,
     });
-    expect(dark.stripes).not.toEqual(orange.stripes);
   });
 
   it("drops invalid placements and restores defaults when the list is empty", () => {
@@ -139,10 +111,9 @@ describe("speaker frame controls", () => {
     expect(
       sanitizeSpeakerFramePlacements([
         { id: "legacy", imageIndex: 0, variant: "white", x: 0.9, y: 0, width: 0.1, height: 1, span: false },
+        { id: "retired", imageIndex: 0, variant: "dark", x: 0.9, y: 0, width: 0.1, height: 1, span: false },
       ]),
-    ).toEqual([
-      { id: "legacy", imageIndex: 0, variant: "dark", x: 0.9, y: 0, width: 0.1, height: 1, span: false },
-    ]);
+    ).toEqual(defaultSpeakerFramePlacements());
   });
 
   it("loads v3 placements and falls back to authored frames for a v2 blob", () => {
@@ -219,9 +190,6 @@ describe("speaker frame controls", () => {
     expect(loaded.dark.brightness).toBe(0.12);
     expect(loaded.dark.stripes[0]?.color).toBe("#112233");
     expect(loaded.orange.stripes[0]?.color).not.toBe("#112233");
-    expect(speakerVariantEngineConfig(loaded, "dark").stripes?.[0]).not.toEqual(
-      speakerVariantEngineConfig(loaded, "orange").stripes?.[0],
-    );
   });
 
   it("rewrites leftover left-edge factory wipers onto the right edge", () => {
@@ -248,8 +216,25 @@ describe("speaker frame controls", () => {
     );
 
     const loaded = loadSpeakerFrameSettings();
+    expect(loaded.placements.filter((placement) => placement.imageIndex === 0)).toHaveLength(2);
     expect(loaded.placements[0]).toMatchObject({ variant: "grey", x: 0, width: 0.8 });
-    expect(loaded.placements[1]).toMatchObject({ variant: "orange", x: 0.8 });
-    expect(loaded.placements[2]).toMatchObject({ variant: "dark", x: 0.9 });
+    expect(loaded.placements[1]).toMatchObject({ variant: "orange", x: 0.8, width: 0.2 });
+  });
+
+  it("rewrites leftover overlay + orange + dark triples onto overlay + orange", () => {
+    localStorage.setItem(
+      "panels:connect-speaker-frames-v6",
+      JSON.stringify({
+        placements: Array.from({ length: 6 }, (_, imageIndex) => [
+          { id: `${imageIndex}-overlay`, imageIndex, variant: "grey", x: 0, y: 0, width: 0.8, height: 1, span: false },
+          { id: `${imageIndex}-inverted`, imageIndex, variant: "orange", x: 0.8, y: 0, width: 0.1, height: 1, span: false },
+          { id: `${imageIndex}-dark`, imageIndex, variant: "dark", x: 0.9, y: 0, width: 0.1, height: 1, span: false },
+        ]).flat(),
+        orange: SPEAKER_FRAME_DEFAULTS.orange,
+        grey: SPEAKER_FRAME_DEFAULTS.grey,
+      }),
+    );
+
+    expect(loadSpeakerFrameSettings().placements).toEqual(defaultSpeakerFramePlacements());
   });
 });

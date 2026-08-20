@@ -74,24 +74,6 @@ type SpeakerFramePanelValues = SpeakerFrameSettings & {
   greyWhitePoint: number;
   greyGamma: number;
   greyBgColor: string;
-  darkStripes: EditableStripe[];
-  darkInvert: boolean;
-  darkBrightness: number;
-  darkExposure: number;
-  darkContrast: number;
-  darkBlackPoint: number;
-  darkWhitePoint: number;
-  darkGamma: number;
-  darkBgColor: string;
-  darkGridCellWidth: number;
-  darkGridCellHeight: number;
-  darkGridGapX: number;
-  darkGridGapY: number;
-  darkGridCornerRadius: number;
-  darkGridOverlap: number;
-  darkGridOrientation: SpeakerFrameGridLook["orientation"];
-  darkGridAngle: number;
-  darkFieldScale: number;
 };
 
 const lookFromPanel = (
@@ -147,10 +129,9 @@ const paneGridFromPanel = (
   fieldScale: typeof fieldScale === "number" ? fieldScale : SPEAKER_PANE_GRID.fieldScale,
 });
 
-/** Panel values: settings plus flattened orange/dark/grey stripe tables. */
+/** Panel values: settings plus flattened orange/grey stripe tables. */
 export function seedSpeakerFramesPanelValues(settings: SpeakerFrameSettings): PanelValues {
   const orangeGrid = paneGridFromSettings(settings.orange);
-  const darkGrid = paneGridFromSettings(settings.dark);
   return {
     ...settings,
     stripes: toEditableControls(settings.orange.stripes),
@@ -171,24 +152,6 @@ export function seedSpeakerFramesPanelValues(settings: SpeakerFrameSettings): Pa
     orangeGridOrientation: orangeGrid.orientation,
     orangeGridAngle: orangeGrid.angleDeg,
     orangeFieldScale: orangeGrid.fieldScale,
-    darkStripes: toEditableControls(settings.dark.stripes),
-    darkInvert: settings.dark.invert,
-    darkBrightness: settings.dark.brightness,
-    darkExposure: settings.dark.exposure,
-    darkContrast: settings.dark.contrast,
-    darkBlackPoint: settings.dark.blackPoint,
-    darkWhitePoint: settings.dark.whitePoint,
-    darkGamma: settings.dark.gamma,
-    darkBgColor: settings.dark.bgColor,
-    darkGridCellWidth: darkGrid.cellWidth,
-    darkGridCellHeight: darkGrid.cellHeight,
-    darkGridGapX: darkGrid.gapX,
-    darkGridGapY: darkGrid.gapY,
-    darkGridCornerRadius: darkGrid.cornerRadius,
-    darkGridOverlap: darkGrid.overlapAmount,
-    darkGridOrientation: darkGrid.orientation,
-    darkGridAngle: darkGrid.angleDeg,
-    darkFieldScale: darkGrid.fieldScale,
     greyStripes: toEditableControls(settings.grey.stripes),
     greyInvert: settings.grey.invert,
     greyBrightness: settings.grey.brightness,
@@ -230,24 +193,6 @@ export function speakerFramesFromPanelValues(values: PanelValues): SpeakerFrameS
     greyWhitePoint,
     greyGamma,
     greyBgColor,
-    darkStripes,
-    darkInvert,
-    darkBrightness,
-    darkExposure,
-    darkContrast,
-    darkBlackPoint,
-    darkWhitePoint,
-    darkGamma,
-    darkBgColor,
-    darkGridCellWidth,
-    darkGridCellHeight,
-    darkGridGapX,
-    darkGridGapY,
-    darkGridCornerRadius,
-    darkGridOverlap,
-    darkGridOrientation,
-    darkGridAngle,
-    darkFieldScale,
     orange: _orange,
     dark: _dark,
     white: _white,
@@ -281,29 +226,7 @@ export function speakerFramesFromPanelValues(values: PanelValues): SpeakerFrameS
         orangeFieldScale,
       ),
     ),
-    dark: lookFromPanel(
-      darkStripes,
-      darkInvert,
-      darkBrightness,
-      darkExposure,
-      darkContrast,
-      darkBlackPoint,
-      darkWhitePoint,
-      darkGamma,
-      darkBgColor,
-      SPEAKER_FRAME_DEFAULTS.dark,
-      paneGridFromPanel(
-        darkGridCellWidth,
-        darkGridCellHeight,
-        darkGridGapX,
-        darkGridGapY,
-        darkGridCornerRadius,
-        darkGridOverlap,
-        darkGridOrientation,
-        darkGridAngle,
-        darkFieldScale,
-      ),
-    ),
+    dark: SPEAKER_FRAME_DEFAULTS.dark,
     grey: lookFromPanel(
       greyStripes,
       greyInvert,
@@ -337,7 +260,6 @@ const speakerFrameItemFields: PanelField<SpeakerFramePlacement>[] = [
     options: [
       { value: "grey", label: "Overlay" },
       { value: "orange", label: "Orange" },
-      { value: "dark", label: "Dark" },
     ],
   },
   { type: "toggle", key: "span", label: "Span neighboring images" },
@@ -382,8 +304,6 @@ export function buildSpeakerFramesSections(): PanelSectionDef[] {
               switch (placement.variant) {
                 case "orange":
                   return "Orange";
-                case "dark":
-                  return "Dark";
                 case "grey":
                   return "Overlay";
                 default: {
@@ -478,39 +398,6 @@ export function buildSpeakerFramesSections(): PanelSectionDef[] {
         num("noiseAmount", "Noise", 0, 1, 0.01),
         num("blurRadius", "Blur", 0, 24, 0.25),
         num("sharpenAmount", "Sharpen", 0, 4, 0.01),
-      ],
-    },
-    {
-      id: "Dark variant",
-      title: "Dark variant",
-      defaultOpen: true,
-      fields: [
-        color("darkBgColor", "Background"),
-        toggle("darkInvert", "Invert"),
-        num("darkBrightness", "Brightness", -1, 1, 0.01),
-        num("darkExposure", "Exposure", -2, 2, 0.01),
-        num("darkContrast", "Contrast", 0, 3, 0.01),
-        num("darkBlackPoint", "Black point", 0, 1, 0.01),
-        num("darkWhitePoint", "White point", 0, 1, 0.01),
-        num("darkGamma", "Gamma", 0.1, 4, 0.01),
-        {
-          type: "stripe-table",
-          key: "darkStripes",
-          label: "Dark stripe palette",
-          library: COLOR_LIBRARY,
-        },
-        num("darkGridCellWidth", "Cell width", 2, 48, 1),
-        num("darkGridCellHeight", "Cell height", 2, 48, 1),
-        num("darkGridGapX", "Horizontal gap", 0, 24, 0.25),
-        num("darkGridGapY", "Vertical gap", 0, 24, 0.25),
-        num("darkGridCornerRadius", "Corner radius", 0, 16, 0.25),
-        num("darkGridOverlap", "Stripe overlap", 0, 4, 0.01),
-        select("darkGridOrientation", "Orientation", {
-          Vertical: "vertical",
-          Horizontal: "horizontal",
-        }),
-        num("darkGridAngle", "Grid angle", -180, 180, 1),
-        num("darkFieldScale", "Field scale", 0.1, 4, 0.01),
       ],
     },
     {

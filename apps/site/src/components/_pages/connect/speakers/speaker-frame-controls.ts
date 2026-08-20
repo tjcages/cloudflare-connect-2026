@@ -2,7 +2,7 @@ import type { EngineConfig } from "@necatikcl/stripes-engine";
 import { connectSpeakers } from "../data";
 import { SPEAKER_SHADER_CONFIG } from "./speaker-shader-config";
 
-export const SPEAKER_FRAME_VARIANT_IDS = ["grey", "orange", "dark"] as const;
+export const SPEAKER_FRAME_VARIANT_IDS = ["grey", "orange"] as const;
 export type SpeakerFrameVariantId = (typeof SPEAKER_FRAME_VARIANT_IDS)[number];
 /** The pointer-owned viewfinder clips and distorts this look only. */
 export const SPEAKER_POINTER_VARIANT: SpeakerFrameVariantId = "grey";
@@ -126,8 +126,9 @@ export type SpeakerFrameSettings = {
 
 export const SPEAKER_IMAGE_COUNT = connectSpeakers.length;
 export const MAX_SPEAKER_FRAME_PLACEMENTS = 48;
-export const SPEAKER_FRAME_PANEL_ID = "connect-speaker-frames-v6";
+export const SPEAKER_FRAME_PANEL_ID = "connect-speaker-frames-v7";
 export const LEGACY_SPEAKER_FRAME_PANEL_IDS = [
+  "connect-speaker-frames-v6",
   "connect-speaker-frames-v5",
   "connect-speaker-frames-v4",
   "connect-speaker-frames-v3",
@@ -290,8 +291,7 @@ const placement = (
 export const defaultSpeakerFramePlacements = (): SpeakerFramePlacement[] =>
   connectSpeakers.flatMap((_, imageIndex) => [
     placement(`${imageIndex}-overlay`, imageIndex, "grey", 0, 0, 0.8, 1),
-    placement(`${imageIndex}-inverted`, imageIndex, "orange", 0.8, 0, 0.1, 1),
-    placement(`${imageIndex}-dark`, imageIndex, "dark", 0.9, 0, 0.1, 1),
+    placement(`${imageIndex}-inverted`, imageIndex, "orange", 0.8, 0, 0.2, 1),
   ]);
 
 export const createSpeakerFramePlacement = (imageIndex = 0): SpeakerFramePlacement =>
@@ -301,18 +301,17 @@ export const createSpeakerFramePlacement = (imageIndex = 0): SpeakerFramePlaceme
     "orange",
     0.8,
     0,
-    0.1,
+    0.2,
     1,
   );
 
 const parseSpeakerFrameVariant = (value: unknown): SpeakerFrameVariantId | null => {
-  if (value === "orange" || value === "dark" || value === "grey") return value;
-  if (value === "white") return "dark";
+  if (value === "orange" || value === "grey") return value;
   return null;
 };
 
 export const isSpeakerFrameVariant = (value: unknown): value is SpeakerFrameVariantId =>
-  value === "orange" || value === "dark" || value === "grey";
+  value === "orange" || value === "grey";
 
 const unusedVariant = (value: never): never => {
   throw new Error(`Unhandled speaker frame variant: ${String(value)}`);
@@ -325,8 +324,6 @@ export const speakerVariantLook = (
   switch (variant) {
     case "orange":
       return settings.orange;
-    case "dark":
-      return settings.dark;
     case "grey":
       return settings.grey;
     default:
@@ -342,8 +339,6 @@ export const speakerVariantBgNumber = (
   switch (variant) {
     case "orange":
       return hexToColorNumber(hex, 0xf4_60_21);
-    case "dark":
-      return hexToColorNumber(hex, 0x14_14_14);
     case "grey":
       return hexToColorNumber(hex, 0xd6_d6_d6);
     default:
@@ -561,19 +556,60 @@ export const sanitizeSpeakerFramePlacements = (value: unknown): SpeakerFramePlac
   return placements.length > 0 ? placements : defaultSpeakerFramePlacements();
 };
 
+const isStripRecord = (value: unknown, x: number, variant: string) => {
+  if (!value || typeof value !== "object") return false;
+  const record = value as Record<string, unknown>;
+  return (
+    record.variant === variant &&
+    record.x === x &&
+    record.y === 0 &&
+    record.width === 0.1 &&
+    record.height === 1 &&
+    record.span !== true
+  );
+};
+
 /** Factory two-pane wipers (left or right rest) before the 80% image overlay existed. */
-const isFactoryTwoPaneWipers = (placements: SpeakerFramePlacement[]) => {
-  if (placements.length !== SPEAKER_IMAGE_COUNT * 2) return false;
+const isRawFactoryTwoPaneWipers = (value: unknown) => {
+  if (!Array.isArray(value) || value.length !== SPEAKER_IMAGE_COUNT * 2) return false;
   return connectSpeakers.every((_, imageIndex) => {
-    const pair = placements.filter((placement) => placement.imageIndex === imageIndex);
+    const pair = value.filter((item) => item && typeof item === "object" && (item as { imageIndex?: number }).imageIndex === imageIndex);
     if (pair.length !== 2) return false;
-    const orange = pair.find((placement) => placement.variant === "orange");
-    const dark = pair.find((placement) => placement.variant === "dark");
-    if (!orange || !dark) return false;
-    const isStrip = (placement: SpeakerFramePlacement) =>
-      placement.y === 0 && placement.width === 0.1 && placement.height === 1 && placement.span === false;
-    if (!isStrip(orange) || !isStrip(dark)) return false;
-    return (orange.x === 0 && dark.x === 0.1) || (orange.x === 0.8 && dark.x === 0.9);
+    const orange = pair.find((item) => (item as { variant?: string }).variant === "orange");
+    const edge = pair.find((item) => {
+      const variant = (item as { variant?: string }).variant;
+      return variant === "dark" || variant === "white";
+    });
+    if (!orange || !edge) return false;
+    return (
+      (isStripRecord(orange, 0, "orange") && (isStripRecord(edge, 0.1, "dark") || isStripRecord(edge, 0.1, "white"))) ||
+      (isStripRecord(orange, 0.8, "orange") && (isStripRecord(edge, 0.9, "dark") || isStripRecord(edge, 0.9, "white")))
+    );
+  });
+};
+
+const isRawThreeFrameWithDark = (value: unknown) => {
+  if (!Array.isArray(value) || value.length !== SPEAKER_IMAGE_COUNT * 3) return false;
+  return connectSpeakers.every((_, imageIndex) => {
+    const frames = value.filter((item) => item && typeof item === "object" && (item as { imageIndex?: number }).imageIndex === imageIndex);
+    if (frames.length !== 3) return false;
+    const variants = frames.map((item) => (item as { variant?: string }).variant);
+    return variants.includes("grey") && variants.includes("orange") && (variants.includes("dark") || variants.includes("white"));
+  });
+};
+
+const expandOrangeAfterDroppedDark = (placements: SpeakerFramePlacement[]) => {
+  const byImage = new Map<number, SpeakerFramePlacement[]>();
+  for (const placement of placements) {
+    const list = byImage.get(placement.imageIndex) ?? [];
+    list.push(placement);
+    byImage.set(placement.imageIndex, list);
+  }
+  if (![...byImage.values()].every((list) => list.length === 2)) return placements;
+  return placements.map((placement) => {
+    if (placement.variant !== "orange" || placement.x !== 0.8 || placement.width !== 0.1) return placement;
+    if (placement.y !== 0 || placement.height !== 1 || placement.span) return placement;
+    return { ...placement, width: 0.2 };
   });
 };
 
@@ -758,10 +794,11 @@ export const loadSpeakerFrameSettings = (): SpeakerFrameSettings => {
     if (!parsed || typeof parsed !== "object") return settings;
     const record = parsed as Record<string, unknown>;
     mergeSharedSettings(settings, record);
-    settings.placements = sanitizeSpeakerFramePlacements(record.placements);
-    const factoryTwoPane = isFactoryTwoPaneWipers(settings.placements);
-    if (factoryTwoPane) {
+    const resetPlacements = isRawFactoryTwoPaneWipers(record.placements) || isRawThreeFrameWithDark(record.placements);
+    if (resetPlacements) {
       settings.placements = defaultSpeakerFramePlacements();
+    } else {
+      settings.placements = expandOrangeAfterDroppedDark(sanitizeSpeakerFramePlacements(record.placements));
     }
     if (record.orange && typeof record.orange === "object") {
       settings.orange = sanitizeVariantLook(record.orange, settings.orange);
@@ -783,7 +820,7 @@ export const loadSpeakerFrameSettings = (): SpeakerFrameSettings => {
     if (record.grey && typeof record.grey === "object") {
       settings.grey = sanitizeVariantLook(record.grey, settings.grey);
     }
-    if (factoryTwoPane) {
+    if (resetPlacements) {
       settings.grey = cloneVariantLook(SPEAKER_FRAME_DEFAULTS.grey);
     }
     const storedDark = [record.dark, record.white].find((value) => value && typeof value === "object");

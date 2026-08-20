@@ -9,27 +9,23 @@ import {
 import { SPEAKER_SHADER_CONFIG } from "./speaker-shader-config";
 import type { Rect } from "./speaker-shader-geometry";
 
-/** Rest width of each default pane, as a fraction of the portrait. */
-export const SPEAKER_WIPER_REST_WIDTH = 0.1;
+/** Rest width of the orange pane, as a fraction of the portrait. */
+export const SPEAKER_WIPER_REST_WIDTH = 0.2;
 export const SPEAKER_OVERLAY_REST_WIDTH = 0.8;
 /** Collapse from full-width coverage into the rest rect. */
 export const SPEAKER_WIPER_DURATION_MS = 900;
 export const SPEAKER_WIPER_STAGGER_MS = 0;
-/** Opaque panes collapse with the overlay so they do not sit at full width. */
-export const SPEAKER_WIPER_DARK_STAGGER_MS = 0;
-/** After both edge panes rest, they trade width for this long, then settle. */
-export const SPEAKER_PANE_WIGGLE_DURATION_MS = 9_000;
-export const SPEAKER_PANE_WIGGLE_PERIOD_MS = 2_400;
-/** Peak extra width, as a fraction of the smaller pane. */
-export const SPEAKER_PANE_WIGGLE_AMPLITUDE = 0.34;
+/** Hold full coverage until the water reveal has played. */
+export const SPEAKER_WIPER_SHADER_DELAY_MS = SPEAKER_SHADER_CONFIG.reveal.water.durationMs;
+/** Portrait fade sits in the middle of the collapse. */
+export const SPEAKER_IMAGE_FADE_START = 0.4;
+export const SPEAKER_IMAGE_FADE_END = 0.7;
 
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
 
 const lerp = (from: number, to: number, t: number) => from + (to - from) * t;
 
 const easeOutCubic = (t: number) => 1 - (1 - t) ** 3;
-
-const easeInOutCubic = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
 
 const unusedVariant = (value: never): never => {
   throw new Error(`Unhandled speaker frame variant: ${String(value)}`);
@@ -38,11 +34,8 @@ const unusedVariant = (value: never): never => {
 export const speakerWiperStaggerMs = (variant: SpeakerFrameVariantId): number => {
   switch (variant) {
     case "grey":
-      return 0;
-    case "dark":
-      return SPEAKER_WIPER_DARK_STAGGER_MS;
     case "orange":
-      return SPEAKER_WIPER_STAGGER_MS;
+      return 0;
     default:
       return unusedVariant(variant);
   }
@@ -53,42 +46,15 @@ export const speakerWiperProgress = (elapsedMs: number, staggerMs: number): numb
   return clamp01(local / SPEAKER_WIPER_DURATION_MS);
 };
 
-const speakerWiperFinishMs = (variant: SpeakerFrameVariantId) =>
-  speakerWiperStaggerMs(variant) + SPEAKER_WIPER_DURATION_MS;
-
-const panesBothClosedMs = () =>
-  Math.max(speakerWiperFinishMs("orange"), speakerWiperFinishMs("dark"));
-
-/** Extra width for the left pane; the right pane takes the remainder. */
-export const speakerPaneWiggleShift = (elapsedSinceBothRestMs: number, smallerWidth: number): number => {
-  if (elapsedSinceBothRestMs <= 0 || smallerWidth <= 0) return 0;
-  const u = clamp01(elapsedSinceBothRestMs / SPEAKER_PANE_WIGGLE_DURATION_MS);
-  const hold = 0.45;
-  const envelope = u <= hold ? 1 : 1 - easeInOutCubic((u - hold) / (1 - hold));
-  if (envelope <= 0) return 0;
-  return smallerWidth * SPEAKER_PANE_WIGGLE_AMPLITUDE * Math.sin((elapsedSinceBothRestMs / SPEAKER_PANE_WIGGLE_PERIOD_MS) * Math.PI * 2) * envelope;
-};
-
-export const speakerPaneWiggleRects = (orange: Rect, dark: Rect, shift: number): { orange: Rect; dark: Rect } => {
-  const orangeOnLeft = orange.x <= dark.x;
-  const left = orangeOnLeft ? orange : dark;
-  const right = orangeOnLeft ? dark : orange;
-  const pairWidth = left.width + right.width;
-  const minWidth = Math.min(left.width, right.width) * 0.45;
-  const leftWidth = Math.min(pairWidth - minWidth, Math.max(minWidth, left.width + shift));
-  const nextLeft = { ...left, x: left.x, width: leftWidth };
-  const nextRight = { ...right, x: left.x + leftWidth, width: pairWidth - leftWidth };
-  return orangeOnLeft ? { orange: nextLeft, dark: nextRight } : { orange: nextRight, dark: nextLeft };
-};
-
-const panesAreAdjacent = (a: Rect, b: Rect) => {
-  if (Math.abs(a.y - b.y) > 1 || Math.abs(a.height - b.height) > 1) return false;
-  return Math.abs(a.x + a.width - b.x) <= 1 || Math.abs(b.x + b.width - a.x) <= 1;
+export const speakerPortraitOpacity = (progress: number): number => {
+  if (progress <= SPEAKER_IMAGE_FADE_START) return 0;
+  if (progress >= SPEAKER_IMAGE_FADE_END) return 1;
+  return easeOutCubic((progress - SPEAKER_IMAGE_FADE_START) / (SPEAKER_IMAGE_FADE_END - SPEAKER_IMAGE_FADE_START));
 };
 
 /**
  * The authored frame itself is the wiper: it starts covering the portrait at
- * full width, then settles into its rest rect (orange/dark on the right edge).
+ * full width, then settles into its rest rect (orange on the right edge).
  */
 export const speakerFrameWiperRect = (aperture: Rect, rest: Rect, progress: number): Rect => {
   if (aperture.width <= 0 || rest.height <= 0) {
@@ -147,8 +113,7 @@ export const resolveWipingFrames = <T extends WipingFrame>(
   nowMs: number,
   options: { reducedMotion?: boolean; progressOverride?: number } = {},
 ): T[] => {
-  const freezeWiggle = options.reducedMotion === true || typeof options.progressOverride === "number";
-  const prepared: { frame: T; aperture: Rect; rest: Rect; progress: number; elapsedMs: number }[] = [];
+  const frames: T[] = [];
 
   for (const frame of authored) {
     const aperture = apertures[frame.imageIndex];
@@ -156,40 +121,9 @@ export const resolveWipingFrames = <T extends WipingFrame>(
     const elapsedMs = frameElapsedMs(frame.imageIndex, startedAtMs, nowMs, options);
     if (elapsedMs == null) continue;
     const progress = frameProgress(elapsedMs, frame.variant, options);
-    prepared.push({ frame, aperture, rest: frame.rect, progress, elapsedMs });
-  }
-
-  const items = prepared.map((item) => ({
-    ...item,
-    rect: speakerFrameWiperRect(item.aperture, item.rest, item.progress),
-  }));
-
-  const byImage = new Map<number, typeof items>();
-  for (const item of items) {
-    const list = byImage.get(item.frame.imageIndex) ?? [];
-    list.push(item);
-    byImage.set(item.frame.imageIndex, list);
-  }
-
-  if (!freezeWiggle) {
-    for (const group of byImage.values()) {
-      const orange = group.find((item) => item.frame.variant === "orange" && item.progress >= 1);
-      const dark = group.find((item) => item.frame.variant === "dark" && item.progress >= 1);
-      const elapsedMs = orange?.elapsedMs ?? dark?.elapsedMs;
-      if (!orange || !dark || elapsedMs == null || !panesAreAdjacent(orange.rest, dark.rest)) continue;
-      const wiggleElapsed = elapsedMs - panesBothClosedMs();
-      const shift = speakerPaneWiggleShift(wiggleElapsed, Math.min(orange.rest.width, dark.rest.width));
-      if (shift === 0) continue;
-      const wiggled = speakerPaneWiggleRects(orange.rest, dark.rest, shift);
-      orange.rect = wiggled.orange;
-      dark.rect = wiggled.dark;
-    }
-  }
-
-  const frames: T[] = [];
-  for (const item of items) {
-    if (item.rect.width < 0.5) continue;
-    frames.push({ ...item.frame, rect: item.rect });
+    const rect = speakerFrameWiperRect(aperture, frame.rect, progress);
+    if (rect.width < 0.5) continue;
+    frames.push({ ...frame, rect });
   }
 
   return frames;
@@ -209,7 +143,6 @@ export const speakerFramePaintConfig = (
   };
   switch (variant) {
     case "orange":
-    case "dark":
       return { ...base, background };
     case "grey":
       return { ...base, background: { ...background, transparent: true } };
@@ -264,9 +197,10 @@ export const armSpeakerWiper = (
   return "armed";
 };
 
-export const commitPendingSpeakerWipers = (clock: SpeakerWiperClock, nowMs: number) => {
+export const commitPendingSpeakerWipers = (clock: SpeakerWiperClock, nowMs: number, delayMs = 0) => {
+  const startAt = nowMs + Math.max(0, delayMs);
   for (const index of clock.pending) {
-    if (clock.startedAtMs[index] == null) clock.startedAtMs[index] = nowMs;
+    if (clock.startedAtMs[index] == null) clock.startedAtMs[index] = startAt;
   }
   clock.pending.clear();
 };

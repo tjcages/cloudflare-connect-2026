@@ -40,9 +40,12 @@ import {
   resolveWipingFrames,
   speakerFrameOutlineColor,
   speakerFramePaintConfig,
+  speakerPortraitOpacity,
+  speakerWiperProgress,
   speakerWiperShouldEnter,
   SPEAKER_WIPER_DURATION_MS,
   SPEAKER_WIPER_ENTER_RATIO,
+  SPEAKER_WIPER_SHADER_DELAY_MS,
   type SpeakerWiperClock,
 } from "./speaker-wiper";
 
@@ -150,6 +153,38 @@ export default function SpeakerShaderOverlay() {
     };
     const intersectingWipers = new Set<number>();
     const wiperProgressOverride = parseSpeakerWiperOverride(window.location.search);
+    let shaderReadyAtMs: number | null = null;
+
+    const wiperStartDelayMs = () => {
+      if (reducedMotion.matches || typeof wiperProgressOverride === "number") return 0;
+      if (shaderReadyAtMs == null) return SPEAKER_WIPER_SHADER_DELAY_MS;
+      return Math.max(0, shaderReadyAtMs - performance.now());
+    };
+
+    const applyPortraitOpacity = () => {
+      images.forEach((image, index) => {
+        if (!image) return;
+        if (reducedMotion.matches) {
+          image.style.opacity = "1";
+          return;
+        }
+        const startedAt = wiperClock.startedAtMs[index];
+        const elapsedMs =
+          typeof wiperProgressOverride === "number"
+            ? wiperProgressOverride * SPEAKER_WIPER_DURATION_MS
+            : startedAt == null
+              ? null
+              : wiperNowMs - startedAt;
+        const progress = elapsedMs == null ? 0 : speakerWiperProgress(elapsedMs, 0);
+        image.style.opacity = String(speakerPortraitOpacity(progress));
+      });
+    };
+
+    const revealPortraits = () => {
+      for (const image of images) {
+        if (image) image.style.opacity = "1";
+      }
+    };
 
     const readGeometry = () => {
       const rootRect = root.getBoundingClientRect();
@@ -287,7 +322,6 @@ export default function SpeakerShaderOverlay() {
               else paintOverlayLayer(variantFrames, config);
               break;
             case "orange":
-            case "dark":
               paintLayer(variantFrames, config);
               break;
             default: {
@@ -310,6 +344,7 @@ export default function SpeakerShaderOverlay() {
         );
       }
       outputContext.restore();
+      applyPortraitOpacity();
     };
 
     const renderOnce = () => {
@@ -330,7 +365,7 @@ export default function SpeakerShaderOverlay() {
       const hasPendingWiper = wiperClock.pending.size > 0;
       if (!hasPendingWiper && nowMs - lastFrameMs < minFrameIntervalMs) return;
       lastFrameMs = nowMs;
-      commitPendingSpeakerWipers(wiperClock, nowMs);
+      commitPendingSpeakerWipers(wiperClock, nowMs, wiperStartDelayMs());
       wiperNowMs = nowMs;
       clock.set(nowMs);
       renderOnce();
@@ -338,10 +373,11 @@ export default function SpeakerShaderOverlay() {
 
     const replayIdleWipers = () => {
       const nowMs = performance.now();
+      const playingWindowMs = SPEAKER_WIPER_SHADER_DELAY_MS + SPEAKER_WIPER_DURATION_MS;
       for (const index of intersectingWipers) {
         if (wiperClock.pending.has(index)) continue;
         const startedAt = wiperClock.startedAtMs[index];
-        if (startedAt != null && nowMs - startedAt < SPEAKER_WIPER_DURATION_MS) continue;
+        if (startedAt != null && nowMs - startedAt < playingWindowMs) continue;
         replayWiper(index);
       }
     };
@@ -349,6 +385,8 @@ export default function SpeakerShaderOverlay() {
     const start = () => {
       if (!engine) return;
       engine.setRevealGate(true);
+      engine.triggerReveal();
+      shaderReadyAtMs = performance.now() + (reducedMotion.matches ? 0 : SPEAKER_WIPER_SHADER_DELAY_MS);
       if (reducedMotion.matches) {
         replayIdleWipers();
         wiperNowMs = performance.now();
@@ -506,6 +544,8 @@ export default function SpeakerShaderOverlay() {
           const wasTracking = intersectingWipers.delete(index);
           if (!wasTracking) continue;
           resetSpeakerWiper(wiperClock, index);
+          const image = images[index];
+          if (image && !reducedMotion.matches) image.style.opacity = "0";
           if (visible && reducedMotion.matches) renderOnce();
         }
       },
@@ -542,7 +582,6 @@ export default function SpeakerShaderOverlay() {
         });
       }
       resize();
-      engine.triggerReveal();
 
       resizeObserver.observe(root);
       for (const element of apertureElements) {
@@ -557,11 +596,15 @@ export default function SpeakerShaderOverlay() {
       window.addEventListener(SPEAKER_FRAME_SETTINGS_EVENT, onFrameSettings);
     } catch (error) {
       console.warn("Speaker shader unavailable; preserving portrait fallback.", error);
+      revealPortraits();
     }
 
     return () => {
       disposed = true;
       stop();
+      for (const image of images) {
+        if (image) image.style.opacity = "";
+      }
       resizeObserver.disconnect();
       intersectionObserver.disconnect();
       wiperObserver.disconnect();
