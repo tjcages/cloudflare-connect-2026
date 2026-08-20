@@ -15,15 +15,22 @@ const IMAGE_W = 1411;
 const IMAGE_H = 1115;
 const PLANE_H = 5.2;
 const PLANE_W = PLANE_H * (IMAGE_W / IMAGE_H);
-const FACE_Z = 0.012;
+const FACE_Z = 0.02;
+const MOBILE_BREAKPOINT = 992;
 
-/** Image-space UV, origin at the top-left of the photo. */
+/** Image-space UV, origin at the top-left of the photo. TL, TR, BR, BL. */
 const FACE_UV: readonly [number, number][] = [
-  [0.225, 0.178],
-  [0.79, 0.185],
-  [0.792, 0.652],
-  [0.188, 0.642],
+  [0.248, 0.1],
+  [0.792, 0.145],
+  [0.804, 0.722],
+  [0.238, 0.716],
 ];
+
+function rightColumnWorldX(width: number, viewportWidth: number) {
+  if (width < MOBILE_BREAKPOINT) return 0;
+  const centerPx = width - 80 - 240;
+  return (centerPx / width - 0.5) * viewportWidth;
+}
 
 function uvToLocal(u: number, v: number): [number, number, number] {
   return [(u - 0.5) * PLANE_W, (0.5 - v) * PLANE_H, FACE_Z];
@@ -53,13 +60,11 @@ function BillboardFace() {
   }, [geometry]);
 
   return (
-    <mesh geometry={geometry} renderOrder={1}>
+    <mesh frustumCulled={false} geometry={geometry} renderOrder={2}>
       <meshBasicMaterial
         color="#ff5a00"
+        depthTest={false}
         depthWrite={false}
-        polygonOffset
-        polygonOffsetFactor={-2}
-        polygonOffsetUnits={-2}
         toneMapped={false}
       />
     </mesh>
@@ -68,21 +73,23 @@ function BillboardFace() {
 
 function BillboardPlate() {
   const texture = useTexture(BILLBOARD_URL);
-  const { invalidate, viewport } = useThree();
+  const { invalidate, size, viewport } = useThree();
   texture.colorSpace = SRGBColorSpace;
   texture.anisotropy = 8;
   texture.needsUpdate = true;
 
   useEffect(() => {
     invalidate();
-  }, [invalidate, texture]);
+  }, [invalidate, size.height, size.width, texture]);
 
-  const scale =
-    Math.min(viewport.width / PLANE_W, viewport.height / PLANE_H) * 0.94;
+  const mobile = size.width < MOBILE_BREAKPOINT;
+  const fit = Math.min(viewport.width / PLANE_W, viewport.height / PLANE_H);
+  const scale = fit * (mobile ? 0.92 : 0.78);
+  const x = rightColumnWorldX(size.width, viewport.width);
 
   return (
-    <group scale={scale}>
-      <mesh>
+    <group position={[x, 0, 0]} scale={scale}>
+      <mesh renderOrder={0}>
         <planeGeometry args={[PLANE_W, PLANE_H]} />
         <meshBasicMaterial map={texture} toneMapped={false} />
       </mesh>
