@@ -3,13 +3,19 @@
 import { StripesShader } from "@necatikcl/stripes-engine/react";
 import { ConnectTwizzler } from "@tjcages/connect-twizzler/react";
 import { usePanel } from "@tjcages/panels/dev";
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
-import Button from "@/components/Button";
 import {
-  CopyFeedbackIcon,
-  useCopyFeedback,
-} from "@/components/copy-feedback/CopyFeedback";
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import Button from "@/components/Button";
+import { CopyFeedbackIcon } from "@/components/copy-feedback/CopyFeedback";
 import CornerDots from "@/components/CornerDots";
+import Icon from "@/components/icon/Icon";
 import {
   cardStripes,
   cardTextureConfig,
@@ -19,7 +25,6 @@ import Scramble from "@/components/scramble/Scramble";
 import { asThemedEngineConfig } from "@/components/stripes-texture/config";
 import HeroGrid from "@/layouts/window-hero/_svg/Grid.svg?react";
 import type { IslandProps } from "@/types/island-props";
-import { REGISTER_URL } from "../data";
 import { CONNECT_HERO_RAIN_SHADER_SOURCE } from "../hero/hero-rain-config";
 import {
   BADGE_BACKDROP_CONFIG,
@@ -42,6 +47,13 @@ import {
   svgToBlobUrl,
 } from "./badge-logo";
 import BadgePrintShader from "./BadgePrintShader";
+import BadgeShareDock from "./BadgeShareDock";
+import {
+  badgeShareHeadline,
+  badgeTweetUrl,
+  composeBadgeShareCard,
+  copyCanvasImage,
+} from "./badge-share";
 import {
   badgeSharePath,
   DEFAULT_BADGE_PARAMS,
@@ -99,6 +111,10 @@ export default function BadgePage(_props: IslandProps) {
   const twizzlerRef = useRef<HTMLCanvasElement>(null);
   const rainRef = useRef<HTMLCanvasElement>(null);
   const logoRef = useRef<HTMLCanvasElement | null>(null);
+  const backdropCanvasRef = useRef<HTMLCanvasElement>(null);
+  const faceCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const shareUrlRef = useRef<string | null>(null);
+  const copiedTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const logoSessionRef = useRef<BadgeLogoSession | null>(null);
   const seededLogo = useRef(false);
   const [params, setParams] = useState<BadgeParams>(DEFAULT_BADGE_PARAMS);
@@ -108,6 +124,12 @@ export default function BadgePage(_props: IslandProps) {
   const [shaderLive, setShaderLive] = useState(true);
   const [logo, setLogo] = useState<BadgeLogoSession | null>(null);
   const [logoError, setLogoError] = useState<string | null>(null);
+  const [sharePreview, setSharePreview] = useState<{
+    src: string;
+    title: string;
+  } | null>(null);
+  const [shareCopied, setShareCopied] = useState(false);
+  const [sharing, setSharing] = useState(false);
 
   useEffect(() => {
     setParams(parseBadgeSearch(window.location.search));
@@ -141,11 +163,10 @@ export default function BadgePage(_props: IslandProps) {
 
   const view = useMemo(() => resolveBadgeView(params), [params]);
   const sharePath = badgeSharePath(params);
-  const shareUrl =
+  const pageUrl =
     typeof window === "undefined"
       ? sharePath
       : `${window.location.origin}${sharePath}`;
-  const { copied, copy } = useCopyFeedback(shareUrl);
   const twizzler = useMemo(
     () => applyBadgeTwizzlerOverlay(applyThemeToTwizzler(view.theme), tune),
     [tune, view.theme]
@@ -267,6 +288,62 @@ export default function BadgePage(_props: IslandProps) {
     })();
   };
 
+  useEffect(
+    () => () => {
+      if (shareUrlRef.current) URL.revokeObjectURL(shareUrlRef.current);
+      clearTimeout(copiedTimeoutRef.current);
+    },
+    []
+  );
+
+  const captureShareCard = useCallback(async () => {
+    const title = badgeShareHeadline(view.name);
+    const canvas = composeBadgeShareCard({
+      backdrop: backdropCanvasRef.current,
+      face: faceCanvasRef.current,
+      title,
+    });
+    const next = await copyCanvasImage(canvas);
+    if (shareUrlRef.current) URL.revokeObjectURL(shareUrlRef.current);
+    shareUrlRef.current = next.url;
+    setSharePreview({ src: next.url, title });
+    setShareCopied(next.copied);
+    clearTimeout(copiedTimeoutRef.current);
+    if (next.copied) {
+      copiedTimeoutRef.current = setTimeout(() => setShareCopied(false), 2000);
+    }
+    return title;
+  }, [view.name]);
+
+  const onCopyShareable = () => {
+    if (sharing) return;
+    setSharing(true);
+    void captureShareCard().finally(() => setSharing(false));
+  };
+
+  const onShareX = () => {
+    if (sharing) return;
+    setSharing(true);
+    void captureShareCard()
+      .then((title) => {
+        window.open(
+          badgeTweetUrl(title, pageUrl),
+          "_blank",
+          "noopener,noreferrer"
+        );
+      })
+      .finally(() => setSharing(false));
+  };
+
+  const dismissShare = () => {
+    setSharePreview(null);
+    setShareCopied(false);
+    if (shareUrlRef.current) {
+      URL.revokeObjectURL(shareUrlRef.current);
+      shareUrlRef.current = null;
+    }
+  };
+
   useEffect(() => {
     if (!hydrated || seededLogo.current) return;
     seededLogo.current = true;
@@ -380,6 +457,7 @@ export default function BadgePage(_props: IslandProps) {
                   config={backdropConfig}
                   label="badge-backdrop"
                   maxDpr={lowPower ? 1 : 1.25}
+                  ref={backdropCanvasRef}
                   rootMargin="200px"
                   shaderSource={BADGE_BACKDROP_SHADER_SOURCE}
                 />
@@ -391,6 +469,7 @@ export default function BadgePage(_props: IslandProps) {
             <Suspense fallback={null}>
               {hydrated ? (
                 <BadgeLanyard
+                  faceCanvasRef={faceCanvasRef}
                   identity={{
                     accent: view.theme.accent,
                     company: view.company,
@@ -424,10 +503,8 @@ export default function BadgePage(_props: IslandProps) {
           />
 
           <div>
-            <h1 className="mb-16 text-heading-h1 text-text-base max-lg:[&_br]:hidden">
-              Your Connect 2026
-              <br />
-              badge
+            <h1 className="mb-16 text-heading-h1 text-balance text-text-base">
+              Your Connect 2026 badge
             </h1>
 
             <div className="flex flex-col gap-24 text-body-large text-text-base max-lg:[&_br]:hidden">
@@ -464,18 +541,38 @@ export default function BadgePage(_props: IslandProps) {
           </div>
 
           <div className="flex gap-12 max-sm:flex-col">
-            <Button onClick={copy} size="large" type="button">
-              <CopyFeedbackIcon copied={copied} />
-              <span>{copied ? "Copied" : "Copy badge link"}</span>
+            <Button
+              disabled={sharing}
+              onClick={onCopyShareable}
+              size="large"
+              type="button"
+            >
+              <CopyFeedbackIcon copied={shareCopied} />
+              <span>{shareCopied ? "Copied" : "Copy shareable card"}</span>
             </Button>
-            <Button href={REGISTER_URL} size="large" variant="secondary">
-              <span>Register now</span>
+            <Button
+              disabled={sharing}
+              onClick={onShareX}
+              size="large"
+              type="button"
+              variant="secondary"
+            >
+              <Icon name="x" size={20} />
+              <span>Share on X</span>
             </Button>
           </div>
         </div>
       </div>
 
       <div className="h-80" />
+      {sharePreview ? (
+        <BadgeShareDock
+          copied={shareCopied}
+          onDismiss={dismissShare}
+          src={sharePreview.src}
+          title={sharePreview.title}
+        />
+      ) : null}
     </div>
   );
 }

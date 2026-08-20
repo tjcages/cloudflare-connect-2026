@@ -32,8 +32,13 @@ import {
   createPrintFaceGeometry,
   roundedRect,
 } from "./badge-card-geometry";
+import { drawIdentity, type BadgeCardIdentity } from "./badge-identity";
 import { svgRasterSize } from "./badge-logo";
-import { badgePrintFieldRect, fadePrintField, type BadgePrintFieldRect } from "./badge-print-layout";
+import {
+  badgePrintFieldRect,
+  fadePrintField,
+  type BadgePrintFieldRect,
+} from "./badge-print-layout";
 import { BADGE_TUNE_DEFAULTS, type BadgeTune } from "./badge-tune";
 
 const LANYARD_URL = "/connect/badge-lanyard.glb";
@@ -79,18 +84,13 @@ const BONE_PARENT_LOOK = new Vector3();
 const BONE_WORLD_Q = new Quaternion();
 const BONE_PARENT_Q = new Quaternion();
 
-export type BadgeCardIdentity = {
-  name: string;
-  company: string;
-  role: string;
-  serial: string;
-  accent: string;
-};
+export type { BadgeCardIdentity };
 
 type BadgeLanyardProps = {
   twizzlerCanvas: RefObject<HTMLCanvasElement | null>;
   rainCanvas: RefObject<HTMLCanvasElement | null>;
   logoCanvas: RefObject<HTMLCanvasElement | null>;
+  faceCanvasRef?: RefObject<HTMLCanvasElement | null>;
   logoMarkSrc: string | null;
   printSrc: string;
   reducedMotion: boolean;
@@ -174,37 +174,6 @@ function drawFitted(
   }
 }
 
-function drawIdentity(
-  ctx: CanvasRenderingContext2D,
-  identity: BadgeCardIdentity,
-  width: number,
-  height: number,
-  footerBand: number
-) {
-  const footer = Math.round(height * footerBand);
-  const top = height - footer;
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, top, width, footer);
-
-  const s = width / 1024;
-  const pad = width * 0.08;
-  ctx.fillStyle = "#1a1a1a";
-  ctx.textBaseline = "top";
-  ctx.font = `400 ${Math.round(72 * s)}px "STK Bureau Sans", sans-serif`;
-  ctx.fillText(identity.name, pad, top + 28 * s, width - pad * 2);
-  ctx.font = `300 ${Math.round(40 * s)}px "STK Bureau Sans", sans-serif`;
-  ctx.fillStyle = "#5c5c5c";
-  ctx.fillText(identity.company, pad, top + 112 * s, width - pad * 2);
-  ctx.font = `400 ${Math.round(28 * s)}px "Paper Mono", ui-monospace, monospace`;
-  ctx.fillStyle = identity.accent;
-  ctx.fillText(
-    `${identity.role.toUpperCase()}  ·  ${identity.serial}`,
-    pad,
-    top + 168 * s,
-    width - pad * 2
-  );
-}
-
 function identityKey(
   identity: BadgeCardIdentity,
   logoMarkSrc: string | null,
@@ -278,7 +247,8 @@ function useHeroShaderTexture(
   logoCanvas: RefObject<HTMLCanvasElement | null>,
   logoMarkSrc: string | null,
   printSrc: string,
-  tune: BadgeTune
+  tune: BadgeTune,
+  faceCanvasRef?: RefObject<HTMLCanvasElement | null>
 ) {
   const skip = useRef(0);
   const lastKey = useRef("");
@@ -301,6 +271,16 @@ function useHeroShaderTexture(
       texture.dispose();
     };
   }, [texture]);
+
+  useEffect(() => {
+    if (!faceCanvasRef) return;
+    faceCanvasRef.current = texture.image as HTMLCanvasElement;
+    return () => {
+      if (faceCanvasRef.current === texture.image) {
+        faceCanvasRef.current = null;
+      }
+    };
+  }, [faceCanvasRef, texture]);
 
   useEffect(() => {
     if (shaderLive) bakedWhileFrozen.current = false;
@@ -375,7 +355,12 @@ function useHeroShaderTexture(
     const identityChanged = key !== lastKey.current;
     const logoLive = Boolean(logoMarkSrc);
     skip.current += 1;
-    if (!shaderLive && !logoLive && !identityChanged && bakedWhileFrozen.current) {
+    if (
+      !shaderLive &&
+      !logoLive &&
+      !identityChanged &&
+      bakedWhileFrozen.current
+    ) {
       return;
     }
     if (
@@ -455,7 +440,14 @@ function useHeroShaderTexture(
 
 function filterTriangles(
   geometry: BufferGeometry,
-  keep: (ax: number, ay: number, bx: number, by: number, cx: number, cy: number) => boolean
+  keep: (
+    ax: number,
+    ay: number,
+    bx: number,
+    by: number,
+    cx: number,
+    cy: number
+  ) => boolean
 ) {
   const position = geometry.attributes.position;
   const index = geometry.getIndex();
@@ -529,7 +521,9 @@ function classifyPart(y: number): LanyardPart {
   return "cord";
 }
 
-function splitByPart(geometry: BufferGeometry): Record<LanyardPart, BufferGeometry> {
+function splitByPart(
+  geometry: BufferGeometry
+): Record<LanyardPart, BufferGeometry> {
   const groups: Record<LanyardPart, number[]> = {
     metal: [],
     plastic: [],
@@ -552,9 +546,10 @@ function splitByPart(geometry: BufferGeometry): Record<LanyardPart, BufferGeomet
     const b = index.getX(i + 1);
     const c = index.getX(i + 2);
     vertex.fromBufferAttribute(position, a);
-    const y = (vertex.y +
-      vertex.fromBufferAttribute(position, b).y +
-      vertex.fromBufferAttribute(position, c).y) /
+    const y =
+      (vertex.y +
+        vertex.fromBufferAttribute(position, b).y +
+        vertex.fromBufferAttribute(position, c).y) /
       3;
     groups[classifyPart(y)].push(a, b, c);
   }
@@ -580,7 +575,11 @@ function skinAlongY(geometry: BufferGeometry, length: number) {
   const usable = Math.max(length, 0.001);
   for (let index = 0; index < position.count; index += 1) {
     vertex.fromBufferAttribute(position, index);
-    const along = MathUtils.clamp((vertex.y / usable) * CHAIN_BONES, 0, CHAIN_BONES);
+    const along = MathUtils.clamp(
+      (vertex.y / usable) * CHAIN_BONES,
+      0,
+      CHAIN_BONES
+    );
     const lower = Math.min(Math.floor(along), CHAIN_BONES - 1);
     const blend = along - lower;
     skinIndices.push(lower, lower + 1, 0, 0);
@@ -858,7 +857,10 @@ function applyWallShadow(rig: LanyardRig, tune: BadgeTune) {
     SHADOW_NUDGE.y - SHADOW_ORIGIN.y
   );
   rig.shadowUniforms.uFadeStart.value = tune.fadeStart;
-  rig.shadowUniforms.uFadeEnd.value = Math.max(tune.fadeEnd, tune.fadeStart + 0.01);
+  rig.shadowUniforms.uFadeEnd.value = Math.max(
+    tune.fadeEnd,
+    tune.fadeStart + 0.01
+  );
 
   for (const mesh of rig.shadows) {
     const material = mesh.material as ShaderMaterial;
@@ -944,7 +946,14 @@ function buildLanyardRig(
   const materials: Record<LanyardPart, MeshStandardMaterial> = {
     metal: makePartMaterial(sourceMaterial, METAL, 0.48, 0.28, !lowPower, 0.2),
     plastic: makePartMaterial(sourceMaterial, PLASTIC, 0.08, 0.5, !lowPower),
-    webbing: makePartMaterial(sourceMaterial, WEBBING, 0.4, 0.32, !lowPower, 0.14),
+    webbing: makePartMaterial(
+      sourceMaterial,
+      WEBBING,
+      0.4,
+      0.32,
+      !lowPower,
+      0.14
+    ),
     cord: makePartMaterial(sourceMaterial, CORD, 0.36, 0.34, !lowPower, 0.12),
   };
 
@@ -1111,18 +1120,24 @@ function applySway(rope: RopeState, follow: number) {
   }
 }
 
-function updateStretch(rope: RopeState, drag: Vector3 | null, dragLimitDown: number) {
+function updateStretch(
+  rope: RopeState,
+  drag: Vector3 | null,
+  dragLimitDown: number
+) {
   const last = rope.now.length - 1;
   const total = rope.rest * last;
   const target =
-    drag && drag.y < 0
-      ? 1 + Math.min(-drag.y, dragLimitDown) / total
-      : 1;
+    drag && drag.y < 0 ? 1 + Math.min(-drag.y, dragLimitDown) / total : 1;
   const mix = drag ? 0.28 : STRETCH_RETURN;
   rope.stretch += (target - rope.stretch) * mix;
 }
 
-function constrainRope(rope: RopeState, drag: Vector3 | null, stiffness: number) {
+function constrainRope(
+  rope: RopeState,
+  drag: Vector3 | null,
+  stiffness: number
+) {
   const last = rope.now.length - 1;
   const rest = rope.rest * rope.stretch;
   for (let iter = 0; iter < CONSTRAINT_ITERS; iter += 1) {
@@ -1224,11 +1239,18 @@ function applyRopeToBones(bones: Bone[], rope: RopeState) {
     if (BONE_PARENT_LOOK.lengthSq() < 1e-10) BONE_PARENT_LOOK.copy(Y_UP);
     else BONE_PARENT_LOOK.normalize();
     BONE_PARENT_Q.setFromUnitVectors(Y_UP, BONE_PARENT_LOOK);
-    bones[index]!.quaternion.copy(BONE_PARENT_Q).invert().multiply(BONE_WORLD_Q);
+    bones[index]!.quaternion.copy(BONE_PARENT_Q)
+      .invert()
+      .multiply(BONE_WORLD_Q);
   }
 }
 
-function applyCardTwist(card: Group, rope: RopeState, reducedMotion: boolean, tune: BadgeTune) {
+function applyCardTwist(
+  card: Group,
+  rope: RopeState,
+  reducedMotion: boolean,
+  tune: BadgeTune
+) {
   if (reducedMotion) {
     card.rotation.set(0, 0, 0);
     return;
@@ -1241,7 +1263,11 @@ function applyCardTwist(card: Group, rope: RopeState, reducedMotion: boolean, tu
     -tune.twistMax,
     tune.twistMax
   );
-  const roll = MathUtils.clamp(tip.x * tune.rollPos, -tune.rollMax, tune.rollMax);
+  const roll = MathUtils.clamp(
+    tip.x * tune.rollPos,
+    -tune.rollMax,
+    tune.rollMax
+  );
   card.rotation.y = MathUtils.lerp(card.rotation.y, twist, tune.twistSmooth);
   card.rotation.z = MathUtils.lerp(card.rotation.z, roll, tune.twistSmooth);
 }
@@ -1285,6 +1311,7 @@ function LanyardBadge({
   twizzlerCanvas,
   rainCanvas,
   logoCanvas,
+  faceCanvasRef,
   logoMarkSrc,
   printSrc,
   reducedMotion,
@@ -1309,7 +1336,8 @@ function LanyardBadge({
     logoCanvas,
     logoMarkSrc,
     printSrc,
-    tune
+    tune,
+    faceCanvasRef
   );
 
   const rig = useMemo(() => {
@@ -1409,7 +1437,15 @@ function LanyardBadge({
       canvas.removeEventListener("pointercancel", onUp);
       canvas.removeEventListener("pointerleave", onUp);
     };
-  }, [camera, gl, invalidate, rig, tune.dragLimitDown, tune.dragLimitX, tune.inwardZ]);
+  }, [
+    camera,
+    gl,
+    invalidate,
+    rig,
+    tune.dragLimitDown,
+    tune.dragLimitX,
+    tune.inwardZ,
+  ]);
 
   useFrame((state, delta) => {
     if (!rig) return;
@@ -1442,7 +1478,8 @@ function LanyardBadge({
       const material = child.material;
       if (Array.isArray(material) || !material) return;
       if ("emissiveIntensity" in material) {
-        (material as MeshStandardMaterial).emissiveIntensity = tune.cardEmissive;
+        (material as MeshStandardMaterial).emissiveIntensity =
+          tune.cardEmissive;
       }
       if ("roughness" in material) {
         (material as MeshStandardMaterial).roughness = tune.cardRoughness;
@@ -1507,6 +1544,7 @@ function BadgeScene({
   twizzlerCanvas,
   rainCanvas,
   logoCanvas,
+  faceCanvasRef,
   logoMarkSrc,
   printSrc,
   reducedMotion,
@@ -1529,9 +1567,14 @@ function BadgeScene({
         fov={tune.cameraFov}
         position={[tune.cameraX, tune.cameraY, tune.cameraZ]}
       />
-      <ambientLight intensity={lowPower ? Math.min(tune.ambient + 0.2, 1.2) : tune.ambient} />
+      <ambientLight
+        intensity={lowPower ? Math.min(tune.ambient + 0.2, 1.2) : tune.ambient}
+      />
       {lowPower ? (
-        <directionalLight intensity={tune.keyLight * 0.85} position={[5, 7, 8]} />
+        <directionalLight
+          intensity={tune.keyLight * 0.85}
+          position={[5, 7, 8]}
+        />
       ) : (
         <>
           <hemisphereLight args={["#fff1e4", "#1a1a1a", tune.hemi]} />
@@ -1545,6 +1588,7 @@ function BadgeScene({
         </>
       )}
       <LanyardBadge
+        faceCanvasRef={faceCanvasRef}
         identity={identity}
         logoCanvas={logoCanvas}
         logoMarkSrc={logoMarkSrc}
@@ -1566,6 +1610,7 @@ export default function BadgeLanyard({
   twizzlerCanvas,
   rainCanvas,
   logoCanvas,
+  faceCanvasRef,
   logoMarkSrc,
   printSrc,
   reducedMotion,
@@ -1597,6 +1642,7 @@ export default function BadgeLanyard({
       style={{ height: "100%", touchAction: "none", width: "100%" }}
     >
       <BadgeScene
+        faceCanvasRef={faceCanvasRef}
         identity={identity}
         logoCanvas={logoCanvas}
         logoMarkSrc={logoMarkSrc}

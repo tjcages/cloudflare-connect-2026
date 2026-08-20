@@ -353,8 +353,16 @@ describe("badge logo SVG prep", () => {
     expect(page).toContain("cardStripes");
     expect(page).toContain('fit: "width"');
     expect(page).toContain("whitePoint: 0.8");
-    expect(page).toContain("400 : 800");
-    expect(page).toContain("300 : 600");
+    expect(page).toContain("Copy shareable card");
+    expect(page).toContain("Share on X");
+    expect(page).toContain("text-balance");
+    expect(page).toContain("composeBadgeShareCard");
+    expect(page).toContain("BadgeShareDock");
+    expect(page).toContain("faceCanvasRef");
+    expect(page).toContain("backdropCanvasRef");
+    expect(page).not.toContain("Copy badge link");
+    expect(page).not.toContain("Register now");
+    expect(page).toContain("Your Connect 2026 badge");
     expect(LOGO_FILE_ACCEPT).toContain("image/jpeg");
     expect(LOGO_FILE_ACCEPT).toContain("image/webp");
 

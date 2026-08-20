@@ -157,7 +157,7 @@ export const BADGE_TUNE_DEFAULTS: BadgeTune = {
   logoScale: 1.12,
   logoPrintZoom: 2.2,
   logoMarkOpacity: 1,
-  footerBand: 0.205,
+  footerBand: 0.28,
   backdropZoom: 1,
   backdropMaskW: 62,
   backdropMaskH: 78,
@@ -363,4 +363,4 @@ export const BADGE_TUNE_FIELDS: PanelField<BadgeTune>[] = [
   slider("backdropMaskY", "Mask Y %", 0, 100, 1),
 ];
 
-export const BADGE_TUNE_PANEL_ID = "connect-badge-tune-v11";
+export const BADGE_TUNE_PANEL_ID = "connect-badge-tune-v12";
