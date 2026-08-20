@@ -29,6 +29,17 @@ export const SPEAKER_FACE_MASK_DEFAULTS: SpeakerFaceMaskSettings = {
 
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
 
+/** Iris progress at which the face hole starts fading in (orange is mostly gone). */
+export const SPEAKER_FACE_MASK_FADE_START = 0.55;
+
+/** 0 while orange still owns the face, 1 once the overlay iris has settled. */
+export const speakerFaceMaskFade = (irisProgress: number): number => {
+  if (irisProgress <= SPEAKER_FACE_MASK_FADE_START) return 0;
+  if (irisProgress >= 1) return 1;
+  const t = (irisProgress - SPEAKER_FACE_MASK_FADE_START) / (1 - SPEAKER_FACE_MASK_FADE_START);
+  return t * t * (3 - 2 * t);
+};
+
 export const speakerFaceMaskCircle = (aperture: Rect, mask: SpeakerFaceMaskSettings) => {
   const radius = Math.max(0, mask.radius) * Math.min(aperture.width, aperture.height);
   return {
@@ -48,8 +59,9 @@ export const punchSpeakerFaceMask = (
   context: CanvasRenderingContext2D,
   aperture: Rect,
   mask: SpeakerFaceMaskSettings,
+  clipRects: readonly Rect[] = [aperture],
 ) => {
-  if (!mask.enabled || mask.strength <= 0) return;
+  if (!mask.enabled || mask.strength <= 0 || clipRects.length === 0) return;
   const { cx, cy, radius, innerRadius } = speakerFaceMaskCircle(aperture, mask);
   if (radius < 0.5) return;
 
@@ -63,6 +75,11 @@ export const punchSpeakerFaceMask = (
   context.save();
   context.beginPath();
   context.rect(aperture.x, aperture.y, aperture.width, aperture.height);
+  context.clip();
+  context.beginPath();
+  for (const rect of clipRects) {
+    context.rect(rect.x, rect.y, rect.width, rect.height);
+  }
   context.clip();
   context.globalCompositeOperation = "destination-out";
   if (blurPx > 0) context.filter = `blur(${blurPx}px)`;

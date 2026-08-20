@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { punchSpeakerFaceMask, speakerFaceMaskCircle, SPEAKER_FACE_MASK_DEFAULTS } from "./speaker-face-mask";
+import {
+  punchSpeakerFaceMask,
+  speakerFaceMaskCircle,
+  speakerFaceMaskFade,
+  SPEAKER_FACE_MASK_DEFAULTS,
+  SPEAKER_FACE_MASK_FADE_START,
+} from "./speaker-face-mask";
 
 const aperture = { x: 40, y: 10, width: 200, height: 180 };
 
@@ -29,5 +35,14 @@ describe("speaker face mask", () => {
     } as unknown as CanvasRenderingContext2D;
     punchSpeakerFaceMask(context, aperture, { ...SPEAKER_FACE_MASK_DEFAULTS, enabled: false });
     punchSpeakerFaceMask(context, aperture, { ...SPEAKER_FACE_MASK_DEFAULTS, strength: 0 });
+    punchSpeakerFaceMask(context, aperture, SPEAKER_FACE_MASK_DEFAULTS, []);
+  });
+
+  it("keeps the hole off until orange has mostly left, then fades it onto the overlay", () => {
+    expect(speakerFaceMaskFade(0)).toBe(0);
+    expect(speakerFaceMaskFade(SPEAKER_FACE_MASK_FADE_START)).toBe(0);
+    expect(speakerFaceMaskFade((SPEAKER_FACE_MASK_FADE_START + 1) / 2)).toBeGreaterThan(0);
+    expect(speakerFaceMaskFade((SPEAKER_FACE_MASK_FADE_START + 1) / 2)).toBeLessThan(1);
+    expect(speakerFaceMaskFade(1)).toBe(1);
   });
 });

@@ -141,6 +141,18 @@ const frameProgress = (elapsedMs: number, options: { reducedMotion?: boolean; pr
   return speakerWiperProgress(elapsedMs, 0);
 };
 
+/** Overlay iris progress for one portrait, or null if that wipe has not started. */
+export const speakerWiperImageProgress = (
+  imageIndex: number,
+  startedAtMs: readonly (number | null)[],
+  nowMs: number,
+  options: { reducedMotion?: boolean; progressOverride?: number } = {},
+): number | null => {
+  const elapsedMs = frameElapsedMs(imageIndex, startedAtMs, nowMs, options);
+  if (elapsedMs == null) return null;
+  return frameProgress(elapsedMs, options);
+};
+
 type WipingFrame = {
   imageIndex: number;
   rect: Rect;

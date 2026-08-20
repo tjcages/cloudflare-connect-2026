@@ -14,6 +14,7 @@ import {
   speakerOverlayIrisRect,
   speakerWiperProgress,
   speakerWiperClockIsLive,
+  speakerWiperImageProgress,
   speakerWiperNeedsLiveClock,
   speakerWiperShouldEnter,
   speakerWiperShouldLeave,
@@ -300,5 +301,8 @@ describe("speaker frame wipers", () => {
   it("runs the iris clip in 900ms", () => {
     expect(SPEAKER_WIPER_DURATION_MS).toBe(900);
     expect(speakerWiperProgress(450, 0)).toBe(0.5);
+    expect(speakerWiperImageProgress(0, [null], 1_000)).toBeNull();
+    expect(speakerWiperImageProgress(0, [0], 450)).toBe(0.5);
+    expect(speakerWiperImageProgress(0, [9_000], 9_010, { reducedMotion: true })).toBe(1);
   });
 });
