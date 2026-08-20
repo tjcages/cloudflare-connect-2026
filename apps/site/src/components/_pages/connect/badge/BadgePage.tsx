@@ -147,11 +147,11 @@ export default function BadgePage(_props: IslandProps) {
     () => applyThemeToRain(view.theme, view.hash),
     [view.hash, view.theme]
   );
-  const printW = lowPower ? 384 : 768;
-  const printH = lowPower ? 576 : 1152;
+  const printW = lowPower ? 400 : 800;
+  const printH = lowPower ? 160 : 320;
   const captureClass = lowPower
-    ? "h-[450px] w-[300px]"
-    : "h-[960px] w-[640px]";
+    ? "h-[160px] w-[400px]"
+    : "h-[320px] w-[800px]";
   const backdropConfig = useMemo(() => {
     if (!lowPower) {
       return asThemedEngineConfig({
@@ -174,16 +174,14 @@ export default function BadgePage(_props: IslandProps) {
     () => ({
       ...cardTextureConfig({
         stripes: cardStripes(themeToStripeColors(view.theme)),
+        whitePoint: 0.81,
       }),
       maxFps: lowPower ? 10 : 30,
       clickWave: { enabled: false as const },
       cursorTrail: { enabled: false as const },
       reveal: { enabled: false as const },
-      edgeMask: {
-        enabled: false as const,
-      },
       transform: {
-        fit: "contain" as const,
+        fit: "cover" as const,
         zoom: tune.sourceZoom,
         panX: tune.sourcePanX,
         panY: tune.sourcePanY,

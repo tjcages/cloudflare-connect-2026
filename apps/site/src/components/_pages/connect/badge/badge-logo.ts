@@ -1,9 +1,14 @@
 export const SVG_MAX_BYTES = 400_000;
-export const BADGE_PLATE_W = 800;
+export const BADGE_PLATE_W = 1600;
+export const BADGE_PLATE_H = 640;
+export const BADGE_PLATE_VIEW_W = 800;
+export const BADGE_PLATE_VIEW_H = 320;
+/** Inset so the upload fills most of the landscape plate without clipping. */
+export const BADGE_PLATE_LOGO_PAD = 0.08;
 /** Pixel size of the longest edge when rasterizing the centered color mark. */
 export const BADGE_MARK_RASTER = 2048;
 /** Fallback plate when no SVG is loaded. */
-export const BADGE_PRINT_FIELD_SRC = "/connect/badge-print-field.svg?v=full";
+export const BADGE_PRINT_FIELD_SRC = "/connect/badge-print-field.svg?v=wide";
 
 const SCRIPT_RE = /<script\b[\s\S]*?<\/script>/gi;
 const FOREIGN_RE = /<foreignObject\b[\s\S]*?<\/foreignObject>/gi;
@@ -89,7 +94,30 @@ export function wrapSvg(
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${markW}" height="${markH}" viewBox="${viewBox}" color="#111111" shape-rendering="geometricPrecision"${fillAttr}>${inner}</svg>`;
 }
 
-/** Stylized SVG the stripe engine converts — full artwork, not a baked crop. */
+/** Place the upload large and centered in the landscape case-study plate. */
+export function badgePlateLogoRect(viewport: { w: number; h: number }): {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+} {
+  const innerW = BADGE_PLATE_VIEW_W * (1 - BADGE_PLATE_LOGO_PAD * 2);
+  const innerH = BADGE_PLATE_VIEW_H * (1 - BADGE_PLATE_LOGO_PAD * 2);
+  const scale = Math.min(
+    innerW / Math.max(viewport.w, 1),
+    innerH / Math.max(viewport.h, 1)
+  );
+  const w = viewport.w * scale;
+  const h = viewport.h * scale;
+  return {
+    x: (BADGE_PLATE_VIEW_W - w) / 2,
+    y: (BADGE_PLATE_VIEW_H - h) / 2,
+    w,
+    h,
+  };
+}
+
+/** Stylized SVG the stripe engine converts — landscape plate, logo centered. */
 export function badgeShaderPlateSvg(svgText: string): string {
   const safe = stripUnsafeSvg(svgText.trim());
   if (!/<svg[\s>]/i.test(safe)) {
@@ -104,13 +132,9 @@ export function badgeShaderPlateSvg(svgText: string): string {
     "url(#badge-print-lit)"
   );
   if (!inner) throw new Error("That SVG is empty.");
+  const slot = badgePlateLogoRect(viewport);
   const stroke = Math.max(viewport.w, viewport.h) * 0.012;
-  const pad = Math.max(viewport.w, viewport.h) * 2;
-  const plateH = Math.max(
-    1,
-    Math.round(BADGE_PLATE_W * (viewport.h / viewport.w))
-  );
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${BADGE_PLATE_W}" height="${plateH}" viewBox="${viewport.x} ${viewport.y} ${viewport.w} ${viewport.h}" preserveAspectRatio="xMidYMid meet"><defs><linearGradient id="badge-print-lit" x1="0.15" y1="0" x2="0.9" y2="1"><stop offset="0" stop-color="#b4b4b4"/><stop offset="0.42" stop-color="#5a5a5a"/><stop offset="1" stop-color="#1f1f1f"/></linearGradient></defs><rect x="${viewport.x - pad}" y="${viewport.y - pad}" width="${viewport.w + pad * 2}" height="${viewport.h + pad * 2}" fill="#000000"/><g fill="url(#badge-print-lit)" stroke="#ffffff" stroke-width="${stroke}" paint-order="stroke fill">${inner}</g></svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${BADGE_PLATE_W}" height="${BADGE_PLATE_H}" viewBox="0 0 ${BADGE_PLATE_VIEW_W} ${BADGE_PLATE_VIEW_H}" preserveAspectRatio="xMidYMid meet"><defs><linearGradient id="badge-print-lit" x1="0.15" y1="0" x2="0.9" y2="1"><stop offset="0" stop-color="#b4b4b4"/><stop offset="0.42" stop-color="#5a5a5a"/><stop offset="1" stop-color="#1f1f1f"/></linearGradient></defs><rect width="${BADGE_PLATE_VIEW_W}" height="${BADGE_PLATE_VIEW_H}" fill="#000000"/><svg x="${slot.x}" y="${slot.y}" width="${slot.w}" height="${slot.h}" viewBox="${viewport.x} ${viewport.y} ${viewport.w} ${viewport.h}" preserveAspectRatio="xMidYMid meet"><g fill="url(#badge-print-lit)" stroke="#ffffff" stroke-width="${stroke}" paint-order="stroke fill">${inner}</g></svg></svg>`;
 }
 
 export function prepareBadgeLogo(svgText: string): {

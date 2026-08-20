@@ -3,8 +3,11 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   BADGE_MARK_RASTER,
+  BADGE_PLATE_VIEW_H,
+  BADGE_PLATE_VIEW_W,
   BADGE_PRINT_FIELD_SRC,
   badgeMarkSvg,
+  badgePlateLogoRect,
   badgeShaderPlateSvg,
   extractSvgInner,
   paintSvgFills,
@@ -46,6 +49,9 @@ describe("badge logo SVG prep", () => {
       `<svg viewBox="0 0 40 20"><path fill="#123456" d="M0 0h40v20z"/></svg>`
     );
     expect(plate).toContain("M0 0h40v20z");
+    expect(plate).toContain('width="1600"');
+    expect(plate).toContain('height="640"');
+    expect(plate).toContain('viewBox="0 0 800 320"');
     expect(plate).toContain('viewBox="0 0 40 20"');
     expect(plate).toContain('preserveAspectRatio="xMidYMid meet"');
     expect(plate).toContain('fill="#000000"');
@@ -68,6 +74,14 @@ describe("badge logo SVG prep", () => {
       )
     ).not.toContain("#5865F2");
     expect(paintSvgFillsWhite(`fill="currentColor"`)).toBe(`fill="white"`);
+  });
+
+  it("centers a landscape logo large in the 800×320 plate", () => {
+    const slot = badgePlateLogoRect({ w: 40, h: 20 });
+    expect(slot.w).toBeGreaterThan(BADGE_PLATE_VIEW_W * 0.6);
+    expect(slot.h).toBeGreaterThan(BADGE_PLATE_VIEW_H * 0.7);
+    expect(slot.x + slot.w / 2).toBeCloseTo(BADGE_PLATE_VIEW_W / 2, 5);
+    expect(slot.y + slot.h / 2).toBeCloseTo(BADGE_PLATE_VIEW_H / 2, 5);
   });
 
   it("tints a mark to the theme fill", () => {
@@ -163,12 +177,14 @@ describe("badge logo SVG prep", () => {
     expect(field).toContain('fill="#000000"');
     expect(field).toContain('stroke="#ffffff"');
     expect(field).toContain("url(#badge-print-lit)");
-    expect(field).toContain('viewBox="0 0 276 122"');
+    expect(field).toContain('width="1600"');
+    expect(field).toContain('height="640"');
+    expect(field).toContain('viewBox="0 0 800 320"');
     expect(field).toContain('preserveAspectRatio="xMidYMid meet"');
     expect(field).toContain("M226.32 47.1364");
     expect(overlay).toContain("M29.818");
     expect(field).not.toContain("M29.818");
-    expect(BADGE_PRINT_FIELD_SRC).toBe("/connect/badge-print-field.svg?v=full");
+    expect(BADGE_PRINT_FIELD_SRC).toBe("/connect/badge-print-field.svg?v=wide");
 
     const shader = readFileSync(
       resolve(
@@ -216,7 +232,18 @@ describe("badge logo SVG prep", () => {
     expect(page).toContain("printSrc={plateSrc}");
     expect(page).toContain("h-760");
     expect(page).toContain("sourceZoom");
-    expect(page).toContain("fit: \"contain\"");
+    expect(page).toContain('fit: "cover"');
+    expect(page).toContain("whitePoint: 0.81");
+    expect(page).toContain("400 : 800");
+
+    const lanyard = readFileSync(
+      resolve(
+        process.cwd(),
+        "src/components/_pages/connect/badge/BadgeLanyard.tsx"
+      ),
+      "utf8"
+    );
+    expect(lanyard).toContain('"contain"');
     expect(page).not.toContain("src={logoMarkSrc");
     expect(page).not.toContain("<BadgeShaderSource");
   });

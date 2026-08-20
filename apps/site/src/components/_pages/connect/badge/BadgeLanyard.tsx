@@ -106,7 +106,7 @@ function cardLocalY(height: number, overlap: number) {
   return -(height / 2) + overlap;
 }
 
-function drawCover(
+function drawFitted(
   ctx: CanvasRenderingContext2D,
   source: HTMLCanvasElement,
   destX: number,
@@ -115,32 +115,63 @@ function drawCover(
   destH: number,
   zoom = 1,
   panX = 0,
-  panY = 0
+  panY = 0,
+  fit: "cover" | "contain" = "cover"
 ) {
   const sourceW = source.width;
   const sourceH = source.height;
   if (sourceW < 2 || sourceH < 2) return;
+  const z = Math.max(zoom, 0.05);
   const destAspect = destW / destH;
   const sourceAspect = sourceW / sourceH;
-  let sx = 0;
-  let sy = 0;
-  let sw = sourceW;
-  let sh = sourceH;
-  if (sourceAspect > destAspect) {
-    sw = sourceH * destAspect;
-    sx = (sourceW - sw) / 2;
-  } else {
-    sh = sourceW / destAspect;
-    sy = (sourceH - sh) / 2;
+
+  switch (fit) {
+    case "contain": {
+      let dw = destW;
+      let dh = destH;
+      if (sourceAspect > destAspect) dh = destW / sourceAspect;
+      else dw = destH * sourceAspect;
+      dw *= z;
+      dh *= z;
+      const dx = destX + (destW - dw) / 2 + panX * destW;
+      const dy = destY + (destH - dh) / 2 + panY * destH;
+      ctx.drawImage(source, 0, 0, sourceW, sourceH, dx, dy, dw, dh);
+      return;
+    }
+    case "cover": {
+      let sx = 0;
+      let sy = 0;
+      let sw = sourceW;
+      let sh = sourceH;
+      if (sourceAspect > destAspect) {
+        sw = sourceH * destAspect;
+        sx = (sourceW - sw) / 2;
+      } else {
+        sh = sourceW / destAspect;
+        sy = (sourceH - sh) / 2;
+      }
+      const cx = sx + sw / 2 + panX * sourceW;
+      const cy = sy + sh / 2 + panY * sourceH;
+      sw /= z;
+      sh /= z;
+      ctx.drawImage(
+        source,
+        cx - sw / 2,
+        cy - sh / 2,
+        sw,
+        sh,
+        destX,
+        destY,
+        destW,
+        destH
+      );
+      return;
+    }
+    default: {
+      const _never: never = fit;
+      return _never;
+    }
   }
-  const z = Math.max(zoom, 0.05);
-  const cx = sx + sw / 2 + panX * sourceW;
-  const cy = sy + sh / 2 + panY * sourceH;
-  sw /= z;
-  sh /= z;
-  sx = cx - sw / 2;
-  sy = cy - sh / 2;
-  ctx.drawImage(source, sx, sy, sw, sh, destX, destY, destW, destH);
 }
 
 function drawIdentity(
@@ -349,7 +380,7 @@ function useHeroShaderTexture(
     const rain = rainCanvas.current;
     const logoShader = logoCanvas.current;
     if (tune.printTwizzler && twizzler) {
-      drawCover(
+      drawFitted(
         ctx,
         twizzler,
         field.x,
@@ -358,11 +389,12 @@ function useHeroShaderTexture(
         field.h,
         tune.printZoom,
         tune.printPanX,
-        tune.printPanY
+        tune.printPanY,
+        "cover"
       );
     }
     if (tune.printRain && rain) {
-      drawCover(
+      drawFitted(
         ctx,
         rain,
         field.x,
@@ -371,11 +403,12 @@ function useHeroShaderTexture(
         field.h,
         tune.printZoom,
         tune.printPanX,
-        tune.printPanY
+        tune.printPanY,
+        "cover"
       );
     }
     if (logoShader) {
-      drawCover(
+      drawFitted(
         ctx,
         logoShader,
         field.x,
@@ -384,7 +417,8 @@ function useHeroShaderTexture(
         field.h,
         tune.printZoom * tune.logoPrintZoom,
         tune.printPanX,
-        tune.printPanY
+        tune.printPanY,
+        "contain"
       );
     }
     fadePrintField(ctx, field, tune.printFeather);
