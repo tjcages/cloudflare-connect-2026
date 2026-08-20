@@ -1,1 +1,7 @@
-export type ShaderTarget = "twizzler" | "rain" | "frames" | "agenda-rain";
+export type ShaderTarget =
+  | "twizzler"
+  | "rain"
+  | "frames"
+  | "agenda-rain"
+  | "cta"
+  | "footer";

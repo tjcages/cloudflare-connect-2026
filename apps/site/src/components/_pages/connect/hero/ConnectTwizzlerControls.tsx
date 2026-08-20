@@ -2,6 +2,16 @@ import type { TwizzlerSettings } from "@tjcages/connect-twizzler";
 import { FloatingPanel, PanelHeaderSelect } from "@tjcages/panels/dev";
 import { useCallback, useState } from "react";
 import {
+  CTA_SHADER_PANEL_ID,
+  loadCtaShaderSettings,
+  publishCtaShaderSettings,
+} from "@/components/cta/cta-shader-controls";
+import {
+  FOOTER_SHADER_PANEL_ID,
+  loadFooterShaderSettings,
+  publishFooterShaderSettings,
+} from "@/components/footer/footer-shader-controls";
+import {
   AGENDA_RAIN_PANEL_ID,
   loadAgendaRainSettings,
   publishAgendaRainSettings,
@@ -11,6 +21,16 @@ import {
   buildAgendaRainSections,
   seedAgendaRainPanelValues,
 } from "../panel/agendaRainFields";
+import {
+  buildCtaShaderSections,
+  ctaShaderFromPanelValues,
+  seedCtaShaderPanelValues,
+} from "../panel/ctaShaderFields";
+import {
+  buildFooterShaderSections,
+  footerShaderFromPanelValues,
+  seedFooterShaderPanelValues,
+} from "../panel/footerShaderFields";
 import { PanelSections, type PanelValues } from "../panel/panelSections";
 import {
   buildRainSections,
@@ -56,6 +76,8 @@ const SHADER_TARGET_OPTIONS: {
   { value: "rain", label: "Hero Rain" },
   { value: "frames", label: "Speaker Frames" },
   { value: "agenda-rain", label: "Agenda Rain" },
+  { value: "cta", label: "CTA Shader" },
+  { value: "footer", label: "Footer Shader" },
 ];
 
 const TARGET_STORAGE_KEY = "connect:shader-controls-target";
@@ -98,6 +120,16 @@ const scrollToTarget = (next: ShaderTarget) => {
     case "agenda-rain":
       document
         .querySelector("#agenda")
+        ?.scrollIntoView({ behavior, block: "start" });
+      return;
+    case "cta":
+      document
+        .querySelector("#register")
+        ?.scrollIntoView({ behavior, block: "start" });
+      return;
+    case "footer":
+      document
+        .querySelector("#site-footer")
         ?.scrollIntoView({ behavior, block: "start" });
       return;
     default: {
@@ -152,6 +184,12 @@ export default function ConnectTwizzlerControls({
   const [rainValues, setRainValues] = useState<PanelValues>(() =>
     seedAgendaRainPanelValues(loadAgendaRainSettings())
   );
+  const [ctaValues, setCtaValues] = useState<PanelValues>(() =>
+    seedCtaShaderPanelValues(loadCtaShaderSettings())
+  );
+  const [footerValues, setFooterValues] = useState<PanelValues>(() =>
+    seedFooterShaderPanelValues(loadFooterShaderSettings())
+  );
 
   const handleHeroChange = useCallback(
     (next: PanelValues) => {
@@ -187,6 +225,20 @@ export default function ConnectTwizzlerControls({
     publishAgendaRainSettings(settings);
   }, []);
 
+  const handleCtaChange = useCallback((next: PanelValues) => {
+    setCtaValues(next);
+    const settings = ctaShaderFromPanelValues(next);
+    persist(CTA_SHADER_PANEL_ID, settings);
+    publishCtaShaderSettings(settings);
+  }, []);
+
+  const handleFooterChange = useCallback((next: PanelValues) => {
+    setFooterValues(next);
+    const settings = footerShaderFromPanelValues(next);
+    persist(FOOTER_SHADER_PANEL_ID, settings);
+    publishFooterShaderSettings(settings);
+  }, []);
+
   const active = (() => {
     switch (target) {
       case "agenda-rain":
@@ -206,6 +258,18 @@ export default function ConnectTwizzlerControls({
           sections: buildSpeakerFramesSections(),
           values: frameValues,
           onChange: handleFramesChange,
+        };
+      case "cta":
+        return {
+          sections: buildCtaShaderSections(),
+          values: ctaValues,
+          onChange: handleCtaChange,
+        };
+      case "footer":
+        return {
+          sections: buildFooterShaderSections(),
+          values: footerValues,
+          onChange: handleFooterChange,
         };
       case "twizzler":
         return {
