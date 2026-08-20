@@ -396,6 +396,9 @@ describe("badge logo SVG prep", () => {
     expect(page).toContain("BadgeShareDock");
     expect(page).toContain("heroRef");
     expect(page).toContain("data-share-hide");
+    expect(page).toContain('data-share-layer="behind"');
+    expect(page).toContain("data-share-grid");
+    expect(page).toContain("data-share-mask");
     expect(page).toContain("justify-center");
     expect(page).not.toContain("Copy badge link");
     expect(page).not.toContain("Register now");
@@ -413,12 +416,13 @@ describe("badge logo SVG prep", () => {
     expect(dock).toContain("createPortal");
     expect(dock).toContain("z-10000");
     expect(dock).toContain("size-44");
-    expect(dock).toContain("shadow-elevation-default");
-    expect(dock).toContain("before:inside-border");
+    expect(dock).toContain("max-w-280");
+    expect(dock).toContain("shadow-elevation-default-drops");
     expect(dock).toContain("rounded-16");
     expect(dock).toContain("draggable");
     expect(dock).toContain("cross-small");
-    expect(dock).toContain("Right-click the image to save");
+    expect(dock).not.toContain("Right-click the image to save");
+    expect(dock).not.toContain("before:inside-border");
 
     const lanyard = readFileSync(
       resolve(

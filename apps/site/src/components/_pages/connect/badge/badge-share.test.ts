@@ -92,6 +92,9 @@ describe("badge share copy", () => {
     expect(source).toContain("shareStamp");
     expect(source).toContain("captureHeroShareFallback");
     expect(source).toContain("BADGE_SHARE_FILE");
+    expect(source).toContain("stampHeroGrid");
+    expect(source).toContain("data-share-layer");
+    expect(source).toContain("destination-in");
     expect(source).not.toContain("drawShareGrid");
   });
 });

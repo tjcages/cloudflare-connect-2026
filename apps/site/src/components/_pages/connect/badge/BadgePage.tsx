@@ -442,19 +442,20 @@ export default function BadgePage(_props: IslandProps) {
       >
         <HeroGrid
           aria-hidden="true"
-          className="pointer-events-none absolute -top-0.5 -right-0.5 -z-10 h-641 w-401 text-border-default max-lg:hidden"
+          className="pointer-events-none absolute -top-0.5 -right-0.5 z-0 h-641 w-401 text-border-default max-lg:hidden"
+          data-share-grid=""
         />
 
-        <div className="absolute inset-0 max-lg:relative max-lg:h-640">
+        <div className="absolute inset-0 z-1 max-lg:relative max-lg:h-640">
           {hydrated ? (
             <div
               aria-hidden="true"
               className="pointer-events-none absolute inset-0 z-0 overflow-visible"
-              data-share-hide=""
-              hidden={shareCapture}
             >
               <div
                 className="absolute top-0 right-0 h-full w-720 max-lg:w-full"
+                data-share-layer="behind"
+                data-share-mask={`${tune.backdropMaskW} ${tune.backdropMaskH} ${tune.backdropMaskX} ${tune.backdropMaskY}`}
                 style={{
                   maskImage: `radial-gradient(ellipse ${tune.backdropMaskW}% ${tune.backdropMaskH}% at ${tune.backdropMaskX}% ${tune.backdropMaskY}%, #000 16%, transparent 72%)`,
                   transform: `scale(${tune.backdropZoom})`,
@@ -584,7 +585,6 @@ export default function BadgePage(_props: IslandProps) {
       <div className="h-80" />
       {sharePreview ? (
         <BadgeShareDock
-          copied={shareCopied}
           onDismiss={dismissShare}
           src={sharePreview.src}
           title={sharePreview.title}
