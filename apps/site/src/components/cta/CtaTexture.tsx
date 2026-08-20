@@ -2,6 +2,7 @@ import {
   createCometLogoTextureRenderer,
   createStripesEngine,
   resolveThemedConfig,
+  type CometLogoSettings,
   type StripesEngine,
   type ThemeName,
 } from "@necatikcl/stripes-engine";
@@ -9,18 +10,21 @@ import { useEffect, useRef, useSyncExternalStore } from "react";
 import { asThemedEngineConfig } from "@/components/stripes-texture/config";
 import { useStripesOff } from "@/components/stripes-texture/stripes-debug";
 import {
-  CTA_COMET_LOGO_SETTINGS,
-  CTA_COMET_LOGO_SHAPE,
-  CTA_TEXTURE_CONFIG,
-} from "./texture-config";
+  cometSettingsFromCta,
+  CTA_SHADER_CURRENT,
+  CTA_SHADER_SETTINGS_EVENT,
+  ctaTextureConfigFromSettings,
+  loadCtaShaderSettings,
+  type CtaShaderSettings,
+} from "./cta-shader-controls";
+import { CTA_COMET_LOGO_SHAPE } from "./texture-config";
 
 const subscribeTheme = (onStoreChange: () => void) => {
   addEventListener("themechange", onStoreChange);
   return () => removeEventListener("themechange", onStoreChange);
 };
 
-const getTheme = (): ThemeName =>
-  document.documentElement.dataset.theme === "dark" ? "dark" : "light";
+const getTheme = (): ThemeName => (document.documentElement.dataset.theme === "dark" ? "dark" : "light");
 
 const getServerTheme = (): ThemeName | null => null;
 
@@ -29,25 +33,19 @@ const getServerTheme = (): ThemeName | null => null;
 const MAX_DPR = 2;
 
 const readDpr = (canvas: HTMLCanvasElement) =>
-  Math.min(window.devicePixelRatio || 1, MAX_DPR) *
-  (canvas.currentCSSZoom ?? 1);
+  Math.min(window.devicePixelRatio || 1, MAX_DPR) * (canvas.currentCSSZoom ?? 1);
 
 export default function CtaTexture() {
   const theme = useSyncExternalStore(subscribeTheme, getTheme, getServerTheme);
   const stripesOff = useStripesOff();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<StripesEngine | null>(null);
-
-  const config = resolveThemedConfig(
-    asThemedEngineConfig({
-      ...CTA_TEXTURE_CONFIG,
-      stripesEnabled: !stripesOff,
-      dark: { ...CTA_TEXTURE_CONFIG.dark, stripesEnabled: !stripesOff },
-    }),
-    theme ?? "light"
-  );
-  const configRef = useRef(config);
-  configRef.current = config;
+  const settingsRef = useRef<CtaShaderSettings>(CTA_SHADER_CURRENT);
+  const cometRef = useRef<Partial<CometLogoSettings>>(cometSettingsFromCta(CTA_SHADER_CURRENT));
+  const stripesOffRef = useRef(stripesOff);
+  stripesOffRef.current = stripesOff;
+  const themeRef = useRef(theme);
+  themeRef.current = theme;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -66,7 +64,28 @@ export default function CtaTexture() {
     });
     engineRef.current = engine;
 
-    engine.setConfig(configRef.current);
+    const applySettings = (settings: CtaShaderSettings) => {
+      settingsRef.current = settings;
+      cometRef.current = cometSettingsFromCta(settings);
+      const texture = ctaTextureConfigFromSettings(settings);
+      engine.setConfig(
+        resolveThemedConfig(
+          asThemedEngineConfig({
+            ...texture,
+            stripesEnabled: !stripesOffRef.current && texture.stripesEnabled !== false,
+            dark: {
+              ...texture.dark,
+              stripesEnabled:
+                !stripesOffRef.current && (texture.dark?.stripesEnabled ?? texture.stripesEnabled) !== false,
+            },
+          }),
+          themeRef.current ?? "light",
+        ),
+      );
+      canvas.style.opacity = String(settings.shaderOpacity);
+    };
+
+    applySettings(loadCtaShaderSettings());
     engine.resize(size.width, size.height);
     engine.setSource(comet.canvas);
 
@@ -89,7 +108,7 @@ export default function CtaTexture() {
       lastMs = now;
 
       timeSec += deltaSec;
-      comet.render(timeSec, pointer, CTA_COMET_LOGO_SETTINGS);
+      comet.render(timeSec, pointer, cometRef.current);
       engine.updateSourceFrame(comet.canvas);
     };
 
@@ -131,11 +150,7 @@ export default function CtaTexture() {
 
     const hitTest = (clientX: number, clientY: number) => {
       const rect = canvas.getBoundingClientRect();
-      const hit =
-        clientX >= rect.left &&
-        clientX <= rect.right &&
-        clientY >= rect.top &&
-        clientY <= rect.bottom;
+      const hit = clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom;
       if (hit) {
         const zoom = canvas.currentCSSZoom ?? 1;
         const width = rect.width / zoom;
@@ -178,10 +193,7 @@ export default function CtaTexture() {
       )
         return;
       const zoom = canvas.currentCSSZoom ?? 1;
-      engine.click(
-        (event.clientX - rect.left) / zoom,
-        (event.clientY - rect.top) / zoom
-      );
+      engine.click((event.clientX - rect.left) / zoom, (event.clientY - rect.top) / zoom);
     };
 
     const onPrimaryEnter = () => {
@@ -195,12 +207,17 @@ export default function CtaTexture() {
     primary?.addEventListener("pointerenter", onPrimaryEnter);
     primary?.addEventListener("pointerleave", onPrimaryLeave);
 
+    const onSettings = (event: Event) => {
+      applySettings((event as CustomEvent<CtaShaderSettings>).detail);
+    };
+
     renderObserver.observe(canvas);
     resizeObserver.observe(canvas);
     window.addEventListener("pointermove", onPointerMove);
     window.addEventListener("pointerdown", onPointerDown);
     window.addEventListener("scroll", onScroll, true);
     document.addEventListener("pointerleave", onDocumentLeave);
+    window.addEventListener(CTA_SHADER_SETTINGS_EVENT, onSettings);
 
     return () => {
       primary?.removeEventListener("pointerenter", onPrimaryEnter);
@@ -211,6 +228,7 @@ export default function CtaTexture() {
       window.removeEventListener("pointerdown", onPointerDown);
       window.removeEventListener("scroll", onScroll, true);
       document.removeEventListener("pointerleave", onDocumentLeave);
+      window.removeEventListener(CTA_SHADER_SETTINGS_EVENT, onSettings);
       stop();
       engine.dispose();
       comet.dispose();
@@ -219,8 +237,23 @@ export default function CtaTexture() {
   }, []);
 
   useEffect(() => {
-    engineRef.current?.setConfig(config);
-  }, [config]);
+    const engine = engineRef.current;
+    if (!engine) return;
+    const texture = ctaTextureConfigFromSettings(settingsRef.current);
+    engine.setConfig(
+      resolveThemedConfig(
+        asThemedEngineConfig({
+          ...texture,
+          stripesEnabled: !stripesOff && texture.stripesEnabled !== false,
+          dark: {
+            ...texture.dark,
+            stripesEnabled: !stripesOff && (texture.dark?.stripesEnabled ?? texture.stripesEnabled) !== false,
+          },
+        }),
+        theme ?? "light",
+      ),
+    );
+  }, [stripesOff, theme]);
 
   return (
     <canvas
