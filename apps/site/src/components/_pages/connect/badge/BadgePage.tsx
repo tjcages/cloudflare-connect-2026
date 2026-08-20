@@ -37,8 +37,10 @@ import {
   readSvgFile,
   revokeLogoUrl,
   svgToBlobUrl,
+  svgToObjectUrl,
 } from "./badge-logo";
 import BadgeLogoUpload from "./BadgeLogoUpload";
+import BadgePrintShader from "./BadgePrintShader";
 import {
   badgeSharePath,
   DEFAULT_BADGE_PARAMS,
@@ -95,7 +97,7 @@ export default function BadgePage(_props: IslandProps) {
   });
   const twizzlerRef = useRef<HTMLCanvasElement>(null);
   const rainRef = useRef<HTMLCanvasElement>(null);
-  const logoRef = useRef<HTMLCanvasElement>(null);
+  const logoRef = useRef<HTMLCanvasElement | null>(null);
   const logoSessionRef = useRef<BadgeLogoSession | null>(null);
   const seededLogo = useRef(false);
   const [params, setParams] = useState<BadgeParams>(DEFAULT_BADGE_PARAMS);
@@ -155,6 +157,8 @@ export default function BadgePage(_props: IslandProps) {
     () => applyThemeToRain(view.theme, view.hash),
     [view.hash, view.theme]
   );
+  const printW = lowPower ? 384 : 768;
+  const printH = lowPower ? 576 : 1152;
   const captureClass = lowPower
     ? "h-[450px] w-[300px]"
     : "h-[960px] w-[640px]";
@@ -177,16 +181,15 @@ export default function BadgePage(_props: IslandProps) {
     });
   }, [lowPower]);
   const logoConfig = useMemo(
-    () =>
-      asThemedEngineConfig({
-        ...cardTextureConfig({
-          stripes: cardStripes(themeToStripeColors(view.theme)),
-        }),
-        maxFps: lowPower ? 10 : 30,
-        clickWave: { enabled: false },
-        cursorTrail: { enabled: false },
-        reveal: { enabled: false },
+    () => ({
+      ...cardTextureConfig({
+        stripes: cardStripes(themeToStripeColors(view.theme)),
       }),
+      maxFps: lowPower ? 10 : 30,
+      clickWave: { enabled: false as const },
+      cursorTrail: { enabled: false as const },
+      reveal: { enabled: false as const },
+    }),
     [lowPower, view.theme]
   );
 
@@ -213,7 +216,7 @@ export default function BadgePage(_props: IslandProps) {
         replaceLogo({
           fileName: file.name,
           sourceSvg,
-          textureUrl: svgToBlobUrl(prepared.textureSvg),
+          textureUrl: svgToObjectUrl(prepared.textureSvg),
         });
         setLogoError(null);
       } catch (error) {
@@ -238,7 +241,7 @@ export default function BadgePage(_props: IslandProps) {
         replaceLogo({
           fileName: "Cloudflare.svg",
           sourceSvg,
-          textureUrl: svgToBlobUrl(prepared.textureSvg),
+          textureUrl: svgToObjectUrl(prepared.textureSvg),
         });
       } catch {
         // Upload still works without the demo mark.
@@ -299,23 +302,15 @@ export default function BadgePage(_props: IslandProps) {
       ) : null}
 
       {hydrated && logo ? (
-        <div
-          aria-hidden="true"
-          className={`pointer-events-none fixed top-0 left-[-2000px] z-0 ${captureClass}`}
-        >
-          <StripesShader
-            autoPlay={!reducedMotion}
-            className="size-full"
-            config={logoConfig}
-            label="badge-logo"
-            maxDpr={lowPower ? 1 : 1.5}
-            mediaKind="image"
-            preloadRootMargin="4000px"
-            ref={logoRef}
-            rootMargin="4000px"
-            src={logo.textureUrl}
-          />
-        </div>
+        <BadgePrintShader
+          canvasRef={logoRef}
+          config={logoConfig}
+          height={printH}
+          maxDpr={lowPower ? 1 : 1.5}
+          paused={reducedMotion}
+          src={logo.textureUrl}
+          width={printW}
+        />
       ) : null}
 
       <div className="relative h-640 overflow-x-visible before:inside-border-b before:border-border-default max-lg:h-auto">

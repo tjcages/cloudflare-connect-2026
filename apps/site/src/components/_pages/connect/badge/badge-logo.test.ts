@@ -41,6 +41,8 @@ describe("badge logo SVG prep", () => {
     expect(prepared.textureSvg).toContain('fill="black"');
     expect(prepared.textureSvg).toContain('width="800"');
     expect(prepared.textureSvg).toContain('height="1200"');
+    expect(prepared.textureSvg).toContain("<circle");
+    expect(prepared.textureSvg).toContain('fill="black"');
     expect(paintSvgFillsWhite(`fill="#abc" stroke="#def"`)).toBe(
       `fill="white" stroke="white"`
     );

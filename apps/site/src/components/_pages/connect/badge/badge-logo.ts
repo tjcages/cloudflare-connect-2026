@@ -102,8 +102,19 @@ export function prepareBadgeLogo(svgText: string): {
   const drawnH = viewport.h * scale;
   const x = (LOGO_TEXTURE_W - drawnW) / 2;
   const y = (contentH - drawnH) / 2;
-  const textureSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="${LOGO_TEXTURE_W}" height="${LOGO_TEXTURE_H}" viewBox="0 0 ${LOGO_TEXTURE_W} ${LOGO_TEXTURE_H}"><rect width="${LOGO_TEXTURE_W}" height="${LOGO_TEXTURE_H}" fill="black"/><svg x="${x}" y="${y}" width="${drawnW}" height="${drawnH}" viewBox="${viewBox}" fill="white">${whiteInner}</svg></svg>`;
+  const textureSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="${LOGO_TEXTURE_W}" height="${LOGO_TEXTURE_H}" viewBox="0 0 ${LOGO_TEXTURE_W} ${LOGO_TEXTURE_H}">${badgeTextureFieldMarkup(LOGO_TEXTURE_W, LOGO_TEXTURE_H)}<svg x="${x}" y="${y}" width="${drawnW}" height="${drawnH}" viewBox="${viewBox}" fill="white">${whiteInner}</svg></svg>`;
   return { colorSvg, markSvg, textureSvg };
+}
+
+/** Soft white orbs on black — the same luminance field case-study cards feed the stripe shader. */
+export function badgeTextureFieldMarkup(width: number, height: number): string {
+  return [
+    `<rect width="${width}" height="${height}" fill="black"/>`,
+    `<circle cx="${Math.round(width * 0.22)}" cy="${Math.round(height * -0.04)}" r="${Math.round(width * 0.52)}" fill="white" opacity="0.28"/>`,
+    `<circle cx="0" cy="${Math.round(height * 0.72)}" r="${Math.round(width * 0.7)}" fill="white" opacity="0.22"/>`,
+    `<circle cx="${Math.round(width * 0.9)}" cy="${Math.round(height * -0.05)}" r="${Math.round(width * 0.58)}" fill="white" opacity="0.18"/>`,
+    `<circle cx="${Math.round(width * 0.7)}" cy="${Math.round(height * 0.82)}" r="${Math.round(width * 0.64)}" fill="white" opacity="0.24"/>`,
+  ].join("");
 }
 
 export function badgeMarkSvg(svgText: string, fill: string): string {
@@ -119,6 +130,10 @@ export function badgeMarkSvg(svgText: string, fill: string): string {
 
 export function svgToBlobUrl(svgText: string): string {
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgText)}`;
+}
+
+export function svgToObjectUrl(svgText: string): string {
+  return URL.createObjectURL(new Blob([svgText], { type: "image/svg+xml" }));
 }
 
 export function revokeLogoUrl(url: string) {
