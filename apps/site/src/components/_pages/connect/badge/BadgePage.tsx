@@ -2,6 +2,7 @@
 
 import { StripesShader } from "@necatikcl/stripes-engine/react";
 import { ConnectTwizzler } from "@tjcages/connect-twizzler/react";
+import { usePanel } from "@tjcages/panels/dev";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import Button from "@/components/Button";
 import {
@@ -24,6 +25,11 @@ import {
   BADGE_BACKDROP_CONFIG,
   BADGE_BACKDROP_SHADER_SOURCE,
 } from "./badge-backdrop-config";
+import {
+  BADGE_TUNE_DEFAULTS,
+  BADGE_TUNE_FIELDS,
+  BADGE_TUNE_PANEL_ID,
+} from "./badge-tune";
 import BadgeCustomizer from "./BadgeCustomizer";
 import {
   prepareBadgeLogo,
@@ -76,10 +82,20 @@ function themeToStripeColors(theme: BadgeTheme): StripeColors {
 const BadgeLanyard = lazy(() => import("./BadgeLanyard"));
 
 export default function BadgePage(_props: IslandProps) {
+  const [tune] = usePanel({
+    id: BADGE_TUNE_PANEL_ID,
+    title: "Badge",
+    defaults: BADGE_TUNE_DEFAULTS,
+    fields: BADGE_TUNE_FIELDS,
+    defaultOpen: true,
+    defaultTheme: "dark",
+    prompts: [],
+  });
   const twizzlerRef = useRef<HTMLCanvasElement>(null);
   const rainRef = useRef<HTMLCanvasElement>(null);
   const logoRef = useRef<HTMLCanvasElement>(null);
   const logoSessionRef = useRef<BadgeLogoSession | null>(null);
+  const seededLogo = useRef(false);
   const [params, setParams] = useState<BadgeParams>(DEFAULT_BADGE_PARAMS);
   const [hydrated, setHydrated] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
@@ -198,6 +214,30 @@ export default function BadgePage(_props: IslandProps) {
     })();
   };
 
+  useEffect(() => {
+    if (!hydrated || seededLogo.current) return;
+    seededLogo.current = true;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const response = await fetch("/connect/badge-demo-logo.svg");
+        if (!response.ok) return;
+        const prepared = prepareBadgeLogo(await response.text());
+        if (cancelled || logoSessionRef.current) return;
+        replaceLogo({
+          fileName: "Cloudflare.svg",
+          markUrl: svgToBlobUrl(prepared.markSvg),
+          textureUrl: svgToBlobUrl(prepared.textureSvg),
+        });
+      } catch {
+        // Upload still works without the demo mark.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [hydrated]);
+
   return (
     <div className="relative mx-auto max-w-1200">
       <Scramble
@@ -243,7 +283,7 @@ export default function BadgePage(_props: IslandProps) {
         </div>
       ) : null}
 
-      {hydrated && logo ? (
+      {hydrated && logo && tune.logoEnabled ? (
         <div
           aria-hidden="true"
           className={`pointer-events-none fixed top-[1200px] left-[-2000px] z-0 ${logoCaptureClass}`}
@@ -277,10 +317,10 @@ export default function BadgePage(_props: IslandProps) {
               <div
                 className="absolute top-0 right-0 h-full w-720 max-lg:w-full"
                 style={{
-                  maskImage:
-                    "radial-gradient(ellipse 62% 78% at 62% 44%, #000 16%, transparent 72%)",
-                  WebkitMaskImage:
-                    "radial-gradient(ellipse 62% 78% at 62% 44%, #000 16%, transparent 72%)",
+                  maskImage: `radial-gradient(ellipse ${tune.backdropMaskW}% ${tune.backdropMaskH}% at ${tune.backdropMaskX}% ${tune.backdropMaskY}%, #000 16%, transparent 72%)`,
+                  transform: `scale(${tune.backdropZoom})`,
+                  transformOrigin: `${tune.backdropMaskX}% ${tune.backdropMaskY}%`,
+                  WebkitMaskImage: `radial-gradient(ellipse ${tune.backdropMaskW}% ${tune.backdropMaskH}% at ${tune.backdropMaskX}% ${tune.backdropMaskY}%, #000 16%, transparent 72%)`,
                 }}
               >
                 <StripesShader
@@ -308,11 +348,14 @@ export default function BadgePage(_props: IslandProps) {
                     serial: view.serial,
                   }}
                   logoCanvas={logoRef}
-                  logoMarkSrc={logo?.markUrl ?? null}
+                  logoMarkSrc={
+                    tune.logoEnabled ? (logo?.markUrl ?? null) : null
+                  }
                   lowPower={lowPower}
                   rainCanvas={rainRef}
                   reducedMotion={reducedMotion}
                   shaderLive={shaderLive}
+                  tune={tune}
                   twizzlerCanvas={twizzlerRef}
                 />
               ) : null}
@@ -343,8 +386,8 @@ export default function BadgePage(_props: IslandProps) {
                 Grab it and pull — the lanyard wiggles back.
               </p>
               <p>
-                Pick a color scheme. Upload an SVG to print your logo on the
-                badge — this tab only, not in the link.
+                Pick a color scheme. The Cloudflare mark is printed through the
+                same case-study stripe texture — swap it with your own SVG.
               </p>
               <BadgeCustomizer onChange={setParams} params={params} />
               <BadgeLogoUpload

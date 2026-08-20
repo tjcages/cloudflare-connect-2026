@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   extractSvgInner,
@@ -61,5 +63,16 @@ describe("badge logo SVG prep", () => {
         })
       )
     ).resolves.toContain("<svg");
+  });
+
+  it("prepares the seeded Cloudflare mark", () => {
+    const svg = readFileSync(
+      resolve(process.cwd(), "public/connect/badge-demo-logo.svg"),
+      "utf8"
+    );
+    const prepared = prepareBadgeLogo(svg);
+    expect(prepared.markSvg).toContain('fill="white"');
+    expect(prepared.textureSvg).toContain('fill="black"');
+    expect(extractSvgInner(svg)).toContain("<path");
   });
 });

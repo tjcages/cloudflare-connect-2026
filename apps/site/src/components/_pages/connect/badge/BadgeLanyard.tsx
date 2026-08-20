@@ -17,6 +17,7 @@ import {
   MeshBasicMaterial,
   MeshPhysicalMaterial,
   MeshStandardMaterial,
+  PerspectiveCamera as ThreePerspectiveCamera,
   Quaternion,
   ShaderMaterial,
   Shape,
@@ -27,9 +28,9 @@ import {
   Vector2,
   Vector3,
 } from "three";
+import { BADGE_TUNE_DEFAULTS, type BadgeTune } from "./badge-tune";
 
 const LANYARD_URL = "/connect/badge-lanyard.glb";
-const MODEL_SCALE = 16;
 const TEXTURE_W = 768;
 const TEXTURE_H = 1152;
 const TEXTURE_W_LOW = 384;
@@ -40,46 +41,22 @@ const CLIP_CLUSTER_Y1 = 0.135;
 const WING_CUT_X = 0.02;
 const LEFT_TASSEL_X = -0.02;
 const CHAIN_BONES = 8;
-const GRAVITY = -0.85;
-const DAMPING_TIP = 0.95;
-const DAMPING_CORD = 0.98;
-const DAMPING_Y = 0.9;
 const CONSTRAINT_ITERS = 3;
-const CONSTRAINT_STIFFNESS = 0.32;
-const DRAG_FOLLOW = 0.12;
-const REST_PULL = 0.01;
-const SWAY_FOLLOW = 0.16;
 const SLEEP_EPS = 0.0009;
-const DRAG_LIMIT_X = 0.28;
 const DRAG_LIMIT_UP = 0;
-const DRAG_LIMIT_DOWN = 0.042;
 const STRETCH_RETURN = 0.1;
 const INTRO_X = 0.1;
 const INTRO_Z = -0.018;
 const INTRO_SPIN = 0.006;
-const INWARD_Z = 0.2;
-const TWIST_POS = 4.2;
-const TWIST_VEL = 10;
-const TWIST_MAX = 0.72;
-const TWIST_SMOOTH = 0.055;
-const ROLL_POS = 0.42;
-const ROLL_MAX = 0.2;
 
-const CARD_W = 0.1;
-const CARD_H = 0.158;
-const CARD_D = 0.003;
-const CARD_RADIUS = 0.013;
-const SHADER_INSET = 0.0035;
-const CARD_OVERLAP = 0.006;
-const CARD_LOCAL_Y = -(CARD_H / 2) + CARD_OVERLAP;
-const HANG_Y = -CARD_LOCAL_Y * MODEL_SCALE;
-const HANG_LIFT = 0.38;
-const WALL_Z = -0.09;
-const SHADOW_OPACITY = 0.4;
-const SHADOW_SOFT_OPACITY = 0.2;
-const SHADOW_INFLATE = 0.032;
-const SHADOW_LIGHT_DIR = new Vector3(-0.55, -0.14, -1).normalize();
-const SHADOW_NUDGE_LOCAL = new Vector3(-0.01, -0.002, 0);
+const SHADOW_OPACITY = BADGE_TUNE_DEFAULTS.shadowOpacity;
+const SHADOW_SOFT_OPACITY = BADGE_TUNE_DEFAULTS.shadowSoftOpacity;
+const SHADOW_INFLATE = BADGE_TUNE_DEFAULTS.inflate;
+const SHADOW_LIGHT_DIR = new Vector3(
+  BADGE_TUNE_DEFAULTS.lightX,
+  BADGE_TUNE_DEFAULTS.lightY,
+  BADGE_TUNE_DEFAULTS.lightZ
+).normalize();
 
 const ACCENT = "#f46021";
 const METAL = ACCENT;
@@ -113,9 +90,14 @@ type BadgeLanyardProps = {
   identity: BadgeCardIdentity;
   lowPower: boolean;
   shaderLive: boolean;
+  tune: BadgeTune;
 };
 
 type LanyardPart = "metal" | "plastic" | "webbing" | "cord";
+
+function cardLocalY(height: number, overlap: number) {
+  return -(height / 2) + overlap;
+}
 
 function roundedRect(width: number, height: number, radius: number) {
   const shape = new Shape();
@@ -140,7 +122,10 @@ function drawCover(
   destX: number,
   destY: number,
   destW: number,
-  destH: number
+  destH: number,
+  zoom = 1,
+  panX = 0,
+  panY = 0
 ) {
   const sourceW = source.width;
   const sourceH = source.height;
@@ -158,6 +143,13 @@ function drawCover(
     sh = sourceW / destAspect;
     sy = (sourceH - sh) / 2;
   }
+  const z = Math.max(zoom, 0.05);
+  const cx = sx + sw / 2 + panX * sourceW;
+  const cy = sy + sh / 2 + panY * sourceH;
+  sw /= z;
+  sh /= z;
+  sx = cx - sw / 2;
+  sy = cy - sh / 2;
   ctx.drawImage(source, sx, sy, sw, sh, destX, destY, destW, destH);
 }
 
@@ -165,9 +157,10 @@ function drawIdentity(
   ctx: CanvasRenderingContext2D,
   identity: BadgeCardIdentity,
   width: number,
-  height: number
+  height: number,
+  footerBand: number
 ) {
-  const footer = Math.round(height * 0.2);
+  const footer = Math.round(height * footerBand);
   const top = height - footer;
   const fade = ctx.createLinearGradient(0, top, 0, height);
   fade.addColorStop(0, "rgba(255,255,255,0)");
@@ -197,9 +190,10 @@ function drawIdentity(
 
 function identityKey(
   identity: BadgeCardIdentity,
-  logoMarkSrc: string | null
+  logoMarkSrc: string | null,
+  printKey: string
 ) {
-  return `${identity.name}|${identity.company}|${identity.role}|${identity.serial}|${identity.accent}|${logoMarkSrc ?? ""}`;
+  return `${identity.name}|${identity.company}|${identity.role}|${identity.serial}|${identity.accent}|${logoMarkSrc ?? ""}|${printKey}`;
 }
 
 function containSize(srcW: number, srcH: number, maxW: number, maxH: number) {
@@ -223,35 +217,45 @@ function drawLogoBand(
   shader: HTMLCanvasElement | null,
   mark: HTMLImageElement | null,
   width: number,
-  height: number
+  height: number,
+  tune: BadgeTune
 ) {
-  if (!shader && !mark) return;
-  const bandH = Math.round(height * 0.28);
-  const padX = width * 0.14;
-  const padY = height * 0.055;
-  const maxW = width - padX * 2;
-  const maxH = bandH - padY;
-  const srcW = mark?.naturalWidth || shader?.width || maxW;
-  const srcH = mark?.naturalHeight || shader?.height || maxH;
-  const fit = containSize(srcW, srcH, maxW, maxH);
+  if (!tune.logoEnabled || !mark || mark.naturalWidth < 1) return;
+  const bandH = Math.round(height * tune.logoBand);
+  const padX = width * tune.logoPadX;
+  const padY = height * tune.logoPadY;
+  const maxW = (width - padX * 2) * tune.logoScale;
+  const maxH = Math.max(bandH - padY, 1) * tune.logoScale;
+  const fit = containSize(mark.naturalWidth, mark.naturalHeight, maxW, maxH);
   const dx = (width - fit.w) / 2;
   const dy = padY + (maxH - fit.h) / 2;
   if (shader && shader.width > 1) {
     const scratch = getLogoScratch(width, bandH);
     const scratchCtx = scratch.getContext("2d");
     if (scratchCtx) {
+      scratchCtx.setTransform(1, 0, 0, 1, 0, 0);
+      scratchCtx.globalCompositeOperation = "source-over";
       scratchCtx.clearRect(0, 0, width, bandH);
-      drawCover(scratchCtx, shader, 0, 0, width, bandH);
-      if (mark && mark.naturalWidth > 0) {
-        scratchCtx.globalCompositeOperation = "destination-in";
-        scratchCtx.drawImage(mark, dx, dy, fit.w, fit.h);
-        scratchCtx.globalCompositeOperation = "source-over";
-      }
+      drawCover(
+        scratchCtx,
+        shader,
+        dx,
+        dy,
+        fit.w,
+        fit.h,
+        tune.logoPrintZoom
+      );
+      scratchCtx.globalCompositeOperation = "destination-in";
+      scratchCtx.drawImage(mark, dx, dy, fit.w, fit.h);
+      scratchCtx.globalCompositeOperation = "source-over";
       ctx.drawImage(scratch, 0, 0);
     }
   }
-  if (mark && mark.naturalWidth > 0) {
+  if (tune.logoMarkOpacity > 0) {
+    ctx.save();
+    ctx.globalAlpha = Math.min(tune.logoMarkOpacity, 1);
     ctx.drawImage(mark, dx, dy, fit.w, fit.h);
+    ctx.restore();
   }
 }
 
@@ -262,7 +266,8 @@ function useHeroShaderTexture(
   lowPower: boolean,
   shaderLive: boolean,
   logoCanvas: RefObject<HTMLCanvasElement | null>,
-  logoMarkSrc: string | null
+  logoMarkSrc: string | null,
+  tune: BadgeTune
 ) {
   const skip = useRef(0);
   const lastKey = useRef("");
@@ -309,7 +314,21 @@ function useHeroShaderTexture(
   }, [logoMarkSrc]);
 
   useFrame(() => {
-    const key = `${identityKey(identity, logoMarkSrc)}|${markGeneration.current}`;
+    const printKey = [
+      tune.printZoom,
+      tune.printPanX,
+      tune.printPanY,
+      tune.printTwizzler,
+      tune.printRain,
+      tune.logoBand,
+      tune.logoPadX,
+      tune.logoPadY,
+      tune.logoScale,
+      tune.logoPrintZoom,
+      tune.logoMarkOpacity,
+      tune.footerBand,
+    ].join("|");
+    const key = `${identityKey(identity, logoMarkSrc, printKey)}|${markGeneration.current}`;
     const identityChanged = key !== lastKey.current;
     const logoLive = Boolean(logoMarkSrc);
     skip.current += 1;
@@ -330,16 +349,41 @@ function useHeroShaderTexture(
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     const twizzler = twizzlerCanvas.current;
     const rain = rainCanvas.current;
-    if (twizzler) drawCover(ctx, twizzler, 0, 0, canvas.width, canvas.height);
-    if (rain) drawCover(ctx, rain, 0, 0, canvas.width, canvas.height);
+    if (tune.printTwizzler && twizzler) {
+      drawCover(
+        ctx,
+        twizzler,
+        0,
+        0,
+        canvas.width,
+        canvas.height,
+        tune.printZoom,
+        tune.printPanX,
+        tune.printPanY
+      );
+    }
+    if (tune.printRain && rain) {
+      drawCover(
+        ctx,
+        rain,
+        0,
+        0,
+        canvas.width,
+        canvas.height,
+        tune.printZoom,
+        tune.printPanX,
+        tune.printPanY
+      );
+    }
     drawLogoBand(
       ctx,
       logoCanvas.current,
       markImage.current,
       canvas.width,
-      canvas.height
+      canvas.height,
+      tune
     );
-    drawIdentity(ctx, identity, canvas.width, canvas.height);
+    drawIdentity(ctx, identity, canvas.width, canvas.height, tune.footerBand);
     texture.needsUpdate = true;
     lastKey.current = key;
     if (!shaderLive) bakedWhileFrozen.current = true;
@@ -544,43 +588,47 @@ function hookXFromMetal(geometry: BufferGeometry): number {
 function createBadgeCard(
   texture: Texture,
   hookX: number,
-  lowPower: boolean
+  lowPower: boolean,
+  tune: BadgeTune
 ): { card: Group; body: Mesh } {
   const card = new Group();
-  card.position.set(hookX, CARD_LOCAL_Y, 0);
+  card.position.set(hookX, cardLocalY(tune.cardHeight, tune.cardOverlap), 0);
 
-  const bodyGeometry = new ExtrudeGeometry(roundedRect(CARD_W, CARD_H, CARD_RADIUS), {
-    depth: CARD_D,
-    bevelEnabled: false,
-    steps: 1,
-  });
-  bodyGeometry.translate(0, 0, -CARD_D / 2);
+  const bodyGeometry = new ExtrudeGeometry(
+    roundedRect(tune.cardWidth, tune.cardHeight, tune.cardRadius),
+    {
+      depth: tune.cardDepth,
+      bevelEnabled: false,
+      steps: 1,
+    }
+  );
+  bodyGeometry.translate(0, 0, -tune.cardDepth / 2);
   const body = new Mesh(
     bodyGeometry,
     lowPower
       ? new MeshStandardMaterial({
           color: "#ffffff",
           emissive: "#ffffff",
-          emissiveIntensity: 0.32,
+          emissiveIntensity: Math.min(tune.cardEmissive, 0.35),
           metalness: 0,
-          roughness: 0.22,
+          roughness: Math.max(tune.cardRoughness, 0.22),
           toneMapped: false,
         })
       : new MeshPhysicalMaterial({
           color: "#ffffff",
           emissive: "#ffffff",
-          emissiveIntensity: 0.42,
+          emissiveIntensity: tune.cardEmissive,
           metalness: 0,
-          roughness: 0.18,
-          clearcoat: 0.45,
+          roughness: tune.cardRoughness,
+          clearcoat: tune.cardClearcoat,
           clearcoatRoughness: 0.28,
           envMapIntensity: 0.15,
           toneMapped: false,
         })
   );
-  const faceWidth = CARD_W - SHADER_INSET * 2;
-  const faceHeight = CARD_H - SHADER_INSET * 2;
-  const faceRadius = Math.max(CARD_RADIUS - SHADER_INSET, 0.001);
+  const faceWidth = tune.cardWidth - tune.shaderInset * 2;
+  const faceHeight = tune.cardHeight - tune.shaderInset * 2;
+  const faceRadius = Math.max(tune.cardRadius - tune.shaderInset, 0.001);
   const faceGeometry = new ExtrudeGeometry(
     roundedRect(faceWidth, faceHeight, faceRadius),
     {
@@ -597,7 +645,7 @@ function createBadgeCard(
       toneMapped: false,
     })
   );
-  face.position.z = CARD_D / 2 + 0.0008;
+  face.position.z = tune.cardDepth / 2 + 0.0008;
   card.add(body);
   card.add(face);
   return { card, body };
@@ -612,6 +660,8 @@ uniform vec3 uLightDir;
 uniform vec2 uNudge;
 uniform float uInflate;
 uniform float uOpacity;
+uniform float uFadeStart;
+uniform float uFadeEnd;
 
 varying float vAlpha;
 
@@ -635,7 +685,7 @@ void main() {
   world.xy += nxy * uInflate;
   world.z = uWallZ;
 
-  vAlpha = uOpacity * (1.0 - smoothstep(2.2, 4.8, t));
+  vAlpha = uOpacity * (1.0 - smoothstep(uFadeStart, uFadeEnd, t));
   gl_Position = projectionMatrix * viewMatrix * world;
 }
 `;
@@ -652,6 +702,8 @@ type ShadowUniforms = {
   uWallZ: { value: number };
   uLightDir: { value: Vector3 };
   uNudge: { value: Vector2 };
+  uFadeStart: { value: number };
+  uFadeEnd: { value: number };
 };
 
 function createSilhouetteMaterial(
@@ -664,6 +716,8 @@ function createSilhouetteMaterial(
       uWallZ: uniforms.uWallZ,
       uLightDir: uniforms.uLightDir,
       uNudge: uniforms.uNudge,
+      uFadeStart: uniforms.uFadeStart,
+      uFadeEnd: uniforms.uFadeEnd,
       uInflate: { value: inflate },
       uOpacity: { value: opacity },
     },
@@ -701,6 +755,8 @@ function createWallShadows(options: {
     uWallZ: { value: 0 },
     uLightDir: { value: SHADOW_LIGHT_DIR.clone() },
     uNudge: { value: new Vector2() },
+    uFadeStart: { value: BADGE_TUNE_DEFAULTS.fadeStart },
+    uFadeEnd: { value: BADGE_TUNE_DEFAULTS.fadeEnd },
   };
   const layers = options.lowPower
     ? [{ inflate: 0.004, opacity: SHADOW_OPACITY, order: -1 }]
@@ -731,12 +787,15 @@ function createWallShadows(options: {
   return { shadows, uniforms };
 }
 
-function applyWallShadow(rig: LanyardRig) {
-  WALL_WORLD.set(0, 0, WALL_Z);
+function applyWallShadow(rig: LanyardRig, tune: BadgeTune) {
+  WALL_WORLD.set(0, 0, tune.wallZ);
   rig.group.localToWorld(WALL_WORLD);
   rig.shadowUniforms.uWallZ.value = WALL_WORLD.z;
+  rig.shadowUniforms.uLightDir.value
+    .set(tune.lightX, tune.lightY, tune.lightZ)
+    .normalize();
 
-  SHADOW_NUDGE.copy(SHADOW_NUDGE_LOCAL);
+  SHADOW_NUDGE.set(tune.nudgeX, tune.nudgeY, 0);
   rig.group.localToWorld(SHADOW_NUDGE);
   SHADOW_ORIGIN.set(0, 0, 0);
   rig.group.localToWorld(SHADOW_ORIGIN);
@@ -744,6 +803,18 @@ function applyWallShadow(rig: LanyardRig) {
     SHADOW_NUDGE.x - SHADOW_ORIGIN.x,
     SHADOW_NUDGE.y - SHADOW_ORIGIN.y
   );
+  rig.shadowUniforms.uFadeStart.value = tune.fadeStart;
+  rig.shadowUniforms.uFadeEnd.value = Math.max(tune.fadeEnd, tune.fadeStart + 0.01);
+
+  for (const mesh of rig.shadows) {
+    const material = mesh.material as ShaderMaterial;
+    const inflate = material.uniforms.uInflate?.value as number | undefined;
+    material.uniforms.uOpacity.value =
+      inflate && inflate > 0.01 ? tune.shadowSoftOpacity : tune.shadowOpacity;
+    if (typeof inflate === "number" && inflate > 0.01) {
+      material.uniforms.uInflate.value = tune.inflate;
+    }
+  }
 }
 
 type RopeState = {
@@ -781,7 +852,8 @@ function disposeShadows(rig: LanyardRig) {
 function buildLanyardRig(
   source: Mesh,
   texture: Texture,
-  lowPower: boolean
+  lowPower: boolean,
+  tune: BadgeTune
 ): LanyardRig {
   const geometry = (source.geometry as BufferGeometry).clone();
   source.updateWorldMatrix(true, false);
@@ -846,7 +918,7 @@ function buildLanyardRig(
   }
 
   const hookX = hookXFromMetal(parts.metal);
-  const { card, body } = createBadgeCard(texture, hookX, lowPower);
+  const { card, body } = createBadgeCard(texture, hookX, lowPower, tune);
   root.add(card);
   const { shadows, uniforms } = createWallShadows({
     lanyardGeometry: geometry,
@@ -916,13 +988,14 @@ function solveDistance(
   b: Vector3,
   rest: number,
   pinA: boolean,
-  pinB: boolean
+  pinB: boolean,
+  stiffness: number
 ) {
   const dx = b.x - a.x;
   const dy = b.y - a.y;
   const dz = b.z - a.z;
   const dist = Math.hypot(dx, dy, dz) || 0.0001;
-  const shift = ((dist - rest) / dist) * CONSTRAINT_STIFFNESS;
+  const shift = ((dist - rest) / dist) * stiffness;
   const px = dx * shift;
   const py = dy * shift;
   const pz = dz * shift;
@@ -972,30 +1045,30 @@ function kickIntroSwing(rope: RopeState) {
   projectInextensible(rope);
 }
 
-function applySway(rope: RopeState) {
+function applySway(rope: RopeState, follow: number) {
   const last = rope.now.length - 1;
   const tip = rope.now[0]!;
   for (let index = 1; index < last; index += 1) {
     const along = 1 - index / last;
     const lag = along * along;
     const point = rope.now[index]!;
-    point.x += (tip.x * lag - point.x) * SWAY_FOLLOW;
-    point.z += (tip.z * lag - point.z) * SWAY_FOLLOW;
+    point.x += (tip.x * lag - point.x) * follow;
+    point.z += (tip.z * lag - point.z) * follow;
   }
 }
 
-function updateStretch(rope: RopeState, drag: Vector3 | null) {
+function updateStretch(rope: RopeState, drag: Vector3 | null, dragLimitDown: number) {
   const last = rope.now.length - 1;
   const total = rope.rest * last;
   const target =
     drag && drag.y < 0
-      ? 1 + Math.min(-drag.y, DRAG_LIMIT_DOWN) / total
+      ? 1 + Math.min(-drag.y, dragLimitDown) / total
       : 1;
   const mix = drag ? 0.28 : STRETCH_RETURN;
   rope.stretch += (target - rope.stretch) * mix;
 }
 
-function constrainRope(rope: RopeState, drag: Vector3 | null) {
+function constrainRope(rope: RopeState, drag: Vector3 | null, stiffness: number) {
   const last = rope.now.length - 1;
   const rest = rope.rest * rope.stretch;
   for (let iter = 0; iter < CONSTRAINT_ITERS; iter += 1) {
@@ -1005,7 +1078,8 @@ function constrainRope(rope: RopeState, drag: Vector3 | null) {
         rope.now[index + 1]!,
         rest,
         false,
-        index + 1 === last
+        index + 1 === last,
+        stiffness
       );
     }
     rope.now[last]!.copy(rope.pin);
@@ -1028,7 +1102,8 @@ function stepRope(
   rope: RopeState,
   drag: Vector3 | null,
   dt: number,
-  reducedMotion: boolean
+  reducedMotion: boolean,
+  tune: BadgeTune
 ) {
   const last = rope.now.length - 1;
   if (reducedMotion) {
@@ -1041,13 +1116,13 @@ function stepRope(
     return;
   }
 
-  const gravity = GRAVITY * dt * dt;
+  const gravity = tune.gravity * dt * dt;
   for (let index = 0; index < last; index += 1) {
     const point = rope.now[index]!;
     const previous = rope.prev[index]!;
-    const damp = index === 0 ? DAMPING_TIP : DAMPING_CORD;
+    const damp = index === 0 ? tune.dampingTip : tune.dampingCord;
     const vx = (point.x - previous.x) * damp;
-    const vy = (point.y - previous.y) * DAMPING_Y;
+    const vy = (point.y - previous.y) * tune.dampingY;
     const vz = (point.z - previous.z) * damp;
     previous.copy(point);
     point.x += vx;
@@ -1057,20 +1132,20 @@ function stepRope(
 
   if (drag) {
     const tip = rope.now[0]!;
-    tip.x += (drag.x - tip.x) * DRAG_FOLLOW;
-    tip.y += (drag.y - tip.y) * DRAG_FOLLOW * 0.7;
-    tip.z += (drag.z - tip.z) * DRAG_FOLLOW;
+    tip.x += (drag.x - tip.x) * tune.dragFollow;
+    tip.y += (drag.y - tip.y) * tune.dragFollow * 0.7;
+    tip.z += (drag.z - tip.z) * tune.dragFollow;
   }
 
-  updateStretch(rope, drag);
-  constrainRope(rope, drag);
+  updateStretch(rope, drag, tune.dragLimitDown);
+  constrainRope(rope, drag, tune.constraintStiffness);
 
   if (!drag) {
     const tip = rope.now[0]!;
-    tip.x += -tip.x * REST_PULL;
-    tip.z += -tip.z * REST_PULL;
+    tip.x += -tip.x * tune.restPull;
+    tip.z += -tip.z * tune.restPull;
   }
-  applySway(rope);
+  applySway(rope, tune.swayFollow);
   projectInextensible(rope, rope.rest * rope.stretch);
   rope.now[last]!.copy(rope.pin);
 }
@@ -1099,7 +1174,7 @@ function applyRopeToBones(bones: Bone[], rope: RopeState) {
   }
 }
 
-function applyCardTwist(card: Group, rope: RopeState, reducedMotion: boolean) {
+function applyCardTwist(card: Group, rope: RopeState, reducedMotion: boolean, tune: BadgeTune) {
   if (reducedMotion) {
     card.rotation.set(0, 0, 0);
     return;
@@ -1108,13 +1183,13 @@ function applyCardTwist(card: Group, rope: RopeState, reducedMotion: boolean) {
   const previous = rope.prev[0]!;
   const velX = tip.x - previous.x;
   const twist = MathUtils.clamp(
-    -tip.x * TWIST_POS - velX * TWIST_VEL,
-    -TWIST_MAX,
-    TWIST_MAX
+    -tip.x * tune.twistPos - velX * tune.twistVel,
+    -tune.twistMax,
+    tune.twistMax
   );
-  const roll = MathUtils.clamp(tip.x * ROLL_POS, -ROLL_MAX, ROLL_MAX);
-  card.rotation.y = MathUtils.lerp(card.rotation.y, twist, TWIST_SMOOTH);
-  card.rotation.z = MathUtils.lerp(card.rotation.z, roll, TWIST_SMOOTH);
+  const roll = MathUtils.clamp(tip.x * tune.rollPos, -tune.rollMax, tune.rollMax);
+  card.rotation.y = MathUtils.lerp(card.rotation.y, twist, tune.twistSmooth);
+  card.rotation.z = MathUtils.lerp(card.rotation.z, roll, tune.twistSmooth);
 }
 
 function tintLanyardMetal(
@@ -1161,10 +1236,12 @@ function LanyardBadge({
   identity,
   lowPower,
   shaderLive,
+  tune,
 }: BadgeLanyardProps) {
   const { gl, camera, viewport, size, invalidate } = useThree();
   const { scene } = useGLTF(LANYARD_URL);
   const groupRef = useRef<Group>(null);
+  const scaleRef = useRef<Group>(null);
   const dragging = useRef(false);
   const dragOffset = useRef(new Vector3());
   const dragTarget = useRef(new Vector3());
@@ -1175,7 +1252,8 @@ function LanyardBadge({
     lowPower,
     shaderLive,
     logoCanvas,
-    logoMarkSrc
+    logoMarkSrc,
+    tune
   );
 
   const rig = useMemo(() => {
@@ -1184,8 +1262,18 @@ function LanyardBadge({
       if (!source && (child as Mesh).isMesh) source = child as Mesh;
     });
     if (!source) return null;
-    return buildLanyardRig(source, texture, lowPower);
-  }, [lowPower, scene, texture]);
+    return buildLanyardRig(source, texture, lowPower, tune);
+  }, [
+    lowPower,
+    scene,
+    texture,
+    tune.cardRadius,
+    tune.cardWidth,
+    tune.cardHeight,
+    tune.cardDepth,
+    tune.cardOverlap,
+    tune.shaderInset,
+  ]);
 
   useEffect(() => {
     if (!rig) return;
@@ -1194,10 +1282,8 @@ function LanyardBadge({
   }, [identity.accent, invalidate, rig]);
 
   useEffect(() => {
-    if (!rig || reducedMotion) return;
-    kickIntroSwing(rig.rope);
     invalidate();
-  }, [invalidate, reducedMotion, rig]);
+  }, [invalidate, tune]);
 
   useEffect(() => {
     if (!rig) return;
@@ -1239,15 +1325,15 @@ function LanyardBadge({
       rig.group.worldToLocal(local);
       const x = MathUtils.clamp(
         local.x + dragOffset.current.x,
-        -DRAG_LIMIT_X,
-        DRAG_LIMIT_X
+        -tune.dragLimitX,
+        tune.dragLimitX
       );
       const y = MathUtils.clamp(
         local.y + dragOffset.current.y,
-        -DRAG_LIMIT_DOWN,
+        -tune.dragLimitDown,
         DRAG_LIMIT_UP
       );
-      dragTarget.current.set(x, y, -x * INWARD_Z);
+      dragTarget.current.set(x, y, -x * tune.inwardZ);
       invalidate();
     };
 
@@ -1268,7 +1354,7 @@ function LanyardBadge({
       canvas.removeEventListener("pointercancel", onUp);
       canvas.removeEventListener("pointerleave", onUp);
     };
-  }, [camera, gl, invalidate, rig]);
+  }, [camera, gl, invalidate, rig, tune.dragLimitDown, tune.dragLimitX, tune.inwardZ]);
 
   useFrame((state, delta) => {
     if (!rig) return;
@@ -1277,16 +1363,36 @@ function LanyardBadge({
       rig.rope,
       dragging.current ? dragTarget.current : null,
       dt,
-      reducedMotion
+      reducedMotion,
+      tune
     );
     applyRopeToBones(rig.bones, rig.rope);
-    applyCardTwist(rig.card, rig.rope, reducedMotion);
-    applyWallShadow(rig);
+    applyCardTwist(rig.card, rig.rope, reducedMotion, tune);
+    applyWallShadow(rig, tune);
     const hang = groupRef.current;
+    const localY = cardLocalY(tune.cardHeight, tune.cardOverlap);
     if (hang) {
-      hang.position.x = rightColumnWorldX(size.width, viewport.width);
-      hang.position.y = HANG_Y + HANG_LIFT;
+      hang.position.x =
+        rightColumnWorldX(size.width, viewport.width) + tune.hangX;
+      hang.position.y = -localY * tune.modelScale + tune.hangLift;
+      hang.position.z = tune.hangZ;
     }
+    const scaled = scaleRef.current;
+    if (scaled) scaled.scale.setScalar(tune.modelScale);
+    rig.card.traverse((child) => {
+      if (!(child instanceof Mesh)) return;
+      const material = child.material;
+      if (Array.isArray(material) || !material) return;
+      if ("emissiveIntensity" in material) {
+        (material as MeshStandardMaterial).emissiveIntensity = tune.cardEmissive;
+      }
+      if ("roughness" in material) {
+        (material as MeshStandardMaterial).roughness = tune.cardRoughness;
+      }
+      if ("clearcoat" in material) {
+        (material as MeshPhysicalMaterial).clearcoat = tune.cardClearcoat;
+      }
+    });
     if (
       dragging.current ||
       shaderLive ||
@@ -1319,15 +1425,20 @@ function LanyardBadge({
           0
         );
         const tip = rig.rope.now[0]!;
-        dragTarget.current.set(tip.x, tip.y, -tip.x * INWARD_Z);
+        dragTarget.current.set(tip.x, tip.y, -tip.x * tune.inwardZ);
         gl.domElement.style.cursor = "grabbing";
         gl.domElement.setPointerCapture(event.pointerId);
         invalidate();
       }}
-      position={[0, HANG_Y + HANG_LIFT, 0]}
+      position={[
+        0,
+        -cardLocalY(tune.cardHeight, tune.cardOverlap) * tune.modelScale +
+          tune.hangLift,
+        tune.hangZ,
+      ]}
       ref={groupRef}
     >
-      <group scale={MODEL_SCALE}>
+      <group ref={scaleRef} scale={tune.modelScale}>
         <primitive object={rig.group} />
       </group>
     </group>
@@ -1343,21 +1454,33 @@ function BadgeScene({
   identity,
   lowPower,
   shaderLive,
+  tune,
 }: BadgeLanyardProps) {
+  const { camera } = useThree();
+  useFrame(() => {
+    if (!(camera instanceof ThreePerspectiveCamera)) return;
+    camera.fov = tune.cameraFov;
+    camera.position.set(tune.cameraX, tune.cameraY, tune.cameraZ);
+    camera.updateProjectionMatrix();
+  });
   return (
     <>
-      <PerspectiveCamera makeDefault fov={30} position={[0, 0.15, 8]} />
-      <ambientLight intensity={lowPower ? 0.78 : 0.58} />
+      <PerspectiveCamera
+        makeDefault
+        fov={tune.cameraFov}
+        position={[tune.cameraX, tune.cameraY, tune.cameraZ]}
+      />
+      <ambientLight intensity={lowPower ? Math.min(tune.ambient + 0.2, 1.2) : tune.ambient} />
       {lowPower ? (
-        <directionalLight intensity={1.2} position={[5, 7, 8]} />
+        <directionalLight intensity={tune.keyLight * 0.85} position={[5, 7, 8]} />
       ) : (
         <>
-          <hemisphereLight args={["#fff1e4", "#1a1a1a", 0.5]} />
-          <directionalLight intensity={1.45} position={[5, 7, 8]} />
-          <directionalLight intensity={0.7} position={[-6, 3, 5]} />
+          <hemisphereLight args={["#fff1e4", "#1a1a1a", tune.hemi]} />
+          <directionalLight intensity={tune.keyLight} position={[5, 7, 8]} />
+          <directionalLight intensity={tune.fillLight} position={[-6, 3, 5]} />
           <directionalLight
             color={identity.accent}
-            intensity={0.7}
+            intensity={tune.rimLight}
             position={[2, -1, 6]}
           />
         </>
@@ -1370,6 +1493,7 @@ function BadgeScene({
         rainCanvas={rainCanvas}
         reducedMotion={reducedMotion}
         shaderLive={shaderLive}
+        tune={tune}
         twizzlerCanvas={twizzlerCanvas}
       />
     </>
@@ -1387,10 +1511,14 @@ export default function BadgeLanyard({
   identity,
   lowPower,
   shaderLive,
+  tune,
 }: BadgeLanyardProps) {
   return (
     <Canvas
-      camera={{ fov: 30, position: [0, 0.15, 8] }}
+      camera={{
+        fov: tune.cameraFov,
+        position: [tune.cameraX, tune.cameraY, tune.cameraZ],
+      }}
       dpr={lowPower ? 1 : [1, 1.5]}
       frameloop="demand"
       gl={{
@@ -1415,6 +1543,7 @@ export default function BadgeLanyard({
         rainCanvas={rainCanvas}
         reducedMotion={reducedMotion}
         shaderLive={shaderLive}
+        tune={tune}
         twizzlerCanvas={twizzlerCanvas}
       />
     </Canvas>
