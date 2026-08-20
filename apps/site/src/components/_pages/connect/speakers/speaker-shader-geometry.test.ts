@@ -3,13 +3,12 @@ import {
   buildPartialFramePlan,
   createCursorFrame,
   cursorFrameRect,
-  FLOATING_FRAME_COUNT,
   intersectRects,
   mapClientPointToRoot,
   measureRelativeRect,
   objectCoverSourceRect,
   moveCursorFrame,
-  resolveFloatingFrames,
+  resolveAuthoredFrames,
   resolvePortraitBands,
 } from "./speaker-shader-geometry";
 
@@ -32,32 +31,20 @@ describe("speaker shader geometry", () => {
       width: 280,
       height: 320,
     });
-    expect(
-      mapClientPointToRoot(380, 320, domRect(80, 120, 600, 400), 2)
-    ).toEqual({
+    expect(mapClientPointToRoot(380, 320, domRect(80, 120, 600, 400), 2)).toEqual({
       x: 150,
       y: 100,
     });
   });
 
   it("matches top-centered object-cover for portrait and landscape sources", () => {
-    expect(
-      objectCoverSourceRect(
-        { width: 600, height: 900 },
-        { width: 320, height: 320 }
-      )
-    ).toEqual({
+    expect(objectCoverSourceRect({ width: 600, height: 900 }, { width: 320, height: 320 })).toEqual({
       x: 0,
       y: 0,
       width: 600,
       height: 600,
     });
-    expect(
-      objectCoverSourceRect(
-        { width: 1200, height: 600 },
-        { width: 320, height: 320 }
-      )
-    ).toEqual({
+    expect(objectCoverSourceRect({ width: 1200, height: 600 }, { width: 320, height: 320 })).toEqual({
       x: 300,
       y: 0,
       width: 600,
@@ -67,10 +54,7 @@ describe("speaker shader geometry", () => {
 
   it("returns no shader coverage when frames miss every portrait", () => {
     expect(
-      buildPartialFramePlan(
-        [{ x: 300, y: 0, width: 40, height: 40 }],
-        [{ x: 0, y: 0, width: 200, height: 200 }]
-      )
+      buildPartialFramePlan([{ x: 300, y: 0, width: 40, height: 40 }], [{ x: 0, y: 0, width: 200, height: 200 }]),
     ).toEqual({
       maskFragments: [],
       outlines: [{ x: 300, y: 0, width: 40, height: 40 }],
@@ -79,12 +63,9 @@ describe("speaker shader geometry", () => {
   });
 
   it("clips shader pixels to frame–portrait intersections", () => {
-    expect(
-      intersectRects(
-        { x: 160, y: 20, width: 200, height: 120 },
-        { x: 0, y: 0, width: 240, height: 200 }
-      )
-    ).toEqual({ x: 160, y: 20, width: 80, height: 120 });
+    expect(intersectRects({ x: 160, y: 20, width: 200, height: 120 }, { x: 0, y: 0, width: 240, height: 200 })).toEqual(
+      { x: 160, y: 20, width: 80, height: 120 },
+    );
   });
 
   it("straddles two portraits while leaving their gutter transparent", () => {
@@ -94,7 +75,7 @@ describe("speaker shader geometry", () => {
       [
         { x: 0, y: 0, width: 240, height: 200 },
         { x: 280, y: 0, width: 240, height: 200 },
-      ]
+      ],
     );
 
     expect(plan.maskFragments.map(({ rect }) => rect)).toEqual([
@@ -113,54 +94,106 @@ describe("speaker shader geometry", () => {
           { x: 300, y: 10, width: 240, height: 200 },
           { x: 20, y: 300, width: 240, height: 200 },
         ],
-        560
-      )
+        560,
+      ),
     ).toEqual([
       { x: 0, y: 10, width: 560, height: 200 },
       { x: 0, y: 300, width: 560, height: 200 },
     ]);
   });
 
-  it("freezes every frame at one deterministic reduced-motion pose", () => {
-    const bands = [{ x: 0, y: 0, width: 900, height: 320 }];
-    expect(resolveFloatingFrames(0, bands, true)).toEqual(
-      resolveFloatingFrames(1_000, bands, true)
+  it("locks authored frames to image-relative coordinates", () => {
+    const apertures = [
+      { x: 20, y: 10, width: 200, height: 200 },
+      { x: 260, y: 10, width: 200, height: 200 },
+    ];
+    const [frame] = resolveAuthoredFrames(
+      [
+        {
+          imageIndex: 1,
+          x: 0.25,
+          y: 0.1,
+          width: 0.5,
+          height: 0.4,
+          span: false,
+        },
+      ],
+      apertures,
     );
-    expect(resolveFloatingFrames(0, bands, false)).not.toEqual(
-      resolveFloatingFrames(1_000, bands, false)
-    );
+
+    expect(frame.rect).toEqual({
+      x: 310,
+      y: 30,
+      width: 100,
+      height: 80,
+    });
   });
 
-  it("authors six ambient frames with independent vertical motion", () => {
-    const bands = [
-      { x: 0, y: 40, width: 900, height: 320 },
-      { x: 0, y: 440, width: 900, height: 320 },
+  it("clips non-span overflow back to the anchor image", () => {
+    const apertures = [
+      { x: 0, y: 0, width: 200, height: 200 },
+      { x: 240, y: 0, width: 200, height: 200 },
     ];
-    const initial = resolveFloatingFrames(0, bands);
-    const later = resolveFloatingFrames(4.25, bands);
-
-    expect(FLOATING_FRAME_COUNT).toBe(6);
-    expect(initial).toHaveLength(6);
-    expect(later.some((frame, index) => frame.y !== initial[index].y)).toBe(
-      true
+    const [frame] = resolveAuthoredFrames(
+      [
+        {
+          imageIndex: 0,
+          x: 0.7,
+          y: 0.2,
+          width: 0.6,
+          height: 0.5,
+          span: false,
+        },
+      ],
+      apertures,
     );
+
+    expect(frame.rect).toEqual({ x: 140, y: 40, width: 60, height: 100 });
   });
 
-  it("keeps all authored frames inside their portrait bands", () => {
-    const bands = [
-      { x: 0, y: 40, width: 900, height: 320 },
-      { x: 0, y: 440, width: 900, height: 320 },
+  it("lets a spanning frame cover two portraits while leaving the gutter empty", () => {
+    const apertures = [
+      { x: 0, y: 0, width: 200, height: 200 },
+      { x: 240, y: 0, width: 200, height: 200 },
     ];
-    for (const frame of resolveFloatingFrames(42, bands)) {
-      const containingBand = bands.find(
-        (band) =>
-          frame.x >= band.x &&
-          frame.y >= band.y &&
-          frame.x + frame.width <= band.x + band.width &&
-          frame.y + frame.height <= band.y + band.height
-      );
-      expect(containingBand).toBeDefined();
-    }
+    const [frame] = resolveAuthoredFrames(
+      [
+        {
+          imageIndex: 0,
+          x: 0.7,
+          y: 0.2,
+          width: 0.8,
+          height: 0.5,
+          span: true,
+        },
+      ],
+      apertures,
+    );
+    const plan = buildPartialFramePlan([frame.rect], apertures);
+
+    expect(frame.rect).toEqual({ x: 140, y: 40, width: 160, height: 100 });
+    expect(plan.maskFragments.map(({ rect }) => rect)).toEqual([
+      { x: 140, y: 40, width: 60, height: 100 },
+      { x: 240, y: 40, width: 60, height: 100 },
+    ]);
+  });
+
+  it("ignores placements aimed at a missing image", () => {
+    expect(
+      resolveAuthoredFrames(
+        [
+          {
+            imageIndex: 4,
+            x: 0.1,
+            y: 0.1,
+            width: 0.2,
+            height: 0.2,
+            span: false,
+          },
+        ],
+        [{ x: 0, y: 0, width: 200, height: 200 }],
+      ),
+    ).toEqual([]);
   });
 
   it("creates a cursor frame only inside a portrait band and clamps it at the edges", () => {
@@ -180,14 +213,9 @@ describe("speaker shader geometry", () => {
       width: 120,
       height: 80,
     };
-    const moved = moveCursorFrame(
-      seed,
-      { x: 500, y: 260 },
-      [{ x: 0, y: 0, width: 900, height: 320 }],
-      {
-        follow: 0.25,
-      }
-    );
+    const moved = moveCursorFrame(seed, { x: 500, y: 260 }, [{ x: 0, y: 0, width: 900, height: 320 }], {
+      follow: 0.25,
+    });
 
     expect(moved.center).toEqual({ x: 350, y: 215 });
     expect(cursorFrameRect(moved)).toEqual({
@@ -196,24 +224,6 @@ describe("speaker shader geometry", () => {
       width: 123.75,
       height: 87.2,
     });
-    expect(
-      moveCursorFrame(moved, { x: 500, y: 400 }, [
-        { x: 0, y: 0, width: 900, height: 320 },
-      ])
-    ).toBe(moved);
-  });
-
-  it("lets panel settings change ambient frame count, size, and axis speed", () => {
-    const bands = [{ x: 0, y: 0, width: 900, height: 320 }];
-    const frames = resolveFloatingFrames(4, bands, false, {
-      count: 3,
-      widthScale: 1.2,
-      heightScale: 0.8,
-      horizontalSpeed: 0,
-      verticalSpeed: 2,
-    });
-
-    expect(frames).toHaveLength(3);
-    expect(frames[0].width).toBeCloseTo(291.6);
+    expect(moveCursorFrame(moved, { x: 500, y: 400 }, [{ x: 0, y: 0, width: 900, height: 320 }])).toBe(moved);
   });
 });

@@ -1,18 +1,23 @@
+import type { PanelField } from "@tjcages/panels/dev";
+import { connectSpeakers } from "../data";
 import {
-  LEGACY_SPEAKER_FRAME_PANEL_ID,
+  createSpeakerFramePlacement,
+  LEGACY_SPEAKER_FRAME_PANEL_IDS,
+  MAX_SPEAKER_FRAME_PLACEMENTS,
+  sanitizeSpeakerFramePlacements,
   SPEAKER_FRAME_DEFAULTS,
   SPEAKER_FRAME_PANEL_ID,
+  SPEAKER_PANE_GRID,
+  type SpeakerFrameGridLook,
+  type SpeakerFramePlacement,
   type SpeakerFrameSettings,
+  type SpeakerFrameVariantLook,
 } from "../speakers/speaker-frame-controls";
 import { COLOR_LIBRARY } from "./colorLibrary";
 import { configToolsField } from "./configTools";
 import { color, num, optionsFrom, select, toggle } from "./fieldHelpers";
 import type { PanelSectionDef, PanelValues } from "./panelSections";
-import {
-  fromEditableControls,
-  toEditableControls,
-  type EditableStripe,
-} from "./stripeAdapter";
+import { fromEditableControls, toEditableControls, type EditableStripe } from "./stripeAdapter";
 
 /**
  * The speaker-frame surface of the lab's Leva panel, translated 1:1 into
@@ -39,32 +44,244 @@ export const RENDER_MODES = [
   "gummy",
 ];
 
-export const BLEND_MODES = [
-  "normal",
-  "multiply",
-  "screen",
-  "overlay",
-  "darken",
-  "lighten",
-  "difference",
-  "exclusion",
-];
+export const BLEND_MODES = ["normal", "multiply", "screen", "overlay", "darken", "lighten", "difference", "exclusion"];
 
-/** Panel values: the settings record with stripes in the table's row shape. */
-export function seedSpeakerFramesPanelValues(
-  settings: SpeakerFrameSettings
-): PanelValues {
-  return { ...settings, stripes: toEditableControls(settings.stripes) };
+type SpeakerFramePanelValues = SpeakerFrameSettings & {
+  stripes: EditableStripe[];
+  invert: boolean;
+  brightness: number;
+  exposure: number;
+  contrast: number;
+  blackPoint: number;
+  whitePoint: number;
+  gamma: number;
+  bgColor: string;
+  orangeGridCellWidth: number;
+  orangeGridCellHeight: number;
+  orangeGridGapX: number;
+  orangeGridGapY: number;
+  orangeGridCornerRadius: number;
+  orangeGridOverlap: number;
+  orangeGridOrientation: SpeakerFrameGridLook["orientation"];
+  orangeGridAngle: number;
+  orangeFieldScale: number;
+  greyStripes: EditableStripe[];
+  greyInvert: boolean;
+  greyBrightness: number;
+  greyExposure: number;
+  greyContrast: number;
+  greyBlackPoint: number;
+  greyWhitePoint: number;
+  greyGamma: number;
+  greyBgColor: string;
+};
+
+const lookFromPanel = (
+  stripes: unknown,
+  invert: unknown,
+  brightness: unknown,
+  exposure: unknown,
+  contrast: unknown,
+  blackPoint: unknown,
+  whitePoint: unknown,
+  gamma: unknown,
+  bgColor: unknown,
+  fallback: SpeakerFrameVariantLook,
+  grid?: SpeakerFrameGridLook,
+): SpeakerFrameVariantLook => ({
+  stripes: (() => {
+    const next = fromEditableControls(Array.isArray(stripes) ? (stripes as EditableStripe[]) : []);
+    return next.length > 0 ? next : fallback.stripes.map((stripe) => ({ ...stripe }));
+  })(),
+  invert: typeof invert === "boolean" ? invert : fallback.invert,
+  brightness: typeof brightness === "number" ? brightness : fallback.brightness,
+  exposure: typeof exposure === "number" ? exposure : fallback.exposure,
+  contrast: typeof contrast === "number" ? contrast : fallback.contrast,
+  blackPoint: typeof blackPoint === "number" ? blackPoint : fallback.blackPoint,
+  whitePoint: typeof whitePoint === "number" ? whitePoint : fallback.whitePoint,
+  gamma: typeof gamma === "number" ? gamma : fallback.gamma,
+  bgColor: typeof bgColor === "string" ? bgColor : fallback.bgColor,
+  ...(grid ? { grid } : fallback.grid ? { grid: { ...fallback.grid } } : {}),
+});
+
+const paneGridFromSettings = (look: SpeakerFrameVariantLook): SpeakerFrameGridLook =>
+  look.grid ?? SPEAKER_PANE_GRID;
+
+const paneGridFromPanel = (
+  cellWidth: unknown,
+  cellHeight: unknown,
+  gapX: unknown,
+  gapY: unknown,
+  cornerRadius: unknown,
+  overlap: unknown,
+  orientation: unknown,
+  angle: unknown,
+  fieldScale: unknown,
+): SpeakerFrameGridLook => ({
+  cellWidth: typeof cellWidth === "number" ? cellWidth : SPEAKER_PANE_GRID.cellWidth,
+  cellHeight: typeof cellHeight === "number" ? cellHeight : SPEAKER_PANE_GRID.cellHeight,
+  gapX: typeof gapX === "number" ? gapX : SPEAKER_PANE_GRID.gapX,
+  gapY: typeof gapY === "number" ? gapY : SPEAKER_PANE_GRID.gapY,
+  cornerRadius: typeof cornerRadius === "number" ? cornerRadius : SPEAKER_PANE_GRID.cornerRadius,
+  overlapAmount: typeof overlap === "number" ? overlap : SPEAKER_PANE_GRID.overlapAmount,
+  orientation: orientation === "horizontal" || orientation === "vertical" ? orientation : SPEAKER_PANE_GRID.orientation,
+  angleDeg: typeof angle === "number" ? angle : SPEAKER_PANE_GRID.angleDeg,
+  fieldScale: typeof fieldScale === "number" ? fieldScale : SPEAKER_PANE_GRID.fieldScale,
+});
+
+/** Panel values: settings plus flattened orange/grey stripe tables. */
+export function seedSpeakerFramesPanelValues(settings: SpeakerFrameSettings): PanelValues {
+  const orangeGrid = paneGridFromSettings(settings.orange);
+  return {
+    ...settings,
+    stripes: toEditableControls(settings.orange.stripes),
+    invert: settings.orange.invert,
+    brightness: settings.orange.brightness,
+    exposure: settings.orange.exposure,
+    contrast: settings.orange.contrast,
+    blackPoint: settings.orange.blackPoint,
+    whitePoint: settings.orange.whitePoint,
+    gamma: settings.orange.gamma,
+    bgColor: settings.orange.bgColor,
+    orangeGridCellWidth: orangeGrid.cellWidth,
+    orangeGridCellHeight: orangeGrid.cellHeight,
+    orangeGridGapX: orangeGrid.gapX,
+    orangeGridGapY: orangeGrid.gapY,
+    orangeGridCornerRadius: orangeGrid.cornerRadius,
+    orangeGridOverlap: orangeGrid.overlapAmount,
+    orangeGridOrientation: orangeGrid.orientation,
+    orangeGridAngle: orangeGrid.angleDeg,
+    orangeFieldScale: orangeGrid.fieldScale,
+    greyStripes: toEditableControls(settings.grey.stripes),
+    greyInvert: settings.grey.invert,
+    greyBrightness: settings.grey.brightness,
+    greyExposure: settings.grey.exposure,
+    greyContrast: settings.grey.contrast,
+    greyBlackPoint: settings.grey.blackPoint,
+    greyWhitePoint: settings.grey.whitePoint,
+    greyGamma: settings.grey.gamma,
+    greyBgColor: settings.grey.bgColor,
+  } satisfies SpeakerFramePanelValues;
 }
 
-export function speakerFramesFromPanelValues(
-  values: PanelValues
-): SpeakerFrameSettings {
+export function speakerFramesFromPanelValues(values: PanelValues): SpeakerFrameSettings {
+  const {
+    stripes,
+    invert,
+    brightness,
+    exposure,
+    contrast,
+    blackPoint,
+    whitePoint,
+    gamma,
+    bgColor,
+    orangeGridCellWidth,
+    orangeGridCellHeight,
+    orangeGridGapX,
+    orangeGridGapY,
+    orangeGridCornerRadius,
+    orangeGridOverlap,
+    orangeGridOrientation,
+    orangeGridAngle,
+    orangeFieldScale,
+    greyStripes,
+    greyInvert,
+    greyBrightness,
+    greyExposure,
+    greyContrast,
+    greyBlackPoint,
+    greyWhitePoint,
+    greyGamma,
+    greyBgColor,
+    orange: _orange,
+    dark: _dark,
+    white: _white,
+    grey: _grey,
+    placements,
+    ...shared
+  } = values;
   return {
-    ...(values as unknown as SpeakerFrameSettings),
-    stripes: fromEditableControls(values.stripes as EditableStripe[]),
+    ...(shared as unknown as SpeakerFrameSettings),
+    placements: sanitizeSpeakerFramePlacements(placements),
+    orange: lookFromPanel(
+      stripes,
+      invert,
+      brightness,
+      exposure,
+      contrast,
+      blackPoint,
+      whitePoint,
+      gamma,
+      bgColor,
+      SPEAKER_FRAME_DEFAULTS.orange,
+      paneGridFromPanel(
+        orangeGridCellWidth,
+        orangeGridCellHeight,
+        orangeGridGapX,
+        orangeGridGapY,
+        orangeGridCornerRadius,
+        orangeGridOverlap,
+        orangeGridOrientation,
+        orangeGridAngle,
+        orangeFieldScale,
+      ),
+    ),
+    dark: SPEAKER_FRAME_DEFAULTS.dark,
+    grey: lookFromPanel(
+      greyStripes,
+      greyInvert,
+      greyBrightness,
+      greyExposure,
+      greyContrast,
+      greyBlackPoint,
+      greyWhitePoint,
+      greyGamma,
+      greyBgColor,
+      SPEAKER_FRAME_DEFAULTS.grey,
+    ),
   };
 }
+
+const speakerFrameItemFields: PanelField<SpeakerFramePlacement>[] = [
+  {
+    type: "select",
+    key: "imageIndex",
+    label: "Image",
+    description: "Position is a fraction of this portrait, so it stays put when the grid reflows.",
+    options: connectSpeakers.map((speaker, index) => ({
+      label: speaker.name,
+      value: index,
+    })),
+  },
+  {
+    type: "toggle-group",
+    key: "variant",
+    label: "Variant",
+    options: [
+      { value: "grey", label: "Overlay" },
+      { value: "orange", label: "Orange" },
+    ],
+  },
+  { type: "toggle", key: "span", label: "Span neighboring images" },
+  { type: "slider", key: "x", label: "X", min: -0.5, max: 1.5, step: 0.01 },
+  { type: "slider", key: "y", label: "Y", min: -0.5, max: 1.5, step: 0.01 },
+  {
+    type: "slider",
+    key: "width",
+    label: "Width",
+    min: 0.05,
+    max: 2,
+    step: 0.01,
+  },
+  {
+    type: "slider",
+    key: "height",
+    label: "Height",
+    min: 0.05,
+    max: 2,
+    step: 0.01,
+  },
+];
 
 export function buildSpeakerFramesSections(): PanelSectionDef[] {
   return [
@@ -73,11 +290,32 @@ export function buildSpeakerFramesSections(): PanelSectionDef[] {
       title: "Frames",
       defaultOpen: true,
       fields: [
-        num("frameCount", "Frame count", 0, 6, 1),
-        num("frameWidth", "Frame width", 0.35, 2, 0.01),
-        num("frameHeight", "Frame height", 0.35, 2, 0.01),
-        num("horizontalSpeed", "Horizontal speed", 0, 4, 0.01),
-        num("verticalSpeed", "Vertical speed", 0, 4, 0.01),
+        {
+          type: "collection",
+          key: "placements",
+          label: "Frames",
+          addLabel: "Add frame",
+          max: MAX_SPEAKER_FRAME_PLACEMENTS,
+          newItem: () => createSpeakerFramePlacement(),
+          itemLabel: (item, index) => {
+            const placement = item as SpeakerFramePlacement;
+            const speaker = connectSpeakers[placement.imageIndex]?.name ?? `Speaker ${placement.imageIndex + 1}`;
+            const variantLabel = (() => {
+              switch (placement.variant) {
+                case "orange":
+                  return "Orange";
+                case "grey":
+                  return "Overlay";
+                default: {
+                  const unused: never = placement.variant;
+                  return unused;
+                }
+              }
+            })();
+            return `${index + 1}. ${speaker} · ${variantLabel}`;
+          },
+          itemFields: speakerFrameItemFields,
+        } as PanelField<PanelValues>,
         num("cursorWidth", "Pointer width", 0.35, 2, 0.01),
         num("cursorHeight", "Pointer height", 0.35, 2, 0.01),
         num("cursorFollow", "Follow", 0.01, 1, 0.01),
@@ -100,7 +338,7 @@ export function buildSpeakerFramesSections(): PanelSectionDef[] {
     },
     {
       id: "Grid geometry",
-      title: "Grid geometry",
+      title: "Grid geometry (overlay)",
       fields: [
         num("gridCellWidth", "Cell width", 2, 48, 1),
         num("gridCellHeight", "Cell height", 2, 48, 1),
@@ -121,31 +359,66 @@ export function buildSpeakerFramesSections(): PanelSectionDef[] {
       defaultOpen: true,
       fields: [
         toggle("stripesEnabled", "Stripes enabled"),
-        num("fieldScale", "Field scale", 0.1, 4, 0.01),
-        {
-          type: "stripe-table",
-          key: "stripes",
-          label: "Stripe palette",
-          library: COLOR_LIBRARY,
-        },
+        num("fieldScale", "Field scale (overlay)", 0.1, 4, 0.01),
       ],
     },
     {
-      id: "Tone",
-      title: "Tone",
+      id: "Orange variant",
+      title: "Orange variant",
+      defaultOpen: true,
       fields: [
+        color("bgColor", "Background"),
+        toggle("invert", "Invert"),
         num("brightness", "Brightness", -1, 1, 0.01),
         num("exposure", "Exposure", -2, 2, 0.01),
         num("contrast", "Contrast", 0, 3, 0.01),
         num("blackPoint", "Black point", 0, 1, 0.01),
         num("whitePoint", "White point", 0, 1, 0.01),
         num("gamma", "Gamma", 0.1, 4, 0.01),
-        toggle("invert", "Invert"),
+        {
+          type: "stripe-table",
+          key: "stripes",
+          label: "Orange stripe palette",
+          library: COLOR_LIBRARY,
+        },
+        num("orangeGridCellWidth", "Cell width", 2, 48, 1),
+        num("orangeGridCellHeight", "Cell height", 2, 48, 1),
+        num("orangeGridGapX", "Horizontal gap", 0, 24, 0.25),
+        num("orangeGridGapY", "Vertical gap", 0, 24, 0.25),
+        num("orangeGridCornerRadius", "Corner radius", 0, 16, 0.25),
+        num("orangeGridOverlap", "Stripe overlap", 0, 4, 0.01),
+        select("orangeGridOrientation", "Orientation", {
+          Vertical: "vertical",
+          Horizontal: "horizontal",
+        }),
+        num("orangeGridAngle", "Grid angle", -180, 180, 1),
+        num("orangeFieldScale", "Field scale", 0.1, 4, 0.01),
         num("posterizeLevels", "Posterize levels", 0, 32, 1),
         num("thresholdBias", "Threshold bias", -1, 1, 0.01),
         num("noiseAmount", "Noise", 0, 1, 0.01),
         num("blurRadius", "Blur", 0, 24, 0.25),
         num("sharpenAmount", "Sharpen", 0, 4, 0.01),
+      ],
+    },
+    {
+      id: "Overlay",
+      title: "Overlay",
+      defaultOpen: true,
+      fields: [
+        color("greyBgColor", "Frame color"),
+        toggle("greyInvert", "Invert"),
+        num("greyBrightness", "Brightness", -1, 1, 0.01),
+        num("greyExposure", "Exposure", -2, 2, 0.01),
+        num("greyContrast", "Contrast", 0, 3, 0.01),
+        num("greyBlackPoint", "Black point", 0, 1, 0.01),
+        num("greyWhitePoint", "White point", 0, 1, 0.01),
+        num("greyGamma", "Gamma", 0.1, 4, 0.01),
+        {
+          type: "stripe-table",
+          key: "greyStripes",
+          label: "Overlay stripe palette",
+          library: COLOR_LIBRARY,
+        },
       ],
     },
     {
@@ -230,7 +503,7 @@ export function buildSpeakerFramesSections(): PanelSectionDef[] {
           label: "speaker frames",
           defaults: SPEAKER_FRAME_DEFAULTS,
           // Clear the legacy blob too — load falls back to it.
-          storageIds: [SPEAKER_FRAME_PANEL_ID, LEGACY_SPEAKER_FRAME_PANEL_ID],
+          storageIds: [SPEAKER_FRAME_PANEL_ID, ...LEGACY_SPEAKER_FRAME_PANEL_IDS],
           toConfig: speakerFramesFromPanelValues,
           seed: seedSpeakerFramesPanelValues,
         }),
