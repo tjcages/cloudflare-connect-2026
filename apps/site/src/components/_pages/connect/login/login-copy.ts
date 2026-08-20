@@ -11,4 +11,5 @@ export const LOGIN_OVERLAY_COPY = {
   bodyVenue: "Moscone West, San Francisco",
   register: connectHero.primaryCta.text,
   registerHref: REGISTER_URL,
+  bannerHref: "https://www.cloudflare.com/connect",
 } as const;

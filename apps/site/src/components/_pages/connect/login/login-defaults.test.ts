@@ -75,6 +75,7 @@ describe("dashboard login shader", () => {
       bodyVenue: "Moscone West, San Francisco",
       register: "Register Now",
       registerHref: REGISTER_URL,
+      bannerHref: "https://www.cloudflare.com/connect",
     });
   });
 
@@ -114,7 +115,7 @@ describe("dashboard login shader", () => {
     expect(loginPromoSource).toContain("-top-14 -right-10");
     expect(loginPromoSource).toContain("-rotate-45");
     expect(loginPromoSource).toContain("LOGIN_OVERLAY_COPY.bodyVenue");
-    expect(loginPageSource).toContain(`href={LOGIN_OVERLAY_COPY.registerHref}`);
+    expect(loginPageSource).toContain(`href={LOGIN_OVERLAY_COPY.bannerHref}`);
   });
 
   it("eases an orange left-to-right scrim over the mobile banner shader", () => {
