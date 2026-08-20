@@ -41,7 +41,6 @@ import {
   speakerFrameOutlineColor,
   speakerFramePaintConfig,
   speakerPortraitOpacity,
-  speakerWiperProgress,
   speakerWiperShouldEnter,
   SPEAKER_WIPER_DURATION_MS,
   SPEAKER_WIPER_ENTER_RATIO,
@@ -175,8 +174,7 @@ export default function SpeakerShaderOverlay() {
             : startedAt == null
               ? null
               : wiperNowMs - startedAt;
-        const progress = elapsedMs == null ? 0 : speakerWiperProgress(elapsedMs, 0);
-        image.style.opacity = String(speakerPortraitOpacity(progress));
+        image.style.opacity = elapsedMs == null ? "0" : String(speakerPortraitOpacity(elapsedMs));
       });
     };
 

@@ -15,8 +15,7 @@ import {
   speakerWiperProgress,
   speakerWiperShouldEnter,
   speakerWiperStaggerMs,
-  SPEAKER_IMAGE_FADE_END,
-  SPEAKER_IMAGE_FADE_START,
+  SPEAKER_IMAGE_FADE_MS,
   SPEAKER_OVERLAY_REST_WIDTH,
   SPEAKER_WIPER_DURATION_MS,
   SPEAKER_WIPER_REST_WIDTH,
@@ -27,7 +26,7 @@ const aperture = { x: 40, y: 10, width: 200, height: 180 };
 const rest = { x: 40, y: 10, width: 40, height: 180 };
 
 describe("speaker frame wipers", () => {
-  it("starts covering the portrait at full width", () => {
+  it("starts covering the portrait at full size", () => {
     expect(speakerFrameWiperRect(aperture, rest, 0)).toEqual({
       x: 40,
       y: 10,
@@ -46,14 +45,14 @@ describe("speaker frame wipers", () => {
     expect(resolveWipingFrames(authored, [aperture], [1_000], 500)[0]?.rect.width).toBe(200);
   });
 
-  it("collapses the authored frame from full width into its rest rect", () => {
-    const mid = speakerFrameWiperRect(aperture, { x: 200, y: 10, width: 40, height: 180 }, 0.5);
-    expect(mid.y).toBe(rest.y);
-    expect(mid.height).toBe(rest.height);
-    expect(mid.x).toBeGreaterThan(40);
-    expect(mid.x).toBeLessThan(200);
-    expect(mid.width).toBeGreaterThan(40);
-    expect(mid.width).toBeLessThan(200);
+  it("collapses the authored frame from the top-left toward the bottom-right rest rect", () => {
+    const mid = speakerFrameWiperRect(aperture, { x: 200, y: 10, width: 40, height: 180 }, 0.35);
+    expect(mid.x).toBeGreaterThan(aperture.x);
+    expect(mid.y).toBeGreaterThan(aperture.y);
+    expect(mid.width).toBeLessThan(aperture.width);
+    expect(mid.height).toBeLessThan(aperture.height);
+    expect(mid.x + mid.width).toBeLessThanOrEqual(aperture.x + aperture.width + 0.01);
+    expect(mid.y + mid.height).toBeLessThanOrEqual(aperture.y + aperture.height + 0.01);
   });
 
   it("settles into the authored rest rect", () => {
@@ -109,12 +108,14 @@ describe("speaker frame wipers", () => {
       [{ imageIndex: 0, x: 0.8, y: 0, width: 0.2, height: 1, span: false, variant: "orange" as const }],
       [aperture],
     );
-    expect(resolveWipingFrames(authored, [aperture], [0], 0)[0]?.rect.width).toBe(200);
+    expect(resolveWipingFrames(authored, [aperture], [0], 0)[0]?.rect).toEqual(aperture);
     const mid = resolveWipingFrames(authored, [aperture], [0], 300)[0]?.rect;
-    expect(mid?.width).toBeGreaterThan(40);
-    expect(mid?.width).toBeLessThan(180);
-    expect(mid?.x).toBeGreaterThan(40);
+    expect(mid?.width).toBeLessThan(aperture.width);
+    expect(mid?.height).toBeLessThan(aperture.height);
+    expect(mid?.x).toBeGreaterThan(aperture.x);
+    expect(mid?.y).toBeGreaterThan(aperture.y);
     expect(resolveWipingFrames(authored, [aperture], [0], 20_000)[0]?.rect.width).toBe(40);
+    expect(resolveWipingFrames(authored, [aperture], [0], 20_000)[0]?.rect.height).toBe(180);
   });
 
   it("starts collapsing every pane together so opaque strips do not sit at full width", () => {
@@ -123,15 +124,14 @@ describe("speaker frame wipers", () => {
     expect(speakerWiperProgress(16, 0)).toBeGreaterThan(0);
   });
 
-  it("fades portraits in through the middle of the wipe", () => {
-    expect(speakerPortraitOpacity(0)).toBe(0);
-    expect(speakerPortraitOpacity(SPEAKER_IMAGE_FADE_START)).toBe(0);
-    expect(speakerPortraitOpacity(SPEAKER_IMAGE_FADE_END)).toBe(1);
-    expect(speakerPortraitOpacity(1)).toBe(1);
-    const mid = (SPEAKER_IMAGE_FADE_START + SPEAKER_IMAGE_FADE_END) / 2;
-    const opacity = speakerPortraitOpacity(mid);
-    expect(opacity).toBeGreaterThan(0);
-    expect(opacity).toBeLessThan(1);
+  it("finishes fading portraits before the orange pane starts collapsing", () => {
+    expect(speakerPortraitOpacity(-SPEAKER_IMAGE_FADE_MS)).toBe(0);
+    expect(speakerPortraitOpacity(-SPEAKER_IMAGE_FADE_MS - 10)).toBe(0);
+    expect(speakerPortraitOpacity(0)).toBe(1);
+    expect(speakerPortraitOpacity(16)).toBe(1);
+    const mid = speakerPortraitOpacity(-SPEAKER_IMAGE_FADE_MS / 2);
+    expect(mid).toBeGreaterThan(0);
+    expect(mid).toBeLessThan(1);
   });
 
   it("jumps authored frames to rest when reduced motion is on", () => {

@@ -17,9 +17,8 @@ export const SPEAKER_WIPER_DURATION_MS = 900;
 export const SPEAKER_WIPER_STAGGER_MS = 0;
 /** Hold full coverage until the water reveal has played. */
 export const SPEAKER_WIPER_SHADER_DELAY_MS = SPEAKER_SHADER_CONFIG.reveal.water.durationMs;
-/** Portrait fade sits in the middle of the collapse. */
-export const SPEAKER_IMAGE_FADE_START = 0.4;
-export const SPEAKER_IMAGE_FADE_END = 0.7;
+/** Portraits finish fading during the wait, before the orange pane starts collapsing. */
+export const SPEAKER_IMAGE_FADE_MS = 280;
 
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
 
@@ -46,31 +45,39 @@ export const speakerWiperProgress = (elapsedMs: number, staggerMs: number): numb
   return clamp01(local / SPEAKER_WIPER_DURATION_MS);
 };
 
-export const speakerPortraitOpacity = (progress: number): number => {
-  if (progress <= SPEAKER_IMAGE_FADE_START) return 0;
-  if (progress >= SPEAKER_IMAGE_FADE_END) return 1;
-  return easeOutCubic((progress - SPEAKER_IMAGE_FADE_START) / (SPEAKER_IMAGE_FADE_END - SPEAKER_IMAGE_FADE_START));
+/**
+ * `elapsedMs` is wipe-local: negative while waiting for the shader delay,
+ * 0 when the orange pane starts collapsing. Opacity reaches 1 at 0.
+ */
+export const speakerPortraitOpacity = (elapsedMs: number): number => {
+  if (elapsedMs >= 0) return 1;
+  if (elapsedMs <= -SPEAKER_IMAGE_FADE_MS) return 0;
+  return easeOutCubic((elapsedMs + SPEAKER_IMAGE_FADE_MS) / SPEAKER_IMAGE_FADE_MS);
 };
 
 /**
- * The authored frame itself is the wiper: it starts covering the portrait at
- * full width, then settles into its rest rect (orange on the right edge).
+ * The authored frame itself is the wiper: it starts covering the portrait,
+ * then collapses toward the bottom-right into its rest rect.
  */
 export const speakerFrameWiperRect = (aperture: Rect, rest: Rect, progress: number): Rect => {
-  if (aperture.width <= 0 || rest.height <= 0) {
-    return { x: aperture.x, y: rest.y, width: 0, height: rest.height };
+  if (aperture.width <= 0 || aperture.height <= 0) {
+    return { x: aperture.x, y: aperture.y, width: 0, height: 0 };
   }
 
   if (progress <= 0) {
-    return { x: aperture.x, y: rest.y, width: aperture.width, height: rest.height };
+    return { x: aperture.x, y: aperture.y, width: aperture.width, height: aperture.height };
   }
 
   const u = easeOutCubic(Math.min(1, progress));
+  const fromX = aperture.x + aperture.width * u;
+  const fromY = aperture.y + aperture.height * u;
+  const fromWidth = aperture.width * (1 - u);
+  const fromHeight = aperture.height * (1 - u);
   return {
-    x: lerp(aperture.x, rest.x, u),
-    y: rest.y,
-    width: lerp(aperture.width, rest.width, u),
-    height: rest.height,
+    x: lerp(fromX, rest.x, u),
+    y: lerp(fromY, rest.y, u),
+    width: lerp(fromWidth, rest.width, u),
+    height: lerp(fromHeight, rest.height, u),
   };
 };
 
@@ -105,7 +112,7 @@ type WipingFrame = {
   variant: SpeakerFrameVariantId;
 };
 
-/** Animates each authored frame from full-width coverage to its rest rect. */
+/** Animates each authored frame from full coverage into its rest rect. */
 export const resolveWipingFrames = <T extends WipingFrame>(
   authored: readonly T[],
   apertures: readonly Rect[],
@@ -122,7 +129,7 @@ export const resolveWipingFrames = <T extends WipingFrame>(
     if (elapsedMs == null) continue;
     const progress = frameProgress(elapsedMs, frame.variant, options);
     const rect = speakerFrameWiperRect(aperture, frame.rect, progress);
-    if (rect.width < 0.5) continue;
+    if (rect.width < 0.5 || rect.height < 0.5) continue;
     frames.push({ ...frame, rect });
   }
 
