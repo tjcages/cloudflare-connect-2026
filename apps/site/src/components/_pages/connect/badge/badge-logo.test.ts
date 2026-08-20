@@ -31,10 +31,11 @@ describe("badge logo SVG prep", () => {
     const prepared = prepareBadgeLogo(
       `<svg viewBox="0 0 40 20"><path fill="#123456" d="M0 0h40v20z"/></svg>`
     );
+    expect(prepared.colorSvg).toContain("#123456");
+    expect(prepared.colorSvg).toContain('width="40"');
+    expect(prepared.colorSvg).toContain('height="20"');
     expect(prepared.markSvg).toContain('fill="white"');
     expect(prepared.markSvg).not.toContain("#123456");
-    expect(prepared.markSvg).toContain('width="40"');
-    expect(prepared.markSvg).toContain('height="20"');
     expect(prepared.textureSvg).toContain('fill="black"');
     expect(prepared.textureSvg).toContain('width="800"');
     expect(prepared.textureSvg).toContain('height="320"');
@@ -90,6 +91,7 @@ describe("badge logo SVG prep", () => {
       "utf8"
     );
     const prepared = prepareBadgeLogo(svg);
+    expect(prepared.colorSvg).toContain("#5865F2");
     expect(prepared.markSvg).toContain('width="106"');
     expect(prepared.markSvg).toContain('height="16"');
     expect(prepared.markSvg).toContain('fill="white"');

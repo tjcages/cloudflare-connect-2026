@@ -56,13 +56,13 @@ import {
 type BadgeLogoSession = {
   fileName: string;
   textureUrl: string;
-  markUrl: string;
+  colorUrl: string;
 };
 
 function revokeLogo(session: BadgeLogoSession | null) {
   if (!session) return;
   revokeLogoUrl(session.textureUrl);
-  revokeLogoUrl(session.markUrl);
+  revokeLogoUrl(session.colorUrl);
 }
 
 function themeToStripeColors(theme: BadgeTheme): StripeColors {
@@ -204,7 +204,7 @@ export default function BadgePage(_props: IslandProps) {
         const prepared = prepareBadgeLogo(await readSvgFile(file));
         replaceLogo({
           fileName: file.name,
-          markUrl: svgToBlobUrl(prepared.markSvg),
+          colorUrl: svgToBlobUrl(prepared.colorSvg),
           textureUrl: svgToBlobUrl(prepared.textureSvg),
         });
         setLogoError(null);
@@ -228,7 +228,7 @@ export default function BadgePage(_props: IslandProps) {
         if (cancelled || logoSessionRef.current) return;
         replaceLogo({
           fileName: "Cloudflare.svg",
-          markUrl: svgToBlobUrl(prepared.markSvg),
+          colorUrl: svgToBlobUrl(prepared.colorSvg),
           textureUrl: svgToBlobUrl(prepared.textureSvg),
         });
       } catch {
@@ -352,7 +352,7 @@ export default function BadgePage(_props: IslandProps) {
                   }}
                   logoCanvas={logoRef}
                   logoMarkSrc={
-                    tune.logoEnabled ? (logo?.markUrl ?? null) : null
+                    tune.logoEnabled ? (logo?.colorUrl ?? null) : null
                   }
                   lowPower={lowPower}
                   rainCanvas={rainRef}
@@ -389,8 +389,8 @@ export default function BadgePage(_props: IslandProps) {
                 Grab it and pull — the lanyard wiggles back.
               </p>
               <p>
-                Pick a color scheme. The Cloudflare mark is printed through the
-                same case-study stripe texture — swap it with your own SVG.
+                Pick a color scheme. Upload an SVG to print your logo on the
+                badge in its own colors.
               </p>
               <BadgeCustomizer onChange={setParams} params={params} />
               <BadgeLogoUpload

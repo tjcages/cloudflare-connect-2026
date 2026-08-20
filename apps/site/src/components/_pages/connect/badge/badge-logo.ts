@@ -54,9 +54,22 @@ export function paintSvgFillsWhite(markup: string): string {
     .replace(/stroke:\s*(?!none)[^;"}]+/gi, "stroke:white");
 }
 
+export function wrapSvg(
+  inner: string,
+  viewport: { x: number; y: number; w: number; h: number },
+  fill?: string
+): string {
+  const viewBox = `${viewport.x} ${viewport.y} ${viewport.w} ${viewport.h}`;
+  const markW = Math.max(1, Math.round(viewport.w));
+  const markH = Math.max(1, Math.round(viewport.h));
+  const fillAttr = fill ? ` fill="${fill}"` : "";
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${markW}" height="${markH}" viewBox="${viewBox}" color="#111111"${fillAttr}>${inner}</svg>`;
+}
+
 export function prepareBadgeLogo(svgText: string): {
-  textureSvg: string;
+  colorSvg: string;
   markSvg: string;
+  textureSvg: string;
 } {
   const safe = stripUnsafeSvg(svgText.trim());
   if (!/<svg[\s>]/i.test(safe)) {
@@ -66,12 +79,12 @@ export function prepareBadgeLogo(svgText: string): {
   if (!(viewport.w > 0) || !(viewport.h > 0)) {
     throw new Error("That SVG has no size.");
   }
-  const inner = paintSvgFillsWhite(extractSvgInner(safe));
-  if (!inner) throw new Error("That SVG is empty.");
+  const colorInner = extractSvgInner(safe);
+  if (!colorInner) throw new Error("That SVG is empty.");
+  const whiteInner = paintSvgFillsWhite(colorInner);
   const viewBox = `${viewport.x} ${viewport.y} ${viewport.w} ${viewport.h}`;
-  const markW = Math.max(1, Math.round(viewport.w));
-  const markH = Math.max(1, Math.round(viewport.h));
-  const markSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="${markW}" height="${markH}" viewBox="${viewBox}" fill="white">${inner}</svg>`;
+  const colorSvg = wrapSvg(colorInner, viewport);
+  const markSvg = wrapSvg(whiteInner, viewport, "white");
   const innerW = LOGO_TEXTURE_W * (1 - LOGO_PAD * 2);
   const innerH = LOGO_TEXTURE_H * (1 - LOGO_PAD * 2);
   const scale = Math.min(innerW / viewport.w, innerH / viewport.h);
@@ -79,8 +92,8 @@ export function prepareBadgeLogo(svgText: string): {
   const drawnH = viewport.h * scale;
   const x = (LOGO_TEXTURE_W - drawnW) / 2;
   const y = (LOGO_TEXTURE_H - drawnH) / 2;
-  const textureSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="${LOGO_TEXTURE_W}" height="${LOGO_TEXTURE_H}" viewBox="0 0 ${LOGO_TEXTURE_W} ${LOGO_TEXTURE_H}"><rect width="${LOGO_TEXTURE_W}" height="${LOGO_TEXTURE_H}" fill="black"/><svg x="${x}" y="${y}" width="${drawnW}" height="${drawnH}" viewBox="${viewBox}" fill="white">${inner}</svg></svg>`;
-  return { textureSvg, markSvg };
+  const textureSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="${LOGO_TEXTURE_W}" height="${LOGO_TEXTURE_H}" viewBox="0 0 ${LOGO_TEXTURE_W} ${LOGO_TEXTURE_H}"><rect width="${LOGO_TEXTURE_W}" height="${LOGO_TEXTURE_H}" fill="black"/><svg x="${x}" y="${y}" width="${drawnW}" height="${drawnH}" viewBox="${viewBox}" fill="white">${whiteInner}</svg></svg>`;
+  return { colorSvg, markSvg, textureSvg };
 }
 
 export function svgToBlobUrl(svgText: string): string {

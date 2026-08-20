@@ -249,7 +249,7 @@ export const BADGE_TUNE_FIELDS: PanelField<BadgeTune>[] = [
     type: "toggle",
     key: "logoEnabled",
     label: "Show logo",
-    description: "Case-study stripe fill, punched through the SVG mark.",
+    description: "Original SVG colors print on the badge. Stripe fill sits underneath.",
   },
   slider("logoBand", "Band height", 0.12, 0.55, 0.01),
   slider("logoPadX", "Pad X", 0.04, 0.28, 0.005),

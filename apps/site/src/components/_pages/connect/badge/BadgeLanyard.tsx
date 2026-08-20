@@ -218,27 +218,13 @@ function markSize(mark: HTMLImageElement) {
   return { w, h };
 }
 
-function canvasHasInk(canvas: HTMLCanvasElement) {
-  if (canvas.width < 2 || canvas.height < 2) return false;
-  const ctx = canvas.getContext("2d", { willReadFrequently: true });
-  if (!ctx) return false;
-  const sampleW = Math.min(canvas.width, 16);
-  const sampleH = Math.min(canvas.height, 16);
-  const data = ctx.getImageData(0, 0, sampleW, sampleH).data;
-  for (let i = 3; i < data.length; i += 4) {
-    if (data[i] > 12) return true;
-  }
-  return false;
-}
-
 function drawLogoBand(
   ctx: CanvasRenderingContext2D,
   shader: HTMLCanvasElement | null,
   mark: HTMLImageElement | null,
   width: number,
   height: number,
-  tune: BadgeTune,
-  fallbackFill: string
+  tune: BadgeTune
 ) {
   if (!tune.logoEnabled || !mark) return;
   const size = markSize(mark);
@@ -251,37 +237,29 @@ function drawLogoBand(
   const fit = containSize(size.w, size.h, maxW, maxH);
   const dx = (width - fit.w) / 2;
   const dy = padY + (maxH - fit.h) / 2;
-  const scratch = getLogoScratch(width, bandH);
-  const scratchCtx = scratch.getContext("2d");
-  if (!scratchCtx) return;
-  scratchCtx.setTransform(1, 0, 0, 1, 0, 0);
-  scratchCtx.globalCompositeOperation = "source-over";
-  scratchCtx.clearRect(0, 0, width, bandH);
-  const stripeReady = Boolean(shader && shader.width > 1 && canvasHasInk(shader));
-  if (stripeReady && shader) {
-    drawCover(
-      scratchCtx,
-      shader,
-      dx,
-      dy,
-      fit.w,
-      fit.h,
-      tune.logoPrintZoom
-    );
-  } else {
-    scratchCtx.fillStyle = fallbackFill;
-    scratchCtx.fillRect(dx, dy, fit.w, fit.h);
+  if (shader && shader.width > 1) {
+    const scratch = getLogoScratch(width, bandH);
+    const scratchCtx = scratch.getContext("2d");
+    if (scratchCtx) {
+      scratchCtx.setTransform(1, 0, 0, 1, 0, 0);
+      scratchCtx.globalCompositeOperation = "source-over";
+      scratchCtx.clearRect(0, 0, width, bandH);
+      drawCover(
+        scratchCtx,
+        shader,
+        dx,
+        dy,
+        fit.w,
+        fit.h,
+        tune.logoPrintZoom
+      );
+      scratchCtx.globalCompositeOperation = "destination-in";
+      scratchCtx.drawImage(mark, dx, dy, fit.w, fit.h);
+      scratchCtx.globalCompositeOperation = "source-over";
+      ctx.drawImage(scratch, 0, 0);
+    }
   }
-  scratchCtx.globalCompositeOperation = "destination-in";
-  scratchCtx.drawImage(mark, dx, dy, fit.w, fit.h);
-  scratchCtx.globalCompositeOperation = "source-over";
-  ctx.drawImage(scratch, 0, 0);
-  if (tune.logoMarkOpacity > 0) {
-    ctx.save();
-    ctx.globalAlpha = Math.min(tune.logoMarkOpacity, 1);
-    ctx.drawImage(mark, dx, dy, fit.w, fit.h);
-    ctx.restore();
-  }
+  ctx.drawImage(mark, dx, dy, fit.w, fit.h);
 }
 
 function useHeroShaderTexture(
@@ -411,8 +389,7 @@ function useHeroShaderTexture(
       markImage.current,
       canvas.width,
       canvas.height,
-      tune,
-      identity.accent
+      tune
     );
     drawIdentity(ctx, identity, canvas.width, canvas.height, tune.footerBand);
     texture.needsUpdate = true;
