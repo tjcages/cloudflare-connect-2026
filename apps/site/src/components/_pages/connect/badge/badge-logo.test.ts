@@ -4,7 +4,6 @@ import { describe, expect, it } from "vitest";
 import {
   BADGE_PRINT_FIELD_SRC,
   badgeMarkSvg,
-  badgePrintFieldSvg,
   extractSvgInner,
   paintSvgFills,
   paintSvgFillsWhite,
@@ -14,10 +13,6 @@ import {
   stripUnsafeSvg,
   SVG_MAX_BYTES,
 } from "./badge-logo";
-
-function compactSvg(svg: string) {
-  return svg.replace(/\s+/g, "");
-}
 
 describe("badge logo SVG prep", () => {
   it("strips scripts, foreignObject, and on* handlers", () => {
@@ -120,18 +115,23 @@ describe("badge logo SVG prep", () => {
     expect(prepared.markSvg).not.toContain("display-p3");
   });
 
-  it("keeps a logo-free luminance field for the stripe engine", () => {
+  it("uses a cropped Connect-cloud plate as the stripe source", () => {
     const fieldPath = resolve(
       process.cwd(),
       "public/connect/badge-print-field.svg"
     );
     const field = readFileSync(fieldPath, "utf8");
-    expect(compactSvg(field)).toBe(compactSvg(badgePrintFieldSvg()));
-    expect(field).not.toMatch(/<path\b/i);
-    expect(field).not.toMatch(/<circle\b/i);
-    expect(field).not.toMatch(/\bd=/);
-    expect(field).toContain('fill="#9a9a9a"');
-    expect(BADGE_PRINT_FIELD_SRC).toBe("/connect/badge-print-field.svg?v=flat");
+    const overlay = readFileSync(
+      resolve(process.cwd(), "public/connect/badge-demo-logo.svg"),
+      "utf8"
+    );
+    expect(field).toContain('fill="#000000"');
+    expect(field).toContain('stroke="#ffffff"');
+    expect(field).toContain("url(#badge-print-lit)");
+    expect(field).toContain("M226.32 47.1364");
+    expect(overlay).toContain("M29.818");
+    expect(field).not.toContain("M29.818");
+    expect(BADGE_PRINT_FIELD_SRC).toBe("/connect/badge-print-field.svg?v=cloud");
 
     const shader = readFileSync(
       resolve(
@@ -144,6 +144,15 @@ describe("badge logo SVG prep", () => {
     expect(shader).not.toContain("src: string");
     expect(shader).toContain("image.src = BADGE_PRINT_FIELD_SRC");
 
+    const preview = readFileSync(
+      resolve(
+        process.cwd(),
+        "src/components/_pages/connect/badge/BadgeShaderSource.tsx"
+      ),
+      "utf8"
+    );
+    expect(preview).toContain("src={BADGE_PRINT_FIELD_SRC}");
+
     const page = readFileSync(
       resolve(
         process.cwd(),
@@ -151,6 +160,7 @@ describe("badge logo SVG prep", () => {
       ),
       "utf8"
     );
+    expect(page).toContain("BadgeShaderSource");
     expect(page).not.toContain("textureUrl");
     expect(page).not.toContain("src={logo");
     expect(page).not.toContain("src={logoMarkSrc");

@@ -39,6 +39,7 @@ import {
 } from "./badge-logo";
 import BadgeLogoUpload from "./BadgeLogoUpload";
 import BadgePrintShader from "./BadgePrintShader";
+import BadgeShaderSource from "./BadgeShaderSource";
 import {
   badgeSharePath,
   DEFAULT_BADGE_PARAMS,
@@ -177,6 +178,12 @@ export default function BadgePage(_props: IslandProps) {
       clickWave: { enabled: false as const },
       cursorTrail: { enabled: false as const },
       reveal: { enabled: false as const },
+      edgeMask: {
+        enabled: true as const,
+        start: 0,
+        end: 0.18,
+        power: 1.1,
+      },
     }),
     [lowPower, view.theme]
   );
@@ -384,6 +391,7 @@ export default function BadgePage(_props: IslandProps) {
                 SVG to print your mark in the center.
               </p>
               <BadgeCustomizer onChange={setParams} params={params} />
+              <BadgeShaderSource />
               <BadgeLogoUpload
                 error={logoError}
                 fileName={logo?.fileName ?? null}

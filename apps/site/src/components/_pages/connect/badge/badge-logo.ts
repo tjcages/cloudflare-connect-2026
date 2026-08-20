@@ -1,8 +1,6 @@
-export const LOGO_TEXTURE_W = 800;
-export const LOGO_TEXTURE_H = 1200;
 export const SVG_MAX_BYTES = 400_000;
-/** Logo-free luminance plate. The stripe engine must never see an upload. */
-export const BADGE_PRINT_FIELD_SRC = "/connect/badge-print-field.svg?v=flat";
+/** Connect-cloud crop converted into the badge stripe shader. Not the upload. */
+export const BADGE_PRINT_FIELD_SRC = "/connect/badge-print-field.svg?v=cloud";
 
 const SCRIPT_RE = /<script\b[\s\S]*?<\/script>/gi;
 const FOREIGN_RE = /<foreignObject\b[\s\S]*?<\/foreignObject>/gi;
@@ -93,15 +91,6 @@ export function prepareBadgeLogo(svgText: string): {
   const colorSvg = wrapSvg(colorInner, viewport);
   const markSvg = wrapSvg(whiteInner, viewport, "white");
   return { colorSvg, markSvg };
-}
-
-/** Even luma plate — no orbs or paths the stripe engine could silhouette. */
-export function badgeTextureFieldMarkup(width: number, height: number): string {
-  return `<rect width="${width}" height="${height}" fill="#9a9a9a"/>`;
-}
-
-export function badgePrintFieldSvg(): string {
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${LOGO_TEXTURE_W}" height="${LOGO_TEXTURE_H}" viewBox="0 0 ${LOGO_TEXTURE_W} ${LOGO_TEXTURE_H}">${badgeTextureFieldMarkup(LOGO_TEXTURE_W, LOGO_TEXTURE_H)}</svg>`;
 }
 
 export function badgeMarkSvg(svgText: string, fill: string): string {

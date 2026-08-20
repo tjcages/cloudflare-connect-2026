@@ -23,6 +23,9 @@ export type BadgeTune = {
   printPanY: number;
   printTwizzler: boolean;
   printRain: boolean;
+  printPadX: number;
+  printPadTop: number;
+  printFeather: number;
   shadowOpacity: number;
   shadowSoftOpacity: number;
   wallZ: number;
@@ -94,6 +97,9 @@ export const BADGE_TUNE_DEFAULTS: BadgeTune = {
   printPanY: 0,
   printTwizzler: false,
   printRain: false,
+  printPadX: 0.09,
+  printPadTop: 0.075,
+  printFeather: 0.08,
   shadowOpacity: 0.01,
   shadowSoftOpacity: 0,
   wallZ: -0.015,
@@ -198,6 +204,9 @@ export const BADGE_TUNE_FIELDS: PanelField<BadgeTune>[] = [
   ),
   slider("printPanX", "Pan X", -0.4, 0.4, 0.005),
   slider("printPanY", "Pan Y", -0.4, 0.4, 0.005),
+  slider("printPadX", "Shader pad X", 0.02, 0.2, 0.005),
+  slider("printPadTop", "Shader pad top", 0.02, 0.2, 0.005),
+  slider("printFeather", "Shader feather", 0.02, 0.2, 0.005),
   {
     type: "toggle",
     key: "printTwizzler",
@@ -275,4 +284,4 @@ export const BADGE_TUNE_FIELDS: PanelField<BadgeTune>[] = [
   slider("backdropMaskY", "Mask Y %", 0, 100, 1),
 ];
 
-export const BADGE_TUNE_PANEL_ID = "connect-badge-tune-v5";
+export const BADGE_TUNE_PANEL_ID = "connect-badge-tune-v6";

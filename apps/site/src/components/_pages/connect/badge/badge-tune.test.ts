@@ -30,6 +30,9 @@ describe("badge tune defaults", () => {
       logoBand: 0.42,
       logoPadX: 0.08,
       footerBand: 0.205,
+      printPadX: 0.09,
+      printPadTop: 0.075,
+      printFeather: 0.08,
     });
   });
 
