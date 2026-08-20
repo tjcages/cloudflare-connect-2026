@@ -10,6 +10,7 @@ import {
   asThemedEngineConfig,
   type StripesTextureConfig,
 } from "@/components/stripes-texture/config";
+import { blitPrintFrame } from "./badge-print-blit";
 
 type BadgePrintShaderProps = {
   canvasRef: RefObject<HTMLCanvasElement | null>;
@@ -39,6 +40,7 @@ export default function BadgePrintShader({
   const renderRef = useRef<HTMLCanvasElement>(null);
   const outputRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<StripesEngine | null>(null);
+  const hasSourceRef = useRef(false);
   const pausedRef = useRef(paused);
   const configRef = useRef(config);
   pausedRef.current = paused;
@@ -55,6 +57,7 @@ export default function BadgePrintShader({
 
     const engine = createStripesEngine(renderCanvas, { dpr: maxDpr, seed: 1 });
     engineRef.current = engine;
+    hasSourceRef.current = false;
     engine.resize(width, height);
     engine.setConfig(
       resolveThemedConfig(asThemedEngineConfig(configRef.current), "light")
@@ -62,7 +65,6 @@ export default function BadgePrintShader({
     engine.setRevealGate(true);
 
     let raf = 0;
-    let disposed = false;
 
     const copyFrame = () => {
       if (
@@ -72,20 +74,11 @@ export default function BadgePrintShader({
         outputCanvas.width = renderCanvas.width;
         outputCanvas.height = renderCanvas.height;
       }
-      outputCtx.drawImage(renderCanvas, 0, 0);
+      blitPrintFrame(
+        outputCtx,
+        hasSourceRef.current ? renderCanvas : null
+      );
     };
-
-    const image = new Image();
-    image.decoding = "async";
-    image.onload = () => {
-      if (disposed) return;
-      engine.setSource(image);
-      engine.triggerReveal();
-    };
-    image.onerror = () => {
-      if (!disposed) engine.triggerReveal();
-    };
-    image.src = src;
 
     const tick = () => {
       raf = requestAnimationFrame(tick);
@@ -96,15 +89,51 @@ export default function BadgePrintShader({
     raf = requestAnimationFrame(tick);
 
     return () => {
-      disposed = true;
       cancelAnimationFrame(raf);
-      image.onload = null;
-      image.onerror = null;
+      hasSourceRef.current = false;
+      engine.setSource(null);
       engine.dispose();
       engineRef.current = null;
       if (canvasRef.current === outputCanvas) canvasRef.current = null;
     };
-  }, [canvasRef, height, maxDpr, src, width]);
+  }, [canvasRef, height, maxDpr, width]);
+
+  useEffect(() => {
+    const engine = engineRef.current;
+    const renderCanvas = renderRef.current;
+    const outputCanvas = outputRef.current;
+    const outputCtx = outputCanvas?.getContext("2d");
+    if (!engine || !renderCanvas || !outputCanvas || !outputCtx) return;
+
+    hasSourceRef.current = false;
+    engine.setSource(null);
+    blitPrintFrame(outputCtx, null);
+
+    let cancelled = false;
+    const image = new Image();
+    image.decoding = "async";
+    image.onload = () => {
+      if (cancelled || engineRef.current !== engine) return;
+      engine.setSource(image);
+      engine.triggerReveal();
+      hasSourceRef.current = true;
+      engine.renderFrame();
+      blitPrintFrame(outputCtx, renderCanvas);
+    };
+    image.onerror = () => {
+      if (cancelled || engineRef.current !== engine) return;
+      engine.triggerReveal();
+    };
+    image.src = src;
+
+    return () => {
+      cancelled = true;
+      image.onload = null;
+      image.onerror = null;
+      hasSourceRef.current = false;
+      if (engineRef.current === engine) engine.setSource(null);
+    };
+  }, [height, maxDpr, src, width]);
 
   useEffect(() => {
     engineRef.current?.setConfig(

@@ -91,6 +91,7 @@ type BadgeLanyardProps = {
   rainCanvas: RefObject<HTMLCanvasElement | null>;
   logoCanvas: RefObject<HTMLCanvasElement | null>;
   logoMarkSrc: string | null;
+  printSrc: string;
   reducedMotion: boolean;
   identity: BadgeCardIdentity;
   lowPower: boolean;
@@ -175,9 +176,10 @@ function drawIdentity(
 function identityKey(
   identity: BadgeCardIdentity,
   logoMarkSrc: string | null,
+  printSrc: string,
   printKey: string
 ) {
-  return `${identity.name}|${identity.company}|${identity.role}|${identity.serial}|${identity.accent}|${logoMarkSrc ?? ""}|${printKey}`;
+  return `${identity.name}|${identity.company}|${identity.role}|${identity.serial}|${identity.accent}|${logoMarkSrc ?? ""}|${printSrc}|${printKey}`;
 }
 
 function containSize(srcW: number, srcH: number, maxW: number, maxH: number) {
@@ -277,6 +279,7 @@ function useHeroShaderTexture(
   shaderLive: boolean,
   logoCanvas: RefObject<HTMLCanvasElement | null>,
   logoMarkSrc: string | null,
+  printSrc: string,
   tune: BadgeTune
 ) {
   const skip = useRef(0);
@@ -346,7 +349,7 @@ function useHeroShaderTexture(
       tune.logoMarkOpacity,
       tune.footerBand,
     ].join("|");
-    const key = `${identityKey(identity, logoMarkSrc, printKey)}|${markGeneration.current}`;
+    const key = `${identityKey(identity, logoMarkSrc, printSrc, printKey)}|${markGeneration.current}`;
     const identityChanged = key !== lastKey.current;
     const logoLive = Boolean(logoMarkSrc);
     skip.current += 1;
@@ -1258,6 +1261,7 @@ function LanyardBadge({
   rainCanvas,
   logoCanvas,
   logoMarkSrc,
+  printSrc,
   reducedMotion,
   identity,
   lowPower,
@@ -1279,6 +1283,7 @@ function LanyardBadge({
     shaderLive,
     logoCanvas,
     logoMarkSrc,
+    printSrc,
     tune
   );
 
@@ -1478,6 +1483,7 @@ function BadgeScene({
   rainCanvas,
   logoCanvas,
   logoMarkSrc,
+  printSrc,
   reducedMotion,
   identity,
   lowPower,
@@ -1517,6 +1523,7 @@ function BadgeScene({
         identity={identity}
         logoCanvas={logoCanvas}
         logoMarkSrc={logoMarkSrc}
+        printSrc={printSrc}
         lowPower={lowPower}
         rainCanvas={rainCanvas}
         reducedMotion={reducedMotion}
@@ -1535,6 +1542,7 @@ export default function BadgeLanyard({
   rainCanvas,
   logoCanvas,
   logoMarkSrc,
+  printSrc,
   reducedMotion,
   identity,
   lowPower,
@@ -1567,6 +1575,7 @@ export default function BadgeLanyard({
         identity={identity}
         logoCanvas={logoCanvas}
         logoMarkSrc={logoMarkSrc}
+        printSrc={printSrc}
         lowPower={lowPower}
         rainCanvas={rainCanvas}
         reducedMotion={reducedMotion}

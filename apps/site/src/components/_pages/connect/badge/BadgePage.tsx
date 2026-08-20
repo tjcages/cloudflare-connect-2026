@@ -362,6 +362,7 @@ export default function BadgePage(_props: IslandProps) {
                   }}
                   logoCanvas={logoRef}
                   logoMarkSrc={logoMarkSrc}
+                  printSrc={plateSrc}
                   lowPower={lowPower}
                   rainCanvas={rainRef}
                   reducedMotion={reducedMotion}

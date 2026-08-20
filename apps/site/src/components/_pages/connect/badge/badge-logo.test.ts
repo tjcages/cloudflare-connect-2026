@@ -164,6 +164,9 @@ describe("badge logo SVG prep", () => {
     );
     expect(shader).toContain("src: string");
     expect(shader).toContain("image.src = src");
+    expect(shader).toContain("engine.setSource(null)");
+    expect(shader).toContain("blitPrintFrame");
+    expect(shader).not.toContain("[canvasRef, height, maxDpr, src, width]");
 
     const preview = readFileSync(
       resolve(
@@ -195,6 +198,7 @@ describe("badge logo SVG prep", () => {
       "utf8"
     );
     expect(page).toContain("plateSrc={plateSrc}");
+    expect(page).toContain("printSrc={plateSrc}");
     expect(page).toContain("h-760");
     expect(page).toContain("badgeShaderPlateSvg");
     expect(page).not.toContain("src={logoMarkSrc");
