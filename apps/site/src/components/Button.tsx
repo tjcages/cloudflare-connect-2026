@@ -1,14 +1,9 @@
 import cn from "classnames";
-import { motion } from "motion/react";
 
 type ButtonProps = {
   disabled?: boolean;
   size?: "default" | "large";
   variant?: "primary" | "secondary" | "ghost" | "link-button";
-};
-
-const LAYOUT_TRANSITION = {
-  layout: { duration: 0.3, ease: [0.6, 0.6, 0, 1] as const },
 };
 
 export default function Button({
@@ -22,7 +17,7 @@ export default function Button({
     | ({ href: string } & React.ComponentProps<"a">)
   )) {
   const className = cn(
-    "group relative flex-center cursor-pointer overflow-hidden rounded-full",
+    "group relative flex-center cursor-pointer rounded-full",
     "transition-[box-shadow,background-color,color,opacity,transform] active:scale-[0.99] active:duration-30",
     "text-label-x-small",
     "[&>astro-slot>span]:relative [&>astro-slot>span]:z-1 [&>astro-slot>span]:px-6",
@@ -78,26 +73,15 @@ export default function Button({
 
   if ("href" in attributes) {
     return (
-      <motion.a
-        layout="size"
-        {...attributes}
-        className={className}
-        transition={LAYOUT_TRANSITION}
-      >
+      <a {...attributes} className={className}>
         {Children}
-      </motion.a>
+      </a>
     );
   }
 
   return (
-    <motion.button
-      layout="size"
-      {...attributes}
-      className={className}
-      disabled={disabled}
-      transition={LAYOUT_TRANSITION}
-    >
+    <button {...attributes} className={className} disabled={disabled}>
       {Children}
-    </motion.button>
+    </button>
   );
 }

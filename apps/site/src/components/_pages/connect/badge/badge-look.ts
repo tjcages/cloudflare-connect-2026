@@ -12,6 +12,15 @@ export const BADGE_DPR_MAX = 2;
 export const BADGE_ENV_INTENSITY = 0.55;
 export const BADGE_TONE_EXPOSURE = 1.05;
 export const BADGE_ANISOTROPY = 8;
+export const BADGE_PRINT_ROUGHNESS = 0.1;
+export const BADGE_PRINT_CLEARCOAT = 1;
+export const BADGE_PRINT_CLEARCOAT_ROUGHNESS = 0.05;
+export const BADGE_PRINT_ENV = 1.15;
+
+export const BADGE_ACCENT_LIGHTS = [
+  { position: [4.2, 5.2, 6.2] as const, scale: 0.95 },
+  { position: [-4.8, -2.2, 4.8] as const, scale: 0.6 },
+] as const;
 
 export function badgeAnisotropy(
   gl: WebGLRenderer,

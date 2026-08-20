@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 describe("copy feedback", () => {
-  it("swaps the icon and label together", () => {
+  it("swaps the icon and label inside a fixed width", () => {
     const source = readFileSync(
       resolve(process.cwd(), "src/components/copy-feedback/CopyFeedback.tsx"),
       "utf8"
@@ -11,21 +11,21 @@ describe("copy feedback", () => {
     expect(source).toContain("export function CopyFeedbackIcon");
     expect(source).toContain("export function CopyFeedbackLabel");
     expect(source).toContain('mode="popLayout"');
-    expect(source).toContain("whitespace-nowrap");
+    expect(source).toContain("invisible");
+    expect(source).toContain("inline-grid");
+    expect(source).toContain("size-20");
   });
 });
 
-describe("button layout morph", () => {
-  it("animates size when icon and label swap", () => {
+describe("button", () => {
+  it("does not morph width when copy state changes", () => {
     const source = readFileSync(
       resolve(process.cwd(), "src/components/Button.tsx"),
       "utf8"
     );
-    expect(source).toContain('layout="size"');
-    expect(source).toContain("overflow-hidden");
+    expect(source).not.toContain('layout="size"');
     expect(source).toContain(
       "transition-[box-shadow,background-color,color,opacity,transform]"
     );
-    expect(source).not.toContain("transition-all active:scale");
   });
 });

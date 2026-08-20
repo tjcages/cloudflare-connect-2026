@@ -47,7 +47,12 @@ import {
   cardBottomDragOffsetY,
 } from "./badge-intro";
 import {
+  BADGE_ACCENT_LIGHTS,
   BADGE_DPR_MAX,
+  BADGE_PRINT_CLEARCOAT,
+  BADGE_PRINT_CLEARCOAT_ROUGHNESS,
+  BADGE_PRINT_ENV,
+  BADGE_PRINT_ROUGHNESS,
   applyBadgeLook,
   badgeAnisotropy,
 } from "./badge-look";
@@ -747,8 +752,8 @@ function createBadgeCard(
           metalness: 0,
           roughness: tune.cardRoughness,
           clearcoat: tune.cardClearcoat,
-          clearcoatRoughness: 0.18,
-          envMapIntensity: 0.7,
+          clearcoatRoughness: 0.08,
+          envMapIntensity: 0.85,
           ior: 1.4,
           toneMapped: true,
         })
@@ -758,10 +763,21 @@ function createBadgeCard(
   const faceRadius = Math.max(tune.cardRadius - tune.shaderInset, 0.001);
   const face = new Mesh(
     createPrintFaceGeometry(faceWidth, faceHeight, faceRadius),
-    new MeshBasicMaterial({
-      map: texture,
-      toneMapped: false,
-    })
+    lowPower
+      ? new MeshBasicMaterial({
+          map: texture,
+          toneMapped: false,
+        })
+      : new MeshPhysicalMaterial({
+          map: texture,
+          roughness: BADGE_PRINT_ROUGHNESS,
+          metalness: 0,
+          clearcoat: BADGE_PRINT_CLEARCOAT,
+          clearcoatRoughness: BADGE_PRINT_CLEARCOAT_ROUGHNESS,
+          envMapIntensity: BADGE_PRINT_ENV,
+          ior: 1.5,
+          toneMapped: false,
+        })
   );
   face.name = BADGE_PRINT_MESH_NAME;
   face.renderOrder = 1;
@@ -1711,10 +1727,17 @@ function BadgeScene({
         intensity={lowPower ? Math.min(tune.ambient + 0.2, 1.2) : tune.ambient}
       />
       {lowPower ? (
-        <directionalLight
-          intensity={tune.keyLight * 0.85}
-          position={[5, 7, 8]}
-        />
+        <>
+          <directionalLight
+            intensity={tune.keyLight * 0.85}
+            position={[5, 7, 8]}
+          />
+          <directionalLight
+            color={identity.accent}
+            intensity={tune.rimLight * 0.7}
+            position={[4, 4, 6]}
+          />
+        </>
       ) : (
         <>
           <hemisphereLight args={["#fff4e8", "#d4cbc2", tune.hemi]} />
@@ -1728,11 +1751,14 @@ function BadgeScene({
             intensity={tune.fillLight}
             position={[-6, 3, 5]}
           />
-          <directionalLight
-            color={identity.accent}
-            intensity={tune.rimLight}
-            position={[2, -1, 6]}
-          />
+          {BADGE_ACCENT_LIGHTS.map((light) => (
+            <directionalLight
+              color={identity.accent}
+              intensity={tune.rimLight * light.scale}
+              key={light.position.join(":")}
+              position={[...light.position]}
+            />
+          ))}
         </>
       )}
       <LanyardBadge
