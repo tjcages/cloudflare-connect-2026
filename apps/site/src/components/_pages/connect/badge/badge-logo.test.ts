@@ -382,12 +382,16 @@ describe("badge logo SVG prep", () => {
     expect(page).toContain("whitePoint: 0.8");
     expect(page).toContain("Copy shareable card");
     expect(page).toContain("Share on X");
-    expect(page).toContain('window.open("about:blank"');
-    expect(page).toContain("popup.location.replace");
+    expect(page).toContain(
+      "badgeTweetUrl(badgeShareHeadline(view.name), pageUrl)"
+    );
+    expect(page).toContain("noopener,noreferrer");
+    expect(page).not.toContain('window.open("about:blank"');
     expect(page).toContain("paused={reducedMotion || !shaderLive}");
     expect(page).toContain("text-balance");
     expect(page).toContain("captureHeroShare");
-    expect(page).toContain("captureHeroShare(hero, title)");
+    expect(page).toContain("captureHeroShare(hero)");
+    expect(page).not.toContain("captureHeroShare(hero, title)");
     expect(page).toContain("text-left");
     expect(page).toContain("BadgeShareDock");
     expect(page).toContain("heroRef");

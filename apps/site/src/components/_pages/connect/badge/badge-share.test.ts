@@ -3,8 +3,6 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { badgeIdentityLayout } from "./badge-identity";
 import {
-  BADGE_SHARE_GRID,
-  BADGE_SHARE_GRID_LINE,
   BADGE_SHARE_SURFACE,
   badgeShareHeadline,
   badgeTweetUrl,
@@ -64,7 +62,7 @@ describe("badge share copy", () => {
     );
   });
 
-  it("drops marked nodes from the hero screenshot", () => {
+  it("drops marked nodes and canvases from the hero screenshot", () => {
     expect(keepShareNode({ hasAttribute: () => false } as HTMLElement)).toBe(
       true
     );
@@ -73,12 +71,16 @@ describe("badge share copy", () => {
         hasAttribute: (name: string) => name === "data-share-hide",
       } as HTMLElement)
     ).toBe(false);
+    expect(
+      keepShareNode({
+        nodeName: "CANVAS",
+        hasAttribute: () => false,
+      } as HTMLElement)
+    ).toBe(false);
   });
 
-  it("uses a white field and the Connect grey grid for the share card", () => {
+  it("screenshots the live hero onto a white field", () => {
     expect(BADGE_SHARE_SURFACE).toBe("#ffffff");
-    expect(BADGE_SHARE_GRID_LINE).toBe("#f4f4f4");
-    expect(BADGE_SHARE_GRID).toBe(80);
     const source = readFileSync(
       resolve(
         process.cwd(),
@@ -86,9 +88,8 @@ describe("badge share copy", () => {
       ),
       "utf8"
     );
-    expect(source).toContain("drawShareGrid");
+    expect(source).toContain("toCanvas(hero");
     expect(source).toContain("shareStamp");
-    expect(source).toContain("headline");
-    expect(source).toContain("[data-share-title]");
+    expect(source).not.toContain("drawShareGrid");
   });
 });

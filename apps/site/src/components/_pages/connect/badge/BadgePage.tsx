@@ -13,7 +13,6 @@ import {
   useState,
 } from "react";
 import { flushSync } from "react-dom";
-import cn from "classnames";
 import Button from "@/components/Button";
 import { CopyFeedbackIcon } from "@/components/copy-feedback/CopyFeedback";
 import CornerDots from "@/components/CornerDots";
@@ -304,7 +303,7 @@ export default function BadgePage(_props: IslandProps) {
     if (!hero) throw new Error("Could not capture the badge.");
     flushSync(() => setShareCapture(true));
     try {
-      const canvas = await captureHeroShare(hero, title);
+      const canvas = await captureHeroShare(hero);
       const next = await copyCanvasImage(canvas);
       if (shareUrlRef.current) URL.revokeObjectURL(shareUrlRef.current);
       shareUrlRef.current = next.url;
@@ -331,22 +330,13 @@ export default function BadgePage(_props: IslandProps) {
 
   const onShareX = () => {
     if (sharing) return;
+    window.open(
+      badgeTweetUrl(badgeShareHeadline(view.name), pageUrl),
+      "_blank",
+      "noopener,noreferrer"
+    );
     setSharing(true);
-    const popup = window.open("about:blank", "_blank");
-    if (popup) popup.opener = null;
-    void captureShareCard()
-      .then((title) => {
-        const url = badgeTweetUrl(title, pageUrl);
-        if (popup && !popup.closed) {
-          popup.location.replace(url);
-          return;
-        }
-        window.open(url, "_blank", "noopener,noreferrer");
-      })
-      .catch(() => {
-        popup?.close();
-      })
-      .finally(() => setSharing(false));
+    void captureShareCard().finally(() => setSharing(false));
   };
 
   const dismissShare = () => {
@@ -458,6 +448,8 @@ export default function BadgePage(_props: IslandProps) {
             <div
               aria-hidden="true"
               className="pointer-events-none absolute inset-0 z-0 overflow-visible"
+              data-share-hide=""
+              hidden={shareCapture}
             >
               <div
                 className="absolute top-0 right-0 h-full w-720 max-lg:w-full"
@@ -508,28 +500,18 @@ export default function BadgePage(_props: IslandProps) {
         </div>
 
         <div className="absolute inset-y-0 left-80 z-20 flex w-520 flex-col justify-center gap-40 max-lg:static max-lg:w-full max-lg:px-24 max-lg:py-64">
-          <div data-share-hide="" hidden={shareCapture}>
-            <Scramble
-              className="text-decorative-small text-text-faint"
-              preset="eyebrow-hero"
-              segments={[
-                { text: "01 · ", className: "[word-spacing:4.75px]" },
-                { text: "BADGE", className: "text-orange-900" },
-              ]}
-            />
-          </div>
+          <Scramble
+            className="text-decorative-small text-text-faint"
+            preset="eyebrow-hero"
+            segments={[
+              { text: "01 · ", className: "[word-spacing:4.75px]" },
+              { text: "BADGE", className: "text-orange-900" },
+            ]}
+          />
 
           <div>
-            <h1
-              className={cn(
-                "text-left text-heading-h1 text-balance text-text-base",
-                !shareCapture && "mb-16"
-              )}
-              data-share-title=""
-            >
-              {shareCapture
-                ? badgeShareHeadline(view.name)
-                : "Your Connect 2026 badge"}
+            <h1 className="mb-16 text-left text-heading-h1 text-balance text-text-base">
+              Your Connect 2026 badge
             </h1>
 
             <div
