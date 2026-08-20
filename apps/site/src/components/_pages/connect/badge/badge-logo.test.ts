@@ -446,11 +446,35 @@ describe("badge logo SVG prep", () => {
     expect(dock).toContain("rounded-16");
     expect(dock).toContain("draggable");
     expect(dock).toContain("cross-small");
+    expect(dock).toContain("arrows-zoom");
+    expect(dock).toContain("Open shareable card");
+    expect(dock).toContain("cursor-zoom-in");
+    expect(dock).toContain("BadgeLightbox");
+    expect(dock).toContain("originRect");
     expect(dock).toContain('filter: "blur(6px)"');
     expect(dock).toContain("scale: 0.88");
     expect(dock).not.toContain("hover:scale-105");
     expect(dock).not.toContain("Right-click the image to save");
     expect(dock).not.toContain("before:inside-border");
+
+    const lightbox = readFileSync(
+      resolve(
+        process.cwd(),
+        "src/components/_pages/connect/badge/BadgeLightbox.tsx"
+      ),
+      "utf8"
+    );
+    expect(lightbox).toContain("createPortal");
+    expect(lightbox).toContain("z-20000");
+    expect(lightbox).toContain("useMotionValue");
+    expect(lightbox).toContain("dragMomentum={false}");
+    expect(lightbox).toContain("preventDefault");
+    expect(lightbox).toContain("ArrowLeft");
+    expect(lightbox).toContain("Escape");
+    expect(lightbox).toContain("originRect");
+    expect(lightbox).toContain("handleDragEnd");
+    expect(lightbox).toContain("bg-black/90");
+    expect(lightbox).toContain("role=\"dialog\"");
 
     const lanyard = readFileSync(
       resolve(
