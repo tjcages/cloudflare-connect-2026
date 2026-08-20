@@ -14,10 +14,12 @@ export const BADGE_DPR_MAX = 1.5;
 export const BADGE_ENV_INTENSITY = 0.85;
 export const BADGE_TONE_EXPOSURE = 1.05;
 export const BADGE_ANISOTROPY = 8;
-export const BADGE_PRINT_ROUGHNESS = 0.08;
+export const BADGE_PRINT_ROUGHNESS = 0.04;
 export const BADGE_PRINT_CLEARCOAT = 1;
-export const BADGE_PRINT_CLEARCOAT_ROUGHNESS = 0.04;
-export const BADGE_PRINT_ENV = 1.8;
+export const BADGE_PRINT_CLEARCOAT_ROUGHNESS = 0.015;
+export const BADGE_PRINT_ENV = 2.8;
+export const BADGE_PRINT_IOR = 1.85;
+export const BADGE_PRINT_SPECULAR = 1.8;
 
 export const BADGE_ACCENT_LIGHTS = [
   { position: [4.2, 5.2, 6.2] as const, scale: 0.95 },
@@ -32,7 +34,8 @@ type StudioPanel = {
 };
 
 const STUDIO_PANELS: readonly StudioPanel[] = [
-  { color: "#ffffff", width: 10, height: 8, position: [4.6, 5.4, 7.2] },
+  { color: "#ffffff", width: 12, height: 10, position: [3.2, 6.4, 5.4] },
+  { color: "#f4fbff", width: 6, height: 4, position: [-1.2, 4.8, 7.6] },
   { color: "#dce7f4", width: 8, height: 8, position: [-6.2, 2.2, 5.2] },
   { color: "#fff4e0", width: 12, height: 4, position: [0, 8.2, 2.4] },
   { color: "#2a2a2e", width: 16, height: 16, position: [0, -6.4, 0.2] },

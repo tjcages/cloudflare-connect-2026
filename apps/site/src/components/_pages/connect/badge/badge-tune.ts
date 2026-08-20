@@ -19,6 +19,7 @@ export type BadgeTune = {
   cardEmissive: number;
   cardRoughness: number;
   cardClearcoat: number;
+  cardPitch: number;
   cameraFov: number;
   cameraX: number;
   cameraY: number;
@@ -89,7 +90,7 @@ export const BADGE_LOGO_SCALE_MAX = 1.6;
 
 export const BADGE_TUNE_DEFAULTS: BadgeTune = {
   modelScale: 15.8,
-  hangLift: 0.38,
+  hangLift: 0.85,
   hangX: -0.12,
   hangZ: 0,
   cardWidth: 0.1,
@@ -101,6 +102,7 @@ export const BADGE_TUNE_DEFAULTS: BadgeTune = {
   cardEmissive: 0.17,
   cardRoughness: 0.18,
   cardClearcoat: 1,
+  cardPitch: -0.12,
   cameraFov: 30,
   cameraX: 0,
   cameraY: 0.15,
@@ -135,8 +137,8 @@ export const BADGE_TUNE_DEFAULTS: BadgeTune = {
   dragFollow: 0.12,
   restPull: 0.01,
   swayFollow: 0.16,
-  dragLimitX: 0.28,
-  dragLimitDown: 0.047,
+  dragLimitX: 0.15,
+  dragLimitDown: 0.09,
   constraintStiffness: 0.32,
   twistPos: 3.5,
   twistVel: 10,
@@ -226,6 +228,14 @@ export const BADGE_TUNE_FIELDS: PanelField<BadgeTune>[] = [
   slider("cardEmissive", "Plastic white", 0, 1, 0.01),
   slider("cardRoughness", "Roughness", 0, 1, 0.01),
   slider("cardClearcoat", "Clearcoat", 0, 1, 0.01),
+  slider(
+    "cardPitch",
+    "Pitch",
+    -0.4,
+    0.4,
+    0.005,
+    "Negative tips the top into the screen so the coat catches light."
+  ),
   { type: "section", title: "Camera" },
   slider("cameraFov", "FOV", 18, 55, 0.5),
   slider("cameraX", "Camera X", -3, 3, 0.01),
@@ -332,7 +342,7 @@ export const BADGE_TUNE_FIELDS: PanelField<BadgeTune>[] = [
   slider("restPull", "Rest pull", 0, 0.08, 0.001),
   slider("swayFollow", "Sway follow", 0, 0.5, 0.005),
   slider("dragLimitX", "Drag limit X", 0.05, 0.6, 0.005),
-  slider("dragLimitDown", "Stretch down", 0, 0.12, 0.001),
+  slider("dragLimitDown", "Stretch down", 0, 0.18, 0.001),
   slider("constraintStiffness", "Stiffness", 0.05, 0.8, 0.01),
   slider("twistPos", "Twist from X", 0, 10, 0.05),
   slider("twistVel", "Twist from velocity", 0, 24, 0.1),
@@ -383,4 +393,4 @@ export const BADGE_TUNE_FIELDS: PanelField<BadgeTune>[] = [
   slider("backdropMaskY", "Mask Y %", 0, 100, 1),
 ];
 
-export const BADGE_TUNE_PANEL_ID = "connect-badge-tune-v15";
+export const BADGE_TUNE_PANEL_ID = "connect-badge-tune-v16";

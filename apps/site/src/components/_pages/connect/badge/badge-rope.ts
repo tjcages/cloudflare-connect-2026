@@ -5,9 +5,9 @@ export const BADGE_CHAIN_BONES = 4;
 export const BADGE_ROPE_POINTS = BADGE_CHAIN_BONES + 1;
 export const CONSTRAINT_ITERS = 4;
 export const SLEEP_EPS = 0.0009;
-export const DRAG_LIMIT_UP = 0.06;
+export const DRAG_LIMIT_UP = 0;
 export const STRETCH_RETURN = 0.1;
-export const BADGE_MAX_STRETCH = 2.4;
+export const BADGE_MAX_STRETCH = 1.55;
 export const BADGE_MIN_STRETCH = 0.72;
 
 export type RopeState = {

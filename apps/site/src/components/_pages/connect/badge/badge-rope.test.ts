@@ -4,6 +4,7 @@ import { BADGE_TUNE_DEFAULTS } from "./badge-tune";
 import {
   BADGE_CHAIN_BONES,
   BADGE_ROPE_POINTS,
+  DRAG_LIMIT_UP,
   preventStrapCatch,
   ropeIsAsleep,
   type RopeState,
@@ -31,6 +32,7 @@ describe("badge rope", () => {
   it("uses four bones so the strap cannot accordion on itself", () => {
     expect(BADGE_CHAIN_BONES).toBe(4);
     expect(BADGE_ROPE_POINTS).toBe(5);
+    expect(DRAG_LIMIT_UP).toBe(0);
   });
 
   it("does not treat a vertically bunched strap as asleep", () => {
@@ -60,21 +62,21 @@ describe("badge rope", () => {
 
   it("lengthens for a far sideways pull instead of keeping rest length", () => {
     const rope = restRope();
-    rope.now[0]!.x = 0.28;
-    updateStretch(rope, new Vector3(0.28, 0, 0), 0.047);
-    expect(rope.stretch).toBeGreaterThan(1.2);
+    rope.now[0]!.x = 0.15;
+    updateStretch(rope, new Vector3(0.15, 0, 0), 0.09);
+    expect(rope.stretch).toBeGreaterThan(1.05);
   });
 
   it("shortens when the badge lifts so the strap cannot buckle", () => {
     const rope = restRope();
     rope.now[0]!.y = 0.07;
-    updateStretch(rope, null, 0.047);
+    updateStretch(rope, null, 0.09);
     expect(rope.stretch).toBeLessThan(1);
   });
 
   it("keeps midpoints above the tip after a far drag", () => {
     const rope = restRope();
-    const drag = new Vector3(0.28, 0.04, -0.056);
+    const drag = new Vector3(0.15, -0.09, -0.03);
     for (let i = 0; i < 24; i += 1) {
       stepRope(rope, drag, 1 / 60, false, BADGE_TUNE_DEFAULTS);
     }

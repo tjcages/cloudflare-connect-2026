@@ -485,6 +485,7 @@ describe("badge logo SVG prep", () => {
     expect(lanyard).not.toContain("introRopePoint");
     expect(lanyard).toContain("stepRope");
     expect(lanyard).toContain("BADGE_CHAIN_BONES");
+    expect(lanyard).toContain("tune.cardPitch");
     expect(lanyard).toContain("CARD_FRONT_Z");
     expect(lanyard).not.toContain("INTRO_SPIN");
     expect(lanyard).not.toContain("INTRO_X");

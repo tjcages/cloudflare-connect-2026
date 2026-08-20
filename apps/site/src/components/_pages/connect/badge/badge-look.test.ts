@@ -7,6 +7,7 @@ import {
   BADGE_DPR_MAX,
   BADGE_ENV_INTENSITY,
   BADGE_PRINT_ROUGHNESS,
+  BADGE_PRINT_ENV,
   BADGE_TONE_EXPOSURE,
 } from "./badge-look";
 
@@ -16,6 +17,7 @@ describe("badge look", () => {
     expect(BADGE_ANISOTROPY).toBe(8);
     expect(BADGE_ENV_INTENSITY).toBeGreaterThan(0.3);
     expect(BADGE_PRINT_ROUGHNESS).toBeLessThan(0.2);
+    expect(BADGE_PRINT_ENV).toBeGreaterThan(2);
     expect(BADGE_ACCENT_LIGHTS).toHaveLength(2);
 
     const source = readFileSync(

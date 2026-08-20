@@ -19,6 +19,7 @@ describe("badge intro pose", () => {
     expect(INTRO_POSE.tip.x).toBe(0.0839);
     expect(INTRO_POSE.drag?.y).toBe(-0.04);
     expect(INTRO_POSE.card.ry).toBe(-0.2934);
+    expect(INTRO_POSE.card.rx).toBe(-0.12);
     expect(INTRO_POSE.rope).toHaveLength(INTRO_ROPE_POINTS);
     expect(INTRO_ROPE_POINTS).toBe(5);
     expect(INTRO_POSE.rope[0]).toEqual(INTRO_TIP);

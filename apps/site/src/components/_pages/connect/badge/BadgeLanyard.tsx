@@ -54,7 +54,9 @@ import {
   BADGE_PRINT_CLEARCOAT,
   BADGE_PRINT_CLEARCOAT_ROUGHNESS,
   BADGE_PRINT_ENV,
+  BADGE_PRINT_IOR,
   BADGE_PRINT_ROUGHNESS,
+  BADGE_PRINT_SPECULAR,
   applyBadgeLook,
   badgeAnisotropy,
 } from "./badge-look";
@@ -788,7 +790,8 @@ function createBadgeCard(
         clearcoat: BADGE_PRINT_CLEARCOAT,
         clearcoatRoughness: BADGE_PRINT_CLEARCOAT_ROUGHNESS,
         envMapIntensity: BADGE_PRINT_ENV,
-        ior: 1.5,
+        ior: BADGE_PRINT_IOR,
+        specularIntensity: BADGE_PRINT_SPECULAR,
         transparent: true,
         depthWrite: false,
         blending: AdditiveBlending,
@@ -1147,7 +1150,7 @@ function applyCardTwist(
   tune: BadgeTune
 ) {
   if (reducedMotion) {
-    card.rotation.set(0, 0, 0);
+    card.rotation.set(tune.cardPitch, 0, 0);
     return;
   }
   const tip = rope.now[0]!;
@@ -1163,6 +1166,7 @@ function applyCardTwist(
     -tune.rollMax,
     tune.rollMax
   );
+  card.rotation.x = tune.cardPitch;
   card.rotation.y = MathUtils.lerp(card.rotation.y, twist, tune.twistSmooth);
   card.rotation.z = MathUtils.lerp(card.rotation.z, roll, tune.twistSmooth);
 }
@@ -1415,6 +1419,8 @@ function LanyardBadge({
         tune
       );
       applyCardTwist(rig.card, rig.rope, reducedMotion, tune);
+    } else {
+      rig.card.rotation.x = tune.cardPitch;
     }
     applyRopeToBones(rig.bones, rig.rope);
     applyWallShadow(rig, tune);
