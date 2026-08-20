@@ -303,15 +303,21 @@ describe("badge logo SVG prep", () => {
       "utf8"
     );
     expect(upload).toContain("Add company logo");
-    expect(upload).toContain("Drag to move");
-    expect(upload).toContain("Logo size");
-    expect(upload).toContain("Replace logo");
+    expect(upload).toContain("DashedCircle");
+    expect(upload).toContain("PanelGrip");
+    expect(upload).toContain('side="top"');
+    expect(upload).toContain("scroll={false}");
+    expect(upload).toContain("maskImage");
+    expect(upload).toContain("Replace");
+    expect(upload).toContain("Remove");
     expect(upload).toContain("LOGO_FILE_ACCEPT");
     expect(upload).toContain("sourcePanX");
     expect(upload).toContain("logoScale");
     expect(upload).toContain("Dropdown");
     expect(upload).toContain("aspect-4/3");
     expect(upload).not.toContain("Upload logo");
+    expect(upload).not.toContain("Drag to move");
+    expect(upload).not.toContain("Shader source");
 
     const customizer = readFileSync(
       resolve(
@@ -323,6 +329,7 @@ describe("badge logo SVG prep", () => {
     expect(customizer).toContain("BadgeLogoUpload");
     expect(customizer).toContain('role="radiogroup"');
     expect(customizer).toContain('className="contents"');
+    expect(customizer).toContain("badgeMarkFill");
 
     const page = readFileSync(
       resolve(

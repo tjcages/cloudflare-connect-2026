@@ -1,6 +1,6 @@
 import cn from "classnames";
 import type { BadgeParams } from "./badge-params";
-import { BADGE_THEMES } from "./badge-themes";
+import { BADGE_THEMES, badgeMarkFill, findBadgeTheme } from "./badge-themes";
 import BadgeLogoUpload from "./BadgeLogoUpload";
 import BadgeThemeSwatch from "./BadgeThemeSwatch";
 
@@ -62,6 +62,7 @@ export default function BadgeCustomizer({
         <BadgeLogoUpload
           fileName={fileName}
           logoScale={logoScale}
+          markFill={badgeMarkFill(findBadgeTheme(params.theme))}
           onClear={onClear}
           onFile={onFile}
           onPanChange={onPanChange}

@@ -3,12 +3,12 @@ import {
   useEffect,
   useRef,
   useState,
+  type ButtonHTMLAttributes,
   type ChangeEvent,
   type PointerEvent,
 } from "react";
+import DashedCircle from "@/components/dashed-line/DashedCircle";
 import Dropdown from "@/components/dropdown/Dropdown";
-import DropdownItem from "@/components/dropdown/DropdownItem";
-import DropdownSeparator from "@/components/dropdown/DropdownSeparator";
 import Icon from "@/components/icon/Icon";
 import { LOGO_FILE_ACCEPT } from "./badge-logo";
 import {
@@ -21,33 +21,87 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
-const circleClass = (active: boolean) =>
-  cn(
-    "flex size-40 items-center justify-center rounded-full transition-transform outline-none",
-    active
-      ? "shadow-[inset_0_0_0_2px_var(--color-orange-900)]"
-      : "hover:scale-105"
+function PanelGrip() {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="currentColor"
+      height={14}
+      viewBox="0 0 24 24"
+      width={14}
+    >
+      <circle cx="9" cy="6" r="1.4" />
+      <circle cx="15" cy="6" r="1.4" />
+      <circle cx="9" cy="12" r="1.4" />
+      <circle cx="15" cy="12" r="1.4" />
+      <circle cx="9" cy="18" r="1.4" />
+      <circle cx="15" cy="18" r="1.4" />
+    </svg>
   );
+}
 
-function LogoThumb({ src }: { src?: string }) {
+function LogoThumb({ src, fill }: { src?: string; fill: string }) {
   if (!src) {
     return (
-      <span className="relative flex size-28 items-center justify-center rounded-full bg-background-faint text-icon-muted before:inner-border before:border-border-default">
+      <span className="relative flex size-28 items-center justify-center rounded-full text-icon-muted">
         <Icon name="plus-small" size={20} />
       </span>
     );
   }
 
   return (
-    <span className="relative flex size-28 items-center justify-center overflow-hidden rounded-full bg-background-faint before:inner-border before:border-border-default">
-      <img alt="" className="size-full object-contain p-4" src={src} />
-    </span>
+    <span
+      aria-hidden="true"
+      className="size-28"
+      style={{
+        backgroundColor: fill,
+        maskImage: `url("${src}")`,
+        maskPosition: "center",
+        maskRepeat: "no-repeat",
+        maskSize: "contain",
+        WebkitMaskImage: `url("${src}")`,
+        WebkitMaskPosition: "center",
+        WebkitMaskRepeat: "no-repeat",
+        WebkitMaskSize: "contain",
+      }}
+    />
+  );
+}
+
+function LogoCircle({
+  active,
+  fill,
+  src,
+  ...attributes
+}: {
+  active: boolean;
+  fill: string;
+  src?: string;
+} & ButtonHTMLAttributes<HTMLButtonElement>) {
+  return (
+    <button
+      {...attributes}
+      className={cn(
+        "relative flex size-40 items-center justify-center rounded-full outline-none",
+        !active && "hover:scale-105"
+      )}
+      type="button"
+    >
+      <DashedCircle
+        className={cn(
+          "overlay",
+          active ? "text-orange-900" : "text-border-dashed"
+        )}
+      />
+      <LogoThumb fill={fill} src={src} />
+    </button>
   );
 }
 
 export default function BadgeLogoUpload({
   fileName,
   previewSrc,
+  markFill,
   onFile,
   onClear,
   plateSrc,
@@ -59,6 +113,7 @@ export default function BadgeLogoUpload({
 }: {
   fileName: string | null;
   previewSrc: string | null;
+  markFill: string;
   onFile: (file: File) => void;
   onClear: () => void;
   plateSrc: string;
@@ -139,27 +194,24 @@ export default function BadgeLogoUpload({
     />
   );
 
-  const trigger = (
-    <button
+  const circle = (
+    <LogoCircle
+      active={open}
       aria-label={fileName ? `Edit ${fileName}` : "Add company logo"}
-      className={circleClass(open)}
-      type="button"
-    >
-      <LogoThumb src={previewSrc ?? undefined} />
-    </button>
+      fill={markFill}
+      src={previewSrc ?? undefined}
+    />
   );
 
   if (!fileName) {
     return (
       <>
-        <button
+        <LogoCircle
+          active={false}
           aria-label="Add company logo"
-          className={circleClass(false)}
+          fill={markFill}
           onClick={pickFile}
-          type="button"
-        >
-          <LogoThumb />
-        </button>
+        />
         {fileInput}
       </>
     );
@@ -168,63 +220,46 @@ export default function BadgeLogoUpload({
   return (
     <>
       <Dropdown
+        align="end"
         label="Company logo"
         onOpenChange={setOpen}
         open={open}
-        panelClassName="w-232"
-        trigger={trigger}
+        panelClassName="w-220"
+        scroll={false}
+        side="top"
+        trigger={circle}
       >
         <div
-          className="p-8"
+          className="bg-black relative aspect-4/3 cursor-grab touch-none overflow-hidden select-none active:cursor-grabbing"
           onKeyDown={(event) => event.stopPropagation()}
-          onPointerDown={(event) => event.stopPropagation()}
+          onPointerCancel={onPadPointerUp}
+          onPointerDown={onPadPointerDown}
+          onPointerMove={onPadPointerMove}
+          onPointerUp={onPadPointerUp}
         >
-          <div className="mb-8 text-label-x-small text-text-muted">
-            Shader source
-          </div>
-          <div
-            className="bg-black relative aspect-4/3 cursor-grab touch-none overflow-hidden rounded-8 select-none active:cursor-grabbing"
-            onPointerDown={onPadPointerDown}
-            onPointerMove={onPadPointerMove}
-            onPointerUp={onPadPointerUp}
-            onPointerCancel={onPadPointerUp}
+          <img
+            alt=""
+            className="pointer-events-none absolute inset-0 size-full object-cover"
+            src={plateSrc}
+            style={{
+              transform: `translate(${sourcePanX * 50}%, ${sourcePanY * -50}%)`,
+            }}
+          />
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
+            style={{ color: markFill }}
           >
-            <img
-              alt="Luminance plate converted into the badge stripe shader"
-              className="pointer-events-none absolute inset-0 size-full object-contain"
-              src={plateSrc}
-              style={{
-                transform: `translate(${sourcePanX * 50}%, ${sourcePanY * -50}%)`,
-              }}
-            />
-            {previewSrc ? (
-              <img
-                alt=""
-                className="pointer-events-none absolute top-1/2 left-1/2 object-contain"
-                src={previewSrc}
-                style={{
-                  width: `${logoScale * 55}%`,
-                  height: `${logoScale * 55}%`,
-                  transform: "translate(-50%, -50%)",
-                }}
-              />
-            ) : null}
-          </div>
-          <p className="mt-8 text-label-x-small text-text-muted">
-            Drag to move
-          </p>
+            <PanelGrip />
+          </span>
         </div>
 
         <div
-          className="flex min-h-36 items-center gap-8 p-8"
+          className="flex items-center gap-12 px-12 py-10"
           onKeyDown={(event) => event.stopPropagation()}
           onPointerDown={(event) => event.stopPropagation()}
         >
-          <Icon
-            className="shrink-0 text-icon-default"
-            name="arrows-zoom"
-            size={20}
-          />
+          <span className="text-label-x-small text-text-muted">Size</span>
           <input
             aria-label="Logo size"
             className="h-20 min-w-0 flex-1 accent-orange-900"
@@ -235,39 +270,30 @@ export default function BadgeLogoUpload({
             type="range"
             value={logoScale}
           />
-          <span className="w-36 text-right text-label-x-small text-text-muted tabular-nums">
+          <span className="w-32 text-right text-label-x-small text-text-muted tabular-nums">
             {Math.round(logoScale * 100)}%
           </span>
         </div>
 
-        <DropdownSeparator />
-
-        <DropdownItem
-          className="group w-full gap-12"
-          closeOnClick={false}
-          onClick={pickFile}
-        >
-          <Icon
-            className="text-icon-default transition-all group-hover:text-icon-base"
-            name="images-2"
-            size={20}
-          />
-          <span>Replace logo</span>
-        </DropdownItem>
-        <DropdownItem
-          className="group w-full gap-12"
-          onClick={() => {
-            setOpen(false);
-            onClear();
-          }}
-        >
-          <Icon
-            className="text-icon-default transition-all group-hover:text-icon-base"
-            name="cross-small"
-            size={20}
-          />
-          <span>Remove</span>
-        </DropdownItem>
+        <div className="before:inner-border-t relative flex before:border-border-muted">
+          <button
+            className="flex-1 cursor-pointer py-10 text-center text-label-x-small text-text-base transition-colors hover:bg-background-ghost"
+            onClick={pickFile}
+            type="button"
+          >
+            Replace
+          </button>
+          <button
+            className="relative flex-1 cursor-pointer py-10 text-center text-label-x-small text-text-base transition-colors before:inner-border-l before:border-border-muted hover:bg-background-ghost"
+            onClick={() => {
+              setOpen(false);
+              onClear();
+            }}
+            type="button"
+          >
+            Remove
+          </button>
+        </div>
       </Dropdown>
       {fileInput}
     </>
