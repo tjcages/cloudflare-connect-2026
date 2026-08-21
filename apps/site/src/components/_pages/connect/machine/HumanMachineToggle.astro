@@ -1,0 +1,189 @@
+---
+interface Props {
+  humanTheme?: "light" | "dark";
+}
+
+const { humanTheme } = Astro.props;
+---
+
+<div
+  aria-label="Choose site representation"
+  class="human-machine-toggle"
+  data-human-theme={humanTheme}
+  data-interface-toggle
+  role="radiogroup"
+>
+  <span aria-hidden="true" class="human-machine-toggle__thumb"></span>
+  <button
+    aria-checked="true"
+    class="human-machine-toggle__option human-machine-toggle__option--human"
+    data-interface-option="human"
+    role="radio"
+    type="button"
+  >
+    <span aria-hidden="true" class="human-machine-toggle__dot"></span>
+    Human
+  </button>
+  <button
+    aria-checked="false"
+    class="human-machine-toggle__option human-machine-toggle__option--machine"
+    data-interface-option="machine"
+    role="radio"
+    type="button"
+  >
+    <span aria-hidden="true" class="human-machine-toggle__prompt">&gt;_</span>
+    Machine
+  </button>
+</div>
+
+<script>
+  import {
+    applyInterfaceMode,
+    type InterfaceMode,
+  } from "@/components/theme/theme-transition";
+
+  const root = document.querySelector<HTMLElement>("[data-interface-toggle]");
+
+  if (root) {
+    const buttons = Array.from(
+      root.querySelectorAll<HTMLButtonElement>("[data-interface-option]")
+    );
+
+    const sync = () => {
+      const mode =
+        document.documentElement.dataset.interfaceMode === "machine"
+          ? "machine"
+          : "human";
+
+      root.dataset.mode = mode;
+      for (const button of buttons) {
+        button.setAttribute(
+          "aria-checked",
+          String(button.dataset.interfaceOption === mode)
+        );
+      }
+    };
+
+    sync();
+    addEventListener("interfacemodechange", sync);
+
+    for (const button of buttons) {
+      button.addEventListener("click", () => {
+        const mode = button.dataset.interfaceOption as InterfaceMode;
+        if (document.documentElement.dataset.interfaceMode === mode) return;
+
+        applyInterfaceMode(mode, root.dataset.humanTheme || undefined);
+      });
+    }
+  }
+</script>
+
+<style is:global>
+  .human-machine-toggle {
+    --interface-pill-width: 104px;
+    position: fixed;
+    z-index: 100;
+    bottom: max(24px, env(safe-area-inset-bottom));
+    left: 50%;
+    display: grid;
+    width: 216px;
+    height: 48px;
+    grid-template-columns: repeat(2, 1fr);
+    align-items: center;
+    border: 1px solid
+      color-mix(in srgb, var(--color-border-loud) 76%, transparent);
+    border-radius: 999px;
+    padding: 4px;
+    background: color-mix(
+      in srgb,
+      var(--color-background-base) 86%,
+      transparent
+    );
+    box-shadow:
+      0 16px 48px rgb(0 0 0 / 0.18),
+      inset 0 1px rgb(255 255 255 / 0.05);
+    backdrop-filter: blur(18px) saturate(140%);
+    translate: -50% 0;
+  }
+
+  .human-machine-toggle__thumb {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    width: var(--interface-pill-width);
+    height: 38px;
+    border-radius: 999px;
+    background: var(--color-background-surface);
+    box-shadow:
+      0 1px 2px rgb(0 0 0 / 0.18),
+      inset 0 0 0 1px var(--color-border-default);
+    transition: transform 250ms cubic-bezier(0.22, 1, 0.36, 1);
+    view-transition-name: interface-thumb;
+    will-change: transform;
+  }
+
+  html[data-interface-mode="machine"] .human-machine-toggle__thumb {
+    transform: translateX(102px);
+  }
+
+  .human-machine-toggle__option {
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    height: 38px;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    border-radius: 999px;
+    color: var(--color-text-muted);
+    font-family: var(--font-paper-mono);
+    font-size: 12px;
+    line-height: 16px;
+    transition: color 200ms cubic-bezier(0.6, 0.6, 0, 1);
+  }
+
+  .human-machine-toggle__option:hover {
+    color: var(--color-text-base);
+  }
+
+  .human-machine-toggle__option--human {
+    view-transition-name: interface-label-human;
+  }
+
+  .human-machine-toggle__option--machine {
+    view-transition-name: interface-label-machine;
+  }
+
+  html:not([data-interface-mode="machine"])
+    .human-machine-toggle__option--human,
+  html[data-interface-mode="machine"] .human-machine-toggle__option--machine {
+    color: var(--color-text-base);
+  }
+
+  .human-machine-toggle__dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    background: var(--color-orange-900);
+    box-shadow: 0 0 0 3px
+      color-mix(in srgb, var(--color-orange-900) 15%, transparent);
+  }
+
+  .human-machine-toggle__prompt {
+    color: var(--color-orange-900);
+    font-weight: 600;
+    letter-spacing: -0.08em;
+  }
+
+  @media (max-width: 567px) {
+    .human-machine-toggle {
+      bottom: max(16px, env(safe-area-inset-bottom));
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .human-machine-toggle__thumb {
+      transition: none;
+    }
+  }
+</style>

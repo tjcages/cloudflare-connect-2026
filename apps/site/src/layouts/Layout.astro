@@ -4,6 +4,8 @@ import "@/styles/globals.css";
 import Cta from "@/components/cta/Cta.astro";
 import Footer from "@/components/footer/Footer.astro";
 import Header from "@/components/header/Header.astro";
+import HumanMachineToggle from "@/components/_pages/connect/machine/HumanMachineToggle.astro";
+import MachinePage from "@/components/_pages/connect/machine/MachinePage.astro";
 
 interface Props {
   description: string;
@@ -38,6 +40,7 @@ const {
 
 const canonical = Astro.url.href;
 const previewImage = new URL("/preview.png", Astro.site).href;
+const interfaceModeEnabled = Astro.url.pathname.startsWith("/connect");
 ---
 
 <!doctype html>
@@ -69,6 +72,18 @@ const previewImage = new URL("/preview.png", Astro.site).href;
         --zoom-ramp: 1;
       }
 
+      [data-machine-surface] {
+        display: none;
+      }
+
+      html[data-interface-mode="machine"] [data-human-surface] {
+        display: none;
+      }
+
+      html[data-interface-mode="machine"] [data-machine-surface] {
+        display: block;
+      }
+
       @media (min-width: 1800px) {
         html:not([data-zoom-off]) {
           --zoom-ramp: min(1 + ((100vw - 1800px) / 760px) * 0.25, 1.5);
@@ -76,15 +91,24 @@ const previewImage = new URL("/preview.png", Astro.site).href;
         }
       }
     </style>
-    <script is:inline define:vars={{ lockTheme }}>
+    <script is:inline define:vars={{ lockTheme, interfaceModeEnabled }}>
+      const savedInterfaceMode = localStorage.getItem("connect-interface-mode");
+      const storedInterfaceMode =
+        interfaceModeEnabled && savedInterfaceMode === "machine"
+          ? "machine"
+          : "human";
+      document.documentElement.dataset.interfaceMode = storedInterfaceMode;
+
       const storedTheme = localStorage.getItem("theme") ?? "system";
       document.documentElement.dataset.theme =
-        lockTheme ??
-        (storedTheme === "system"
-          ? matchMedia("(prefers-color-scheme: dark)").matches
-            ? "dark"
-            : "light"
-          : storedTheme);
+        storedInterfaceMode === "machine"
+          ? "dark"
+          : (lockTheme ??
+            (storedTheme === "system"
+              ? matchMedia("(prefers-color-scheme: dark)").matches
+                ? "dark"
+                : "light"
+              : storedTheme));
 
       if (localStorage.getItem("debug-zoom-off")) {
         document.documentElement.setAttribute("data-zoom-off", "");
@@ -123,6 +147,8 @@ const previewImage = new URL("/preview.png", Astro.site).href;
           return;
         if (e.target instanceof Element && e.target.closest("input, textarea"))
           return;
+        if (document.documentElement.dataset.interfaceMode === "machine")
+          return;
         toggleTheme();
       });
     </script>
@@ -151,22 +177,27 @@ const previewImage = new URL("/preview.png", Astro.site).href;
   <body
     class="relative overflow-x-clip bg-background-base font-sans text-text-base"
   >
-    {frame && (
-      <div class="pointer-events-none fixed top-0 centering-max-w-1200 z-10 h-screen before:inside-border-x before:border-border-default"></div>
-    )}
+    <div data-human-surface>
+      {frame && (
+        <div class="pointer-events-none fixed top-0 centering-max-w-1200 z-10 h-screen before:inside-border-x before:border-border-default" />
+      )}
 
-    {header && <Header variant={nav} />}
+      {header && <Header variant={nav} />}
 
-    {main ? (
-      <main>
+      {main ? (
+        <main>
+          <slot />
+        </main>
+      ) : (
         <slot />
-      </main>
-    ) : (
-      <slot />
-    )}
+      )}
 
-    {cta && <Cta />}
-    {footer && <Footer />}
+      {cta && <Cta />}
+      {footer && <Footer />}
+    </div>
+
+    {interfaceModeEnabled && <MachinePage pathname={Astro.url.pathname} />}
+    {interfaceModeEnabled && <HumanMachineToggle humanTheme={lockTheme} />}
 
     {import.meta.env.DEV && (
       <script
