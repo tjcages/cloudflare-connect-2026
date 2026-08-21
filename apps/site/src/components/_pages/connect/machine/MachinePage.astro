@@ -1,0 +1,692 @@
+---
+import ConnectHeaderLogo from "@/components/header/ConnectHeaderLogo";
+import {
+  CONNECT_MACHINE_ROUTES,
+  getConnectMachinePage,
+  type MachineLink,
+} from "./machine-page-data";
+
+interface Props {
+  pathname: string;
+}
+
+const { pathname } = Astro.props;
+const page = getConnectMachinePage(pathname);
+const routeIndex = CONNECT_MACHINE_ROUTES.findIndex(
+  ({ href }) => href.replace(/\/$/, "") === page.path.replace(/\/$/, "")
+);
+const updated = "2026-08-21";
+
+const isLink = (item: string | MachineLink): item is MachineLink =>
+  typeof item !== "string";
+---
+
+<div
+  aria-label={`Machine-readable view of ${page.title}`}
+  class="machine-surface"
+  data-machine-surface
+>
+  <header class="machine-nav">
+    <div class="machine-frame machine-nav__inner">
+      <div class="machine-logo">
+        <ConnectHeaderLogo />
+      </div>
+
+      <nav aria-label="Machine site navigation" class="machine-nav__links">
+        {CONNECT_MACHINE_ROUTES.slice(0, 6).map((route) => (
+          <a
+            aria-current={route.href === page.path ? "page" : undefined}
+            href={route.href}
+          >
+            {route.label}
+          </a>
+        ))}
+      </nav>
+
+      <a
+        class="machine-register"
+        href="https://events.www.cloudflare.com/connect2026/begin"
+      >
+        register
+      </a>
+    </div>
+  </header>
+
+  <main class="machine-main">
+    <section class="machine-hero">
+      <div class="machine-frame machine-hero__frame">
+        <div class="machine-hero__content">
+          <p class="machine-kicker">[{page.eyebrow}]</p>
+          <h1>## {page.title}</h1>
+          <div class="machine-hero__meta">
+            <span>path {page.path}</span>
+            <span aria-hidden="true">·</span>
+            <span
+              >page {String(routeIndex + 1).padStart(2, "0")}/{String(
+                CONNECT_MACHINE_ROUTES.length
+              ).padStart(2, "0")}</span
+            >
+            <span aria-hidden="true">·</span>
+            <span>updated {updated}</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="machine-frame machine-document-frame">
+      <article class="machine-document">
+        <p class="machine-repository">cloudflare-connect-2026</p>
+        <p class="machine-lede">{page.description}</p>
+
+        {page.sections.map((section) => (
+          <section class="machine-section">
+            <h2># {section.title}</h2>
+
+            {section.kind === "definitions" && (
+              <dl class="machine-definitions">
+                {section.rows.map((row) => (
+                  <div>
+                    <dt>{row.label}</dt>
+                    <dd>
+                      {row.href ? (
+                        <a href={row.href}>{row.value}</a>
+                      ) : (
+                        row.value
+                      )}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            )}
+
+            {section.kind === "list" && (
+              <ol
+                class:list={[
+                  "machine-list",
+                  !section.ordered && "machine-list--unordered",
+                ]}
+              >
+                {section.items.map((item) => (
+                  <li>
+                    {isLink(item) ? (
+                      <>
+                        <a href={item.href}>{item.label}</a>
+                        {item.detail && <span> {item.detail}</span>}
+                      </>
+                    ) : (
+                      item
+                    )}
+                  </li>
+                ))}
+              </ol>
+            )}
+
+            {section.kind === "cards" && (
+              <div class="machine-cards">
+                {section.items.map((item) => (
+                  <section>
+                    {item.meta && <p class="machine-card-meta">{item.meta}</p>}
+                    <h3>## {item.title}</h3>
+                    <p>{item.body}</p>
+                  </section>
+                ))}
+              </div>
+            )}
+
+            {section.kind === "faq" && (
+              <div class="machine-faq">
+                {section.items.map((item) => (
+                  <details>
+                    <summary>## {item.question}</summary>
+                    {item.answer.split("\n").map((paragraph) => (
+                      <p>{paragraph}</p>
+                    ))}
+                  </details>
+                ))}
+              </div>
+            )}
+
+            {section.kind === "code" && (
+              <div class="machine-code">
+                <div class="machine-code__label">```{section.language}</div>
+                <pre>{section.body}</pre>
+                <div class="machine-code__label">```</div>
+              </div>
+            )}
+          </section>
+        ))}
+      </article>
+    </div>
+  </main>
+
+  <footer class="machine-footer">
+    <div class="machine-frame machine-footer__grid">
+      <div>
+        <h2>event</h2>
+        <a href="/connect/">overview</a>
+        <a href="https://events.www.cloudflare.com/connect2026/begin"
+          >registration</a
+        >
+        <a href="/connect/faq">faq</a>
+      </div>
+      <div>
+        <h2>programs</h2>
+        <a href="/connect/cloudflare-university">university</a>
+        <a href="/connect/partner-summit">partner summit</a>
+        <a href="/connect/sponsors">sponsors</a>
+      </div>
+      <div>
+        <h2>utilities</h2>
+        <a href="/connect/convince-your-boss">convince your boss</a>
+        <a href="/connect/badge">badge</a>
+        <a href="/connect/login">login</a>
+      </div>
+      <div>
+        <h2>data</h2>
+        <a href="/connect/api/sponsors">sponsors.json</a>
+        <a href="mailto:connect@cloudflare.com">connect@<wbr />cloudflare.com</a
+        >
+        <span>text/markdown</span>
+      </div>
+    </div>
+    <div class="machine-frame machine-footer__bottom">
+      <span>© 2026 Cloudflare, Inc.</span>
+      <span>human-readable · machine-readable</span>
+    </div>
+  </footer>
+</div>
+
+<style>
+  .machine-surface {
+    min-height: 100vh;
+    overflow-x: clip;
+    background: var(--color-background-base);
+    color: var(--color-text-default);
+    font-family: var(--font-paper-mono);
+    font-size: 13px;
+    line-height: 20px;
+    letter-spacing: -0.005em;
+  }
+
+  .machine-surface,
+  .machine-surface * {
+    scrollbar-color: var(--color-text-faint) transparent;
+    scrollbar-width: thin;
+  }
+
+  :global(html[data-interface-mode="machine"] body) {
+    scrollbar-color: var(--color-text-faint) transparent;
+    scrollbar-width: thin;
+  }
+
+  :global(html[data-interface-mode="machine"] body::-webkit-scrollbar),
+  .machine-surface ::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+
+  :global(html[data-interface-mode="machine"] body::-webkit-scrollbar-track),
+  .machine-surface ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  :global(html[data-interface-mode="machine"] body::-webkit-scrollbar-thumb),
+  .machine-surface ::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: var(--color-text-faint);
+  }
+
+  :global(html[data-interface-mode="machine"] body::-webkit-scrollbar-corner),
+  .machine-surface ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  .machine-frame {
+    position: relative;
+    width: min(1200px, calc(100% - 32px));
+    margin-inline: auto;
+    border-inline: 1px solid var(--color-border-default);
+  }
+
+  .machine-nav {
+    position: sticky;
+    top: 0;
+    z-index: 60;
+    height: 80px;
+    border-bottom: 1px dashed var(--color-border-default);
+    background: color-mix(
+      in srgb,
+      var(--color-background-base) 92%,
+      transparent
+    );
+    backdrop-filter: blur(16px);
+  }
+
+  .machine-nav__inner {
+    display: flex;
+    height: 80px;
+    align-items: center;
+    gap: 24px;
+    padding-inline: 40px;
+    border-bottom: 1px solid var(--color-border-default);
+  }
+
+  .machine-logo {
+    display: flex;
+    align-items: center;
+    flex: 0 0 auto;
+    text-decoration: none;
+  }
+
+  .machine-logo :global(a) {
+    gap: 8px;
+  }
+
+  .machine-logo :global(svg) {
+    width: 34px;
+    height: 16px;
+  }
+
+  .machine-logo :global(span) {
+    color: var(--color-orange-900);
+    font-family: var(--font-stk-bureau-sans);
+    font-size: 11px;
+    line-height: 11px;
+    letter-spacing: -0.01em;
+  }
+
+  .machine-nav__links {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    align-items: center;
+    gap: 4px;
+    overflow-x: auto;
+  }
+
+  .machine-nav__links a,
+  .machine-surface .machine-register {
+    display: inline-flex;
+    min-height: 32px;
+    align-items: center;
+    border-radius: 999px;
+    padding: 6px 10px;
+    color: var(--color-text-default);
+    font-family: var(--font-stk-bureau-sans);
+    font-size: 13px;
+    line-height: 20px;
+    text-decoration: none;
+    white-space: nowrap;
+    transition:
+      color 150ms cubic-bezier(0.6, 0.6, 0, 1),
+      background-color 150ms cubic-bezier(0.6, 0.6, 0, 1);
+  }
+
+  .machine-nav__links a:hover,
+  .machine-nav__links a[aria-current="page"] {
+    background: var(--color-background-faint);
+    color: var(--color-text-base);
+  }
+
+  .machine-surface .machine-register {
+    flex: 0 0 auto;
+    background: transparent;
+    color: var(--color-orange-900);
+  }
+
+  .machine-surface .machine-register:hover {
+    background: transparent;
+    color: var(--color-orange-700);
+  }
+
+  .machine-hero {
+    border-bottom: 1px dashed var(--color-border-default);
+  }
+
+  .machine-hero__frame {
+    min-height: 316px;
+    padding-block: 80px;
+  }
+
+  .machine-hero__frame::before,
+  .machine-hero__frame::after {
+    position: absolute;
+    right: 0;
+    left: 0;
+    height: 80px;
+    content: "";
+  }
+
+  .machine-hero__frame::before {
+    top: 0;
+    border-bottom: 1px solid var(--color-border-default);
+  }
+
+  .machine-hero__frame::after {
+    bottom: 0;
+    border-top: 1px solid var(--color-border-default);
+  }
+
+  .machine-hero__content {
+    width: min(800px, calc(100% - 48px));
+    margin-inline: auto;
+    padding-block: 40px;
+    text-align: center;
+  }
+
+  .machine-kicker {
+    margin-bottom: 20px;
+    color: var(--color-text-muted);
+  }
+
+  .machine-hero h1 {
+    color: var(--color-text-base);
+    font-size: 16px;
+    font-weight: 500;
+    line-height: 24px;
+    text-wrap: balance;
+  }
+
+  .machine-hero__meta {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    margin-top: 36px;
+    color: var(--color-text-faint);
+    font-size: 12px;
+    flex-wrap: wrap;
+  }
+
+  .machine-document-frame {
+    padding-block: 80px 120px;
+  }
+
+  .machine-document {
+    width: min(640px, calc(100% - 48px));
+    margin-inline: auto;
+  }
+
+  .machine-repository {
+    margin-bottom: 24px;
+    color: var(--color-orange-900);
+  }
+
+  .machine-lede {
+    margin-bottom: 64px;
+    color: var(--color-text-base);
+  }
+
+  .machine-section + .machine-section {
+    margin-top: 64px;
+  }
+
+  .machine-section > h2 {
+    margin-bottom: 24px;
+    color: var(--color-text-base);
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 24px;
+  }
+
+  .machine-definitions {
+    display: grid;
+    gap: 8px;
+  }
+
+  .machine-definitions > div {
+    display: grid;
+    grid-template-columns: minmax(112px, 0.36fr) minmax(0, 1fr);
+    gap: 24px;
+  }
+
+  .machine-definitions dt {
+    color: var(--color-text-faint);
+  }
+
+  .machine-definitions dd {
+    min-width: 0;
+    color: var(--color-text-default);
+    overflow-wrap: anywhere;
+  }
+
+  .machine-surface a {
+    color: inherit;
+    text-decoration-color: var(--color-border-loud);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+  }
+
+  .machine-surface a:hover {
+    color: var(--color-text-base);
+    text-decoration-color: var(--color-orange-900);
+  }
+
+  .machine-list {
+    display: grid;
+    gap: 12px;
+    padding-left: 28px;
+    list-style: decimal;
+  }
+
+  .machine-list--unordered {
+    list-style: none;
+    padding-left: 0;
+  }
+
+  .machine-list--unordered li {
+    position: relative;
+    padding-left: 20px;
+  }
+
+  .machine-list--unordered li::before {
+    position: absolute;
+    left: 0;
+    color: var(--color-text-faint);
+    content: "-";
+  }
+
+  .machine-list li span {
+    color: var(--color-text-faint);
+  }
+
+  .machine-cards,
+  .machine-faq {
+    display: grid;
+    gap: 32px;
+  }
+
+  .machine-cards > section,
+  .machine-faq details {
+    padding-left: 20px;
+    border-left: 1px solid var(--color-border-default);
+  }
+
+  .machine-card-meta {
+    margin-bottom: 8px;
+    color: var(--color-text-faint);
+    font-size: 12px;
+  }
+
+  .machine-cards h3,
+  .machine-faq summary {
+    color: var(--color-text-base);
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 20px;
+  }
+
+  .machine-cards h3 + p,
+  .machine-faq summary + p {
+    margin-top: 12px;
+  }
+
+  .machine-faq details[open] summary {
+    margin-bottom: 12px;
+  }
+
+  .machine-faq summary {
+    cursor: pointer;
+    list-style: none;
+  }
+
+  .machine-faq summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .machine-faq summary::after {
+    float: right;
+    color: var(--color-text-faint);
+    content: "+";
+  }
+
+  .machine-faq details[open] summary::after {
+    content: "−";
+  }
+
+  .machine-faq p + p {
+    margin-top: 12px;
+  }
+
+  .machine-code {
+    overflow: hidden;
+    border: 1px solid var(--color-border-default);
+    background: var(--color-background-surface);
+  }
+
+  .machine-code__label {
+    padding: 10px 16px;
+    color: var(--color-text-faint);
+  }
+
+  .machine-code pre {
+    max-height: 560px;
+    overflow: auto;
+    border-block: 1px solid var(--color-border-default);
+    padding: 24px;
+    color: var(--color-text-default);
+    font: inherit;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  .machine-footer {
+    border-top: 1px dashed var(--color-border-default);
+  }
+
+  .machine-footer__grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .machine-footer__grid > div {
+    display: flex;
+    min-height: 260px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 40px;
+    border-right: 1px dashed var(--color-border-default);
+  }
+
+  .machine-footer__grid > div:last-child {
+    border-right: 0;
+  }
+
+  .machine-footer__grid h2 {
+    margin-bottom: 8px;
+    color: var(--color-text-base);
+    font-family: var(--font-stk-bureau-sans);
+    font-size: 14px;
+    font-weight: 400;
+  }
+
+  .machine-footer__grid a,
+  .machine-footer__grid span {
+    max-width: 100%;
+    color: var(--color-text-default);
+    text-decoration: none;
+  }
+
+  .machine-footer__bottom {
+    display: flex;
+    min-height: 80px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    padding-inline: 40px;
+    border-top: 1px solid var(--color-border-default);
+    color: var(--color-text-faint);
+    font-size: 12px;
+  }
+
+  @media (max-width: 991px) {
+    .machine-nav__inner {
+      gap: 12px;
+      padding-inline: 20px;
+    }
+
+    .machine-nav__links {
+      mask-image: linear-gradient(to right, #000 85%, transparent);
+    }
+
+    .machine-footer__grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .machine-footer__grid > div:nth-child(2) {
+      border-right: 0;
+    }
+
+    .machine-footer__grid > div:nth-child(-n + 2) {
+      border-bottom: 1px dashed var(--color-border-default);
+    }
+  }
+
+  @media (max-width: 567px) {
+    .machine-frame {
+      width: calc(100% - 24px);
+    }
+
+    .machine-register {
+      display: none;
+    }
+
+    .machine-hero__frame {
+      min-height: 300px;
+    }
+
+    .machine-hero__content {
+      width: calc(100% - 32px);
+    }
+
+    .machine-hero__meta {
+      gap: 8px 12px;
+    }
+
+    .machine-document-frame {
+      padding-block: 64px 96px;
+    }
+
+    .machine-document {
+      width: calc(100% - 32px);
+    }
+
+    .machine-definitions > div {
+      grid-template-columns: 1fr;
+      gap: 2px;
+    }
+
+    .machine-footer__grid > div {
+      min-height: 0;
+      padding: 28px 24px;
+    }
+
+    .machine-footer__bottom {
+      min-height: 96px;
+      align-items: flex-start;
+      flex-direction: column;
+      justify-content: center;
+      padding-inline: 24px;
+    }
+  }
+</style>

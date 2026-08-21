@@ -1,4 +1,6 @@
 export type Theme = "system" | "light" | "dark";
+export type ResolvedTheme = Exclude<Theme, "system">;
+export type InterfaceMode = "human" | "machine";
 
 const DURATION = 700;
 const EASING = "cubic-bezier(0.6,0.6,0,1)";
@@ -16,7 +18,7 @@ const HUES = [
 const BAND_STEP = 1.5;
 const ZONE = GAPS.length * BAND_STEP;
 
-const resolve = (theme: Theme) =>
+export const resolveTheme = (theme: Theme): ResolvedTheme =>
   theme === "system"
     ? matchMedia("(prefers-color-scheme: dark)").matches
       ? "dark"
@@ -53,6 +55,9 @@ function injectStyles() {
       "theme-icon-0",
       "theme-icon-1",
       "theme-icon-2",
+      "interface-thumb",
+      "interface-label-human",
+      "interface-label-machine",
     ]
       .flatMap((name) => [
         `::view-transition-group(${name})`,
@@ -84,17 +89,10 @@ function injectStyles() {
   document.head.appendChild(style);
 }
 
-export function applyTheme(theme: Theme) {
-  const resolved = resolve(theme);
-
-  const commit = () => {
-    document.documentElement.dataset.theme = resolved;
-    dispatchEvent(new CustomEvent("themechange", { detail: resolved }));
-  };
-
+function runThemeTransition(commit: () => void) {
   if (
     !document.startViewTransition ||
-    document.documentElement.dataset.theme === resolved
+    matchMedia("(prefers-reduced-motion: reduce)").matches
   ) {
     commit();
     return;
@@ -102,6 +100,50 @@ export function applyTheme(theme: Theme) {
 
   injectStyles();
   document.startViewTransition(commit);
+}
+
+export function applyTheme(theme: Theme) {
+  if (document.documentElement.dataset.interfaceMode === "machine") {
+    document.documentElement.dataset.theme = "dark";
+    return;
+  }
+
+  const resolved = resolveTheme(theme);
+
+  const commit = () => {
+    document.documentElement.dataset.theme = resolved;
+    dispatchEvent(new CustomEvent("themechange", { detail: resolved }));
+  };
+
+  if (document.documentElement.dataset.theme === resolved) {
+    commit();
+    return;
+  }
+
+  runThemeTransition(commit);
+}
+
+export function applyInterfaceMode(
+  mode: InterfaceMode,
+  lockedHumanTheme?: string
+) {
+  const storedTheme =
+    (localStorage.getItem("theme") as Theme | null) ?? "system";
+  const humanTheme: Theme =
+    lockedHumanTheme === "light" || lockedHumanTheme === "dark"
+      ? lockedHumanTheme
+      : storedTheme;
+  const resolved = mode === "machine" ? "dark" : resolveTheme(humanTheme);
+
+  const commit = () => {
+    document.documentElement.dataset.interfaceMode = mode;
+    document.documentElement.dataset.theme = resolved;
+    localStorage.setItem("connect-interface-mode", mode);
+    dispatchEvent(new CustomEvent("themechange", { detail: resolved }));
+    dispatchEvent(new CustomEvent("interfacemodechange", { detail: mode }));
+  };
+
+  runThemeTransition(commit);
 }
 
 export function toggleTheme() {
