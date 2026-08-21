@@ -56,6 +56,7 @@ import BadgePrintShader from "./BadgePrintShader";
 import BadgeShareCopy from "./BadgeShareCopy";
 import BadgeShareDock from "./BadgeShareDock";
 import {
+  badgeShareHeadline,
   badgeTweetUrl,
   captureHeroShare,
   copyCanvasImage,

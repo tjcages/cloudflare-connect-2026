@@ -8,6 +8,7 @@ import {
   BADGE_SHARE_SURFACE,
   BADGE_SHARE_VENUE,
   BADGE_SHARE_POST_COPY,
+  badgeShareHeadline,
   badgeTweetUrl,
   keepShareNode,
   resolveShareSurface,
@@ -53,6 +54,12 @@ describe("badge identity layout", () => {
 });
 
 describe("badge share copy", () => {
+  it("keeps a card title separate from the X post copy", () => {
+    expect(badgeShareHeadline("Tyler")).toBe("Tyler's Connect 2026 badge");
+    expect(badgeShareHeadline("  Ada  ")).toBe("Ada's Connect 2026 badge");
+    expect(badgeShareHeadline("")).toBe("My Connect 2026 badge");
+  });
+
   it("builds an X intent URL with the attendee share copy", () => {
     const url = badgeTweetUrl();
     expect(url.startsWith("https://x.com/intent/post?text=")).toBe(true);

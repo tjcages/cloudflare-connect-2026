@@ -25,6 +25,12 @@ export function resolveShareSurface(style: CSSStyleDeclaration): string {
   return BADGE_SHARE_SURFACE;
 }
 
+export function badgeShareHeadline(name: string): string {
+  const trimmed = name.trim();
+  if (!trimmed) return "My Connect 2026 badge";
+  return `${trimmed}'s Connect 2026 badge`;
+}
+
 export function badgeTweetUrl(): string {
   return `https://x.com/intent/post?text=${encodeURIComponent(BADGE_SHARE_POST_COPY)}`;
 }
