@@ -137,7 +137,7 @@ describe("badge share copy", () => {
       "Moscone Center",
       "San Francisco",
     ]);
-    expect(BADGE_SHARE_DATE).toBe("October 20, 2026");
+    expect(BADGE_SHARE_DATE).toBe("October 19—21, 2026");
     const copy = readFileSync(
       resolve(
         process.cwd(),

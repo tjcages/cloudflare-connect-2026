@@ -4,7 +4,7 @@ export const BADGE_SHARE_WIDTH = 1200;
 export const BADGE_SHARE_HEIGHT = 800;
 export const BADGE_SHARE_HEADLINE = "Let’s shape what’s\nnext together";
 export const BADGE_SHARE_VENUE = ["Moscone Center", "San Francisco"] as const;
-export const BADGE_SHARE_DATE = "October 20, 2026";
+export const BADGE_SHARE_DATE = "October 19—21, 2026";
 export const BADGE_SHARE_POST_COPY =
   "I'm headed to Cloudflare Connect in SF — who else? 🧡";
 
