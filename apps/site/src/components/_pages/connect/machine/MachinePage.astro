@@ -207,6 +207,39 @@ const isLink = (item: string | MachineLink): item is MachineLink =>
     letter-spacing: -0.005em;
   }
 
+  .machine-surface,
+  .machine-surface * {
+    scrollbar-color: var(--color-text-faint) transparent;
+    scrollbar-width: thin;
+  }
+
+  :global(html[data-interface-mode="machine"] body) {
+    scrollbar-color: var(--color-text-faint) transparent;
+    scrollbar-width: thin;
+  }
+
+  :global(html[data-interface-mode="machine"] body::-webkit-scrollbar),
+  .machine-surface ::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+
+  :global(html[data-interface-mode="machine"] body::-webkit-scrollbar-track),
+  .machine-surface ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  :global(html[data-interface-mode="machine"] body::-webkit-scrollbar-thumb),
+  .machine-surface ::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: var(--color-text-faint);
+  }
+
+  :global(html[data-interface-mode="machine"] body::-webkit-scrollbar-corner),
+  .machine-surface ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
   .machine-frame {
     position: relative;
     width: min(1200px, calc(100% - 32px));
@@ -268,7 +301,6 @@ const isLink = (item: string | MachineLink): item is MachineLink =>
     align-items: center;
     gap: 4px;
     overflow-x: auto;
-    scrollbar-width: none;
   }
 
   .machine-nav__links a,
