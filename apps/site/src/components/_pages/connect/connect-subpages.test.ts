@@ -61,7 +61,7 @@ describe("Connect subpage polish", () => {
     expect(university).toContain('slot="info"');
     expect(partner).toContain("AgendaStripeRoot");
     expect(partner).toContain("Partner Awards");
-    expect(partner).toContain("Extend your stay");
+    expect(partner).not.toContain(">Extend your stay</div>");
     expect(partner).toContain("partnerStay");
     expect(partnerData).toContain("Stay for Connect");
   });

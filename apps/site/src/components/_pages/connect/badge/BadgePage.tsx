@@ -341,7 +341,7 @@ export default function BadgePage(_props: IslandProps) {
   const onShareX = () => {
     if (sharingRef.current) return;
     window.open(
-      badgeTweetUrl(badgeShareHeadline(view.name)),
+      badgeTweetUrl(),
       "_blank",
       "noopener,noreferrer"
     );

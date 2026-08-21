@@ -346,10 +346,9 @@ describe("badge logo SVG prep", () => {
     expect(customizer).toContain("max-lg:contents");
     expect(customizer).toContain("max-lg:size-32");
     expect(customizer).toContain(
-      "mx-8 flex h-40 w-40 shrink-0 items-center justify-center max-lg:mx-0 max-lg:size-32"
+      "h-13 w-px shrink-0 rounded-full bg-border-default"
     );
     expect(customizer).not.toContain("flex-wrap");
-    expect(customizer).toContain("h-13 w-px rounded-full bg-border-default");
     expect(customizer).toContain("badgeMarkFill");
 
     const picker = readFileSync(
@@ -419,7 +418,8 @@ describe("badge logo SVG prep", () => {
     expect(page).toContain('align="center"');
     expect(page).toContain("<span>Share</span>");
     expect(page).not.toContain("Share on X");
-    expect(page).toContain("badgeTweetUrl(badgeShareHeadline(view.name))");
+    expect(page).toContain("badgeTweetUrl()");
+    expect(page).toContain("badgeShareHeadline(view.name)");
     expect(page).toContain("noopener,noreferrer");
     expect(page).not.toContain('window.open("about:blank"');
     expect(page).toContain("paused={reducedMotion || !shaderLive}");

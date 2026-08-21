@@ -4,7 +4,9 @@ export const BADGE_SHARE_WIDTH = 1200;
 export const BADGE_SHARE_HEIGHT = 800;
 export const BADGE_SHARE_HEADLINE = "Let’s shape what’s\nnext together";
 export const BADGE_SHARE_VENUE = ["Moscone Center", "San Francisco"] as const;
-export const BADGE_SHARE_DATE = "October 20, 2026";
+export const BADGE_SHARE_DATE = "October 19—21, 2026";
+export const BADGE_SHARE_POST_COPY =
+  "I'm headed to Cloudflare Connect in SF — who else? 🧡";
 
 export function resolveShareSurface(style: CSSStyleDeclaration): string {
   const themedSurface = style
@@ -29,8 +31,8 @@ export function badgeShareHeadline(name: string): string {
   return `${trimmed}'s Connect 2026 badge`;
 }
 
-export function badgeTweetUrl(headline: string): string {
-  return `https://x.com/intent/post?text=${encodeURIComponent(headline)}`;
+export function badgeTweetUrl(): string {
+  return `https://x.com/intent/post?text=${encodeURIComponent(BADGE_SHARE_POST_COPY)}`;
 }
 
 export function keepShareNode(node: HTMLElement): boolean {

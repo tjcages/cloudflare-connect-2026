@@ -7,6 +7,7 @@ import {
   BADGE_SHARE_HEADLINE,
   BADGE_SHARE_SURFACE,
   BADGE_SHARE_VENUE,
+  BADGE_SHARE_POST_COPY,
   badgeShareHeadline,
   badgeTweetUrl,
   keepShareNode,
@@ -53,14 +54,17 @@ describe("badge identity layout", () => {
 });
 
 describe("badge share copy", () => {
-  it("builds a possessive headline and an X intent URL", () => {
+  it("keeps a card title separate from the X post copy", () => {
     expect(badgeShareHeadline("Tyler")).toBe("Tyler's Connect 2026 badge");
     expect(badgeShareHeadline("  Ada  ")).toBe("Ada's Connect 2026 badge");
     expect(badgeShareHeadline("")).toBe("My Connect 2026 badge");
-    const url = badgeTweetUrl("Tyler's Connect 2026 badge");
+  });
+
+  it("builds an X intent URL with the attendee share copy", () => {
+    const url = badgeTweetUrl();
     expect(url.startsWith("https://x.com/intent/post?text=")).toBe(true);
     const text = decodeURIComponent(new URL(url).searchParams.get("text") ?? "");
-    expect(text).toBe("Tyler's Connect 2026 badge");
+    expect(text).toBe(BADGE_SHARE_POST_COPY);
     expect(text).not.toContain("http");
   });
 
@@ -133,7 +137,7 @@ describe("badge share copy", () => {
       "Moscone Center",
       "San Francisco",
     ]);
-    expect(BADGE_SHARE_DATE).toBe("October 20, 2026");
+    expect(BADGE_SHARE_DATE).toBe("October 19—21, 2026");
     const copy = readFileSync(
       resolve(
         process.cwd(),
