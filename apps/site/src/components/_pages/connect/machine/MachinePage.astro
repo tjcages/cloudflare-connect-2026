@@ -184,7 +184,8 @@ const isLink = (item: string | MachineLink): item is MachineLink =>
       <div>
         <h2>data</h2>
         <a href="/connect/api/sponsors">sponsors.json</a>
-        <a href="mailto:connect@cloudflare.com">connect@cloudflare.com</a>
+        <a href="mailto:connect@cloudflare.com">connect@<wbr />cloudflare.com</a
+        >
         <span>text/markdown</span>
       </div>
     </div>
@@ -601,6 +602,7 @@ const isLink = (item: string | MachineLink): item is MachineLink =>
 
   .machine-footer__grid a,
   .machine-footer__grid span {
+    max-width: 100%;
     color: var(--color-text-default);
     text-decoration: none;
   }
@@ -674,16 +676,9 @@ const isLink = (item: string | MachineLink): item is MachineLink =>
       gap: 2px;
     }
 
-    .machine-footer__grid {
-      grid-template-columns: 1fr;
-    }
-
-    .machine-footer__grid > div,
-    .machine-footer__grid > div:nth-child(2) {
+    .machine-footer__grid > div {
       min-height: 0;
       padding: 28px 24px;
-      border-right: 0;
-      border-bottom: 1px dashed var(--color-border-default);
     }
 
     .machine-footer__bottom {
