@@ -1,5 +1,5 @@
 ---
-import LogoSvg from "@/components/logo/Logo.svg?raw";
+import ConnectHeaderLogo from "@/components/header/ConnectHeaderLogo";
 import {
   CONNECT_MACHINE_ROUTES,
   getConnectMachinePage,
@@ -28,12 +28,9 @@ const isLink = (item: string | MachineLink): item is MachineLink =>
 >
   <header class="machine-nav">
     <div class="machine-frame machine-nav__inner">
-      <a
-        aria-label="Cloudflare Connect 2026 machine home"
-        class="machine-logo"
-        href="/connect/"
-        set:html={LogoSvg}
-      />
+      <div class="machine-logo">
+        <ConnectHeaderLogo />
+      </div>
 
       <nav aria-label="Machine site navigation" class="machine-nav__links">
         {CONNECT_MACHINE_ROUTES.slice(0, 6).map((route) => (
@@ -242,14 +239,26 @@ const isLink = (item: string | MachineLink): item is MachineLink =>
 
   .machine-logo {
     display: flex;
-    width: 86px;
+    align-items: center;
     flex: 0 0 auto;
-    color: var(--color-text-base);
+    text-decoration: none;
+  }
+
+  .machine-logo :global(a) {
+    gap: 8px;
   }
 
   .machine-logo :global(svg) {
-    width: 86px;
-    height: auto;
+    width: 34px;
+    height: 16px;
+  }
+
+  .machine-logo :global(span) {
+    color: var(--color-orange-900);
+    font-family: var(--font-stk-bureau-sans);
+    font-size: 11px;
+    line-height: 11px;
+    letter-spacing: -0.01em;
   }
 
   .machine-nav__links {
@@ -263,7 +272,7 @@ const isLink = (item: string | MachineLink): item is MachineLink =>
   }
 
   .machine-nav__links a,
-  .machine-register {
+  .machine-surface .machine-register {
     display: inline-flex;
     min-height: 32px;
     align-items: center;
@@ -286,14 +295,15 @@ const isLink = (item: string | MachineLink): item is MachineLink =>
     color: var(--color-text-base);
   }
 
-  .machine-register {
+  .machine-surface .machine-register {
     flex: 0 0 auto;
-    background: var(--color-orange-900);
-    color: var(--color-text-inverse);
+    background: transparent;
+    color: var(--color-orange-900);
   }
 
-  .machine-register:hover {
-    background: var(--color-orange-1000);
+  .machine-surface .machine-register:hover {
+    background: transparent;
+    color: var(--color-orange-700);
   }
 
   .machine-hero {
@@ -601,14 +611,6 @@ const isLink = (item: string | MachineLink): item is MachineLink =>
   @media (max-width: 567px) {
     .machine-frame {
       width: calc(100% - 24px);
-    }
-
-    .machine-logo {
-      width: 78px;
-    }
-
-    .machine-logo :global(svg) {
-      width: 78px;
     }
 
     .machine-register {
