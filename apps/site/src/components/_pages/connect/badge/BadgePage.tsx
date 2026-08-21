@@ -1,5 +1,6 @@
 "use no memo";
 
+import type { ThemeName } from "@necatikcl/stripes-engine";
 import { StripesShader } from "@necatikcl/stripes-engine/react";
 import { ConnectTwizzler } from "@tjcages/connect-twizzler/react";
 import { usePanel } from "@tjcages/panels/dev";
@@ -12,6 +13,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import Button from "@/components/Button";
 import {
@@ -102,7 +104,18 @@ function themeToStripeColors(theme: BadgeTheme): StripeColors {
 
 const BadgeLanyard = lazy(() => import("./BadgeLanyard"));
 
+const subscribeTheme = (onStoreChange: () => void) => {
+  addEventListener("themechange", onStoreChange);
+  return () => removeEventListener("themechange", onStoreChange);
+};
+
+const getTheme = (): ThemeName =>
+  document.documentElement.dataset.theme === "dark" ? "dark" : "light";
+
+const getServerTheme = (): ThemeName | null => null;
+
 export default function BadgePage(_props: IslandProps) {
+  const theme = useSyncExternalStore(subscribeTheme, getTheme, getServerTheme);
   const [tune, setTune] = usePanel({
     id: BADGE_TUNE_PANEL_ID,
     title: "Badge",
@@ -472,6 +485,7 @@ export default function BadgePage(_props: IslandProps) {
                   }}
                   rootMargin="200px"
                   shaderSource={BADGE_BACKDROP_SHADER_SOURCE}
+                  theme={theme ?? "light"}
                 />
               </div>
             </div>

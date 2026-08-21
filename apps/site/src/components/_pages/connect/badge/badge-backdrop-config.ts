@@ -185,7 +185,7 @@ export const BADGE_BACKDROP_CONFIG: StripesTextureConfig = {
   renderMode: "sharp",
   renderIntensity: 1,
   dark: {
-    background: { color: 0x141414 },
+    background: { transparent: true },
     stripes: [
       { color: 0x261106, startFrom: 0, width: 0.5, opacity: 1 },
       { color: 0x331607, startFrom: 0.0195, width: 0.5, opacity: 1 },

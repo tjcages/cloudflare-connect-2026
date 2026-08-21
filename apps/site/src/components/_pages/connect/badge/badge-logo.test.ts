@@ -439,6 +439,8 @@ describe("badge logo SVG prep", () => {
     expect(page).toContain("data-share-grid");
     expect(page).toContain("data-share-mask");
     expect(page).toContain("shareBackdrop");
+    expect(page).toContain("useSyncExternalStore");
+    expect(page).toContain('theme={theme ?? "light"}');
     expect(page).not.toContain("data-share-title");
     expect(page).not.toContain("Copy badge link");
     expect(page).not.toContain("Register now");

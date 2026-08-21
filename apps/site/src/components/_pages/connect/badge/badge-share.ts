@@ -6,6 +6,23 @@ export const BADGE_SHARE_HEADLINE = "Let’s shape what’s\nnext together";
 export const BADGE_SHARE_VENUE = ["Moscone Center", "San Francisco"] as const;
 export const BADGE_SHARE_DATE = "October 20, 2026";
 
+export function resolveShareSurface(style: CSSStyleDeclaration): string {
+  const themedSurface = style
+    .getPropertyValue("--color-background-base")
+    .trim();
+  if (themedSurface) return themedSurface;
+
+  const background = style.backgroundColor.trim();
+  if (
+    background &&
+    background !== "transparent" &&
+    background !== "rgba(0, 0, 0, 0)"
+  ) {
+    return background;
+  }
+  return BADGE_SHARE_SURFACE;
+}
+
 export function badgeShareHeadline(name: string): string {
   const trimmed = name.trim();
   if (!trimmed) return "My Connect 2026 badge";
@@ -478,7 +495,7 @@ export async function captureHeroShare(
     const ctx = canvas.getContext("2d");
     if (!ctx) return canvas;
     ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-    ctx.fillStyle = BADGE_SHARE_SURFACE;
+    ctx.fillStyle = resolveShareSurface(getComputedStyle(scene));
     ctx.fillRect(0, 0, rect.width, rect.height);
     await stampHeroLayers(ctx, scene, rect, 1, 1);
     await stampShareCopy(ctx, scene, rect);
