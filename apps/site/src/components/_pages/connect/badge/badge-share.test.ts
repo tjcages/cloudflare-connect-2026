@@ -10,6 +10,7 @@ import {
   badgeShareHeadline,
   badgeTweetUrl,
   keepShareNode,
+  resolveShareSurface,
   sceneFitsShareCard,
   wrapShareTitle,
 } from "./badge-share";
@@ -108,6 +109,22 @@ describe("badge share copy", () => {
     expect(wrapShareTitle(ctx, "Let’s shape what’s next together", 80)).toEqual(
       ["Let’s", "shape", "what’s", "next", "together"]
     );
+  });
+
+  it("uses the themed page surface for the copied image", () => {
+    const style = {
+      backgroundColor: "rgba(0, 0, 0, 0)",
+      getPropertyValue: (name: string) =>
+        name === "--color-background-base" ? "#141414" : "",
+    } as CSSStyleDeclaration;
+    expect(resolveShareSurface(style)).toBe("#141414");
+
+    expect(
+      resolveShareSurface({
+        backgroundColor: "rgb(255, 255, 255)",
+        getPropertyValue: () => "",
+      } as unknown as CSSStyleDeclaration)
+    ).toBe("rgb(255, 255, 255)");
   });
 
   it("keeps poster copy for the share card lockup", () => {

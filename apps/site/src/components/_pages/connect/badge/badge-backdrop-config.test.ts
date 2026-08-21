@@ -13,6 +13,9 @@ describe("badge backdrop shader", () => {
     expect(BADGE_BACKDROP_CONFIG.clickWave?.enabled).toBe(false);
     expect(BADGE_BACKDROP_CONFIG.maxFps).toBe(30);
     expect(BADGE_BACKDROP_CONFIG.grid?.angleDeg).toBe(45);
+    expect(BADGE_BACKDROP_CONFIG.dark?.background).toEqual({
+      transparent: true,
+    });
     expect(BADGE_BACKDROP_GLSL).toContain("mainImage");
     expect(BADGE_BACKDROP_SHADER_SOURCE.width).toBe(1280);
     expect(BADGE_BACKDROP_SHADER_SOURCE.height).toBe(960);
