@@ -346,10 +346,9 @@ describe("badge logo SVG prep", () => {
     expect(customizer).toContain("max-lg:contents");
     expect(customizer).toContain("max-lg:size-32");
     expect(customizer).toContain(
-      "mx-8 flex h-40 w-40 shrink-0 items-center justify-center max-lg:mx-0 max-lg:size-32"
+      "h-13 w-px shrink-0 rounded-full bg-border-default"
     );
     expect(customizer).not.toContain("flex-wrap");
-    expect(customizer).toContain("h-13 w-px rounded-full bg-border-default");
     expect(customizer).toContain("badgeMarkFill");
 
     const picker = readFileSync(

@@ -73,10 +73,8 @@ export default function BadgeCustomizer({
         </div>
         <div
           aria-hidden="true"
-          className="mx-8 flex h-40 w-40 shrink-0 items-center justify-center max-lg:mx-0 max-lg:size-32"
-        >
-          <div className="h-13 w-px rounded-full bg-border-default" />
-        </div>
+          className="h-13 w-px shrink-0 rounded-full bg-border-default"
+        />
         <div className="flex size-40 shrink-0 items-center justify-center max-lg:size-32">
           <BadgeLogoUpload
             fileName={fileName}
