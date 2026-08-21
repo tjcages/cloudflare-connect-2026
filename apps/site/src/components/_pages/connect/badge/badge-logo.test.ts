@@ -418,7 +418,7 @@ describe("badge logo SVG prep", () => {
     expect(page).toContain('align="center"');
     expect(page).toContain("<span>Share</span>");
     expect(page).not.toContain("Share on X");
-    expect(page).toContain("badgeTweetUrl(badgeShareHeadline(view.name))");
+    expect(page).toContain("badgeTweetUrl()");
     expect(page).toContain("noopener,noreferrer");
     expect(page).not.toContain('window.open("about:blank"');
     expect(page).toContain("paused={reducedMotion || !shaderLive}");

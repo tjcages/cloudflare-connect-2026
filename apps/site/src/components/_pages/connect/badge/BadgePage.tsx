@@ -56,7 +56,6 @@ import BadgePrintShader from "./BadgePrintShader";
 import BadgeShareCopy from "./BadgeShareCopy";
 import BadgeShareDock from "./BadgeShareDock";
 import {
-  badgeShareHeadline,
   badgeTweetUrl,
   captureHeroShare,
   copyCanvasImage,
@@ -341,7 +340,7 @@ export default function BadgePage(_props: IslandProps) {
   const onShareX = () => {
     if (sharingRef.current) return;
     window.open(
-      badgeTweetUrl(badgeShareHeadline(view.name)),
+      badgeTweetUrl(),
       "_blank",
       "noopener,noreferrer"
     );
