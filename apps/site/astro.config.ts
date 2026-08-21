@@ -19,7 +19,7 @@ export default defineConfig({
   compressHTML: true,
 
   redirects: {
-    "/": { status: 302, destination: "/products/workers" },
+    "/": { status: 302, destination: "/connect" },
   },
 
   server: {
