@@ -36,6 +36,8 @@ const createCaptureCanvas = (
   return canvas;
 };
 
+const colorInt = (hex: string) => Number.parseInt(hex.replace(/^#/, ""), 16) || 0;
+
 export default function AnimationExportTools({
   getAnimationTimeSec,
   rain,
@@ -99,7 +101,22 @@ export default function AnimationExportTools({
         canvas: captureCanvas,
         filename: "cloudflare-connect-animation.mp4",
         fps: profile.fps,
-        getBackground: () => latestRainRef.current.exportBackground,
+        getBackground: () =>
+          latestRainRef.current.enabled
+            ? latestRainRef.current.exportBackground
+            : {
+                transparent: false,
+                color: colorInt(latestSettingsRef.current.backgroundColor),
+                gradient: {
+                  enabled: false,
+                  direction: "topToBottom" as const,
+                  stopCount: 2,
+                  stops: [
+                    colorInt(latestSettingsRef.current.backgroundColor),
+                    colorInt(latestSettingsRef.current.backgroundColor),
+                  ],
+                },
+              },
         onPhase: (nextPhase) => {
           setPhase(nextPhase);
           if (nextPhase === "transcoding") {

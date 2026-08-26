@@ -52,6 +52,7 @@ export default function ConnectHeroTwizzler({
   const [settings, setSettings] = useState<ConnectTwizzlerSettings>({
     ...authored,
     enabled: true,
+    appearance: defaults ? "dark" : "light",
   });
   const [rain, setRain] = useState<ConnectHeroRain>(rainDefaults ?? CONNECT_HERO_RAIN_DEFAULT);
   // Single source of truth for the dev panel's visibility; persisted both
@@ -94,7 +95,10 @@ export default function ConnectHeroTwizzler({
   }, [panelOpen, setPanelVisible]);
 
   return (
-    <div className="absolute inset-0 h-full w-full">
+    <div
+      className="absolute inset-0 h-full w-full"
+      style={!rain.enabled ? { background: settings.backgroundColor } : undefined}
+    >
       {panelOpen ? (
         <Suspense fallback={null}>
           <ConnectTwizzlerControls

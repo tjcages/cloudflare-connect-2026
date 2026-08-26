@@ -66,17 +66,29 @@ export async function buildAnimationSvg({
     startFrom: stripe.startFrom,
     width: stripe.width,
   }));
+  const background = rainEnabled
+    ? rain.exportBackground
+    : {
+        transparent: false,
+        color: Number.parseInt(settings.backgroundColor.replace(/^#/, ""), 16) || 0,
+        gradient: {
+          enabled: false,
+          direction: "topToBottom" as const,
+          stopCount: 2,
+          stops: [] as number[],
+        },
+      };
   const exportBackground = resolveSvgExportBackground({
-    backgroundColorHex: colorHex(rain.exportBackground.color),
-    backgroundGradient: rain.exportBackground.gradient.enabled
+    backgroundColorHex: colorHex(background.color),
+    backgroundGradient: background.gradient.enabled
       ? {
-          direction: rain.exportBackground.gradient.direction,
-          stopCount: rain.exportBackground.gradient.stopCount,
-          stops: rain.exportBackground.gradient.stops.map(colorHex),
+          direction: background.gradient.direction,
+          stopCount: background.gradient.stopCount,
+          stops: background.gradient.stops.map(colorHex),
         }
       : undefined,
-    backgroundGradientEnabled: rain.exportBackground.gradient.enabled,
-    backgroundTransparent: rain.exportBackground.transparent,
+    backgroundGradientEnabled: background.gradient.enabled,
+    backgroundTransparent: background.transparent,
   });
   const twizzlerSvgLayer =
     twizzlerEnabled && twizzlerCanvas
@@ -88,7 +100,7 @@ export async function buildAnimationSvg({
           animationTimeSec,
           {
             ...settings,
-            backgroundColor: colorHex(rain.exportBackground.color),
+            backgroundColor: colorHex(background.color),
             speed: 1,
           },
         )

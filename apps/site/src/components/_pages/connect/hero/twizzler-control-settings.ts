@@ -1,5 +1,16 @@
 import { normalizeTwizzlerSettings, type TwizzlerSettings } from "@tjcages/connect-twizzler";
+import { defaultTwizzlerGradientFieldStops } from "@tjcages/connect-twizzler/gradient";
 import { CONNECT_HERO_TWIZZLER_DEFAULTS } from "./twizzler-defaults";
+
+export type ShaderAppearance = "light" | "dark";
+
+export const CONNECT_TWIZZLER_DARK_APPEARANCE = {
+  backgroundColor: "#f86a00",
+  color: "#ffefd4",
+  colorFar: "#ffd39e",
+  colorNear: "#ffefd4",
+  colorEdge: "#f0f0f0",
+} as const;
 
 // Exactly the Twizzler surface the lab's Leva panel exposes — Appearance
 // (colors, ribbon color mode, hotspot editor, opacity, zoom) plus the Twizzler
@@ -12,6 +23,7 @@ export const TWIZZLER_CONTROL_KEYS = [
   "colorEdge",
   "ribbonColorMode",
   "gradientStops",
+  "backgroundColor",
   "opacity",
   "scale",
   "centerY",
@@ -44,14 +56,16 @@ export const TWIZZLER_CONTROL_KEYS = [
 
 export type TwizzlerControlSettings = {
   enabled: boolean;
+  appearance: ShaderAppearance;
 } & Pick<TwizzlerSettings, (typeof TWIZZLER_CONTROL_KEYS)[number]>;
 
 export type ConnectTwizzlerSettings = TwizzlerSettings & {
   enabled: boolean;
+  appearance: ShaderAppearance;
 };
 
 const projectControlSettings = (source: TwizzlerSettings): TwizzlerControlSettings => {
-  const projected = { enabled: true } as Record<string, unknown>;
+  const projected = { enabled: true, appearance: "light" } as Record<string, unknown>;
   for (const key of TWIZZLER_CONTROL_KEYS) projected[key] = source[key];
   return projected as TwizzlerControlSettings;
 };
@@ -66,14 +80,33 @@ export const cloneTwizzlerControlSettings = (
   gradientStops: settings.gradientStops.map((stop) => ({ ...stop })),
 });
 
+export const applyTwizzlerAppearance = (
+  settings: TwizzlerControlSettings,
+  appearance: ShaderAppearance,
+): TwizzlerControlSettings => {
+  const colors = appearance === "dark" ? CONNECT_TWIZZLER_DARK_APPEARANCE : CONNECT_HERO_TWIZZLER_DEFAULTS;
+  return {
+    ...settings,
+    appearance,
+    color: colors.color,
+    colorFar: colors.colorFar,
+    colorNear: colors.colorNear,
+    colorEdge: colors.colorEdge,
+    backgroundColor: colors.backgroundColor,
+    gradientStops: defaultTwizzlerGradientFieldStops(colors.colorFar, colors.colorNear, colors.colorEdge),
+    ribbonColorMode: "sharedGradient",
+  };
+};
+
 export const resolveConnectTwizzlerSettings = (values: TwizzlerControlSettings): ConnectTwizzlerSettings => {
-  const { enabled, ...settings } = values;
+  const { enabled, appearance, ...settings } = values;
   return {
     ...normalizeTwizzlerSettings({
       ...CONNECT_HERO_TWIZZLER_DEFAULTS,
       ...settings,
     }),
     enabled,
+    appearance,
   };
 };
 

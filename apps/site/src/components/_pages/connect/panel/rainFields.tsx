@@ -41,6 +41,12 @@ export function buildRainSections(): PanelSectionDef[] {
       fields: [toggle("enabled", "Enabled")],
     },
     {
+      id: "Rain Appearance",
+      title: "Appearance",
+      defaultOpen: true,
+      fields: [select("appearance", "Mode", { Light: "light", Dark: "dark" })],
+    },
+    {
       id: "Background",
       title: "Background",
       defaultOpen: true,

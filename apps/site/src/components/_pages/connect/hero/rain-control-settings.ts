@@ -1,6 +1,7 @@
 import type { DeepPartial, EngineConfig, Fit, StripeBlendMode } from "@necatikcl/stripes-engine";
 import type { SharedShaderSourceSpec } from "@necatikcl/stripes-engine/react";
 import { CONNECT_HERO_RAIN_CONFIG, CONNECT_HERO_RAIN_GLSL, CONNECT_HERO_RAIN_SHADER_SOURCE } from "./hero-rain-config";
+import type { ShaderAppearance } from "./twizzler-control-settings";
 
 export { CONNECT_HERO_RAIN_GLSL } from "./hero-rain-config";
 
@@ -22,6 +23,7 @@ export type RainStripeControl = {
  */
 export type RainControlSettings = {
   enabled: boolean;
+  appearance: ShaderAppearance;
   backgroundFillMode: "transparent" | "solid" | "gradient";
   backgroundColor: string;
   backgroundGradientDirection: "topToBottom" | "leftToRight" | "rightToLeft" | "bottomToTop";
@@ -182,6 +184,7 @@ const defaultStripes = (): RainStripeControl[] =>
 
 export const CONNECT_HERO_RAIN_CONTROL_DEFAULTS: RainControlSettings = {
   enabled: true,
+  appearance: "light",
   backgroundFillMode: "solid",
   backgroundColor: "#ffffff",
   backgroundGradientDirection: BASE.background?.gradient?.direction ?? "topToBottom",
@@ -318,6 +321,37 @@ export const CONNECT_HERO_RAIN_CONTROL_DEFAULTS: RainControlSettings = {
   topFadeOffsetPct: 23,
 };
 
+const RAIN_LIGHT_COLORS = defaultStripes().map((stripe) => stripe.color);
+const RAIN_DARK_COLORS = [
+  "#ffffff",
+  "#fdfdfd",
+  "#fafafa",
+  "#f7f7f7",
+  "#f5f5f5",
+  "#f0f0f0",
+  "#ebebeb",
+  "#d1d1d1",
+  "#adadad",
+  "#8f8f8f",
+] as const;
+
+export const applyRainAppearance = (
+  settings: RainControlSettings,
+  appearance: ShaderAppearance,
+): RainControlSettings => {
+  const colors = appearance === "dark" ? RAIN_DARK_COLORS : RAIN_LIGHT_COLORS;
+  return {
+    ...settings,
+    appearance,
+    backgroundFillMode: "solid",
+    backgroundColor: appearance === "dark" ? "#000000" : "#ffffff",
+    stripes: settings.stripes.map((stripe, index) => ({
+      ...stripe,
+      color: colors[index % colors.length] ?? "#ffffff",
+    })),
+  };
+};
+
 export const RAIN_PANEL_ID = "connect-hero-rain-v1";
 
 const cloneDefaults = (): RainControlSettings => ({
@@ -361,6 +395,7 @@ export const loadRainControlSettings = (): RainControlSettings => {
 
 export type ConnectHeroRain = {
   enabled: boolean;
+  appearance: ShaderAppearance;
   config: DeepPartial<EngineConfig>;
   shaderSource: SharedShaderSourceSpec;
   /** Height of the hero stack's top fade band, as % of the stack. */
@@ -442,6 +477,7 @@ const resolveCanvasBackground = (settings: RainControlSettings): string => {
 
 export const CONNECT_HERO_RAIN_DEFAULT: ConnectHeroRain = {
   enabled: true,
+  appearance: "light",
   config: CONNECT_HERO_RAIN_CONFIG,
   shaderSource: CONNECT_HERO_RAIN_SHADER_SOURCE,
   topFadePct: CONNECT_HERO_RAIN_CONTROL_DEFAULTS.topFadePct,
@@ -462,6 +498,7 @@ export const CONNECT_HERO_RAIN_DEFAULT: ConnectHeroRain = {
 /** Panel settings → the engine config + worker shader source the hero renders. */
 export const resolveConnectHeroRain = (settings: RainControlSettings): ConnectHeroRain => ({
   enabled: settings.enabled,
+  appearance: settings.appearance,
   config: {
     ...BASE,
     grid: {
