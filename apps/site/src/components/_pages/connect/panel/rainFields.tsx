@@ -134,7 +134,8 @@ export function buildRainSections(): PanelSectionDef[] {
       defaultOpen: true,
       fields: [
         toggle("stripesEnabled", "Stripes enabled"),
-        num("fieldScale", "Field scale", 0.05, 2, 0.01),
+        num("visualFieldScale", "Field scale", 0.1, 4, 0.01),
+        num("fieldScale", "Field resolution", 0.05, 2, 0.01),
         {
           type: "stripe-table",
           key: "stripes",

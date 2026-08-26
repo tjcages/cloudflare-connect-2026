@@ -85,6 +85,9 @@ export type RainControlSettings = {
   waveSpeed: number;
   wavePhaseDeg: number;
   stripesEnabled: boolean;
+  /** Visual scale for grid cells, gaps, stripes, and pixel-sized details. */
+  visualFieldScale: number;
+  /** Internal GPU field resolution; independent from visual geometry. */
   fieldScale: number;
   stripes: RainStripeControl[];
   brightness: number;
@@ -241,6 +244,7 @@ export const CONNECT_HERO_RAIN_CONTROL_DEFAULTS: RainControlSettings = {
   waveSpeed: BASE.grid.streamGapWave?.speed ?? -4,
   wavePhaseDeg: BASE.grid.streamGapWave?.phaseDeg ?? -180,
   stripesEnabled: BASE.stripesEnabled ?? true,
+  visualFieldScale: 1,
   fieldScale: BASE.fieldScale ?? 0.25,
   stripes: defaultStripes(),
   brightness: BASE.adjustments?.brightness ?? -0.5,
@@ -377,6 +381,44 @@ export type ConnectHeroRain = {
 
 const asColor = (value: string) => Number.parseInt(value.replace(/^#/, ""), 16) || 0;
 
+const invertColor = (color: number) => 0xffffff ^ (color & 0xffffff);
+
+const averageColors = (colors: readonly number[]) => {
+  if (colors.length === 0) return 0xffffff;
+  const total = colors.reduce(
+    (sum, color) => ({
+      r: sum.r + ((color >> 16) & 0xff),
+      g: sum.g + ((color >> 8) & 0xff),
+      b: sum.b + (color & 0xff),
+    }),
+    { r: 0, g: 0, b: 0 },
+  );
+  const count = colors.length;
+  return (Math.round(total.r / count) << 16) | (Math.round(total.g / count) << 8) | Math.round(total.b / count);
+};
+
+/** The zoom letterbox uses the opposite tone from the visible stage. */
+export const resolveRainOutsideColor = (settings: RainControlSettings): number => {
+  if (settings.backgroundFillMode === "solid") {
+    return invertColor(asColor(settings.backgroundColor));
+  }
+  if (settings.backgroundFillMode === "gradient") {
+    const stops = [
+      settings.backgroundGradientStop0,
+      settings.backgroundGradientStop1,
+      settings.backgroundGradientStop2,
+      settings.backgroundGradientStop3,
+    ]
+      .slice(0, Math.max(2, Math.min(4, settings.backgroundGradientStopCount)))
+      .map(asColor);
+    return invertColor(averageColors(stops));
+  }
+  // The authoring page beneath a transparent stage is white.
+  return 0x000000;
+};
+
+const scaledPx = (value: number, scale: number) => value * scale;
+
 const resolveCanvasBackground = (settings: RainControlSettings): string => {
   if (settings.backgroundFillMode === "transparent") return "transparent";
   if (settings.backgroundFillMode === "solid") return settings.backgroundColor;
@@ -419,11 +461,11 @@ export const resolveConnectHeroRain = (settings: RainControlSettings): ConnectHe
     ...BASE,
     grid: {
       ...BASE.grid,
-      cellWidth: settings.gridCellWidth,
-      cellHeight: settings.gridCellHeight,
-      gapX: settings.gridGapX,
-      gapY: settings.gridGapY,
-      cornerRadius: settings.gridCornerRadius,
+      cellWidth: scaledPx(settings.gridCellWidth, settings.visualFieldScale),
+      cellHeight: scaledPx(settings.gridCellHeight, settings.visualFieldScale),
+      gapX: scaledPx(settings.gridGapX, settings.visualFieldScale),
+      gapY: scaledPx(settings.gridGapY, settings.visualFieldScale),
+      cornerRadius: scaledPx(settings.gridCornerRadius, settings.visualFieldScale),
       orientation: settings.gridOrientation,
       rotationMode: settings.gridRotationMode,
       angleDeg: settings.gridAngle,
@@ -458,16 +500,16 @@ export const resolveConnectHeroRain = (settings: RainControlSettings): ConnectHe
         ...BASE.sparkle?.width,
         enabled: settings.sparkleWidthEnabled,
         coverage: settings.sparkleWidthCoverage,
-        swingPx: settings.sparkleWidthSwingPx,
+        swingPx: scaledPx(settings.sparkleWidthSwingPx, settings.visualFieldScale),
         swingPeriodMin: settings.sparkleWidthSwingPeriodMin,
         swingPeriodMax: settings.sparkleWidthSwingPeriodMax,
       },
       motion: {
         ...BASE.sparkle?.motion,
         enabled: settings.sparkleMotionEnabled,
-        amplitudePx: settings.sparkleMotionAmplitudePx,
-        staggerPx: settings.sparkleMotionStaggerPx,
-        maxOffsetPx: settings.sparkleMotionMaxOffsetPx,
+        amplitudePx: scaledPx(settings.sparkleMotionAmplitudePx, settings.visualFieldScale),
+        staggerPx: scaledPx(settings.sparkleMotionStaggerPx, settings.visualFieldScale),
+        maxOffsetPx: scaledPx(settings.sparkleMotionMaxOffsetPx, settings.visualFieldScale),
         speed: settings.sparkleMotionSpeed,
       },
     },
@@ -476,7 +518,7 @@ export const resolveConnectHeroRain = (settings: RainControlSettings): ConnectHe
       enabled: settings.stripeDotsEnabled,
       density: settings.stripeDotsDensity,
       randomVisibility: settings.stripeDotsRandomVisibility,
-      sizePx: settings.stripeDotsSizePx,
+      sizePx: scaledPx(settings.stripeDotsSizePx, settings.visualFieldScale),
       brightness: settings.stripeDotsBrightness,
       hueDriftDeg: settings.stripeDotsHueDriftDeg,
       saturationBoost: settings.stripeDotsSaturationBoost,
@@ -484,7 +526,7 @@ export const resolveConnectHeroRain = (settings: RainControlSettings): ConnectHe
     stripeBorder: {
       ...BASE.stripeBorder,
       enabled: settings.stripeBorderEnabled,
-      minWidthPx: settings.stripeBorderMinWidthPx,
+      minWidthPx: scaledPx(settings.stripeBorderMinWidthPx, settings.visualFieldScale),
       density: settings.stripeBorderDensity,
     },
     gridLines: {
@@ -500,13 +542,13 @@ export const resolveConnectHeroRain = (settings: RainControlSettings): ConnectHe
       highlightedStripeCount: settings.framesHighlightedStripeCount,
       groupDistanceCells: settings.framesGroupDistanceCells,
       color: asColor(settings.framesColor),
-      fontSizePx: settings.framesFontSizePx,
+      fontSizePx: scaledPx(settings.framesFontSizePx, settings.visualFieldScale),
       coordinateColor: asColor(settings.framesCoordinateColor),
     },
     stripes: settings.stripes.map((stripe) => ({
       color: Number.parseInt(stripe.color.replace(/^#/, ""), 16) || 0,
       startFrom: stripe.startFrom,
-      width: stripe.width,
+      width: scaledPx(stripe.width, settings.visualFieldScale),
       opacity: stripe.opacity,
     })),
     stripesEnabled: settings.stripesEnabled,
@@ -540,6 +582,7 @@ export const resolveConnectHeroRain = (settings: RainControlSettings): ConnectHe
     },
     background: {
       ...BASE.background,
+      color: resolveRainOutsideColor(settings),
       stars: {
         ...BASE.background?.stars,
         enabled: settings.starsEnabled,
