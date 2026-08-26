@@ -9,11 +9,7 @@ import { color, num, optionsFrom, select, toggle } from "./fieldHelpers";
 import type { PanelSectionDef, PanelValues } from "./panelSections";
 import { ShaderCodeEditor } from "./ShaderCodeEditor";
 import { BLEND_MODES } from "./speakerFramesFields";
-import {
-  fromEditableControls,
-  toEditableControls,
-  type EditableStripe,
-} from "./stripeAdapter";
+import { fromEditableControls, toEditableControls, type EditableStripe } from "./stripeAdapter";
 
 /**
  * The hero-rain surface of the lab's Leva panel, translated 1:1 into
@@ -25,9 +21,7 @@ import {
  */
 
 /** Panel values: the settings record with stripes in the table's row shape. */
-export function seedRainPanelValues(
-  settings: RainControlSettings
-): PanelValues {
+export function seedRainPanelValues(settings: RainControlSettings): PanelValues {
   return { ...settings, stripes: toEditableControls(settings.stripes) };
 }
 
@@ -72,6 +66,7 @@ export function buildRainSections(): PanelSectionDef[] {
         toggle("gapsEnabled", "Rain gaps"),
         num("gapsCoverage", "Gap coverage", 0, 1, 0.01),
         num("gapsSpeed", "Gap speed", 0, 10, 0.05),
+        num("zoom", "Rain zoom", 0.1, 8, 0.01),
         num("maxFps", "Max FPS (0 = off)", 0, 120, 1),
         num("topFadeOffsetPct", "Fade offset %", 0, 100, 1),
         num("topFadePct", "Fade height %", 0, 100, 1),
@@ -226,7 +221,6 @@ export function buildRainSections(): PanelSectionDef[] {
           Contain: "contain",
           Stretch: "stretch",
         }),
-        num("zoom", "Zoom", 0.1, 8, 0.01),
         num("panX", "Pan X", -1, 1, 0.01),
         num("panY", "Pan Y", -1, 1, 0.01),
       ],
@@ -312,9 +306,7 @@ export function buildRainSections(): PanelSectionDef[] {
           key: "sourceGlsl",
           render: (ctx) => (
             <ShaderCodeEditor
-              onApply={(glsl) =>
-                ctx.setValues({ ...ctx.values, sourceGlsl: glsl })
-              }
+              onApply={(glsl) => ctx.setValues({ ...ctx.values, sourceGlsl: glsl })}
               value={String(ctx.values.sourceGlsl ?? "")}
             />
           ),

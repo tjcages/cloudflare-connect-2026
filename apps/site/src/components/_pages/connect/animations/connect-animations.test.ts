@@ -24,6 +24,18 @@ describe("Connect animations page", () => {
     expect(stage).toContain("AnimationExportTools");
   });
 
+  it("surfaces a rain-only zoom and links it to the engine transform", () => {
+    const rainFields = read("src/components/_pages/connect/panel/rainFields.tsx");
+    expect(rainFields).toContain('num("zoom", "Rain zoom", 0.1, 8, 0.01)');
+    expect(rainFields.match(/num\("zoom"/g)).toHaveLength(1);
+
+    const rain = resolveConnectHeroRain({
+      ...CONNECT_HERO_RAIN_CONTROL_DEFAULTS,
+      zoom: 0.65,
+    });
+    expect(rain.config.transform?.zoom).toBe(0.65);
+  });
+
   it("exports editable waveform and rain vectors from the live cell grid", async () => {
     const canvas = {
       clientHeight: 360,
