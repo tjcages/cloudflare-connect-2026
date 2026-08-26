@@ -1,6 +1,6 @@
 import type { SharedShaderHandle } from "@necatikcl/stripes-engine/react";
 import type { TwizzlerSettings } from "@tjcages/connect-twizzler";
-import { ControlSection } from "@tjcages/panels/dev";
+import { ControlAction, ControlSection } from "@tjcages/panels/dev";
 import { useRef, useState, type RefObject } from "react";
 import {
   exportLabVideo,
@@ -132,22 +132,18 @@ export default function AnimationExportTools({
   return (
     <ControlSection defaultOpen open title="Export">
       <div className="connect-animation-export">
-        <button
-          aria-busy={videoBusy && phase !== "recording"}
-          aria-pressed={phase === "recording"}
-          disabled={videoBusy && phase !== "recording"}
-          onClick={exportVideo}
-          type="button"
-        >
-          {videoLabel}
-        </button>
+        <ControlAction disabled={videoBusy && phase !== "recording"} label={videoLabel} onClick={exportVideo} />
         <div className="connect-animation-export__vectors">
-          <button disabled={vectorBusy !== null} onClick={() => void exportVector("SVG")} type="button">
-            {vectorBusy === "SVG" ? "Exporting SVG…" : "Export SVG"}
-          </button>
-          <button disabled={vectorBusy !== null} onClick={() => void exportVector("EPS")} type="button">
-            {vectorBusy === "EPS" ? "Exporting EPS…" : "Export EPS"}
-          </button>
+          <ControlAction
+            disabled={vectorBusy !== null}
+            label={vectorBusy === "SVG" ? "Exporting SVG…" : "Export SVG"}
+            onClick={() => void exportVector("SVG")}
+          />
+          <ControlAction
+            disabled={vectorBusy !== null}
+            label={vectorBusy === "EPS" ? "Exporting EPS…" : "Export EPS"}
+            onClick={() => void exportVector("EPS")}
+          />
         </div>
         {error ? <p role="alert">{error}</p> : null}
       </div>

@@ -37,9 +37,11 @@ body:has(.connect-animations-root) {
 }
 
 .connect-animation-export {
-  display: grid;
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  flex-direction: column;
   gap: 6px;
-  padding: 6px;
 }
 
 .connect-animation-export__vectors {
@@ -48,45 +50,10 @@ body:has(.connect-animations-root) {
   gap: 6px;
 }
 
-.connect-animation-export button {
-  min-height: 24px;
-  border: 1px solid var(--panel-border, #292929);
-  border-radius: 4px;
-  background: var(--panel-surface, #373737);
-  color: var(--panel-label-active, #fefefe);
-  font: inherit;
-}
-
-.connect-animation-export button {
-  display: grid;
-  place-items: center;
-  padding: 4px 8px;
-  text-align: center;
-  transition:
-    border-color 120ms ease,
-    background-color 120ms ease;
-}
-
-.connect-animation-export button:hover:not(:disabled) {
-  border-color: var(--panel-accent, #f46021);
-  background: color-mix(in srgb, var(--panel-surface, #373737) 78%, #ffffff);
-}
-
-.connect-animation-export button:disabled {
-  cursor: progress;
-  opacity: 0.62;
-}
-
 .connect-animation-export p {
   margin: 0;
   color: #ff8b7b;
   font-size: 10px;
   line-height: 1.4;
   text-align: center;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .connect-animation-export button {
-    transition: none;
-  }
 }

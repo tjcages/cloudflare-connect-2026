@@ -118,6 +118,9 @@ describe("Connect animations page", () => {
     expect(exportTools).toContain("exportLabVideo");
     expect(exportTools).toContain("Export SVG");
     expect(exportTools).toContain("Export EPS");
+    expect(exportTools).not.toContain("ControlActionGroup");
+    expect(exportTools.match(/<ControlAction\s/g)).toHaveLength(3);
+    expect(styles).not.toContain(".connect-animation-export button");
     expect(exportTools).not.toContain("Video duration");
     expect(resolveConnectHeroRain(CONNECT_HERO_RAIN_CONTROL_DEFAULTS).canvasBackground).toBe("#ffffff");
   });
