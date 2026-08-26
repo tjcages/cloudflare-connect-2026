@@ -30,9 +30,55 @@ export type RainStripeControl = {
  * background FX) plus the corridor texture source and the hero's fps cap.
  */
 export type RainControlSettings = {
+  backgroundFillMode: "transparent" | "solid" | "gradient";
+  backgroundColor: string;
+  backgroundGradientDirection:
+    "topToBottom" | "leftToRight" | "rightToLeft" | "bottomToTop";
+  backgroundGradientStopCount: number;
+  backgroundGradientStop0: string;
+  backgroundGradientStop1: string;
+  backgroundGradientStop2: string;
+  backgroundGradientStop3: string;
   gapsEnabled: boolean;
   gapsCoverage: number;
   gapsSpeed: number;
+  sparkleStripeEnabled: boolean;
+  sparkleStripeCoverage: number;
+  sparkleStripeMaxBrightness: number;
+  sparkleStripeSpeed: number;
+  sparkleStripeThickestCount: number;
+  sparkleStripeHueDriftDeg: number;
+  sparkleStripeSaturationBoost: number;
+  sparkleWidthEnabled: boolean;
+  sparkleWidthCoverage: number;
+  sparkleWidthSwingPx: number;
+  sparkleWidthSwingPeriodMin: number;
+  sparkleWidthSwingPeriodMax: number;
+  sparkleMotionEnabled: boolean;
+  sparkleMotionAmplitudePx: number;
+  sparkleMotionStaggerPx: number;
+  sparkleMotionMaxOffsetPx: number;
+  sparkleMotionSpeed: number;
+  stripeDotsEnabled: boolean;
+  stripeDotsDensity: number;
+  stripeDotsRandomVisibility: number;
+  stripeDotsSizePx: number;
+  stripeDotsBrightness: number;
+  stripeDotsHueDriftDeg: number;
+  stripeDotsSaturationBoost: number;
+  stripeBorderEnabled: boolean;
+  stripeBorderMinWidthPx: number;
+  stripeBorderDensity: number;
+  gridLinesEnabled: boolean;
+  gridLinesBrightness: number;
+  gridLinesDensity: number;
+  framesEnabled: boolean;
+  framesLuminanceThreshold: number;
+  framesHighlightedStripeCount: number;
+  framesGroupDistanceCells: number;
+  framesColor: string;
+  framesFontSizePx: number;
+  framesCoordinateColor: string;
   maxFps: number;
   gridCellWidth: number;
   gridCellHeight: number;
@@ -58,6 +104,11 @@ export type RainControlSettings = {
   whitePoint: number;
   gamma: number;
   invert: boolean;
+  posterizeLevels: number;
+  thresholdBias: number;
+  noiseAmount: number;
+  blurRadius: number;
+  sharpenAmount: number;
   colorMode: "luminance" | "colors";
   stripeBlendMode: string;
   fit: Fit;
@@ -67,11 +118,53 @@ export type RainControlSettings = {
   starsEnabled: boolean;
   starsDensity: number;
   starsSizePx: number;
+  starsSizeRandomness: number;
+  starsTiltAngleDeg: number;
+  starsTwinkleSpeed: number;
+  starsTwinkleAmount: number;
+  starsOpacity: number;
+  starsColor: string;
   meteorsEnabled: boolean;
   meteorsRatePerSec: number;
   meteorsMaxActive: number;
+  meteorsRadiantAngleDeg: number;
+  meteorsAngleJitterDeg: number;
+  meteorsSpeedScale: number;
+  meteorsSpeedVariation: number;
+  meteorsTailLengthScale: number;
+  meteorsTailLengthVariation: number;
+  meteorsThicknessScale: number;
+  meteorsThicknessVariation: number;
+  meteorsLifetimeMinMs: number;
+  meteorsLifetimeMaxMs: number;
+  meteorsBrightness: number;
+  meteorsHeadGlow: number;
+  meteorsPushPx: number;
+  meteorsPushFalloffScale: number;
+  meteorsFadeInMs: number;
+  meteorsFadeOutMs: number;
+  meteorsSeed: number;
   flamesEnabled: boolean;
+  flamesDirection:
+    | "up"
+    | "down"
+    | "left"
+    | "right"
+    | "upDown"
+    | "leftRight"
+    | "vortexSingular";
+  flamesMinWidthRatio: number;
+  flamesMaxWidthRatio: number;
+  flamesMinHeightRatio: number;
+  flamesMaxHeightRatio: number;
+  flamesBaseSpeed: number;
+  flamesSpeedVariation: number;
+  flamesSpawnInterval: number;
+  flamesSpawnJitter: number;
   flamesMaxActive: number;
+  flamesEdgeSharpness: number;
+  flamesOpacityMin: number;
+  flamesOpacityMax: number;
   sourceSpeed: number;
   sourceWidth: number;
   sourceHeight: number;
@@ -101,9 +194,63 @@ const defaultStripes = (): RainStripeControl[] =>
   }));
 
 export const CONNECT_HERO_RAIN_CONTROL_DEFAULTS: RainControlSettings = {
+  backgroundFillMode: "solid",
+  backgroundColor: "#ffffff",
+  backgroundGradientDirection:
+    BASE.background?.gradient?.direction ?? "topToBottom",
+  backgroundGradientStopCount: BASE.background?.gradient?.stopCount ?? 2,
+  backgroundGradientStop0: toHex(
+    BASE.background?.gradient?.stops?.[0] ?? 0xffffff
+  ),
+  backgroundGradientStop1: toHex(
+    BASE.background?.gradient?.stops?.[1] ?? 0xffffff
+  ),
+  backgroundGradientStop2: toHex(
+    BASE.background?.gradient?.stops?.[2] ?? 0xffffff
+  ),
+  backgroundGradientStop3: toHex(
+    BASE.background?.gradient?.stops?.[3] ?? 0xffffff
+  ),
   gapsEnabled: BASE.sparkle?.gaps?.enabled ?? true,
   gapsCoverage: BASE.sparkle?.gaps?.coverage ?? 0,
   gapsSpeed: BASE.sparkle?.gaps?.speed ?? 1,
+  sparkleStripeEnabled: BASE.sparkle?.stripe?.enabled ?? false,
+  sparkleStripeCoverage: BASE.sparkle?.stripe?.coverage ?? 0,
+  sparkleStripeMaxBrightness: BASE.sparkle?.stripe?.maxBrightness ?? 0,
+  sparkleStripeSpeed: BASE.sparkle?.stripe?.speed ?? 1,
+  sparkleStripeThickestCount: BASE.sparkle?.stripe?.thickestCount ?? 1,
+  sparkleStripeHueDriftDeg: BASE.sparkle?.stripe?.hueDriftDeg ?? 0,
+  sparkleStripeSaturationBoost: BASE.sparkle?.stripe?.saturationBoost ?? 0,
+  sparkleWidthEnabled: BASE.sparkle?.width?.enabled ?? false,
+  sparkleWidthCoverage: BASE.sparkle?.width?.coverage ?? 0,
+  sparkleWidthSwingPx: BASE.sparkle?.width?.swingPx ?? 0,
+  sparkleWidthSwingPeriodMin: BASE.sparkle?.width?.swingPeriodMin ?? 1,
+  sparkleWidthSwingPeriodMax: BASE.sparkle?.width?.swingPeriodMax ?? 1,
+  sparkleMotionEnabled: BASE.sparkle?.motion?.enabled ?? false,
+  sparkleMotionAmplitudePx: BASE.sparkle?.motion?.amplitudePx ?? 0,
+  sparkleMotionStaggerPx: BASE.sparkle?.motion?.staggerPx ?? 1,
+  sparkleMotionMaxOffsetPx: BASE.sparkle?.motion?.maxOffsetPx ?? 0,
+  sparkleMotionSpeed: BASE.sparkle?.motion?.speed ?? 1,
+  stripeDotsEnabled: BASE.stripeDots?.enabled ?? false,
+  stripeDotsDensity: BASE.stripeDots?.density ?? 0,
+  stripeDotsRandomVisibility: BASE.stripeDots?.randomVisibility ?? 0,
+  stripeDotsSizePx: BASE.stripeDots?.sizePx ?? 1,
+  stripeDotsBrightness: BASE.stripeDots?.brightness ?? 1,
+  stripeDotsHueDriftDeg: BASE.stripeDots?.hueDriftDeg ?? 0,
+  stripeDotsSaturationBoost: BASE.stripeDots?.saturationBoost ?? 0,
+  stripeBorderEnabled: BASE.stripeBorder?.enabled ?? false,
+  stripeBorderMinWidthPx: BASE.stripeBorder?.minWidthPx ?? 1,
+  stripeBorderDensity: BASE.stripeBorder?.density ?? 0,
+  gridLinesEnabled: BASE.gridLines?.enabled ?? false,
+  gridLinesBrightness: BASE.gridLines?.brightness ?? 0,
+  gridLinesDensity: BASE.gridLines?.density ?? 0,
+  framesEnabled: BASE.frames?.enabled ?? false,
+  framesLuminanceThreshold: BASE.frames?.luminanceThreshold ?? 0.5,
+  framesHighlightedStripeCount: BASE.frames?.highlightedStripeCount ?? 1,
+  framesGroupDistanceCells: BASE.frames?.groupDistanceCells ?? 1,
+  framesColor: toHex(BASE.frames?.color ?? 0xffffff),
+  framesFontSizePx: BASE.frames?.fontSizePx ?? 12,
+  framesCoordinateColor: toHex(BASE.frames?.coordinateColor ?? 0xffffff),
   maxFps: BASE.maxFps ?? 30,
   gridCellWidth: BASE.grid.cellWidth ?? 17,
   gridCellHeight: BASE.grid.cellHeight ?? 1,
@@ -129,6 +276,11 @@ export const CONNECT_HERO_RAIN_CONTROL_DEFAULTS: RainControlSettings = {
   whitePoint: BASE.adjustments?.whitePoint ?? 1,
   gamma: BASE.adjustments?.gamma ?? 0.55,
   invert: BASE.adjustments?.invert ?? false,
+  posterizeLevels: BASE.adjustments?.posterizeLevels ?? 0,
+  thresholdBias: BASE.adjustments?.thresholdBias ?? 0,
+  noiseAmount: BASE.adjustments?.noiseAmount ?? 0,
+  blurRadius: BASE.adjustments?.blurRadius ?? 0,
+  sharpenAmount: BASE.adjustments?.sharpenAmount ?? 0,
   colorMode: BASE.colors?.mode ?? "luminance",
   stripeBlendMode: BASE.colors?.stripeBlendMode ?? "multiply",
   fit: BASE.transform?.fit ?? "width",
@@ -138,11 +290,47 @@ export const CONNECT_HERO_RAIN_CONTROL_DEFAULTS: RainControlSettings = {
   starsEnabled: BASE.background?.stars?.enabled ?? true,
   starsDensity: BASE.background?.stars?.density ?? 10,
   starsSizePx: BASE.background?.stars?.sizePx ?? 4,
+  starsSizeRandomness: BASE.background?.stars?.sizeRandomness ?? 0,
+  starsTiltAngleDeg: BASE.background?.stars?.tiltAngleDeg ?? 0,
+  starsTwinkleSpeed: BASE.background?.stars?.twinkleSpeed ?? 1,
+  starsTwinkleAmount: BASE.background?.stars?.twinkleAmount ?? 0,
+  starsOpacity: BASE.background?.stars?.opacity ?? 1,
+  starsColor: toHex(BASE.background?.stars?.color ?? 0xffffff),
   meteorsEnabled: BASE.background?.meteors?.enabled ?? true,
   meteorsRatePerSec: BASE.background?.meteors?.ratePerSec ?? 1.32,
   meteorsMaxActive: BASE.background?.meteors?.maxActive ?? 16,
+  meteorsRadiantAngleDeg: BASE.background?.meteors?.radiantAngleDeg ?? 0,
+  meteorsAngleJitterDeg: BASE.background?.meteors?.angleJitterDeg ?? 0,
+  meteorsSpeedScale: BASE.background?.meteors?.speedScale ?? 1,
+  meteorsSpeedVariation: BASE.background?.meteors?.speedVariation ?? 0,
+  meteorsTailLengthScale: BASE.background?.meteors?.tailLengthScale ?? 1,
+  meteorsTailLengthVariation:
+    BASE.background?.meteors?.tailLengthVariation ?? 0,
+  meteorsThicknessScale: BASE.background?.meteors?.thicknessScale ?? 1,
+  meteorsThicknessVariation: BASE.background?.meteors?.thicknessVariation ?? 0,
+  meteorsLifetimeMinMs: BASE.background?.meteors?.lifetimeMinMs ?? 300,
+  meteorsLifetimeMaxMs: BASE.background?.meteors?.lifetimeMaxMs ?? 1200,
+  meteorsBrightness: BASE.background?.meteors?.brightness ?? 1,
+  meteorsHeadGlow: BASE.background?.meteors?.headGlow ?? 1,
+  meteorsPushPx: BASE.background?.meteors?.pushPx ?? 0,
+  meteorsPushFalloffScale: BASE.background?.meteors?.pushFalloffScale ?? 1,
+  meteorsFadeInMs: BASE.background?.meteors?.fadeInMs ?? 0,
+  meteorsFadeOutMs: BASE.background?.meteors?.fadeOutMs ?? 300,
+  meteorsSeed: BASE.background?.meteors?.seed ?? 1,
   flamesEnabled: BASE.flames?.enabled ?? true,
+  flamesDirection: BASE.flames?.direction ?? "up",
+  flamesMinWidthRatio: BASE.flames?.minWidthRatio ?? 0.01,
+  flamesMaxWidthRatio: BASE.flames?.maxWidthRatio ?? 0.1,
+  flamesMinHeightRatio: BASE.flames?.minHeightRatio ?? 0.01,
+  flamesMaxHeightRatio: BASE.flames?.maxHeightRatio ?? 0.1,
+  flamesBaseSpeed: BASE.flames?.baseSpeedPxPerSec ?? 40,
+  flamesSpeedVariation: BASE.flames?.speedVariation ?? 0,
+  flamesSpawnInterval: BASE.flames?.spawnIntervalMs ?? 300,
+  flamesSpawnJitter: BASE.flames?.spawnJitterMs ?? 0,
   flamesMaxActive: BASE.flames?.maxActive ?? 25,
+  flamesEdgeSharpness: BASE.flames?.edgeSharpness ?? 0.5,
+  flamesOpacityMin: BASE.flames?.opacityMin ?? 0.5,
+  flamesOpacityMax: BASE.flames?.opacityMax ?? 1,
   sourceSpeed: CONNECT_HERO_RAIN_SHADER_SOURCE.speed ?? 1,
   sourceWidth: CONNECT_HERO_RAIN_SHADER_SOURCE.width,
   sourceHeight: CONNECT_HERO_RAIN_SHADER_SOURCE.height,
@@ -202,6 +390,29 @@ export type ConnectHeroRain = {
   topFadePct: number;
   /** Where the fade band starts, as % from the top; everything above is hidden. */
   topFadeOffsetPct: number;
+  /** CSS background painted beneath both transparent canvases. */
+  canvasBackground: string;
+};
+
+const asColor = (value: string) =>
+  Number.parseInt(value.replace(/^#/, ""), 16) || 0;
+
+const resolveCanvasBackground = (settings: RainControlSettings): string => {
+  if (settings.backgroundFillMode === "transparent") return "transparent";
+  if (settings.backgroundFillMode === "solid") return settings.backgroundColor;
+  const direction = {
+    topToBottom: "to bottom",
+    leftToRight: "to right",
+    rightToLeft: "to left",
+    bottomToTop: "to top",
+  }[settings.backgroundGradientDirection];
+  const stops = [
+    settings.backgroundGradientStop0,
+    settings.backgroundGradientStop1,
+    settings.backgroundGradientStop2,
+    settings.backgroundGradientStop3,
+  ].slice(0, Math.max(2, Math.min(4, settings.backgroundGradientStopCount)));
+  return `linear-gradient(${direction}, ${stops.join(", ")})`;
 };
 
 export const CONNECT_HERO_RAIN_DEFAULT: ConnectHeroRain = {
@@ -209,6 +420,7 @@ export const CONNECT_HERO_RAIN_DEFAULT: ConnectHeroRain = {
   shaderSource: CONNECT_HERO_RAIN_SHADER_SOURCE,
   topFadePct: CONNECT_HERO_RAIN_CONTROL_DEFAULTS.topFadePct,
   topFadeOffsetPct: CONNECT_HERO_RAIN_CONTROL_DEFAULTS.topFadeOffsetPct,
+  canvasBackground: "#ffffff",
 };
 
 /** Panel settings → the engine config + worker shader source the hero renders. */
@@ -244,6 +456,64 @@ export const resolveConnectHeroRain = (
         coverage: settings.gapsCoverage,
         speed: settings.gapsSpeed,
       },
+      stripe: {
+        ...BASE.sparkle?.stripe,
+        enabled: settings.sparkleStripeEnabled,
+        coverage: settings.sparkleStripeCoverage,
+        maxBrightness: settings.sparkleStripeMaxBrightness,
+        speed: settings.sparkleStripeSpeed,
+        thickestCount: settings.sparkleStripeThickestCount,
+        hueDriftDeg: settings.sparkleStripeHueDriftDeg,
+        saturationBoost: settings.sparkleStripeSaturationBoost,
+      },
+      width: {
+        ...BASE.sparkle?.width,
+        enabled: settings.sparkleWidthEnabled,
+        coverage: settings.sparkleWidthCoverage,
+        swingPx: settings.sparkleWidthSwingPx,
+        swingPeriodMin: settings.sparkleWidthSwingPeriodMin,
+        swingPeriodMax: settings.sparkleWidthSwingPeriodMax,
+      },
+      motion: {
+        ...BASE.sparkle?.motion,
+        enabled: settings.sparkleMotionEnabled,
+        amplitudePx: settings.sparkleMotionAmplitudePx,
+        staggerPx: settings.sparkleMotionStaggerPx,
+        maxOffsetPx: settings.sparkleMotionMaxOffsetPx,
+        speed: settings.sparkleMotionSpeed,
+      },
+    },
+    stripeDots: {
+      ...BASE.stripeDots,
+      enabled: settings.stripeDotsEnabled,
+      density: settings.stripeDotsDensity,
+      randomVisibility: settings.stripeDotsRandomVisibility,
+      sizePx: settings.stripeDotsSizePx,
+      brightness: settings.stripeDotsBrightness,
+      hueDriftDeg: settings.stripeDotsHueDriftDeg,
+      saturationBoost: settings.stripeDotsSaturationBoost,
+    },
+    stripeBorder: {
+      ...BASE.stripeBorder,
+      enabled: settings.stripeBorderEnabled,
+      minWidthPx: settings.stripeBorderMinWidthPx,
+      density: settings.stripeBorderDensity,
+    },
+    gridLines: {
+      ...BASE.gridLines,
+      enabled: settings.gridLinesEnabled,
+      brightness: settings.gridLinesBrightness,
+      density: settings.gridLinesDensity,
+    },
+    frames: {
+      ...BASE.frames,
+      enabled: settings.framesEnabled,
+      luminanceThreshold: settings.framesLuminanceThreshold,
+      highlightedStripeCount: settings.framesHighlightedStripeCount,
+      groupDistanceCells: settings.framesGroupDistanceCells,
+      color: asColor(settings.framesColor),
+      fontSizePx: settings.framesFontSizePx,
+      coordinateColor: asColor(settings.framesCoordinateColor),
     },
     stripes: settings.stripes.map((stripe) => ({
       color: Number.parseInt(stripe.color.replace(/^#/, ""), 16) || 0,
@@ -263,6 +533,11 @@ export const resolveConnectHeroRain = (
       whitePoint: settings.whitePoint,
       gamma: settings.gamma,
       invert: settings.invert,
+      posterizeLevels: settings.posterizeLevels,
+      thresholdBias: settings.thresholdBias,
+      noiseAmount: settings.noiseAmount,
+      blurRadius: settings.blurRadius,
+      sharpenAmount: settings.sharpenAmount,
     },
     colors: {
       ...BASE.colors,
@@ -282,18 +557,53 @@ export const resolveConnectHeroRain = (
         enabled: settings.starsEnabled,
         density: settings.starsDensity,
         sizePx: settings.starsSizePx,
+        sizeRandomness: settings.starsSizeRandomness,
+        tiltAngleDeg: settings.starsTiltAngleDeg,
+        twinkleSpeed: settings.starsTwinkleSpeed,
+        twinkleAmount: settings.starsTwinkleAmount,
+        opacity: settings.starsOpacity,
+        color: asColor(settings.starsColor),
       },
       meteors: {
         ...BASE.background?.meteors,
         enabled: settings.meteorsEnabled,
         ratePerSec: settings.meteorsRatePerSec,
         maxActive: settings.meteorsMaxActive,
+        radiantAngleDeg: settings.meteorsRadiantAngleDeg,
+        angleJitterDeg: settings.meteorsAngleJitterDeg,
+        speedScale: settings.meteorsSpeedScale,
+        speedVariation: settings.meteorsSpeedVariation,
+        tailLengthScale: settings.meteorsTailLengthScale,
+        tailLengthVariation: settings.meteorsTailLengthVariation,
+        thicknessScale: settings.meteorsThicknessScale,
+        thicknessVariation: settings.meteorsThicknessVariation,
+        lifetimeMinMs: settings.meteorsLifetimeMinMs,
+        lifetimeMaxMs: settings.meteorsLifetimeMaxMs,
+        brightness: settings.meteorsBrightness,
+        headGlow: settings.meteorsHeadGlow,
+        pushPx: settings.meteorsPushPx,
+        pushFalloffScale: settings.meteorsPushFalloffScale,
+        fadeInMs: settings.meteorsFadeInMs,
+        fadeOutMs: settings.meteorsFadeOutMs,
+        seed: settings.meteorsSeed,
       },
     },
     flames: {
       ...BASE.flames,
       enabled: settings.flamesEnabled,
+      direction: settings.flamesDirection,
+      minWidthRatio: settings.flamesMinWidthRatio,
+      maxWidthRatio: settings.flamesMaxWidthRatio,
+      minHeightRatio: settings.flamesMinHeightRatio,
+      maxHeightRatio: settings.flamesMaxHeightRatio,
+      baseSpeedPxPerSec: settings.flamesBaseSpeed,
+      speedVariation: settings.flamesSpeedVariation,
+      spawnIntervalMs: settings.flamesSpawnInterval,
+      spawnJitterMs: settings.flamesSpawnJitter,
       maxActive: settings.flamesMaxActive,
+      edgeSharpness: settings.flamesEdgeSharpness,
+      opacityMin: settings.flamesOpacityMin,
+      opacityMax: settings.flamesOpacityMax,
     },
   },
   shaderSource: {
@@ -308,4 +618,5 @@ export const resolveConnectHeroRain = (
   },
   topFadePct: settings.topFadePct,
   topFadeOffsetPct: settings.topFadeOffsetPct,
+  canvasBackground: resolveCanvasBackground(settings),
 });

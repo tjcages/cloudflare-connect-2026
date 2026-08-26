@@ -11,11 +11,13 @@ import "./connect-animations.css";
 
 export default function AnimationExportTools({
   animationStartedAt,
+  background,
   rainCanvasRef,
   settings,
   twizzlerCanvasRef,
 }: {
   animationStartedAt: number;
+  background: string;
   rainCanvasRef: RefObject<HTMLCanvasElement | null>;
   settings: TwizzlerSettings;
   twizzlerCanvasRef: RefObject<HTMLCanvasElement | null>;
@@ -38,7 +40,7 @@ export default function AnimationExportTools({
         canvas.height,
         elapsed,
         settings,
-        "#000000"
+        background.startsWith("#") ? background : "#ffffff"
       ),
       "cloudflare-connect-waveform.svg",
       "image/svg+xml"
@@ -57,6 +59,7 @@ export default function AnimationExportTools({
         twizzlerCanvas,
         rainCanvas,
         durationSec: duration,
+        background,
         onProgress: setProgress,
       });
       downloadBlob(

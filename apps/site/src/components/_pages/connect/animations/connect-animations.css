@@ -3,14 +3,14 @@ body:has(.connect-animations-root) {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: #000000;
+  background: #ffffff;
 }
 
 .connect-animations-root {
   position: fixed;
   inset: 0;
   overflow: hidden;
-  background: #000000;
+  background: #ffffff;
 }
 
 /* Render a 122% canvas, then fit it back into the viewport. The shaders keep

@@ -89,6 +89,7 @@ export default function ConnectAnimationsStage() {
         toolsSlot={
           <AnimationExportTools
             animationStartedAt={animationStartedAt.current}
+            background={rain.canvasBackground}
             rainCanvasRef={rainCanvasRef}
             settings={settings}
             twizzlerCanvasRef={twizzlerCanvasRef}
@@ -99,7 +100,10 @@ export default function ConnectAnimationsStage() {
   ) : null;
 
   return (
-    <div className="connect-animations-root">
+    <div
+      className="connect-animations-root"
+      style={{ background: rain.canvasBackground }}
+    >
       <div className="connect-animations-stage">
         <ConnectTwizzler
           canvasClassName="connect-animations-canvas"

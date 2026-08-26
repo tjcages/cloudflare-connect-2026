@@ -69,11 +69,13 @@ export async function recordShaderStack({
   twizzlerCanvas,
   rainCanvas,
   durationSec,
+  background = "#ffffff",
   onProgress,
 }: {
   twizzlerCanvas: HTMLCanvasElement;
   rainCanvas: HTMLCanvasElement;
   durationSec: number;
+  background?: string;
   onProgress?: (progress: number) => void;
 }): Promise<{ blob: Blob; extension: "mp4" | "webm" }> {
   if (typeof MediaRecorder === "undefined") {
@@ -125,7 +127,7 @@ export async function recordShaderStack({
   await new Promise<void>((resolve) => {
     const paint = (now: number) => {
       const elapsed = now - startedAt;
-      context.fillStyle = "#000000";
+      context.fillStyle = background.startsWith("#") ? background : "#ffffff";
       context.fillRect(0, 0, width, height);
       context.drawImage(twizzlerCanvas, 0, 0, width, height);
       context.drawImage(rainCanvas, 0, 0, width, height);

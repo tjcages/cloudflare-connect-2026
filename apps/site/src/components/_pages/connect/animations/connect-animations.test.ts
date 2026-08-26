@@ -2,6 +2,10 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { CONNECT_HERO_TWIZZLER_DEFAULTS } from "../hero/twizzler-defaults";
+import {
+  CONNECT_HERO_RAIN_CONTROL_DEFAULTS,
+  resolveConnectHeroRain,
+} from "../hero/rain-control-settings";
 import { buildWaveformSvg } from "./animation-exports";
 
 const read = (relativePath: string) =>
@@ -41,15 +45,18 @@ describe("Connect animations page", () => {
     expect(svg).toContain("<path");
   });
 
-  it("inverts the animation and video canvas backgrounds", () => {
+  it("uses the configured white canvas background in the page and exports", () => {
     const styles = read(
       "src/components/_pages/connect/animations/connect-animations.css"
     );
     const exports = read(
       "src/components/_pages/connect/animations/animation-exports.ts"
     );
-    expect(styles).toContain("background: #000000");
-    expect(styles).not.toContain("background: #ffffff");
-    expect(exports).toContain('context.fillStyle = "#000000"');
+    expect(styles).toContain("background: #ffffff");
+    expect(exports).toContain('background = "#ffffff"');
+    expect(
+      resolveConnectHeroRain(CONNECT_HERO_RAIN_CONTROL_DEFAULTS)
+        .canvasBackground
+    ).toBe("#ffffff");
   });
 });
