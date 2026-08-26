@@ -1,6 +1,6 @@
 import type { TwizzlerSettings } from "@tjcages/connect-twizzler";
 import { FloatingPanel, PanelHeaderSelect } from "@tjcages/panels/dev";
-import { useCallback, useState } from "react";
+import { useCallback, useState, type ReactNode } from "react";
 import {
   CTA_SHADER_PANEL_ID,
   loadCtaShaderSettings,
@@ -145,6 +145,8 @@ interface Props {
   onRainChange: (rain: ConnectHeroRain) => void;
   /** Homepage exposes every shader; login only tunes the hero stack. */
   targets?: readonly ShaderTarget[];
+  /** Page-specific tools rendered inside the scrolling panel flow. */
+  toolsSlot?: ReactNode;
 }
 
 const persist = (id: string, values: unknown) => {
@@ -163,6 +165,7 @@ export default function ConnectTwizzlerControls({
   onSettingsChange,
   onRainChange,
   targets = DEFAULT_TARGETS,
+  toolsSlot,
 }: Props) {
   const allowed = targets.length > 0 ? targets : DEFAULT_TARGETS;
   const [target, setTarget] = useState<ShaderTarget>(() =>
@@ -317,6 +320,7 @@ export default function ConnectTwizzlerControls({
         sections={active.sections}
         values={active.values}
       />
+      {toolsSlot}
     </FloatingPanel>
   );
 }

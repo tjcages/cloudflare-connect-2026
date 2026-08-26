@@ -1,0 +1,19 @@
+---
+import ConnectAnimationsStage from "@/components/_pages/connect/animations/ConnectAnimationsStage";
+import Layout from "@/layouts/Layout.astro";
+---
+
+<Layout
+  title="Connect Animations | Cloudflare"
+  description="A full-screen Cloudflare Connect waveform and rain authoring surface."
+  cta={false}
+  footer={false}
+  frame={false}
+  header={false}
+  interfaceMode={false}
+  lockTheme="light"
+  main={false}
+  zoom={false}
+>
+  <ConnectAnimationsStage client:only="react" />
+</Layout>
