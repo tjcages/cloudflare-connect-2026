@@ -1,7 +1,11 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { CONNECT_HERO_RAIN_CONTROL_DEFAULTS, resolveConnectHeroRain } from "../hero/rain-control-settings";
+import {
+  CONNECT_HERO_RAIN_CONTROL_DEFAULTS,
+  resolveConnectHeroRain,
+  resolveRainOutsideColor,
+} from "../hero/rain-control-settings";
 import { CONNECT_HERO_TWIZZLER_DEFAULTS } from "../hero/twizzler-defaults";
 import { buildAnimationSvg } from "./animation-exports";
 
@@ -34,6 +38,46 @@ describe("Connect animations page", () => {
       zoom: 0.65,
     });
     expect(rain.config.transform?.zoom).toBe(0.65);
+  });
+
+  it("uses the inverse canvas color outside the zoomed rain source", () => {
+    expect(
+      resolveRainOutsideColor({
+        ...CONNECT_HERO_RAIN_CONTROL_DEFAULTS,
+        backgroundColor: "#ffffff",
+      }),
+    ).toBe(0x000000);
+    expect(
+      resolveRainOutsideColor({
+        ...CONNECT_HERO_RAIN_CONTROL_DEFAULTS,
+        backgroundColor: "#000000",
+      }),
+    ).toBe(0xffffff);
+
+    const rain = resolveConnectHeroRain({
+      ...CONNECT_HERO_RAIN_CONTROL_DEFAULTS,
+      backgroundColor: "#000000",
+    });
+    expect(rain.config.background?.color).toBe(0xffffff);
+  });
+
+  it("scales the complete stripe field without changing render resolution", () => {
+    const defaults = resolveConnectHeroRain(CONNECT_HERO_RAIN_CONTROL_DEFAULTS);
+    const scaled = resolveConnectHeroRain({
+      ...CONNECT_HERO_RAIN_CONTROL_DEFAULTS,
+      visualFieldScale: 0.5,
+    });
+
+    expect(scaled.config.grid?.cellWidth).toBe((defaults.config.grid?.cellWidth ?? 0) * 0.5);
+    expect(scaled.config.grid?.cellHeight).toBe((defaults.config.grid?.cellHeight ?? 0) * 0.5);
+    expect(scaled.config.grid?.gapX).toBe((defaults.config.grid?.gapX ?? 0) * 0.5);
+    expect(scaled.config.stripes?.[0]?.width).toBe((defaults.config.stripes?.[0]?.width ?? 0) * 0.5);
+    expect(scaled.config.stripeDots?.sizePx).toBe((defaults.config.stripeDots?.sizePx ?? 0) * 0.5);
+    expect(scaled.config.fieldScale).toBe(defaults.config.fieldScale);
+
+    const rainFields = read("src/components/_pages/connect/panel/rainFields.tsx");
+    expect(rainFields).toContain('num("visualFieldScale", "Field scale", 0.1, 4, 0.01)');
+    expect(rainFields).toContain('num("fieldScale", "Field resolution", 0.05, 2, 0.01)');
   });
 
   it("exports editable waveform and rain vectors from the live cell grid", async () => {
