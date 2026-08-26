@@ -1,14 +1,8 @@
 import { StripesShader } from "@necatikcl/stripes-engine/react";
+import type { SharedShaderHandle } from "@necatikcl/stripes-engine/react";
 import type { TwizzlerSettings } from "@tjcages/connect-twizzler";
 import { ConnectTwizzler } from "@tjcages/connect-twizzler/react";
-import {
-  lazy,
-  Suspense,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { asThemedEngineConfig } from "@/components/stripes-texture/config";
 import {
@@ -19,29 +13,50 @@ import {
   type ConnectHeroRain,
 } from "../hero/rain-control-settings";
 import { CONNECT_HERO_TWIZZLER_DEFAULTS } from "../hero/twizzler-defaults";
-import {
-  loadConnectTwizzlerControlSettings,
-  resolveConnectTwizzlerSettings,
-} from "../hero/twizzler-control-settings";
+import { loadConnectTwizzlerControlSettings, resolveConnectTwizzlerSettings } from "../hero/twizzler-control-settings";
 import AnimationExportTools from "./AnimationExportTools";
 import "./connect-animations.css";
 
-const ConnectTwizzlerControls = lazy(
-  () => import("../hero/ConnectTwizzlerControls")
-);
+const ConnectTwizzlerControls = lazy(() => import("../hero/ConnectTwizzlerControls"));
 const PANEL_STORAGE_KEY = "connect:animations-controls-visible";
 const ANIMATION_TARGETS = ["twizzler", "rain"] as const;
 
 export default function ConnectAnimationsStage() {
-  const [settings, setSettings] = useState<TwizzlerSettings>(
-    CONNECT_HERO_TWIZZLER_DEFAULTS
-  );
+  const [settings, setSettings] = useState<TwizzlerSettings>(CONNECT_HERO_TWIZZLER_DEFAULTS);
   const [rain, setRain] = useState<ConnectHeroRain>(CONNECT_HERO_RAIN_DEFAULT);
   const [panelOpen, setPanelOpen] = useState(true);
   const [mounted, setMounted] = useState(false);
   const twizzlerCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const rainCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const animationStartedAt = useRef(0);
+  const rainHandleRef = useRef<SharedShaderHandle | null>(null);
+  const animationClockRef = useRef({
+    elapsedSec: 0,
+    lastNowMs: 0,
+    speed: CONNECT_HERO_TWIZZLER_DEFAULTS.speed,
+  });
+
+  const getAnimationTimeSec = useCallback(() => {
+    const now = performance.now();
+    const clock = animationClockRef.current;
+    if (clock.lastNowMs > 0) {
+      clock.elapsedSec += ((now - clock.lastNowMs) / 1000) * clock.speed;
+    }
+    clock.lastNowMs = now;
+    return clock.elapsedSec;
+  }, []);
+
+  const handleSettingsChange = useCallback(
+    (next: TwizzlerSettings) => {
+      getAnimationTimeSec();
+      animationClockRef.current.speed = next.speed;
+      setSettings(next);
+    },
+    [getAnimationTimeSec],
+  );
+
+  const handleRainHandle = useCallback((handle: SharedShaderHandle | null) => {
+    rainHandleRef.current = handle;
+  }, []);
 
   const setPanelVisible = useCallback((next: boolean) => {
     setPanelOpen(next);
@@ -54,9 +69,13 @@ export default function ConnectAnimationsStage() {
 
   useEffect(() => {
     setMounted(true);
-    animationStartedAt.current = performance.now();
+    animationClockRef.current.lastNowMs = performance.now();
     const stored = loadConnectTwizzlerControlSettings();
-    if (stored) setSettings(resolveConnectTwizzlerSettings(stored));
+    if (stored) {
+      const restored = resolveConnectTwizzlerSettings(stored);
+      animationClockRef.current.speed = restored.speed;
+      setSettings(restored);
+    }
     setRain(resolveConnectHeroRain(loadRainControlSettings()));
     const panelPreference = localStorage.getItem(PANEL_STORAGE_KEY);
     setPanelOpen(panelPreference === null ? true : panelPreference === "true");
@@ -64,13 +83,7 @@ export default function ConnectAnimationsStage() {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (
-        event.key.toLowerCase() !== "d" ||
-        !event.metaKey ||
-        !event.shiftKey ||
-        event.altKey
-      )
-        return;
+      if (event.key.toLowerCase() !== "d" || !event.metaKey || !event.shiftKey || event.altKey) return;
       event.preventDefault();
       event.stopPropagation();
       setPanelVisible(!panelOpen);
@@ -84,13 +97,14 @@ export default function ConnectAnimationsStage() {
       <ConnectTwizzlerControls
         onClose={() => setPanelVisible(false)}
         onRainChange={setRain}
-        onSettingsChange={setSettings}
+        onSettingsChange={handleSettingsChange}
         targets={ANIMATION_TARGETS}
         toolsSlot={
           <AnimationExportTools
-            animationStartedAt={animationStartedAt.current}
-            background={rain.canvasBackground}
+            getAnimationTimeSec={getAnimationTimeSec}
+            rain={rain}
             rainCanvasRef={rainCanvasRef}
+            rainHandleRef={rainHandleRef}
             settings={settings}
             twizzlerCanvasRef={twizzlerCanvasRef}
           />
@@ -100,10 +114,7 @@ export default function ConnectAnimationsStage() {
   ) : null;
 
   return (
-    <div
-      className="connect-animations-root"
-      style={{ background: rain.canvasBackground }}
-    >
+    <div className="connect-animations-root" style={{ background: rain.canvasBackground }}>
       <div className="connect-animations-stage">
         <ConnectTwizzler
           canvasClassName="connect-animations-canvas"
@@ -120,11 +131,12 @@ export default function ConnectAnimationsStage() {
           config={asThemedEngineConfig(rain.config)}
           label="animations-rain"
           maxDpr={1.5}
+          onHandle={handleRainHandle}
           onShaderSourceError={(error) => {
             window.dispatchEvent(
               new CustomEvent<string | null>(RAIN_SHADER_ERROR_EVENT, {
                 detail: error,
-              })
+              }),
             );
           }}
           ref={rainCanvasRef}

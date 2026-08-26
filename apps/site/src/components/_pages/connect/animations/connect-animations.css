@@ -42,16 +42,12 @@ body:has(.connect-animations-root) {
   padding: 6px;
 }
 
-.connect-animation-export__duration {
+.connect-animation-export__vectors {
   display: grid;
-  grid-template-columns: 1fr 72px;
-  align-items: center;
-  gap: 8px;
-  color: var(--panel-text, #d8d8d8);
-  font-size: 11px;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
 }
 
-.connect-animation-export input,
 .connect-animation-export button {
   min-height: 24px;
   border: 1px solid var(--panel-border, #292929);
@@ -59,12 +55,6 @@ body:has(.connect-animations-root) {
   background: var(--panel-surface, #373737);
   color: var(--panel-label-active, #fefefe);
   font: inherit;
-}
-
-.connect-animation-export input {
-  width: 100%;
-  padding: 2px 6px;
-  text-align: right;
 }
 
 .connect-animation-export button {
@@ -79,11 +69,7 @@ body:has(.connect-animations-root) {
 
 .connect-animation-export button:hover:not(:disabled) {
   border-color: var(--panel-accent, #f46021);
-  background: color-mix(
-    in srgb,
-    var(--panel-surface, #373737) 78%,
-    #ffffff
-  );
+  background: color-mix(in srgb, var(--panel-surface, #373737) 78%, #ffffff);
 }
 
 .connect-animation-export button:disabled {

@@ -1,107 +1,154 @@
-import { ControlSection } from "@tjcages/panels/dev";
+import type { SharedShaderHandle } from "@necatikcl/stripes-engine/react";
 import type { TwizzlerSettings } from "@tjcages/connect-twizzler";
-import { useState, type RefObject } from "react";
+import { ControlSection } from "@tjcages/panels/dev";
+import { useRef, useState, type RefObject } from "react";
 import {
-  buildWaveformSvg,
-  downloadBlob,
-  downloadText,
-  recordShaderStack,
-} from "./animation-exports";
+  exportLabVideo,
+  formatVideoExportStatusLabel,
+  resolveRealtimeVideoExportProfile,
+  type LabVideoExportPhase,
+} from "../../../../../../../apps/lab/src/export/videoExport";
+import type { ConnectHeroRain } from "../hero/rain-control-settings";
+import { buildAnimationSvg, exportAnimationEps, exportAnimationSvg } from "./animation-exports";
 import "./connect-animations.css";
 
+type VectorKind = "SVG" | "EPS";
+
 export default function AnimationExportTools({
-  animationStartedAt,
-  background,
+  getAnimationTimeSec,
+  rain,
   rainCanvasRef,
+  rainHandleRef,
   settings,
   twizzlerCanvasRef,
 }: {
-  animationStartedAt: number;
-  background: string;
+  getAnimationTimeSec: () => number;
+  rain: ConnectHeroRain;
   rainCanvasRef: RefObject<HTMLCanvasElement | null>;
+  rainHandleRef: RefObject<SharedShaderHandle | null>;
   settings: TwizzlerSettings;
   twizzlerCanvasRef: RefObject<HTMLCanvasElement | null>;
 }) {
-  const [duration, setDuration] = useState(5);
-  const [recording, setRecording] = useState(false);
-  const [progress, setProgress] = useState(0);
+  const [phase, setPhase] = useState<LabVideoExportPhase>("idle");
+  const [recording, setRecording] = useState({ elapsedMs: 0, totalMs: 0 });
+  const [transcodePercent, setTranscodePercent] = useState<number | null>(null);
+  const [transcodeStartedAt, setTranscodeStartedAt] = useState(0);
+  const [vectorBusy, setVectorBusy] = useState<VectorKind | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const latestRainRef = useRef(rain);
+  const stopRecordingRef = useRef<AbortController | null>(null);
+  const runIdRef = useRef(0);
+  latestRainRef.current = rain;
 
-  const exportSvg = () => {
-    const canvas = twizzlerCanvasRef.current;
-    if (!canvas) return;
-    const elapsed = Math.max(
-      0,
-      (performance.now() - animationStartedAt) / 1000
-    );
-    downloadText(
-      buildWaveformSvg(
-        canvas.width,
-        canvas.height,
-        elapsed,
-        settings,
-        background.startsWith("#") ? background : "#ffffff"
-      ),
-      "cloudflare-connect-waveform.svg",
-      "image/svg+xml"
-    );
-  };
+  const videoBusy = phase !== "idle" && phase !== "done" && phase !== "failed";
+  const videoLabel = formatVideoExportStatusLabel(
+    phase,
+    recording,
+    transcodePercent,
+    transcodeStartedAt > 0 ? performance.now() - transcodeStartedAt : 0,
+  );
 
   const exportVideo = async () => {
+    if (phase === "recording") {
+      setPhase("finishing");
+      stopRecordingRef.current?.abort();
+      return;
+    }
+    if (videoBusy) return;
+
     const twizzlerCanvas = twizzlerCanvasRef.current;
     const rainCanvas = rainCanvasRef.current;
-    if (!twizzlerCanvas || !rainCanvas || recording) return;
+    if (!twizzlerCanvas || !rainCanvas) return;
+
+    const runId = ++runIdRef.current;
+    const stopRecording = new AbortController();
+    stopRecordingRef.current = stopRecording;
     setError(null);
-    setProgress(0);
-    setRecording(true);
+    setRecording({ elapsedMs: 0, totalMs: 0 });
+    setTranscodePercent(null);
+    setTranscodeStartedAt(0);
+    setPhase("recording");
+
     try {
-      const result = await recordShaderStack({
-        twizzlerCanvas,
-        rainCanvas,
-        durationSec: duration,
-        background,
-        onProgress: setProgress,
+      const profile = resolveRealtimeVideoExportProfile(rainCanvas.width, rainCanvas.height);
+      await exportLabVideo({
+        canvas: rainCanvas,
+        filename: "cloudflare-connect-animation.mp4",
+        fps: profile.fps,
+        getBackground: () => latestRainRef.current.exportBackground,
+        onPhase: (nextPhase) => {
+          setPhase(nextPhase);
+          if (nextPhase === "transcoding") {
+            setTranscodeStartedAt(performance.now());
+          }
+        },
+        onProgress: (elapsedMs, totalMs) => setRecording({ elapsedMs, totalMs }),
+        onTranscodeProgress: setTranscodePercent,
+        sourceKind: "image",
+        stopSignal: stopRecording.signal,
+        underlayCanvases: [twizzlerCanvas],
+        videoBitsPerSecond: profile.videoBitsPerSecond,
       });
-      downloadBlob(
-        result.blob,
-        `cloudflare-connect-animation.${result.extension}`
-      );
+    } catch (caught) {
+      if (runId !== runIdRef.current) return;
+      setError(caught instanceof Error ? caught.message : String(caught));
+      setPhase("failed");
+    } finally {
+      if (runId === runIdRef.current) {
+        stopRecordingRef.current = null;
+        window.setTimeout(() => {
+          if (runId === runIdRef.current) setPhase("idle");
+        }, 1_200);
+      }
+    }
+  };
+
+  const exportVector = async (kind: VectorKind) => {
+    const handle = rainHandleRef.current;
+    const rainCanvas = rainCanvasRef.current;
+    const twizzlerCanvas = twizzlerCanvasRef.current;
+    if (!handle || !rainCanvas || !twizzlerCanvas || vectorBusy) return;
+
+    setError(null);
+    setVectorBusy(kind);
+    try {
+      const svg = await buildAnimationSvg({
+        animationTimeSec: getAnimationTimeSec(),
+        handle,
+        rain,
+        rainCanvas,
+        settings,
+        twizzlerCanvas,
+      });
+      if (kind === "SVG") exportAnimationSvg(svg);
+      else exportAnimationEps(svg);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : String(caught));
     } finally {
-      setRecording(false);
-      setProgress(0);
+      setVectorBusy(null);
     }
   };
 
   return (
     <ControlSection defaultOpen open title="Export">
       <div className="connect-animation-export">
-        <label className="connect-animation-export__duration">
-          <span>Video duration</span>
-          <input
-            aria-label="Video duration in seconds"
-            disabled={recording}
-            max={30}
-            min={1}
-            onChange={(event) =>
-              setDuration(
-                Math.max(1, Math.min(30, Number(event.target.value) || 1))
-              )
-            }
-            step={1}
-            type="number"
-            value={duration}
-          />
-        </label>
-        <button disabled={recording} onClick={exportVideo} type="button">
-          {recording
-            ? `Recording ${Math.round(progress * 100)}%`
-            : "Export video"}
+        <button
+          aria-busy={videoBusy && phase !== "recording"}
+          aria-pressed={phase === "recording"}
+          disabled={videoBusy && phase !== "recording"}
+          onClick={exportVideo}
+          type="button"
+        >
+          {videoLabel}
         </button>
-        <button disabled={recording} onClick={exportSvg} type="button">
-          Export waveform SVG
-        </button>
+        <div className="connect-animation-export__vectors">
+          <button disabled={vectorBusy !== null} onClick={() => void exportVector("SVG")} type="button">
+            {vectorBusy === "SVG" ? "Exporting SVG…" : "Export SVG"}
+          </button>
+          <button disabled={vectorBusy !== null} onClick={() => void exportVector("EPS")} type="button">
+            {vectorBusy === "EPS" ? "Exporting EPS…" : "Export EPS"}
+          </button>
+        </div>
         {error ? <p role="alert">{error}</p> : null}
       </div>
     </ControlSection>

@@ -1,15 +1,6 @@
-import type {
-  DeepPartial,
-  EngineConfig,
-  Fit,
-  StripeBlendMode,
-} from "@necatikcl/stripes-engine";
+import type { DeepPartial, EngineConfig, Fit, StripeBlendMode } from "@necatikcl/stripes-engine";
 import type { SharedShaderSourceSpec } from "@necatikcl/stripes-engine/react";
-import {
-  CONNECT_HERO_RAIN_CONFIG,
-  CONNECT_HERO_RAIN_GLSL,
-  CONNECT_HERO_RAIN_SHADER_SOURCE,
-} from "./hero-rain-config";
+import { CONNECT_HERO_RAIN_CONFIG, CONNECT_HERO_RAIN_GLSL, CONNECT_HERO_RAIN_SHADER_SOURCE } from "./hero-rain-config";
 
 export { CONNECT_HERO_RAIN_GLSL } from "./hero-rain-config";
 
@@ -32,8 +23,7 @@ export type RainStripeControl = {
 export type RainControlSettings = {
   backgroundFillMode: "transparent" | "solid" | "gradient";
   backgroundColor: string;
-  backgroundGradientDirection:
-    "topToBottom" | "leftToRight" | "rightToLeft" | "bottomToTop";
+  backgroundGradientDirection: "topToBottom" | "leftToRight" | "rightToLeft" | "bottomToTop";
   backgroundGradientStopCount: number;
   backgroundGradientStop0: string;
   backgroundGradientStop1: string;
@@ -145,14 +135,7 @@ export type RainControlSettings = {
   meteorsFadeOutMs: number;
   meteorsSeed: number;
   flamesEnabled: boolean;
-  flamesDirection:
-    | "up"
-    | "down"
-    | "left"
-    | "right"
-    | "upDown"
-    | "leftRight"
-    | "vortexSingular";
+  flamesDirection: "up" | "down" | "left" | "right" | "upDown" | "leftRight" | "vortexSingular";
   flamesMinWidthRatio: number;
   flamesMaxWidthRatio: number;
   flamesMinHeightRatio: number;
@@ -196,21 +179,12 @@ const defaultStripes = (): RainStripeControl[] =>
 export const CONNECT_HERO_RAIN_CONTROL_DEFAULTS: RainControlSettings = {
   backgroundFillMode: "solid",
   backgroundColor: "#ffffff",
-  backgroundGradientDirection:
-    BASE.background?.gradient?.direction ?? "topToBottom",
+  backgroundGradientDirection: BASE.background?.gradient?.direction ?? "topToBottom",
   backgroundGradientStopCount: BASE.background?.gradient?.stopCount ?? 2,
-  backgroundGradientStop0: toHex(
-    BASE.background?.gradient?.stops?.[0] ?? 0xffffff
-  ),
-  backgroundGradientStop1: toHex(
-    BASE.background?.gradient?.stops?.[1] ?? 0xffffff
-  ),
-  backgroundGradientStop2: toHex(
-    BASE.background?.gradient?.stops?.[2] ?? 0xffffff
-  ),
-  backgroundGradientStop3: toHex(
-    BASE.background?.gradient?.stops?.[3] ?? 0xffffff
-  ),
+  backgroundGradientStop0: toHex(BASE.background?.gradient?.stops?.[0] ?? 0xffffff),
+  backgroundGradientStop1: toHex(BASE.background?.gradient?.stops?.[1] ?? 0xffffff),
+  backgroundGradientStop2: toHex(BASE.background?.gradient?.stops?.[2] ?? 0xffffff),
+  backgroundGradientStop3: toHex(BASE.background?.gradient?.stops?.[3] ?? 0xffffff),
   gapsEnabled: BASE.sparkle?.gaps?.enabled ?? true,
   gapsCoverage: BASE.sparkle?.gaps?.coverage ?? 0,
   gapsSpeed: BASE.sparkle?.gaps?.speed ?? 1,
@@ -304,8 +278,7 @@ export const CONNECT_HERO_RAIN_CONTROL_DEFAULTS: RainControlSettings = {
   meteorsSpeedScale: BASE.background?.meteors?.speedScale ?? 1,
   meteorsSpeedVariation: BASE.background?.meteors?.speedVariation ?? 0,
   meteorsTailLengthScale: BASE.background?.meteors?.tailLengthScale ?? 1,
-  meteorsTailLengthVariation:
-    BASE.background?.meteors?.tailLengthVariation ?? 0,
+  meteorsTailLengthVariation: BASE.background?.meteors?.tailLengthVariation ?? 0,
   meteorsThicknessScale: BASE.background?.meteors?.thicknessScale ?? 1,
   meteorsThicknessVariation: BASE.background?.meteors?.thicknessVariation ?? 0,
   meteorsLifetimeMinMs: BASE.background?.meteors?.lifetimeMinMs ?? 300,
@@ -370,10 +343,7 @@ export const loadRainControlSettings = (): RainControlSettings => {
       if (key === "stripes" && Array.isArray(value)) {
         const stripes = value.filter(isStripe).slice(0, 24);
         if (stripes.length > 0) settings.stripes = stripes;
-      } else if (
-        typeof value === typeof fallback &&
-        typeof value !== "object"
-      ) {
+      } else if (typeof value === typeof fallback && typeof value !== "object") {
         (settings as Record<string, unknown>)[key] = value;
       }
     }
@@ -392,10 +362,20 @@ export type ConnectHeroRain = {
   topFadeOffsetPct: number;
   /** CSS background painted beneath both transparent canvases. */
   canvasBackground: string;
+  /** Stage backdrop in the same shape used by the demo exporters. */
+  exportBackground: {
+    transparent: boolean;
+    color: number;
+    gradient: {
+      enabled: boolean;
+      direction: RainControlSettings["backgroundGradientDirection"];
+      stopCount: number;
+      stops: number[];
+    };
+  };
 };
 
-const asColor = (value: string) =>
-  Number.parseInt(value.replace(/^#/, ""), 16) || 0;
+const asColor = (value: string) => Number.parseInt(value.replace(/^#/, ""), 16) || 0;
 
 const resolveCanvasBackground = (settings: RainControlSettings): string => {
   if (settings.backgroundFillMode === "transparent") return "transparent";
@@ -421,12 +401,20 @@ export const CONNECT_HERO_RAIN_DEFAULT: ConnectHeroRain = {
   topFadePct: CONNECT_HERO_RAIN_CONTROL_DEFAULTS.topFadePct,
   topFadeOffsetPct: CONNECT_HERO_RAIN_CONTROL_DEFAULTS.topFadeOffsetPct,
   canvasBackground: "#ffffff",
+  exportBackground: {
+    transparent: false,
+    color: 0xffffff,
+    gradient: {
+      enabled: false,
+      direction: "topToBottom",
+      stopCount: 2,
+      stops: [0xffffff, 0xffffff],
+    },
+  },
 };
 
 /** Panel settings → the engine config + worker shader source the hero renders. */
-export const resolveConnectHeroRain = (
-  settings: RainControlSettings
-): ConnectHeroRain => ({
+export const resolveConnectHeroRain = (settings: RainControlSettings): ConnectHeroRain => ({
   config: {
     ...BASE,
     grid: {
@@ -619,4 +607,19 @@ export const resolveConnectHeroRain = (
   topFadePct: settings.topFadePct,
   topFadeOffsetPct: settings.topFadeOffsetPct,
   canvasBackground: resolveCanvasBackground(settings),
+  exportBackground: {
+    transparent: settings.backgroundFillMode === "transparent",
+    color: asColor(settings.backgroundColor),
+    gradient: {
+      enabled: settings.backgroundFillMode === "gradient",
+      direction: settings.backgroundGradientDirection,
+      stopCount: settings.backgroundGradientStopCount,
+      stops: [
+        asColor(settings.backgroundGradientStop0),
+        asColor(settings.backgroundGradientStop1),
+        asColor(settings.backgroundGradientStop2),
+        asColor(settings.backgroundGradientStop3),
+      ],
+    },
+  },
 });

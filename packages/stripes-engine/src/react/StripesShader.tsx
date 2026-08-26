@@ -22,6 +22,8 @@ export type StripesShaderProps = {
    * when it took. On error the previous source keeps rendering.
    */
   onShaderSourceError?: (error: string | null) => void;
+  /** Receives the live worker handle for export-only readbacks. */
+  onHandle?: (handle: SharedShaderHandle | null) => void;
   /** Clamp the device pixel ratio the instance renders at. */
   maxDpr?: number;
   config?: ThemedEngineConfig;
@@ -86,6 +88,7 @@ export function StripesShader(props: StripesShaderProps) {
     mediaKind,
     shaderSource,
     onShaderSourceError,
+    onHandle,
     maxDpr,
     config,
     theme = "light",
@@ -119,6 +122,8 @@ export function StripesShader(props: StripesShaderProps) {
   waterActivityRef.current = onWaterActivity;
   const shaderSourceErrorRef = useRef(onShaderSourceError);
   shaderSourceErrorRef.current = onShaderSourceError;
+  const onHandleRef = useRef(onHandle);
+  onHandleRef.current = onHandle;
 
   const mergedStyle = useMemo<CSSProperties>(
     () => ({ display: "block", ...(width != null && height != null ? { width, height } : null), ...style }),
@@ -152,6 +157,7 @@ export function StripesShader(props: StripesShaderProps) {
         onShaderSourceError: (error) => shaderSourceErrorRef.current?.(error),
       });
       sharedHandleRef.current = handle;
+      onHandleRef.current?.(handle);
       postedShaderSourceRef.current = shaderSourceRef.current ? JSON.stringify(shaderSourceRef.current) : null;
       if (configRef.current) handle.setConfig(configRef.current);
     });
@@ -159,6 +165,7 @@ export function StripesShader(props: StripesShaderProps) {
       cancelled = true;
       handle?.unregister();
       sharedHandleRef.current = null;
+      onHandleRef.current?.(null);
     };
   }, [src, mediaKind, maxDpr, autoPlay, loop, muted, rootMargin, preloadRootMargin, revealDelayMs, label]);
 

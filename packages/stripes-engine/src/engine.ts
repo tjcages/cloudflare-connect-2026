@@ -273,6 +273,8 @@ export type SharedStripesEngine = {
    * the output is blitted onto — so it travels back over the protocol.
    */
   readFramesOverlay(): FramesOverlay | null;
+  /** Synchronous export-only snapshot of the current rain cell field. */
+  readCellGrid(): CellGridReadback;
   getPerf(): PerfSnapshot;
   /** 0..1 eased surface motion of the "wave" cursor trail; 0 for other types. */
   getWaterActivity(): number;

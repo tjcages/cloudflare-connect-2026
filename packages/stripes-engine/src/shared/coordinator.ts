@@ -1,4 +1,5 @@
 import type { EngineConfig } from "../config/types";
+import type { CellGridReadback } from "../engine";
 import {
   DEFAULT_PRELOAD_ROOT_MARGIN,
   DEFAULT_RENDER_ROOT_MARGIN,
@@ -26,6 +27,8 @@ export type SharedShaderHandle = {
   /** Replace or retune the GLSL texture source of a shader-driven instance. */
   setShaderSource(spec: SharedShaderSourceSpec): void;
   triggerReveal(): void;
+  /** Read the live cell field used by the demo's SVG and EPS exporters. */
+  readCellGrid(): Promise<CellGridReadback>;
   unregister(): void;
 };
 
@@ -97,6 +100,15 @@ let nextId = 0;
 let clockRafId = 0;
 let tickInFlight = false;
 let visibleCount = 0;
+let nextCellGridRequestId = 0;
+const pendingCellGridReads = new Map<
+  number,
+  {
+    id: InstanceId;
+    resolve: (readback: CellGridReadback) => void;
+    reject: (error: Error) => void;
+  }
+>();
 
 const statsCollector = {
   start(intervalMs: number): void {
@@ -296,6 +308,16 @@ function ensureWorker(): Worker {
     } else if (data.type === "stats") {
       statsPending = false;
       if (statsEnabled()) emitStats(data.instances);
+    } else if (data.type === "cellGridResponse") {
+      const pending = pendingCellGridReads.get(data.requestId);
+      if (!pending || pending.id !== data.id) return;
+      pendingCellGridReads.delete(data.requestId);
+      pending.resolve({
+        cols: data.cols,
+        rows: data.rows,
+        values: data.values,
+        colors: data.colors,
+      });
     }
   };
   next.addEventListener("message", workerMessageHandler);
@@ -312,6 +334,10 @@ function teardownWorker(): void {
   worker.terminate();
   worker = null;
   workerMessageHandler = null;
+  for (const pending of pendingCellGridReads.values()) {
+    pending.reject(new Error("The shared shader was closed before export."));
+  }
+  pendingCellGridReads.clear();
 }
 
 function readDpr(canvas: HTMLCanvasElement, maxDpr?: number): number {
@@ -632,6 +658,16 @@ export function registerSharedShader(opts: RegisterSharedShaderOptions): SharedS
     triggerReveal() {
       post({ type: "reveal", id });
     },
+    readCellGrid() {
+      if (instance.disposed) {
+        return Promise.reject(new Error("The shared shader is not available."));
+      }
+      const requestId = nextCellGridRequestId++;
+      return new Promise<CellGridReadback>((resolve, reject) => {
+        pendingCellGridReads.set(requestId, { id, resolve, reject });
+        post({ type: "cellGridRequest", id, requestId });
+      });
+    },
     unregister() {
       if (instance.disposed) return;
       instance.disposed = true;
@@ -653,6 +689,11 @@ export function registerSharedShader(opts: RegisterSharedShaderOptions): SharedS
       window.removeEventListener("pointerdown", onPointerDown);
       window.removeEventListener("scroll", onScroll, true);
       instance.pump?.dispose();
+      for (const [requestId, pending] of pendingCellGridReads) {
+        if (pending.id !== id) continue;
+        pendingCellGridReads.delete(requestId);
+        pending.reject(new Error("The shared shader was closed before export."));
+      }
       post({ type: "unregister", id });
       instances.delete(id);
       if (instances.size === 0) teardownWorker();
