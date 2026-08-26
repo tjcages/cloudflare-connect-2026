@@ -12,30 +12,54 @@ const colorHex = (color: number) => `#${color.toString(16).padStart(6, "0")}`;
 
 export async function buildAnimationSvg({
   animationTimeSec,
+  canvasHeightPx: requestedCanvasHeightPx,
+  canvasWidthPx: requestedCanvasWidthPx,
   handle,
   rain,
   rainCanvas,
+  rainEnabled = true,
   settings,
   twizzlerCanvas,
+  twizzlerEnabled = true,
 }: {
   animationTimeSec: number;
-  handle: SharedShaderHandle;
+  canvasHeightPx?: number;
+  canvasWidthPx?: number;
+  handle?: SharedShaderHandle | null;
   rain: ConnectHeroRain;
-  rainCanvas: HTMLCanvasElement;
+  rainCanvas?: HTMLCanvasElement | null;
+  rainEnabled?: boolean;
   settings: TwizzlerSettings;
-  twizzlerCanvas: HTMLCanvasElement;
+  twizzlerCanvas?: HTMLCanvasElement | null;
+  twizzlerEnabled?: boolean;
 }): Promise<string> {
   const config = normalizeEngineConfig(rain.config as Partial<EngineConfig>);
-  const readback = await handle.readCellGrid();
+  if (rainEnabled && !handle) throw new Error("Rain is enabled, but its export handle is unavailable.");
+  if (twizzlerEnabled && !twizzlerCanvas) throw new Error("Twizzler is enabled, but its export canvas is unavailable.");
+
+  const readback = rainEnabled
+    ? await handle!.readCellGrid()
+    : { colors: null, cols: 0, rows: 0, values: new Uint8Array() };
+  const sizeCanvas = rainCanvas ?? twizzlerCanvas;
   const canvasWidthPx = Math.max(
     1,
-    Math.round(Number.parseFloat(rainCanvas.style.width) || rainCanvas.clientWidth || rainCanvas.width),
+    Math.round(
+      (requestedCanvasWidthPx ?? Number.parseFloat(sizeCanvas?.style.width ?? "")) ||
+        sizeCanvas?.clientWidth ||
+        sizeCanvas?.width ||
+        1,
+    ),
   );
   const canvasHeightPx = Math.max(
     1,
-    Math.round(Number.parseFloat(rainCanvas.style.height) || rainCanvas.clientHeight || rainCanvas.height),
+    Math.round(
+      (requestedCanvasHeightPx ?? Number.parseFloat(sizeCanvas?.style.height ?? "")) ||
+        sizeCanvas?.clientHeight ||
+        sizeCanvas?.height ||
+        1,
+    ),
   );
-  const resolvedStripes = effectiveStripes(config);
+  const resolvedStripes = rainEnabled ? effectiveStripes(config) : [];
   const stripes = resolvedStripes.map((stripe) => ({
     hex: colorHex(stripe.color),
     opacity: stripe.opacity,
@@ -54,33 +78,37 @@ export async function buildAnimationSvg({
     backgroundGradientEnabled: rain.exportBackground.gradient.enabled,
     backgroundTransparent: rain.exportBackground.transparent,
   });
-  const twizzlerSvgLayer = twizzlerToSvgLayer(
-    Math.max(1, twizzlerCanvas.width),
-    Math.max(1, twizzlerCanvas.height),
-    canvasWidthPx,
-    canvasHeightPx,
-    animationTimeSec,
-    {
-      ...settings,
-      backgroundColor: colorHex(rain.exportBackground.color),
-      speed: 1,
-    },
-  );
-  const framesSvgLayer = config.frames.enabled
-    ? framesOverlayToSvg(
-        buildFrameGroups(
-          readback,
-          config.frames.luminanceThreshold,
-          config.frames.groupDistanceCells,
-          resolvedStripes,
-          config.frames.highlightedStripeCount,
-        ),
-        config,
-        canvasWidthPx,
-        canvasHeightPx,
-        performance.now() / 1000,
-      )
-    : undefined;
+  const twizzlerSvgLayer =
+    twizzlerEnabled && twizzlerCanvas
+      ? twizzlerToSvgLayer(
+          Math.max(1, twizzlerCanvas.width),
+          Math.max(1, twizzlerCanvas.height),
+          canvasWidthPx,
+          canvasHeightPx,
+          animationTimeSec,
+          {
+            ...settings,
+            backgroundColor: colorHex(rain.exportBackground.color),
+            speed: 1,
+          },
+        )
+      : undefined;
+  const framesSvgLayer =
+    rainEnabled && config.frames.enabled
+      ? framesOverlayToSvg(
+          buildFrameGroups(
+            readback,
+            config.frames.luminanceThreshold,
+            config.frames.groupDistanceCells,
+            resolvedStripes,
+            config.frames.highlightedStripeCount,
+          ),
+          config,
+          canvasWidthPx,
+          canvasHeightPx,
+          performance.now() / 1000,
+        )
+      : undefined;
 
   return cellGridToSvg(readback, stripes, {
     angleDeg: config.grid.angleDeg,
@@ -113,7 +141,7 @@ export async function buildAnimationSvg({
     streamGapWave: config.grid.streamGapWave,
     stripeBorder: config.stripeBorder,
     stripeDots: config.stripeDots,
-    useCellColors: readback.colors !== null,
+    useCellColors: rainEnabled && readback.colors !== null,
     widthSparkle: config.sparkle.width,
   });
 }

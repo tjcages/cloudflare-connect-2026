@@ -14,6 +14,7 @@ import {
 import type { ShaderTarget } from "./shader-targets";
 import { CONNECT_HERO_TWIZZLER_DEFAULTS } from "./twizzler-defaults";
 import {
+  type ConnectTwizzlerSettings,
   loadConnectTwizzlerControlSettings,
   resolveConnectTwizzlerSettings,
 } from "./twizzler-control-settings";
@@ -48,10 +49,11 @@ export default function ConnectHeroTwizzler({
   rainDefaults,
 }: IslandProps<Props>) {
   const authored = defaults ?? CONNECT_HERO_TWIZZLER_DEFAULTS;
-  const [settings, setSettings] = useState<TwizzlerSettings>(authored);
-  const [rain, setRain] = useState<ConnectHeroRain>(
-    rainDefaults ?? CONNECT_HERO_RAIN_DEFAULT
-  );
+  const [settings, setSettings] = useState<ConnectTwizzlerSettings>({
+    ...authored,
+    enabled: true,
+  });
+  const [rain, setRain] = useState<ConnectHeroRain>(rainDefaults ?? CONNECT_HERO_RAIN_DEFAULT);
   // Single source of truth for the dev panel's visibility; persisted both
   // ways so a refresh restores the last open/closed choice (closed on a
   // fresh browser). Client islands SSR, so localStorage reads live in
@@ -82,13 +84,7 @@ export default function ConnectHeroTwizzler({
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (
-        event.key.toLowerCase() !== "d" ||
-        !event.metaKey ||
-        !event.shiftKey ||
-        event.altKey
-      )
-        return;
+      if (event.key.toLowerCase() !== "d" || !event.metaKey || !event.shiftKey || event.altKey) return;
       event.preventDefault();
       event.stopPropagation();
       setPanelVisible(!panelOpen);
@@ -123,32 +119,36 @@ export default function ConnectHeroTwizzler({
             : undefined
         }
       >
-        <ConnectTwizzler
-          canvasClassName="absolute inset-0 size-full"
-          className="absolute inset-0 size-full"
-          maxDpr={1.5}
-          maxFps={30}
-          posterSrc={posterSrc}
-          rootMargin="240px"
-          settings={settings}
-        />
+        {settings.enabled ? (
+          <ConnectTwizzler
+            canvasClassName="absolute inset-0 size-full"
+            className="absolute inset-0 size-full"
+            maxDpr={1.5}
+            maxFps={30}
+            posterSrc={posterSrc}
+            rootMargin="240px"
+            settings={settings}
+          />
+        ) : null}
         {/* Rain sits above the ribbon with a transparent clear, matching the
             lab's Both stack (.lab-canvas-output over .lab-canvas-twizzler). */}
-        <StripesShader
-          className="absolute inset-0 block size-full"
-          config={asThemedEngineConfig(rain.config)}
-          label="hero-rain"
-          maxDpr={1.5}
-          onShaderSourceError={(error) => {
-            window.dispatchEvent(
-              new CustomEvent<string | null>(RAIN_SHADER_ERROR_EVENT, {
-                detail: error,
-              })
-            );
-          }}
-          rootMargin="240px"
-          shaderSource={rain.shaderSource}
-        />
+        {rain.enabled ? (
+          <StripesShader
+            className="absolute inset-0 block size-full"
+            config={asThemedEngineConfig(rain.config)}
+            label="hero-rain"
+            maxDpr={1.5}
+            onShaderSourceError={(error) => {
+              window.dispatchEvent(
+                new CustomEvent<string | null>(RAIN_SHADER_ERROR_EVENT, {
+                  detail: error,
+                }),
+              );
+            }}
+            rootMargin="240px"
+            shaderSource={rain.shaderSource}
+          />
+        ) : null}
       </div>
     </div>
   );

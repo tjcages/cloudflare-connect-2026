@@ -1,7 +1,4 @@
-import {
-  normalizeTwizzlerSettings,
-  type TwizzlerSettings,
-} from "@tjcages/connect-twizzler";
+import { normalizeTwizzlerSettings, type TwizzlerSettings } from "@tjcages/connect-twizzler";
 import { CONNECT_HERO_TWIZZLER_DEFAULTS } from "./twizzler-defaults";
 
 // Exactly the Twizzler surface the lab's Leva panel exposes — Appearance
@@ -45,15 +42,16 @@ export const TWIZZLER_CONTROL_KEYS = [
   "speed",
 ] as const;
 
-export type TwizzlerControlSettings = Pick<
-  TwizzlerSettings,
-  (typeof TWIZZLER_CONTROL_KEYS)[number]
->;
+export type TwizzlerControlSettings = {
+  enabled: boolean;
+} & Pick<TwizzlerSettings, (typeof TWIZZLER_CONTROL_KEYS)[number]>;
 
-const projectControlSettings = (
-  source: TwizzlerSettings
-): TwizzlerControlSettings => {
-  const projected = {} as Record<string, unknown>;
+export type ConnectTwizzlerSettings = TwizzlerSettings & {
+  enabled: boolean;
+};
+
+const projectControlSettings = (source: TwizzlerSettings): TwizzlerControlSettings => {
+  const projected = { enabled: true } as Record<string, unknown>;
   for (const key of TWIZZLER_CONTROL_KEYS) projected[key] = source[key];
   return projected as TwizzlerControlSettings;
 };
@@ -62,19 +60,24 @@ export const CONNECT_TWIZZLER_CONTROL_DEFAULTS: TwizzlerControlSettings =
   projectControlSettings(CONNECT_HERO_TWIZZLER_DEFAULTS);
 
 export const cloneTwizzlerControlSettings = (
-  settings: TwizzlerControlSettings = CONNECT_TWIZZLER_CONTROL_DEFAULTS
+  settings: TwizzlerControlSettings = CONNECT_TWIZZLER_CONTROL_DEFAULTS,
 ): TwizzlerControlSettings => ({
   ...settings,
   gradientStops: settings.gradientStops.map((stop) => ({ ...stop })),
 });
 
-export const resolveConnectTwizzlerSettings = (
-  values: TwizzlerControlSettings
-): TwizzlerSettings =>
-  normalizeTwizzlerSettings({
-    ...CONNECT_HERO_TWIZZLER_DEFAULTS,
-    ...values,
-  });
+export const resolveConnectTwizzlerSettings = (values: TwizzlerControlSettings): ConnectTwizzlerSettings => {
+  const { enabled, ...settings } = values;
+  return {
+    ...normalizeTwizzlerSettings({
+      ...CONNECT_HERO_TWIZZLER_DEFAULTS,
+      ...settings,
+    }),
+    enabled,
+  };
+};
+
+export const CONNECT_TWIZZLER_DEFAULT = resolveConnectTwizzlerSettings(CONNECT_TWIZZLER_CONTROL_DEFAULTS);
 
 export const CONNECT_TWIZZLER_PANEL_ID = "connect-twizzler-hero-v3";
 
@@ -82,15 +85,14 @@ export const CONNECT_TWIZZLER_PANEL_ID = "connect-twizzler-hero-v3";
  * Panel settings persisted by the dev panel, merged over the authored
  * defaults — or null when this browser has none. Client-only (localStorage).
  */
-export const loadConnectTwizzlerControlSettings =
-  (): TwizzlerControlSettings | null => {
-    try {
-      const raw = localStorage.getItem(`panels:${CONNECT_TWIZZLER_PANEL_ID}`);
-      if (!raw) return null;
-      const parsed = JSON.parse(raw) as Partial<TwizzlerControlSettings>;
-      if (!parsed || typeof parsed !== "object") return null;
-      return { ...CONNECT_TWIZZLER_CONTROL_DEFAULTS, ...parsed };
-    } catch {
-      return null;
-    }
-  };
+export const loadConnectTwizzlerControlSettings = (): TwizzlerControlSettings | null => {
+  try {
+    const raw = localStorage.getItem(`panels:${CONNECT_TWIZZLER_PANEL_ID}`);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<TwizzlerControlSettings>;
+    if (!parsed || typeof parsed !== "object") return null;
+    return { ...CONNECT_TWIZZLER_CONTROL_DEFAULTS, ...parsed };
+  } catch {
+    return null;
+  }
+};

@@ -21,6 +21,7 @@ export type RainStripeControl = {
  * background FX) plus the corridor texture source and the hero's fps cap.
  */
 export type RainControlSettings = {
+  enabled: boolean;
   backgroundFillMode: "transparent" | "solid" | "gradient";
   backgroundColor: string;
   backgroundGradientDirection: "topToBottom" | "leftToRight" | "rightToLeft" | "bottomToTop";
@@ -180,6 +181,7 @@ const defaultStripes = (): RainStripeControl[] =>
   }));
 
 export const CONNECT_HERO_RAIN_CONTROL_DEFAULTS: RainControlSettings = {
+  enabled: true,
   backgroundFillMode: "solid",
   backgroundColor: "#ffffff",
   backgroundGradientDirection: BASE.background?.gradient?.direction ?? "topToBottom",
@@ -358,6 +360,7 @@ export const loadRainControlSettings = (): RainControlSettings => {
 };
 
 export type ConnectHeroRain = {
+  enabled: boolean;
   config: DeepPartial<EngineConfig>;
   shaderSource: SharedShaderSourceSpec;
   /** Height of the hero stack's top fade band, as % of the stack. */
@@ -438,6 +441,7 @@ const resolveCanvasBackground = (settings: RainControlSettings): string => {
 };
 
 export const CONNECT_HERO_RAIN_DEFAULT: ConnectHeroRain = {
+  enabled: true,
   config: CONNECT_HERO_RAIN_CONFIG,
   shaderSource: CONNECT_HERO_RAIN_SHADER_SOURCE,
   topFadePct: CONNECT_HERO_RAIN_CONTROL_DEFAULTS.topFadePct,
@@ -457,6 +461,7 @@ export const CONNECT_HERO_RAIN_DEFAULT: ConnectHeroRain = {
 
 /** Panel settings → the engine config + worker shader source the hero renders. */
 export const resolveConnectHeroRain = (settings: RainControlSettings): ConnectHeroRain => ({
+  enabled: settings.enabled,
   config: {
     ...BASE,
     grid: {

@@ -1,6 +1,5 @@
 import { StripesShader } from "@necatikcl/stripes-engine/react";
 import type { SharedShaderHandle } from "@necatikcl/stripes-engine/react";
-import type { TwizzlerSettings } from "@tjcages/connect-twizzler";
 import { ConnectTwizzler } from "@tjcages/connect-twizzler/react";
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -13,7 +12,12 @@ import {
   type ConnectHeroRain,
 } from "../hero/rain-control-settings";
 import { CONNECT_HERO_TWIZZLER_DEFAULTS } from "../hero/twizzler-defaults";
-import { loadConnectTwizzlerControlSettings, resolveConnectTwizzlerSettings } from "../hero/twizzler-control-settings";
+import {
+  CONNECT_TWIZZLER_DEFAULT,
+  loadConnectTwizzlerControlSettings,
+  resolveConnectTwizzlerSettings,
+  type ConnectTwizzlerSettings,
+} from "../hero/twizzler-control-settings";
 import AnimationExportTools from "./AnimationExportTools";
 import "./connect-animations.css";
 
@@ -22,13 +26,14 @@ const PANEL_STORAGE_KEY = "connect:animations-controls-visible";
 const ANIMATION_TARGETS = ["twizzler", "rain"] as const;
 
 export default function ConnectAnimationsStage() {
-  const [settings, setSettings] = useState<TwizzlerSettings>(CONNECT_HERO_TWIZZLER_DEFAULTS);
+  const [settings, setSettings] = useState<ConnectTwizzlerSettings>(CONNECT_TWIZZLER_DEFAULT);
   const [rain, setRain] = useState<ConnectHeroRain>(CONNECT_HERO_RAIN_DEFAULT);
   const [panelOpen, setPanelOpen] = useState(true);
   const [mounted, setMounted] = useState(false);
   const twizzlerCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const rainCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const rainHandleRef = useRef<SharedShaderHandle | null>(null);
+  const stageRef = useRef<HTMLDivElement | null>(null);
   const animationClockRef = useRef({
     elapsedSec: 0,
     lastNowMs: 0,
@@ -46,7 +51,7 @@ export default function ConnectAnimationsStage() {
   }, []);
 
   const handleSettingsChange = useCallback(
-    (next: TwizzlerSettings) => {
+    (next: ConnectTwizzlerSettings) => {
       getAnimationTimeSec();
       animationClockRef.current.speed = next.speed;
       setSettings(next);
@@ -106,6 +111,7 @@ export default function ConnectAnimationsStage() {
             rainCanvasRef={rainCanvasRef}
             rainHandleRef={rainHandleRef}
             settings={settings}
+            stageRef={stageRef}
             twizzlerCanvasRef={twizzlerCanvasRef}
           />
         }
@@ -115,34 +121,38 @@ export default function ConnectAnimationsStage() {
 
   return (
     <div className="connect-animations-root" style={{ background: rain.canvasBackground }}>
-      <div className="connect-animations-stage">
-        <ConnectTwizzler
-          canvasClassName="connect-animations-canvas"
-          className="connect-animations-layer"
-          maxDpr={1.5}
-          maxFps={30}
-          posterSrc="/connect/twizzler-poster.png"
-          ref={twizzlerCanvasRef}
-          rootMargin="240px"
-          settings={settings}
-        />
-        <StripesShader
-          className="connect-animations-canvas connect-animations-rain"
-          config={asThemedEngineConfig(rain.config)}
-          label="animations-rain"
-          maxDpr={1.5}
-          onHandle={handleRainHandle}
-          onShaderSourceError={(error) => {
-            window.dispatchEvent(
-              new CustomEvent<string | null>(RAIN_SHADER_ERROR_EVENT, {
-                detail: error,
-              }),
-            );
-          }}
-          ref={rainCanvasRef}
-          rootMargin="240px"
-          shaderSource={rain.shaderSource}
-        />
+      <div className="connect-animations-stage" ref={stageRef}>
+        {settings.enabled ? (
+          <ConnectTwizzler
+            canvasClassName="connect-animations-canvas"
+            className="connect-animations-layer"
+            maxDpr={1.5}
+            maxFps={30}
+            posterSrc="/connect/twizzler-poster.png"
+            ref={twizzlerCanvasRef}
+            rootMargin="240px"
+            settings={settings}
+          />
+        ) : null}
+        {rain.enabled ? (
+          <StripesShader
+            className="connect-animations-canvas connect-animations-rain"
+            config={asThemedEngineConfig(rain.config)}
+            label="animations-rain"
+            maxDpr={1.5}
+            onHandle={handleRainHandle}
+            onShaderSourceError={(error) => {
+              window.dispatchEvent(
+                new CustomEvent<string | null>(RAIN_SHADER_ERROR_EVENT, {
+                  detail: error,
+                }),
+              );
+            }}
+            ref={rainCanvasRef}
+            rootMargin="240px"
+            shaderSource={rain.shaderSource}
+          />
+        ) : null}
       </div>
       {mounted && controls ? createPortal(controls, document.body) : null}
     </div>

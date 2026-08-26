@@ -7,6 +7,9 @@ import {
   resolveRainOutsideColor,
 } from "../hero/rain-control-settings";
 import { CONNECT_HERO_TWIZZLER_DEFAULTS } from "../hero/twizzler-defaults";
+import { CONNECT_TWIZZLER_CONTROL_DEFAULTS } from "../hero/twizzler-control-settings";
+import { buildRainSections } from "../panel/rainFields";
+import { buildTwizzlerSections, seedTwizzlerPanelValues } from "../panel/twizzlerFields";
 import { buildAnimationSvg } from "./animation-exports";
 
 const read = (relativePath: string) => readFileSync(resolve(process.cwd(), relativePath), "utf8");
@@ -26,6 +29,20 @@ describe("Connect animations page", () => {
     expect(stage).toContain("createPortal(controls, document.body)");
     expect(stage).toContain('["twizzler", "rain"]');
     expect(stage).toContain("AnimationExportTools");
+    expect(stage).toContain("settings.enabled ?");
+    expect(stage).toContain("rain.enabled ?");
+  });
+
+  it("puts a general enabled toggle first for both shaders", () => {
+    const twizzlerSections = buildTwizzlerSections(seedTwizzlerPanelValues(CONNECT_TWIZZLER_CONTROL_DEFAULTS));
+    const rainSections = buildRainSections();
+
+    expect(CONNECT_TWIZZLER_CONTROL_DEFAULTS.enabled).toBe(true);
+    expect(CONNECT_HERO_RAIN_CONTROL_DEFAULTS.enabled).toBe(true);
+    expect(twizzlerSections[0]?.title).toBe("General");
+    expect(twizzlerSections[0]?.fields[0]).toMatchObject({ key: "enabled", label: "Enabled", type: "toggle" });
+    expect(rainSections[0]?.title).toBe("General");
+    expect(rainSections[0]?.fields[0]).toMatchObject({ key: "enabled", label: "Enabled", type: "toggle" });
   });
 
   it("surfaces a rain-only zoom and links it to the engine transform", () => {
@@ -111,6 +128,64 @@ describe("Connect animations page", () => {
     expect(svg).toContain("<path");
   });
 
+  it("omits every disabled shader from vector exports", async () => {
+    const canvas = {
+      clientHeight: 360,
+      clientWidth: 640,
+      height: 360,
+      style: { height: "360px", width: "640px" },
+      width: 640,
+    } as HTMLCanvasElement;
+    const handle = {
+      readCellGrid: async () => ({
+        colors: null,
+        cols: 2,
+        rows: 2,
+        values: new Uint8Array([0, 128, 192, 255]),
+      }),
+    } as never;
+    const common = {
+      animationTimeSec: 0,
+      rain: resolveConnectHeroRain(CONNECT_HERO_RAIN_CONTROL_DEFAULTS),
+      settings: CONNECT_HERO_TWIZZLER_DEFAULTS,
+    };
+
+    const twizzlerOnly = await buildAnimationSvg({
+      ...common,
+      handle: null,
+      rainEnabled: false,
+      twizzlerCanvas: canvas,
+      twizzlerEnabled: true,
+    });
+    expect(twizzlerOnly).toContain('data-layer="twizzler"');
+    expect(twizzlerOnly).not.toContain('data-layer="rain"');
+
+    const rainOnly = await buildAnimationSvg({
+      ...common,
+      handle,
+      rainCanvas: canvas,
+      rainEnabled: true,
+      twizzlerCanvas: null,
+      twizzlerEnabled: false,
+    });
+    expect(rainOnly).not.toContain('data-layer="twizzler"');
+    expect(rainOnly).toContain('data-layer="rain"');
+
+    const backgroundOnly = await buildAnimationSvg({
+      ...common,
+      canvasHeightPx: 360,
+      canvasWidthPx: 640,
+      handle: null,
+      rainEnabled: false,
+      twizzlerCanvas: null,
+      twizzlerEnabled: false,
+    });
+    expect(backgroundOnly).toContain('viewBox="0 0 640 360"');
+    expect(backgroundOnly).toContain('fill="#ffffff"');
+    expect(backgroundOnly).not.toContain('data-layer="twizzler"');
+    expect(backgroundOnly).not.toContain('data-layer="rain"');
+  });
+
   it("uses the configured white canvas background and demo export controls", () => {
     const styles = read("src/components/_pages/connect/animations/connect-animations.css");
     const exportTools = read("src/components/_pages/connect/animations/AnimationExportTools.tsx");
@@ -122,6 +197,8 @@ describe("Connect animations page", () => {
     expect(exportTools.match(/<ControlAction\s/g)).toHaveLength(3);
     expect(styles).not.toContain(".connect-animation-export button");
     expect(exportTools).not.toContain("Video duration");
+    expect(exportTools).toContain("latestSettingsRef.current.enabled");
+    expect(exportTools).toContain("latestRainRef.current.enabled");
     expect(resolveConnectHeroRain(CONNECT_HERO_RAIN_CONTROL_DEFAULTS).canvasBackground).toBe("#ffffff");
   });
 });
