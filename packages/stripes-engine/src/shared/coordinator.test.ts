@@ -299,6 +299,31 @@ describe("shared coordinator water activity", () => {
   });
 });
 
+describe("shared coordinator export readback", () => {
+  it("routes a live cell-grid response back to the requesting handle", async () => {
+    const handle = register();
+    const id = registeredId();
+    const pending = handle.readCellGrid();
+    const request = workerPosts.find((message) => message.type === "cellGridRequest");
+    expect(request).toMatchObject({ type: "cellGridRequest", id });
+    if (!request || request.type !== "cellGridRequest") throw new Error("no cell-grid request");
+
+    const values = new Uint8Array([0, 127, 255]);
+    emit({
+      type: "cellGridResponse",
+      id,
+      requestId: request.requestId,
+      cols: 3,
+      rows: 1,
+      values,
+      colors: null,
+    });
+
+    await expect(pending).resolves.toEqual({ cols: 3, rows: 1, values, colors: null });
+    handle.unregister();
+  });
+});
+
 describe("shared coordinator stats", () => {
   beforeEach(() => {
     vi.useFakeTimers({

@@ -23,6 +23,8 @@ interface Props {
   zoom?: boolean;
   /** Pin `data-theme` so dashboard-style pages keep the authored light look. */
   lockTheme?: "light" | "dark";
+  /** Disable the Connect human/machine chrome on focused full-screen tools. */
+  interfaceMode?: boolean;
 }
 
 const {
@@ -36,11 +38,13 @@ const {
   frame = true,
   zoom = true,
   lockTheme,
+  interfaceMode = true,
 } = Astro.props;
 
 const canonical = Astro.url.href;
 const previewImage = new URL("/preview.png", Astro.site).href;
-const interfaceModeEnabled = Astro.url.pathname.startsWith("/connect");
+const interfaceModeEnabled =
+  interfaceMode && Astro.url.pathname.startsWith("/connect");
 ---
 
 <!doctype html>

@@ -1,4 +1,5 @@
 import type { EngineConfig } from "../config/types";
+import type { CellGridReadback } from "../engine";
 import type { FramesOverlay } from "../frames/framesPaint";
 import type { SharedShaderSourceSpec } from "./shaderSourceRenderer";
 
@@ -104,6 +105,13 @@ export type StatsRequestMessage = {
   type: "statsRequest";
 };
 
+/** One-shot export readback for a specific shared shader instance. */
+export type CellGridRequestMessage = {
+  type: "cellGridRequest";
+  id: InstanceId;
+  requestId: number;
+};
+
 export type MainToWorkerMessage =
   | RegisterMessage
   | TickMessage
@@ -118,6 +126,7 @@ export type MainToWorkerMessage =
   | RevealGateMessage
   | UnregisterMessage
   | TerminateMessage
+  | CellGridRequestMessage
   | StatsRequestMessage;
 
 export type ReadyMessage = {
@@ -221,6 +230,12 @@ export type StatsMessage = {
   instances: InstanceStatsSample[];
 };
 
+export type CellGridResponseMessage = CellGridReadback & {
+  type: "cellGridResponse";
+  id: InstanceId;
+  requestId: number;
+};
+
 export type WorkerToMainMessage =
   | ReadyMessage
   | ErrorMessage
@@ -229,4 +244,5 @@ export type WorkerToMainMessage =
   | TockMessage
   | WaterActivityMessage
   | ShaderSourceErrorMessage
+  | CellGridResponseMessage
   | StatsMessage;

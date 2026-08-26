@@ -470,6 +470,23 @@ function handle(message: MainToWorkerMessage): void {
       scope.postMessage({ type: "stats", instances: samples });
       return;
     }
+    case "cellGridRequest": {
+      const instance = instances.get(message.id);
+      if (!instance) return;
+      const readback = instance.engine.readCellGrid();
+      const transfer: Transferable[] = [readback.values.buffer];
+      if (readback.colors) transfer.push(readback.colors.buffer);
+      scope.postMessage(
+        {
+          type: "cellGridResponse",
+          id: message.id,
+          requestId: message.requestId,
+          ...readback,
+        },
+        transfer,
+      );
+      return;
+    }
     case "terminate": {
       for (const instance of instances.values()) {
         instance.shaderSource?.renderer.dispose();
