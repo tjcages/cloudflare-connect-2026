@@ -2,12 +2,17 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  applyRainAppearance,
   CONNECT_HERO_RAIN_CONTROL_DEFAULTS,
   resolveConnectHeroRain,
   resolveRainOutsideColor,
 } from "../hero/rain-control-settings";
 import { CONNECT_HERO_TWIZZLER_DEFAULTS } from "../hero/twizzler-defaults";
-import { CONNECT_TWIZZLER_CONTROL_DEFAULTS } from "../hero/twizzler-control-settings";
+import {
+  applyTwizzlerAppearance,
+  CONNECT_TWIZZLER_CONTROL_DEFAULTS,
+  resolveConnectTwizzlerSettings,
+} from "../hero/twizzler-control-settings";
 import { buildRainSections } from "../panel/rainFields";
 import { buildTwizzlerSections, seedTwizzlerPanelValues } from "../panel/twizzlerFields";
 import { buildAnimationSvg } from "./animation-exports";
@@ -43,6 +48,53 @@ describe("Connect animations page", () => {
     expect(twizzlerSections[0]?.fields[0]).toMatchObject({ key: "enabled", label: "Enabled", type: "toggle" });
     expect(rainSections[0]?.title).toBe("General");
     expect(rainSections[0]?.fields[0]).toMatchObject({ key: "enabled", label: "Enabled", type: "toggle" });
+  });
+
+  it("restores Light and Dark appearance presets for both shaders", () => {
+    const twizzlerSections = buildTwizzlerSections(seedTwizzlerPanelValues(CONNECT_TWIZZLER_CONTROL_DEFAULTS));
+    const rainSections = buildRainSections();
+    expect(twizzlerSections[1]?.title).toBe("Appearance");
+    expect(twizzlerSections[1]?.fields[0]).toMatchObject({ key: "appearance", label: "Mode", type: "select" });
+    expect(rainSections[1]?.title).toBe("Appearance");
+    expect(rainSections[1]?.fields[0]).toMatchObject({ key: "appearance", label: "Mode", type: "select" });
+
+    const darkTwizzler = applyTwizzlerAppearance(CONNECT_TWIZZLER_CONTROL_DEFAULTS, "dark");
+    expect(darkTwizzler).toMatchObject({
+      appearance: "dark",
+      colorNear: "#ffefd4",
+      colorFar: "#ffd39e",
+      colorEdge: "#f0f0f0",
+      backgroundColor: "#f86a00",
+      ribbonColorMode: "sharedGradient",
+    });
+    expect(darkTwizzler.gradientStops.map((stop) => stop.color)).toEqual(["#ffd39e", "#f0f0f0", "#ffefd4"]);
+
+    const geometry = CONNECT_HERO_RAIN_CONTROL_DEFAULTS.stripes.map((stripe) => ({
+      startFrom: stripe.startFrom,
+      width: stripe.width,
+      opacity: stripe.opacity,
+    }));
+    const darkRain = applyRainAppearance(CONNECT_HERO_RAIN_CONTROL_DEFAULTS, "dark");
+    expect(darkRain.appearance).toBe("dark");
+    expect(darkRain.backgroundColor).toBe("#000000");
+    expect(darkRain.stripes.every((stripe) => /^#[0-9a-f]{6}$/i.test(stripe.color))).toBe(true);
+    expect(
+      darkRain.stripes.every((stripe) => {
+        const [r, g, b] =
+          stripe.color
+            .slice(1)
+            .match(/../g)
+            ?.map((channel) => Number.parseInt(channel, 16)) ?? [];
+        return r === g && g === b;
+      }),
+    ).toBe(true);
+    expect(darkRain.stripes.map(({ startFrom, width, opacity }) => ({ startFrom, width, opacity }))).toEqual(geometry);
+
+    const lightRain = applyRainAppearance(darkRain, "light");
+    expect(lightRain.backgroundColor).toBe("#ffffff");
+    expect(lightRain.stripes.map((stripe) => stripe.color)).toEqual(
+      CONNECT_HERO_RAIN_CONTROL_DEFAULTS.stripes.map((stripe) => stripe.color),
+    );
   });
 
   it("surfaces a rain-only zoom and links it to the engine transform", () => {
@@ -184,6 +236,18 @@ describe("Connect animations page", () => {
     expect(backgroundOnly).toContain('fill="#ffffff"');
     expect(backgroundOnly).not.toContain('data-layer="twizzler"');
     expect(backgroundOnly).not.toContain('data-layer="rain"');
+
+    const darkBackgroundOnly = await buildAnimationSvg({
+      ...common,
+      canvasHeightPx: 360,
+      canvasWidthPx: 640,
+      handle: null,
+      rainEnabled: false,
+      settings: resolveConnectTwizzlerSettings(applyTwizzlerAppearance(CONNECT_TWIZZLER_CONTROL_DEFAULTS, "dark")),
+      twizzlerCanvas: null,
+      twizzlerEnabled: false,
+    });
+    expect(darkBackgroundOnly).toContain('fill="#f86a00"');
   });
 
   it("uses the configured white canvas background and demo export controls", () => {

@@ -56,7 +56,10 @@ export function buildTwizzlerSections(values: TwizzlerPanelValues): PanelSection
   const isBaked = mode === "baked";
   const isFieldGradient = mode === "sharedLinear" || mode === "sharedGradient" || mode === "fiberGradient";
 
-  const appearance: PanelField<PanelValues>[] = [select("ribbonColorMode", "Color mode", RIBBON_COLOR_MODE_OPTIONS)];
+  const appearance: PanelField<PanelValues>[] = [
+    select("appearance", "Mode", { Light: "light", Dark: "dark" }),
+    select("ribbonColorMode", "Color mode", RIBBON_COLOR_MODE_OPTIONS),
+  ];
   // Solid: sole ink swatch. Baked: near/right endpoint (paired with Color left).
   if (mode === "solid" || isBaked) appearance.push(color("color", "Color"));
   if (isBaked) appearance.push(color("colorFar", "Color left (X)"));

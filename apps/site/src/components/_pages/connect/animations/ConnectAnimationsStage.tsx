@@ -120,7 +120,10 @@ export default function ConnectAnimationsStage() {
   ) : null;
 
   return (
-    <div className="connect-animations-root" style={{ background: rain.canvasBackground }}>
+    <div
+      className="connect-animations-root"
+      style={{ background: rain.enabled ? rain.canvasBackground : settings.backgroundColor }}
+    >
       <div className="connect-animations-stage" ref={stageRef}>
         {settings.enabled ? (
           <ConnectTwizzler

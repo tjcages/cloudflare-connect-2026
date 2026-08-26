@@ -44,6 +44,7 @@ import {
   SPEAKER_FRAME_PANEL_ID,
 } from "../speakers/speaker-frame-controls";
 import {
+  applyRainAppearance,
   loadRainControlSettings,
   RAIN_PANEL_ID,
   resolveConnectHeroRain,
@@ -51,6 +52,7 @@ import {
 } from "./rain-control-settings";
 import type { ShaderTarget } from "./shader-targets";
 import {
+  applyTwizzlerAppearance,
   CONNECT_TWIZZLER_CONTROL_DEFAULTS,
   CONNECT_TWIZZLER_PANEL_ID,
   loadConnectTwizzlerControlSettings,
@@ -166,22 +168,30 @@ export default function ConnectTwizzlerControls({
 
   const handleHeroChange = useCallback(
     (next: PanelValues) => {
-      setHeroValues(next);
-      const settings = twizzlerSettingsFromPanelValues(next);
+      const appearanceChanged = next.appearance !== heroValues.appearance;
+      const themed = appearanceChanged
+        ? applyTwizzlerAppearance(twizzlerSettingsFromPanelValues(next), next.appearance === "dark" ? "dark" : "light")
+        : twizzlerSettingsFromPanelValues(next);
+      const panelValues = seedTwizzlerPanelValues(themed);
+      setHeroValues(panelValues);
+      const settings = twizzlerSettingsFromPanelValues(panelValues);
       persist(CONNECT_TWIZZLER_PANEL_ID, settings);
       onSettingsChange(resolveConnectTwizzlerSettings(settings));
     },
-    [onSettingsChange],
+    [heroValues.appearance, onSettingsChange],
   );
 
   const handleHeroRainChange = useCallback(
     (next: PanelValues) => {
-      setHeroRainValues(next);
-      const settings = rainFromPanelValues(next);
+      const appearanceChanged = next.appearance !== heroRainValues.appearance;
+      const settings = appearanceChanged
+        ? applyRainAppearance(rainFromPanelValues(next), next.appearance === "dark" ? "dark" : "light")
+        : rainFromPanelValues(next);
+      setHeroRainValues(seedRainPanelValues(settings));
       persist(RAIN_PANEL_ID, settings);
       onRainChange(resolveConnectHeroRain(settings));
     },
-    [onRainChange],
+    [heroRainValues.appearance, onRainChange],
   );
 
   const handleFramesChange = useCallback((next: PanelValues) => {
