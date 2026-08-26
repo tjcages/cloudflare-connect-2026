@@ -33,7 +33,13 @@ export default function AnimationExportTools({
       (performance.now() - animationStartedAt) / 1000
     );
     downloadText(
-      buildWaveformSvg(canvas.width, canvas.height, elapsed, settings),
+      buildWaveformSvg(
+        canvas.width,
+        canvas.height,
+        elapsed,
+        settings,
+        "#000000"
+      ),
       "cloudflare-connect-waveform.svg",
       "image/svg+xml"
     );

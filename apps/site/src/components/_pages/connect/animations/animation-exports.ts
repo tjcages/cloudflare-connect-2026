@@ -19,7 +19,8 @@ export function buildWaveformSvg(
   width: number,
   height: number,
   timeSec: number,
-  input: TwizzlerSettings
+  input: TwizzlerSettings,
+  backgroundColor = input.backgroundColor
 ): string {
   const safeWidth = Math.max(1, Math.round(width));
   const safeHeight = Math.max(1, Math.round(height));
@@ -44,7 +45,7 @@ export function buildWaveformSvg(
   return [
     `<?xml version="1.0" encoding="UTF-8"?>`,
     `<svg xmlns="http://www.w3.org/2000/svg" width="${safeWidth}" height="${safeHeight}" viewBox="0 0 ${safeWidth} ${safeHeight}">`,
-    `  <rect width="100%" height="100%" fill="${escapeXml(settings.backgroundColor)}" />`,
+    `  <rect width="100%" height="100%" fill="${escapeXml(backgroundColor)}" />`,
     `  <g data-layer="connect-waveform">`,
     paths,
     `  </g>`,
@@ -124,7 +125,7 @@ export async function recordShaderStack({
   await new Promise<void>((resolve) => {
     const paint = (now: number) => {
       const elapsed = now - startedAt;
-      context.fillStyle = "#ffffff";
+      context.fillStyle = "#000000";
       context.fillRect(0, 0, width, height);
       context.drawImage(twizzlerCanvas, 0, 0, width, height);
       context.drawImage(rainCanvas, 0, 0, width, height);

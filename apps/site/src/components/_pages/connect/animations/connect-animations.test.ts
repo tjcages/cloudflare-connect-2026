@@ -27,10 +27,29 @@ describe("Connect animations page", () => {
   });
 
   it("exports editable waveform paths", () => {
-    const svg = buildWaveformSvg(640, 360, 0, CONNECT_HERO_TWIZZLER_DEFAULTS);
+    const svg = buildWaveformSvg(
+      640,
+      360,
+      0,
+      CONNECT_HERO_TWIZZLER_DEFAULTS,
+      "#000000"
+    );
     expect(svg).toContain('viewBox="0 0 640 360"');
     expect(svg).toContain('data-layer="connect-waveform"');
     expect(svg).toContain('data-fiber="0"');
+    expect(svg).toContain('fill="#000000"');
     expect(svg).toContain("<path");
+  });
+
+  it("inverts the animation and video canvas backgrounds", () => {
+    const styles = read(
+      "src/components/_pages/connect/animations/connect-animations.css"
+    );
+    const exports = read(
+      "src/components/_pages/connect/animations/animation-exports.ts"
+    );
+    expect(styles).toContain("background: #000000");
+    expect(styles).not.toContain("background: #ffffff");
+    expect(exports).toContain('context.fillStyle = "#000000"');
   });
 });
