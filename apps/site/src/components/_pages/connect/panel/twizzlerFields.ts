@@ -30,52 +30,33 @@ const RIBBON_COLOR_MODE_OPTIONS = {
  *  (`color` doubles as the near/solid ink; `colorNear` is synced on change). */
 export type TwizzlerPanelValues = PanelValues;
 
-export function seedTwizzlerPanelValues(
-  settings: TwizzlerControlSettings
-): TwizzlerPanelValues {
+export function seedTwizzlerPanelValues(settings: TwizzlerControlSettings): TwizzlerPanelValues {
   const colorNear = settings.colorNear ?? settings.color;
   return {
     ...settings,
     color: colorNear,
-    gradientStops: parseTwizzlerGradientStops(
-      settings.gradientStops,
-      settings.colorFar,
-      colorNear
-    ),
+    gradientStops: parseTwizzlerGradientStops(settings.gradientStops, settings.colorFar, colorNear),
   };
 }
 
 /** Panel values → the settings record persisted + fed to the shader. */
-export function twizzlerSettingsFromPanelValues(
-  values: TwizzlerPanelValues
-): TwizzlerControlSettings {
+export function twizzlerSettingsFromPanelValues(values: TwizzlerPanelValues): TwizzlerControlSettings {
   const colorNear = values.color as string;
   const colorFar = values.colorFar as string;
   return {
     ...(values as unknown as TwizzlerControlSettings),
     color: colorNear,
     colorNear,
-    gradientStops: parseTwizzlerGradientStops(
-      values.gradientStops,
-      colorFar,
-      colorNear
-    ),
+    gradientStops: parseTwizzlerGradientStops(values.gradientStops, colorFar, colorNear),
   };
 }
 
-export function buildTwizzlerSections(
-  values: TwizzlerPanelValues
-): PanelSectionDef[] {
+export function buildTwizzlerSections(values: TwizzlerPanelValues): PanelSectionDef[] {
   const mode = values.ribbonColorMode as string;
   const isBaked = mode === "baked";
-  const isFieldGradient =
-    mode === "sharedLinear" ||
-    mode === "sharedGradient" ||
-    mode === "fiberGradient";
+  const isFieldGradient = mode === "sharedLinear" || mode === "sharedGradient" || mode === "fiberGradient";
 
-  const appearance: PanelField<PanelValues>[] = [
-    select("ribbonColorMode", "Color mode", RIBBON_COLOR_MODE_OPTIONS),
-  ];
+  const appearance: PanelField<PanelValues>[] = [select("ribbonColorMode", "Color mode", RIBBON_COLOR_MODE_OPTIONS)];
   // Solid: sole ink swatch. Baked: near/right endpoint (paired with Color left).
   if (mode === "solid" || isBaked) appearance.push(color("color", "Color"));
   if (isBaked) appearance.push(color("colorFar", "Color left (X)"));
@@ -89,10 +70,7 @@ export function buildTwizzlerSections(
     });
   }
   if (isBaked) appearance.push(color("colorEdge", "Color peaks (Y)"));
-  appearance.push(
-    num("opacity", "Opacity", 0, 1, 0.01),
-    num("scale", "Zoom", 0.05, 20, 0.05)
-  );
+  appearance.push(num("opacity", "Opacity", 0, 1, 0.01), num("scale", "Zoom", 0.05, 20, 0.05));
 
   const twizzlerChildren: PanelSectionDef[] = [
     {
@@ -152,10 +130,16 @@ export function buildTwizzlerSections(
       title: "Motion",
       defaultOpen: true,
       fields: [num("speed", "Speed", 0, 20, 0.05)],
-    }
+    },
   );
 
   return [
+    {
+      id: "Twizzler General",
+      title: "General",
+      defaultOpen: true,
+      fields: [toggle("enabled", "Enabled")],
+    },
     {
       id: "Appearance",
       title: "Appearance",

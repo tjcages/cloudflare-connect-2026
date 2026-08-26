@@ -35,6 +35,12 @@ export function rainFromPanelValues(values: PanelValues): RainControlSettings {
 export function buildRainSections(): PanelSectionDef[] {
   return [
     {
+      id: "Rain General",
+      title: "General",
+      defaultOpen: true,
+      fields: [toggle("enabled", "Enabled")],
+    },
+    {
       id: "Background",
       title: "Background",
       defaultOpen: true,

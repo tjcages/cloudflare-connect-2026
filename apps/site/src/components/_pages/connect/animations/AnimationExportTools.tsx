@@ -1,5 +1,4 @@
 import type { SharedShaderHandle } from "@necatikcl/stripes-engine/react";
-import type { TwizzlerSettings } from "@tjcages/connect-twizzler";
 import { ControlAction, ControlSection } from "@tjcages/panels/dev";
 import { useRef, useState, type RefObject } from "react";
 import {
@@ -9,10 +8,33 @@ import {
   type LabVideoExportPhase,
 } from "../../../../../../../apps/lab/src/export/videoExport";
 import type { ConnectHeroRain } from "../hero/rain-control-settings";
+import type { ConnectTwizzlerSettings } from "../hero/twizzler-control-settings";
 import { buildAnimationSvg, exportAnimationEps, exportAnimationSvg } from "./animation-exports";
 import "./connect-animations.css";
 
 type VectorKind = "SVG" | "EPS";
+
+const createCaptureCanvas = (
+  stage: HTMLDivElement | null,
+  rainCanvas: HTMLCanvasElement | null,
+  twizzlerCanvas: HTMLCanvasElement | null,
+) => {
+  const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(
+    1,
+    rainCanvas?.width ?? 0,
+    twizzlerCanvas?.width ?? 0,
+    Math.round((stage?.clientWidth ?? 1) * dpr),
+  );
+  canvas.height = Math.max(
+    1,
+    rainCanvas?.height ?? 0,
+    twizzlerCanvas?.height ?? 0,
+    Math.round((stage?.clientHeight ?? 1) * dpr),
+  );
+  return canvas;
+};
 
 export default function AnimationExportTools({
   getAnimationTimeSec,
@@ -20,13 +42,15 @@ export default function AnimationExportTools({
   rainCanvasRef,
   rainHandleRef,
   settings,
+  stageRef,
   twizzlerCanvasRef,
 }: {
   getAnimationTimeSec: () => number;
   rain: ConnectHeroRain;
   rainCanvasRef: RefObject<HTMLCanvasElement | null>;
   rainHandleRef: RefObject<SharedShaderHandle | null>;
-  settings: TwizzlerSettings;
+  settings: ConnectTwizzlerSettings;
+  stageRef: RefObject<HTMLDivElement | null>;
   twizzlerCanvasRef: RefObject<HTMLCanvasElement | null>;
 }) {
   const [phase, setPhase] = useState<LabVideoExportPhase>("idle");
@@ -36,9 +60,11 @@ export default function AnimationExportTools({
   const [vectorBusy, setVectorBusy] = useState<VectorKind | null>(null);
   const [error, setError] = useState<string | null>(null);
   const latestRainRef = useRef(rain);
+  const latestSettingsRef = useRef(settings);
   const stopRecordingRef = useRef<AbortController | null>(null);
   const runIdRef = useRef(0);
   latestRainRef.current = rain;
+  latestSettingsRef.current = settings;
 
   const videoBusy = phase !== "idle" && phase !== "done" && phase !== "failed";
   const videoLabel = formatVideoExportStatusLabel(
@@ -56,9 +82,7 @@ export default function AnimationExportTools({
     }
     if (videoBusy) return;
 
-    const twizzlerCanvas = twizzlerCanvasRef.current;
-    const rainCanvas = rainCanvasRef.current;
-    if (!twizzlerCanvas || !rainCanvas) return;
+    const captureCanvas = createCaptureCanvas(stageRef.current, rainCanvasRef.current, twizzlerCanvasRef.current);
 
     const runId = ++runIdRef.current;
     const stopRecording = new AbortController();
@@ -70,9 +94,9 @@ export default function AnimationExportTools({
     setPhase("recording");
 
     try {
-      const profile = resolveRealtimeVideoExportProfile(rainCanvas.width, rainCanvas.height);
+      const profile = resolveRealtimeVideoExportProfile(captureCanvas.width, captureCanvas.height);
       await exportLabVideo({
-        canvas: rainCanvas,
+        canvas: captureCanvas,
         filename: "cloudflare-connect-animation.mp4",
         fps: profile.fps,
         getBackground: () => latestRainRef.current.exportBackground,
@@ -84,9 +108,19 @@ export default function AnimationExportTools({
         },
         onProgress: (elapsedMs, totalMs) => setRecording({ elapsedMs, totalMs }),
         onTranscodeProgress: setTranscodePercent,
+        isSourceVisible: () => false,
         sourceKind: "image",
         stopSignal: stopRecording.signal,
-        underlayCanvases: [twizzlerCanvas],
+        underlayLayers: [
+          {
+            isVisible: () => latestSettingsRef.current.enabled,
+            source: () => twizzlerCanvasRef.current,
+          },
+          {
+            isVisible: () => latestRainRef.current.enabled,
+            source: () => rainCanvasRef.current,
+          },
+        ],
         videoBitsPerSecond: profile.videoBitsPerSecond,
       });
     } catch (caught) {
@@ -104,21 +138,24 @@ export default function AnimationExportTools({
   };
 
   const exportVector = async (kind: VectorKind) => {
-    const handle = rainHandleRef.current;
     const rainCanvas = rainCanvasRef.current;
     const twizzlerCanvas = twizzlerCanvasRef.current;
-    if (!handle || !rainCanvas || !twizzlerCanvas || vectorBusy) return;
+    if (vectorBusy) return;
 
     setError(null);
     setVectorBusy(kind);
     try {
       const svg = await buildAnimationSvg({
         animationTimeSec: getAnimationTimeSec(),
-        handle,
+        canvasHeightPx: stageRef.current?.clientHeight,
+        canvasWidthPx: stageRef.current?.clientWidth,
+        handle: rainHandleRef.current,
         rain,
         rainCanvas,
+        rainEnabled: rain.enabled,
         settings,
         twizzlerCanvas,
+        twizzlerEnabled: settings.enabled,
       });
       if (kind === "SVG") exportAnimationSvg(svg);
       else exportAnimationEps(svg);
