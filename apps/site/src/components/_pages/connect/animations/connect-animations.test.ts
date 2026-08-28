@@ -16,10 +16,29 @@ import {
 import { buildRainSections } from "../panel/rainFields";
 import { buildTwizzlerSections, seedTwizzlerPanelValues } from "../panel/twizzlerFields";
 import { buildAnimationSvg } from "./animation-exports";
+import {
+  CONNECT_ANIMATION_VIDEO_MAX_EDGE_PX,
+  CONNECT_ANIMATION_VIDEO_MAX_PIXELS,
+  resolveAnimationCaptureSize,
+} from "./animation-video-capture";
 
 const read = (relativePath: string) => readFileSync(resolve(process.cwd(), relativePath), "utf8");
 
 describe("Connect animations page", () => {
+  it("keeps video capture within a portable 4K encoder budget", () => {
+    expect(resolveAnimationCaptureSize(2343, 1317)).toEqual({
+      width: 2342,
+      height: 1316,
+    });
+
+    const large = resolveAnimationCaptureSize(4685, 2635);
+    expect(Math.max(large.width, large.height)).toBeLessThanOrEqual(CONNECT_ANIMATION_VIDEO_MAX_EDGE_PX);
+    expect(large.width * large.height).toBeLessThanOrEqual(CONNECT_ANIMATION_VIDEO_MAX_PIXELS);
+    expect(large.width % 2).toBe(0);
+    expect(large.height % 2).toBe(0);
+    expect(large.width / large.height).toBeCloseTo(4685 / 2635, 2);
+  });
+
   it("ships a chrome-free full-screen route", () => {
     const page = read("src/pages/connect/animations.astro");
     expect(page).toContain("ConnectAnimationsStage");
