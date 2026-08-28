@@ -10,6 +10,7 @@ import {
 import type { ConnectHeroRain } from "../hero/rain-control-settings";
 import type { ConnectTwizzlerSettings } from "../hero/twizzler-control-settings";
 import { buildAnimationSvg, exportAnimationEps, exportAnimationSvg } from "./animation-exports";
+import { resolveAnimationCaptureSize } from "./animation-video-capture";
 import "./connect-animations.css";
 
 type VectorKind = "SVG" | "EPS";
@@ -21,18 +22,21 @@ const createCaptureCanvas = (
 ) => {
   const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
   const canvas = document.createElement("canvas");
-  canvas.width = Math.max(
+  const sourceWidth = Math.max(
     1,
     rainCanvas?.width ?? 0,
     twizzlerCanvas?.width ?? 0,
     Math.round((stage?.clientWidth ?? 1) * dpr),
   );
-  canvas.height = Math.max(
+  const sourceHeight = Math.max(
     1,
     rainCanvas?.height ?? 0,
     twizzlerCanvas?.height ?? 0,
     Math.round((stage?.clientHeight ?? 1) * dpr),
   );
+  const size = resolveAnimationCaptureSize(sourceWidth, sourceHeight);
+  canvas.width = size.width;
+  canvas.height = size.height;
   return canvas;
 };
 
