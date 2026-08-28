@@ -16,11 +16,13 @@ export const LAB_VIDEO_EXPORT_FPS = 60;
  * Browsers may clamp; still request the top of the practical range.
  */
 export const LAB_VIDEO_EXPORT_BITRATE = 80_000_000;
-export const LAB_REALTIME_VIDEO_EXPORT_MAX_BITRATE = 50_000_000;
+export const LAB_REALTIME_VIDEO_EXPORT_MAX_BITRATE = 100_000_000;
 export const LAB_REALTIME_VIDEO_EXPORT_HIGH_RESOLUTION_PIXELS = 2_500_000;
+export const LAB_NATIVE_MP4_MAX_EDGE_PX = 3840;
+export const LAB_NATIVE_MP4_MAX_PIXELS = 3840 * 2160;
 
 const MP4_MIME_CANDIDATES = ["video/mp4;codecs=avc1", "video/mp4"] as const;
-const WEBM_MIME_CANDIDATES = ["video/webm;codecs=vp8", "video/webm;codecs=vp9", "video/webm"] as const;
+const WEBM_MIME_CANDIDATES = ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"] as const;
 
 export type LabExportSourceKind = "video" | "image";
 
@@ -48,9 +50,17 @@ export function resolveRealtimeVideoExportProfile(width: number, height: number)
   return {
     fps,
     videoBitsPerSecond: Math.round(
-      Math.min(LAB_REALTIME_VIDEO_EXPORT_MAX_BITRATE, Math.max(12_000_000, pixels * fps * 0.16)),
+      Math.min(LAB_REALTIME_VIDEO_EXPORT_MAX_BITRATE, Math.max(12_000_000, pixels * fps * 0.24)),
     ),
   };
+}
+
+/** Native browser H.264 encoders commonly stop at UHD; WebM remains software-scalable beyond it. */
+export function shouldPreferWebmForCapture(width: number, height: number): boolean {
+  return (
+    Math.max(width, height) > LAB_NATIVE_MP4_MAX_EDGE_PX ||
+    Math.max(1, width) * Math.max(1, height) > LAB_NATIVE_MP4_MAX_PIXELS
+  );
 }
 
 export function shouldCompositeVideoFrame(nowMs: number, lastFrameMs: number, fps: number): boolean {
@@ -169,15 +179,17 @@ export function shouldConfirmLongExport(durationSec: number): boolean {
 
 export function pickMediaRecorderProfile(
   isTypeSupported: (mimeType: string) => boolean = defaultIsTypeSupported,
+  options: { preferWebm?: boolean } = {},
 ): MediaRecorderProfile | null {
-  for (const mimeType of MP4_MIME_CANDIDATES) {
-    if (isTypeSupported(mimeType)) {
-      return { mimeType, skipTranscode: true, extension: "mp4" };
-    }
-  }
-  for (const mimeType of WEBM_MIME_CANDIDATES) {
-    if (isTypeSupported(mimeType)) {
-      return { mimeType, skipTranscode: false, extension: "webm" };
+  const candidateGroups = options.preferWebm
+    ? ([WEBM_MIME_CANDIDATES, MP4_MIME_CANDIDATES] as const)
+    : ([MP4_MIME_CANDIDATES, WEBM_MIME_CANDIDATES] as const);
+  for (const candidates of candidateGroups) {
+    for (const mimeType of candidates) {
+      if (isTypeSupported(mimeType)) {
+        const isMp4 = mimeType.startsWith("video/mp4");
+        return { mimeType, skipTranscode: isMp4, extension: isMp4 ? "mp4" : "webm" };
+      }
     }
   }
   return null;
@@ -488,10 +500,11 @@ export type ExportLabVideoOptions = {
   download?: boolean;
   filename?: string;
   transcode?: (webmBlob: Blob, options: TranscodeWebmToMp4Options) => Promise<Blob>;
+  retagDisplayP3?: (mp4Blob: Blob, options: TranscodeWebmToMp4Options) => Promise<Blob>;
   createCompositor?: (
     canvas: HTMLCanvasElement,
     options: LabVideoCompositorOptions,
-  ) => Promise<{ canvas: HTMLCanvasElement; compositeFrame: () => void }>;
+  ) => Promise<{ canvas: HTMLCanvasElement; colorSpace?: PredefinedColorSpace; compositeFrame: () => void }>;
 };
 
 export async function exportLabVideo(options: ExportLabVideoOptions): Promise<Blob> {
@@ -518,6 +531,7 @@ export async function exportLabVideo(options: ExportLabVideoOptions): Promise<Bl
     download = true,
     filename,
     transcode,
+    retagDisplayP3,
     createCompositor = createLabExportCompositor,
   } = options;
 
@@ -537,14 +551,16 @@ export async function exportLabVideo(options: ExportLabVideoOptions): Promise<Bl
     throw new Error("Invalid export duration.");
   }
 
-  const profile = pickMediaRecorderProfile();
+  const profile = pickMediaRecorderProfile(defaultIsTypeSupported, {
+    preferWebm: shouldPreferWebmForCapture(canvas.width, canvas.height),
+  });
   if (!profile) {
     throw new Error("Video recording is not supported in this browser.");
   }
 
   let durationMs = recordsUntilStopped ? 0 : durationSec * 1000;
   const frameCount = resolveExportFrameCount(durationSec);
-  const outputFilename = filename ?? `stripes-video.${profile.extension}`;
+  const outputFilename = filename ?? "stripes-video.mp4";
   const useFastPath = !recordsUntilStopped && canUseFastVideoExport(canvas, sourceKind) && video !== undefined;
 
   let savedVideoState: SavedVideoState | null = null;
@@ -626,6 +642,16 @@ export async function exportLabVideo(options: ExportLabVideoOptions): Promise<Bl
       onProgress: onTranscodeProgress,
       sourceDurationMs: durationMs,
       signal,
+      colorSpace: compositor.colorSpace,
+    });
+  } else if (compositor.colorSpace === "display-p3") {
+    const retagFn = retagDisplayP3 ?? (await import("./ffmpeg")).retagDisplayP3Mp4;
+    outputBlob = await retagFn(recordedBlob, {
+      onStage: (stage) => onPhase?.(stage),
+      onProgress: onTranscodeProgress,
+      sourceDurationMs: durationMs,
+      signal,
+      colorSpace: compositor.colorSpace,
     });
   }
 

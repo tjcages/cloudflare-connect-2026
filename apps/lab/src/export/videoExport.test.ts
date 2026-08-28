@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { resolveTranscodeProgressPercent } from "./ffmpeg";
+import {
+  buildDisplayP3Mp4RemuxArgs,
+  buildWebmTranscodeArgs,
+  resolveTranscodeProgressPercent,
+  type TranscodeWebmToMp4Options,
+} from "./ffmpeg";
 import {
   canUseFastVideoExport,
   exportLabVideo,
@@ -18,6 +23,7 @@ import {
   resolveRequestedExportRange,
   shouldConfirmLongExport,
   shouldCompositeVideoFrame,
+  shouldPreferWebmForCapture,
 } from "./videoExport";
 
 describe("resolveExportDuration", () => {
@@ -55,12 +61,21 @@ describe("export quality defaults", () => {
   it("adapts real-time recording load to the canvas resolution", () => {
     expect(resolveRealtimeVideoExportProfile(1920, 1080)).toEqual({
       fps: 60,
-      videoBitsPerSecond: 19_906_560,
+      videoBitsPerSecond: 29_859_840,
     });
     expect(resolveRealtimeVideoExportProfile(3840, 2160)).toEqual({
       fps: 30,
-      videoBitsPerSecond: 39_813_120,
+      videoBitsPerSecond: 59_719_680,
     });
+    expect(resolveRealtimeVideoExportProfile(4684, 2634)).toEqual({
+      fps: 30,
+      videoBitsPerSecond: 88_831_123,
+    });
+  });
+
+  it("uses the full-resolution fallback above the native H.264 envelope", () => {
+    expect(shouldPreferWebmForCapture(3840, 2160)).toBe(false);
+    expect(shouldPreferWebmForCapture(4684, 2634)).toBe(true);
   });
 
   it("only composites when the recorder needs another frame", () => {
@@ -124,6 +139,25 @@ describe("resolveTranscodeProgressPercent", () => {
   });
 });
 
+describe("Display-P3 video metadata", () => {
+  it("losslessly corrects native H.264 primaries without touching encoded pixels", () => {
+    expect(buildDisplayP3Mp4RemuxArgs("input.mp4", "output.mp4")).toEqual(
+      expect.arrayContaining([
+        "copy",
+        "h264_metadata=colour_primaries=12:transfer_characteristics=13",
+        "smpte432",
+        "iec61966-2-1",
+      ]),
+    );
+  });
+
+  it("writes the same Display-P3 definition when transcoding full-resolution webm", () => {
+    expect(buildWebmTranscodeArgs("input.webm", "output.mp4")).toEqual(
+      expect.arrayContaining(["ultrafast", "8", "smpte432", "iec61966-2-1", "bt709"]),
+    );
+  });
+});
+
 describe("resolveExportFrameCount", () => {
   it("ceil duration times export fps", () => {
     expect(resolveExportFrameCount(5)).toBe(5 * LAB_VIDEO_EXPORT_FPS);
@@ -142,6 +176,12 @@ describe("pickMediaRecorderProfile", () => {
     const profile = pickMediaRecorderProfile((candidate) => supported.has(candidate));
     expect(profile).toEqual({ mimeType: "video/webm;codecs=vp8", skipTranscode: false, extension: "webm" });
     expect(pickMediaRecorderMimeType((candidate) => supported.has(candidate))).toBe("video/webm;codecs=vp8");
+  });
+
+  it("prefers full-resolution webm when native mp4 is resolution-limited", () => {
+    const supported = new Set(["video/mp4", "video/webm;codecs=vp8"]);
+    const profile = pickMediaRecorderProfile((candidate) => supported.has(candidate), { preferWebm: true });
+    expect(profile).toEqual({ mimeType: "video/webm;codecs=vp8", skipTranscode: false, extension: "webm" });
   });
 
   it("returns null when nothing is supported", () => {
@@ -355,7 +395,7 @@ describe("exportLabVideo", () => {
     ).rejects.toThrow("Video recording is not supported");
   });
 
-  it("skips transcode when the browser records mp4 directly", async () => {
+  it("losslessly corrects Display-P3 metadata when the browser records mp4 directly", async () => {
     let mockNow = 0;
     const cancelled = new Set<number>();
     let nextRafId = 0;
@@ -403,10 +443,16 @@ describe("exportLabVideo", () => {
     } as unknown as HTMLCanvasElement;
     const createCompositor = vi.fn(async () => ({
       canvas,
+      colorSpace: "display-p3" as const,
       compositeFrame: vi.fn(),
     }));
 
     const transcode = vi.fn();
+    const retagDisplayP3 = vi.fn(async (blob: Blob, options: TranscodeWebmToMp4Options) => {
+      options.onStage?.("loading-encoder");
+      options.onStage?.("transcoding");
+      return blob;
+    });
     const phases: string[] = [];
 
     const blob = await exportLabVideo({
@@ -414,13 +460,15 @@ describe("exportLabVideo", () => {
       sourceKind: "image",
       download: false,
       transcode,
+      retagDisplayP3,
       createCompositor,
       onPhase: (phase) => phases.push(phase),
     });
 
     expect(blob.type).toBe("video/mp4");
     expect(transcode).not.toHaveBeenCalled();
-    expect(phases).toEqual(["recording", "done"]);
+    expect(retagDisplayP3).toHaveBeenCalledTimes(1);
+    expect(phases).toEqual(["recording", "loading-encoder", "transcoding", "done"]);
   });
 
   it("throws when export duration is invalid", async () => {

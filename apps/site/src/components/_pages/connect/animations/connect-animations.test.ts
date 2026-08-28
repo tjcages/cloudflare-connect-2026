@@ -16,27 +16,21 @@ import {
 import { buildRainSections } from "../panel/rainFields";
 import { buildTwizzlerSections, seedTwizzlerPanelValues } from "../panel/twizzlerFields";
 import { buildAnimationSvg } from "./animation-exports";
-import {
-  CONNECT_ANIMATION_VIDEO_MAX_EDGE_PX,
-  CONNECT_ANIMATION_VIDEO_MAX_PIXELS,
-  resolveAnimationCaptureSize,
-} from "./animation-video-capture";
+import { resolveAnimationCaptureSize } from "./animation-video-capture";
 
 const read = (relativePath: string) => readFileSync(resolve(process.cwd(), relativePath), "utf8");
 
 describe("Connect animations page", () => {
-  it("keeps video capture within a portable 4K encoder budget", () => {
+  it("keeps the full source resolution while making encoder-safe even dimensions", () => {
     expect(resolveAnimationCaptureSize(2343, 1317)).toEqual({
       width: 2342,
       height: 1316,
     });
 
-    const large = resolveAnimationCaptureSize(4685, 2635);
-    expect(Math.max(large.width, large.height)).toBeLessThanOrEqual(CONNECT_ANIMATION_VIDEO_MAX_EDGE_PX);
-    expect(large.width * large.height).toBeLessThanOrEqual(CONNECT_ANIMATION_VIDEO_MAX_PIXELS);
-    expect(large.width % 2).toBe(0);
-    expect(large.height % 2).toBe(0);
-    expect(large.width / large.height).toBeCloseTo(4685 / 2635, 2);
+    expect(resolveAnimationCaptureSize(4685, 2635)).toEqual({
+      width: 4684,
+      height: 2634,
+    });
   });
 
   it("ships a chrome-free full-screen route", () => {

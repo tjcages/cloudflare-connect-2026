@@ -13,6 +13,7 @@ describe("createLabExportCompositor", () => {
       drawImage,
       fillRect: vi.fn(),
       fillStyle: "",
+      getContextAttributes: vi.fn(() => ({ colorSpace: "display-p3" })),
     };
     const exportCanvas = {
       width: 0,
@@ -32,6 +33,12 @@ describe("createLabExportCompositor", () => {
     });
 
     compositor.compositeFrame();
+
+    expect(exportCanvas.getContext).toHaveBeenCalledWith("2d", {
+      alpha: true,
+      colorSpace: "display-p3",
+    });
+    expect(compositor.colorSpace).toBe("display-p3");
 
     expect(drawImage.mock.calls).toEqual([
       [twizzlerCanvas, 0, 0, 320, 180],

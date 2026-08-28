@@ -39,6 +39,7 @@ export type LabVideoCompositorOptions = LabVideoBackgroundOptions & {
 
 export type LabExportCompositor = {
   canvas: HTMLCanvasElement;
+  colorSpace: PredefinedColorSpace;
   compositeFrame: () => void;
 };
 
@@ -120,6 +121,7 @@ export async function createLabExportCompositor(
   if (!ctx) {
     throw new Error("2D canvas context is unavailable.");
   }
+  const colorSpace = ctx.getContextAttributes?.().colorSpace === "display-p3" ? "display-p3" : "srgb";
 
   const staticFillStyle = cssColorForHex(backgroundColorToHex(backgroundColor));
   let gradientKey = "";
@@ -168,5 +170,5 @@ export async function createLabExportCompositor(
     }
   };
 
-  return { canvas: exportCanvas, compositeFrame };
+  return { canvas: exportCanvas, colorSpace, compositeFrame };
 }
