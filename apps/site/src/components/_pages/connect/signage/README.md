@@ -2,10 +2,11 @@
 
 Route: `/connect/signage/`. Copy lives in `schedule.ts`.
 
-The Exhibition Hall title reveals with the marketing `WordFade` component. Hours
-and the Happy Hour note follow with the existing binary `Scramble` preset. All
-hours remain visible after the entrance so visitors can read them without waiting
-for a rotation. The original Connect hero shader stays animated beneath the text.
+All signage lines use the existing marketing code-snippet `rainLayer` transition:
+`01` characters resolve through the shared orange flash into their final color.
+Hours remain visible after the entrance so visitors can read them without
+waiting for a rotation. The original Connect hero shader animates behind the
+translucent text panels and clips at the inner frame.
 
 ## Venue display
 
@@ -14,8 +15,10 @@ for a rotation. The original Connect hero shader stays animated beneath the text
 - Bottom edge: **11’7” above the floor**.
 - Ribbon layout activates above 3:1 and sizes type from viewport height.
 - At native size: headline 405 px; hours 210.6 px; day names 145.8 px;
-  Happy Hour 178.2 px. Important copy uses the dark marketing text token on white.
-- Three daily schedules appear side by side. Decorative shader stays below copy.
+  Happy Hour 178.2 px. The title uses the dark orange marketing token; schedule copy uses the dark
+  marketing text token on near-white panels.
+- Three daily schedules appear side by side. The inner frame clips the shader. A light-gray grid sits outside it, and
+  translucent bordered panels keep the copy readable over the motion.
 
 ## Final delivery specification (future work)
 
