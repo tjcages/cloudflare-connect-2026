@@ -1,8 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import CornerDots from "@/components/CornerDots";
 import GridArea from "@/components/GridArea";
-import DashedLine from "@/components/dashed-line/DashedLine";
-import DashedLineGrid from "@/components/dashed-line/DashedLineGrid";
 import ConnectHeaderLogo from "@/components/header/ConnectHeaderLogo";
 import { rainLayer } from "@/components/scramble/rain";
 import { setIntervalOnVisible, setTimeoutOnVisible } from "@/utils/visibility-timers";
@@ -58,17 +56,17 @@ export default function Signage() {
         <div className="signage-content relative z-10 text-center">
           <div className="signage-title-region flex items-center justify-center">
             <h1 className="signage-title text-heading-hero text-text-base" aria-label="Exhibition Hall">
-              <RainText text="Exhibition Hall" cycle={titleCycle} direction={titleCycle % 2 === 0 ? 1 : -1} />
+              <RainText text="Exhibition Hall" headline cycle={titleCycle} direction={titleCycle % 2 === 0 ? 1 : -1} />
             </h1>
           </div>
 
-          <div
-            className="signage-schedule relative bg-background-base before:inside-border before:border-border-default"
-            aria-label="Exhibition Hall hours"
-          >
-            <div className="signage-days relative grid grid-cols-3">
+          <div className="signage-schedule relative" aria-label="Exhibition Hall hours">
+            <div className="signage-days relative grid grid-cols-3 gap-16">
               {EXHIBITION_HOURS.map(({ day, hours }) => (
-                <div className="signage-day flex flex-col items-center justify-center p-8" key={day}>
+                <div
+                  className="signage-day relative flex flex-col items-center justify-center bg-background-base p-8 before:inside-border before:border-border-default"
+                  key={day}
+                >
                   <div className="signage-day-label text-decorative-small text-text-base">
                     <RainText text={day} active={scheduleVisible} />
                   </div>
@@ -77,10 +75,8 @@ export default function Signage() {
                   </div>
                 </div>
               ))}
-              <DashedLineGrid columns={3} rows={1} />
             </div>
-            <div className="signage-happy-hour relative flex items-center justify-center p-8 text-decorative-small text-text-base">
-              <DashedLine direction="horizontal" className="absolute inset-x-0 top-0 text-border-dashed" />
+            <div className="signage-happy-hour relative flex items-center justify-center bg-background-base p-8 text-decorative-small text-text-base before:inside-border before:border-border-default">
               <RainText text={HAPPY_HOUR} active={scheduleVisible} />
             </div>
           </div>
@@ -94,11 +90,13 @@ export default function Signage() {
 function RainText({
   text,
   active = true,
+  headline = false,
   cycle = 0,
   direction = 1,
 }: {
   text: string;
   active?: boolean;
+  headline?: boolean;
   cycle?: number;
   direction?: number;
 }) {
@@ -107,15 +105,31 @@ function RainText({
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el || !active) return;
-    const { stop } = rainLayer({
-      layerEl: el,
-      underHtml: "",
-      toHtml: text,
-      direction,
-      background: "transparent",
+    let cancelled = false;
+    let stop: (() => void) | undefined;
+    // Measure the actual brand font, including on a cold first load.
+    void document.fonts.ready.then(() => {
+      if (cancelled) return;
+      ({ stop } = rainLayer({
+        layerEl: el,
+        underHtml: "",
+        toHtml: text,
+        direction,
+        background: "transparent",
+        ...(headline && {
+          durationScale: 4,
+          sweepDuration: 450,
+          sweepEase: (progress: number) => progress,
+          preserveCharacterWidths: true,
+          replay: cycle > 0,
+        }),
+      }));
     });
-    return stop;
-  }, [text, active, cycle, direction]);
+    return () => {
+      cancelled = true;
+      stop?.();
+    };
+  }, [text, active, headline, cycle, direction]);
 
   return (
     <span

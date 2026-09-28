@@ -3,8 +3,7 @@
   padding: clamp(16px, 4vh, 40px);
 }
 
-/* GridArea, white surfaces, overlay borders and dashed dividers are the
-   same components/tokens used by the marketing Section and Pillars grids. */
+/* Reuse the marketing GridArea, white surfaces and overlay border tokens. */
 .signage-frame {
   height: 100%;
   display: grid;
@@ -31,7 +30,7 @@
   min-height: 0;
   display: grid;
   grid-template-rows: minmax(0, 1fr) auto;
-  padding-inline: 40px;
+  padding: 0 40px 40px;
 }
 
 .signage-title-region {
@@ -45,7 +44,8 @@
 
 /* Both rows and every cell exist before their text is revealed. */
 .signage-schedule {
-  height: 48vh;
+  height: 40vh;
+  gap: 16px;
   display: grid;
   grid-template-rows: repeat(2, minmax(0, 1fr));
   align-self: end;
@@ -59,13 +59,9 @@
   min-height: 0;
 }
 
-.signage-day-label {
-  font-size: clamp(18px, 2.1vw, 48px);
-  line-height: 1.2;
-}
-
+.signage-day-label,
 .signage-hours {
-  font-size: clamp(20px, 2.7vw, 64px);
+  font-size: clamp(18px, 2.4vw, 56px);
   line-height: 1.2;
 }
 
@@ -89,14 +85,14 @@
   }
 
   .signage-title {
-    font-size: 30vh;
+    font-size: 34vh;
   }
 
-  .signage-day-label {
-    font-size: 6vh;
+  .signage-day-label,
+  .signage-hours {
+    font-size: 7vh;
   }
 
-  .signage-hours,
   .signage-happy-hour {
     font-size: 10vh;
   }
@@ -108,19 +104,16 @@
   }
 
   .signage-content {
-    padding-inline: 16px;
+    padding: 0 16px 16px;
   }
 
   .signage-title {
     font-size: 9vw;
   }
 
-  .signage-day-label {
-    font-size: 2.4vw;
-  }
-
+  .signage-day-label,
   .signage-hours {
-    font-size: 2.1vw;
+    font-size: 2.4vw;
   }
 
   .signage-happy-hour {

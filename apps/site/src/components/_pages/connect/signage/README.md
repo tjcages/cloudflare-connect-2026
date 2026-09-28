@@ -14,19 +14,27 @@ solid white schedule grid and clips at the inner frame.
 - Physical size: **29’11.1” × 6’8.8”**.
 - Bottom edge: **11’7” above the floor**.
 - Ribbon layout activates above 3:1 and sizes type from viewport height.
-- At native size: headline 486 px; hours and Happy Hour 162 px; day names
-  97.2 px. All final copy uses the marketing text token (black in light mode).
+- At native size: headline 550.8 px; days and hours 113.4 px; Happy Hour
+  162 px. All final copy uses the marketing text token (black in light mode).
 - Three daily schedules share the first grid row. Happy Hour spans the full
-  second row. Both rows are the same height and align to the frame bottom.
-- Shared `GridArea`, overlay borders, and dashed divider components supply the
-  marketing grid styling. The white schedule surface is fully opaque.
+  second row. Both rows are the same height inside a 40vh schedule area, with
+  16px gutters between rows and between day cards. Bottom and side insets
+  match at 40px (16px on narrow screens).
+- Shared `GridArea`, overlay borders, and marketing spacing/color tokens supply
+  the grid styling. Every card has a fully opaque white surface.
 - The inner frame clips the original shader; a light-gray grid sits outside it.
 - Text dimensions and both grid rows are reserved before the entrance animation
   so the title does not move when the schedule appears.
-- The title repeats the unchanged code-snippet `rainLayer` transition every
+- The title repeats the existing code-snippet `rainLayer` transition every
   30 visible seconds, alternating sweep direction. The initial entrance travels
   left to right; the 30-second replay travels right to left; 60 seconds returns
   to left to right. Its orange flash settles back to black.
+- The title opts into a 1.8-second steady directional sweep and a roughly
+  3.16-second total transition. The shared helper retains its original defaults
+  for code snippets. Proportional glyph advances are measured after fonts load,
+  reserved in em units, and the binary digits fit within those widths.
+- Replays leave letters visible ahead of the sweep. Only the advancing wave
+  changes them, eliminating the previous full-title disappearance and reflow.
 - The logo sits 8vh below the inner frame top in the LED layout.
 
 ## Final delivery specification (future work)

@@ -18,6 +18,7 @@ type RainCell = {
   nextTick: number;
   live: boolean;
   done: boolean;
+  noiseScale: number;
 };
 
 function parseHtml(html: string): ParsedLine[] {
@@ -46,8 +47,7 @@ function parseHtml(html: string): ParsedLine[] {
 
 function noise(len: number): string {
   let out = "";
-  for (let i = 0; i < len; i++)
-    out += RAIN_CHARS[Math.floor(Math.random() * RAIN_CHARS.length)];
+  for (let i = 0; i < len; i++) out += RAIN_CHARS[Math.floor(Math.random() * RAIN_CHARS.length)];
   return out;
 }
 
@@ -58,6 +58,11 @@ export function rainLayer({
   toHtml,
   direction = 1,
   background = "var(--color-background-base)",
+  durationScale = 1,
+  sweepDuration,
+  sweepEase = SWEEP_EASE,
+  preserveCharacterWidths = false,
+  replay = false,
   onComplete,
 }: {
   layerEl: HTMLElement;
@@ -66,36 +71,31 @@ export function rainLayer({
   toHtml: string;
   direction?: number;
   background?: string;
+  /** Slow the existing noise, orange flash and sweep together. */
+  durationScale?: number;
+  sweepDuration?: number;
+  sweepEase?: (progress: number) => number;
+  /** Reserve proportional glyph widths while the binary characters change. */
+  preserveCharacterWidths?: boolean;
+  /** Keep the target visible ahead of a sweep over unchanged text. */
+  replay?: boolean;
   onComplete?: () => void;
 }) {
   const toLines = parseHtml(toHtml);
   const underLines = parseHtml(underHtml);
-  const fromNums = numbersEl
-    ? [...numbersEl.children].map((el) => el.textContent ?? "")
-    : [];
+  const fromNums = numbersEl ? [...numbersEl.children].map((el) => el.textContent ?? "") : [];
   const rows = Math.max(toLines.length, underLines.length, fromNums.length);
   const cells: RainCell[] = [];
 
   let maxCols = 0;
   for (let r = 0; r < rows; r++)
-    maxCols = Math.max(
-      maxCols,
-      toLines[r]?.chars.length ?? 0,
-      underLines[r]?.chars.length ?? 0
-    );
+    maxCols = Math.max(maxCols, toLines[r]?.chars.length ?? 0, underLines[r]?.chars.length ?? 0);
 
   const sweepSpan = Math.max(maxCols - 1, 1);
-  const sweepMs = sweepSpan * 10;
+  const sweepMs = sweepDuration ?? sweepSpan * 10;
   const rowDelays = Array.from({ length: rows }, () => Math.random() * 75);
 
-  const addCell = (
-    el: HTMLElement,
-    to: string,
-    toColor: string,
-    row: number,
-    column: number,
-    bare: boolean
-  ) => {
+  const addCell = (el: HTMLElement, to: string, toColor: string, row: number, column: number, bare: boolean) => {
     const sweep = direction < 0 ? maxCols - 1 - column : column;
     cells.push({
       el,
@@ -110,6 +110,7 @@ export function rainLayer({
       nextTick: 0,
       live: false,
       done: false,
+      noiseScale: 1,
     });
   };
 
@@ -134,20 +135,48 @@ export function rainLayer({
       const toChar = to?.chars[c] ?? " ";
       const underColor = under?.colors[c] ?? "";
       const toColor = to?.colors[c] ?? "";
-      if (toChar === underChar && (toColor === underColor || toChar === " ")) {
+      if (toChar === underChar && (toChar === " " || (!replay && toColor === underColor))) {
         hiddenRun += toChar;
         continue;
       }
       flush();
       const span = document.createElement("span");
       span.textContent = toChar;
-      span.style.visibility = "hidden";
+      span.style.visibility = replay ? "" : "hidden";
+      span.style.color = toColor;
       frag.appendChild(span);
       addCell(span, toChar, toColor, r, c, false);
     }
     flush();
   }
   layerEl.appendChild(frag);
+
+  if (preserveCharacterWidths) {
+    // Read the complete settled line before any writes or noise replacements.
+    // This retains the font's glyph advances instead of letting 0/1 reflow it.
+    const spans = [...layerEl.children].filter(
+      (el): el is HTMLElement => el instanceof HTMLElement && el.tagName === "SPAN",
+    );
+    const fontSize = Number.parseFloat(getComputedStyle(layerEl).fontSize);
+    const widths = spans.map((el) => el.getBoundingClientRect().width / fontSize);
+    const probe = document.createElement("span");
+    probe.style.cssText = "position:absolute;visibility:hidden";
+    probe.textContent = "0";
+    layerEl.appendChild(probe);
+    const digitWidth = probe.getBoundingClientRect().width;
+    probe.remove();
+    for (const cell of cells) {
+      const width = widths[spans.indexOf(cell.el)];
+      if (width !== undefined && digitWidth > 0) {
+        cell.noiseScale = Math.min(1, (width * fontSize) / digitWidth);
+      }
+    }
+    spans.forEach((el, i) => {
+      el.style.display = "inline-block";
+      el.style.width = `${widths[i]}em`;
+      el.style.textAlign = "center";
+    });
+  }
 
   const finalNumbers = () => {
     if (!numbersEl) return;
@@ -174,14 +203,13 @@ export function rainLayer({
   const fronts = new Array<number>(rows);
 
   const timer = createTimer({
-    duration: 75 + sweepMs + 125 + 130 + 10,
+    duration: (75 + sweepMs + 125 + 130 + 10) * durationScale,
     onUpdate: (self) => {
-      const t = self.currentTime;
+      const t = self.currentTime / durationScale;
 
       for (let r = 0; r < rows; r++) {
         const local = (t - rowDelays[r]) / sweepMs;
-        fronts[r] =
-          local <= 0 ? -1 : SWEEP_EASE(Math.min(local, 1)) * sweepSpan;
+        fronts[r] = local <= 0 ? -1 : sweepEase(Math.min(local, 1)) * sweepSpan;
         if (local >= 1) fronts[r] = Number.POSITIVE_INFINITY;
       }
 
@@ -199,6 +227,7 @@ export function rainLayer({
           cell.live = true;
           cell.resolveAt = t + 70 + Math.random() * 55;
           cell.el.style.color = "var(--color-text-subtle)";
+          if (preserveCharacterWidths) cell.el.style.transform = `scaleX(${cell.noiseScale})`;
           if (!cell.bare) {
             cell.el.style.visibility = "";
             cell.el.style.backgroundColor = background;
@@ -206,6 +235,7 @@ export function rainLayer({
         }
         if (t >= cell.resolveAt) {
           cell.el.textContent = cell.to;
+          if (preserveCharacterWidths) cell.el.style.transform = "";
           if (cell.to.trim()) {
             cell.el.style.color = "var(--color-orange-900)";
             cell.settleAt = cell.resolveAt + 130;
