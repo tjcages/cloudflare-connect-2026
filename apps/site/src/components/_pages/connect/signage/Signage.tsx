@@ -49,13 +49,13 @@ export default function Signage() {
           />
         </div>
 
-        <header className="signage-brand relative z-10 flex justify-center">
+        <header className="signage-brand relative z-20 flex justify-center">
           <ConnectHeaderLogo />
         </header>
 
         <div className="signage-content relative z-10 text-center">
           <div className="signage-title-region flex items-center justify-center">
-            <h1 className="signage-title text-heading-hero text-text-base" aria-label="Exhibition Hall">
+            <h1 className="signage-title font-mono text-heading-hero text-text-base" aria-label="Exhibition Hall">
               <RainText text="Exhibition Hall" headline cycle={titleCycle} direction={titleCycle % 2 === 0 ? 1 : -1} />
             </h1>
           </div>
@@ -118,6 +118,7 @@ function RainText({
         background: "transparent",
         ...(headline && {
           durationScale: 3,
+          noiseColor: "var(--color-orange-900)",
           sweepDuration: 450,
           sweepEase: (progress: number) => progress,
           preserveCharacterWidths: true,

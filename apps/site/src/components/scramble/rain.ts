@@ -57,6 +57,7 @@ export function rainLayer({
   toHtml,
   direction = 1,
   background = "var(--color-background-base)",
+  noiseColor = "var(--color-text-subtle)",
   durationScale = 1,
   sweepDuration,
   sweepEase = SWEEP_EASE,
@@ -70,6 +71,7 @@ export function rainLayer({
   toHtml: string;
   direction?: number;
   background?: string;
+  noiseColor?: string;
   /** Slow the existing noise, orange flash and sweep together. */
   durationScale?: number;
   sweepDuration?: number;
@@ -214,7 +216,7 @@ export function rainLayer({
           if (fronts[cell.row] < cell.trigger) continue;
           cell.live = true;
           cell.resolveAt = t + 70 + Math.random() * 55;
-          cell.el.style.color = "var(--color-text-subtle)";
+          cell.el.style.color = noiseColor;
           if (!cell.bare) {
             cell.el.style.visibility = "";
             cell.el.style.backgroundColor = background;
