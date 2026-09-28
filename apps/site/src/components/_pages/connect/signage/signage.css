@@ -17,7 +17,7 @@
 .signage-brand img {
   display: block;
   width: auto;
-  height: clamp(24px, 7vh, 112px);
+  height: clamp(24px, 5.25vh, 84px);
   max-width: calc(100vw - 80px);
 }
 
@@ -97,7 +97,7 @@
   }
 
   .signage-brand img {
-    height: min(8vh, 112px);
+    height: min(6vh, 84px);
     max-width: none;
   }
 
