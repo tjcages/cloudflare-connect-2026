@@ -42,7 +42,9 @@ solid white schedule grid and clips at the inner frame.
   changes them, eliminating the previous full-title disappearance and reflow.
 - A soft white radial gradient behind the title reduces shader contrast without
   adding a visible panel or changing the shader.
-- The logo sits 8vh below the inner frame top in the LED layout.
+- The supplied wide Cloudflare Connect SVG is used only on this signage route.
+  It sits 8vh below the inner frame top and scales to 8vh on the LED layout,
+  capped at 112px high, so it remains clear of the centered heading.
 
 ## Final delivery specification (future work)
 

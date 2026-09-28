@@ -1,7 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import CornerDots from "@/components/CornerDots";
 import GridArea from "@/components/GridArea";
-import ConnectHeaderLogo from "@/components/header/ConnectHeaderLogo";
 import { rainLayer } from "@/components/scramble/rain";
 import { setIntervalOnVisible, setTimeoutOnVisible } from "@/utils/visibility-timers";
 import ConnectHeroTwizzler from "../hero/ConnectHeroTwizzler";
@@ -52,7 +51,9 @@ export default function Signage() {
         </div>
 
         <header className="signage-brand relative z-20 flex justify-center">
-          <ConnectHeaderLogo />
+          <a aria-label="Cloudflare Connect 2026 home" href="/connect">
+            <img alt="" src="/connect/signage-logo.svg" />
+          </a>
         </header>
 
         <div className="signage-content relative z-10 text-center">

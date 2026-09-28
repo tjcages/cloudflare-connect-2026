@@ -14,16 +14,11 @@
   padding-top: 40px;
 }
 
-.signage-brand a > span {
-  display: flex;
-}
-
-.signage-brand svg {
-  height: clamp(42px, 7vh, 112px);
-}
-
-.signage-brand span span {
-  font-size: clamp(22px, 3.5vh, 56px);
+.signage-brand img {
+  display: block;
+  width: auto;
+  height: clamp(24px, 7vh, 112px);
+  max-width: calc(100vw - 80px);
 }
 
 .signage-content {
@@ -101,6 +96,11 @@
     padding: 0;
   }
 
+  .signage-brand img {
+    height: min(8vh, 112px);
+    max-width: none;
+  }
+
   .signage-title {
     font-size: 34vh;
   }
@@ -118,6 +118,10 @@
 @media (max-width: 600px) and (max-aspect-ratio: 3/1) {
   .signage-brand {
     padding-top: 32px;
+  }
+
+  .signage-brand img {
+    max-width: calc(100vw - 64px);
   }
 
   .signage-content {
