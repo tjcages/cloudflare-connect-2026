@@ -1,12 +1,13 @@
 .connect-signage {
   min-height: 100svh;
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: auto 1fr;
   padding: clamp(24px, 4vw, 72px);
 }
 
+/* Keep the original shader below the reading area; its settings stay intact. */
 .signage-shader {
-  height: 58%;
+  height: 30%;
 }
 
 .signage-frame {
@@ -14,68 +15,127 @@
 }
 
 .signage-brand {
-  padding-top: clamp(12px, 2vh, 28px);
+  padding-top: 12px;
 }
 
 .signage-content {
   align-self: center;
-  padding: 40px 0 180px;
+  padding: 32px 0 12vh;
+  width: 100%;
 }
 
 .signage-title {
-  margin-top: 32px;
-  margin-bottom: 36px;
-  font-size: clamp(28px, 5.2vw, 112px);
+  margin-bottom: 5vh;
+  font-size: clamp(48px, 8vw, 176px);
   line-height: 1.08;
-  min-height: 2.16em;
 }
 
 .signage-schedule {
-  gap: 12px;
-  min-height: 60px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  width: 100%;
+  gap: 4vw;
+  min-height: 100px;
 }
 
-.signage-session {
-  position: relative;
-  font-size: clamp(11px, 1.15vw, 22px);
-  line-height: 1.6;
+.signage-day-label {
+  font-size: clamp(18px, 2.1vw, 48px);
+  line-height: 1.2;
+  margin-bottom: 12px;
+}
+
+.signage-hours {
+  font-size: clamp(20px, 2.7vw, 64px);
+  line-height: 1.2;
   white-space: nowrap;
-  transition: color 250ms;
 }
 
-.signage-session-dot {
-  position: absolute;
-  left: -16px;
-  top: calc(50% - 2px);
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: currentColor;
-  opacity: 0;
+.signage-happy-hour {
+  margin-top: 5vh;
+  min-height: 1.2em;
+  font-size: clamp(18px, 2.6vw, 60px);
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
-.signage-session[aria-current="true"] .signage-session-dot {
-  opacity: 1;
-}
+/* LED ribbon: size type from the scarce screen height, not a desktop cap.
+   Target: 7200 × 1620 (40:9), on a 29-foot-wide LED ribbon. */
+@media (min-aspect-ratio: 3/1) {
+  .connect-signage {
+    height: 100svh;
+    grid-template-rows: 1fr;
+    padding: 5vh 7vw;
+  }
 
-.signage-footer {
-  gap: 20px;
-  min-height: 40px;
-  padding: 8px 12px;
-  background: var(--color-background-base);
-}
+  .signage-brand {
+    display: none;
+  }
 
-@media (max-width: 600px) {
+  .signage-frame {
+    inset: 3vh;
+  }
+
   .signage-content {
-    padding: 56px 0 96px;
+    align-self: start;
+    padding: 0;
   }
 
   .signage-title {
-    font-size: clamp(24px, 5.4vw, 32px);
+    font-size: 25vh;
+    margin-bottom: 4vh;
   }
 
-  .signage-footer {
-    flex-direction: column;
-    gap: 8px;
+  .signage-schedule {
+    min-height: 26vh;
+    gap: 4vw;
+  }
+
+  .signage-day-label {
+    font-size: 9vh;
+    margin-bottom: 1vh;
+  }
+
+  .signage-hours {
+    font-size: min(13vh, 3.8vw);
+  }
+
+  .signage-happy-hour {
+    font-size: 11vh;
+    margin-top: 4vh;
+  }
+
+  .signage-shader {
+    height: 25%;
+  }
+}
+
+@media (max-width: 600px) and (max-aspect-ratio: 3/1) {
+  .signage-content {
+    padding: 40px 0 15vh;
+  }
+
+  .signage-title {
+    font-size: 10vw;
+    margin-bottom: 32px;
+  }
+
+  .signage-schedule {
+    grid-template-columns: 1fr;
+    gap: 20px;
+    min-height: 208px;
+  }
+
+  .signage-day-label {
+    font-size: 16px;
+    margin-bottom: 4px;
+  }
+
+  .signage-hours {
+    font-size: 23px;
+  }
+
+  .signage-happy-hour {
+    margin-top: 32px;
+    font-size: 4vw;
   }
 }

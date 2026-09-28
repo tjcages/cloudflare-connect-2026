@@ -1,21 +1,18 @@
 import { useEffect, useRef, useState } from "react";
 import WordFade from "@/components/_animations/shared/swap/WordFade";
 import CornerDots from "@/components/CornerDots";
-import Eyebrow from "@/components/Eyebrow";
 import ConnectHeaderLogo from "@/components/header/ConnectHeaderLogo";
 import Scramble from "@/components/scramble/Scramble";
-import { setIntervalOnVisible, setTimeoutOnVisible } from "@/utils/visibility-timers";
+import { setTimeoutOnVisible } from "@/utils/visibility-timers";
 import ConnectHeroTwizzler from "../hero/ConnectHeroTwizzler";
 import { CONNECT_HERO_RAIN_DEFAULT } from "../hero/rain-control-settings";
 import { CONNECT_HERO_TWIZZLER_DEFAULTS } from "../hero/twizzler-defaults";
-import { SIGNAGE_DATE, SIGNAGE_HOLD_MS, SIGNAGE_SESSIONS } from "./sessions";
+import { EXHIBITION_HOURS, HAPPY_HOUR } from "./schedule";
 import "./signage.css";
 
 export default function Signage() {
   const root = useRef<HTMLElement>(null);
-  const [index, setIndex] = useState(0);
   const [scheduleVisible, setScheduleVisible] = useState(false);
-  const session = SIGNAGE_SESSIONS[index];
 
   useEffect(() => {
     const reveal = setTimeoutOnVisible({
@@ -23,15 +20,7 @@ export default function Signage() {
       timeout: 1100,
       callback: () => setScheduleVisible(true),
     });
-    const cycle = setIntervalOnVisible({
-      element: root.current,
-      interval: SIGNAGE_HOLD_MS,
-      callback: () => setIndex((current) => (current + 1) % SIGNAGE_SESSIONS.length),
-    });
-    return () => {
-      reveal?.();
-      cycle?.cleanup();
-    };
+    return () => reveal?.();
   }, []);
 
   return (
@@ -57,39 +46,35 @@ export default function Signage() {
       </header>
 
       <div className="signage-content relative z-10 flex flex-col items-center text-center">
-        <Eyebrow direction="center" title="Cloudflare Connect · Sessions" />
-        <h1 className="signage-title text-heading-hero text-text-base" aria-label={session.lines.join(" ")}>
+        <h1 className="signage-title text-heading-hero text-text-base" aria-label="Exhibition Hall">
           <span aria-hidden="true">
-            {session.lines.map((line, lineIndex) => (
-              <WordFade key={lineIndex} initial text={line} className="justify-center" />
-            ))}
+            <WordFade initial text="Exhibition Hall" className="justify-center" />
           </span>
         </h1>
 
-        <div className="signage-schedule flex flex-col items-center" aria-label="Tuesday, October 20 session schedule">
+        <div className="signage-schedule" aria-label="Exhibition Hall hours">
           {scheduleVisible &&
-            SIGNAGE_SESSIONS.map((item, itemIndex) => (
-              <div
-                className={`signage-session text-decorative-small ${itemIndex === index ? "text-orange-900" : "text-text-base"}`}
-                key={item.id}
-                aria-current={itemIndex === index ? "true" : undefined}
-              >
-                <span className="signage-session-dot" aria-hidden="true" />
+            EXHIBITION_HOURS.map(({ day, hours }) => (
+              <div className="signage-day" key={day}>
                 <Scramble
-                  key={`${item.id}-${index}`}
+                  className="signage-day-label text-decorative-small text-text-base"
                   preset="eyebrow-hero"
                   from="center"
-                  text={`${item.time} · ${item.speaker}`}
+                  text={day}
+                />
+                <Scramble
+                  className="signage-hours text-decorative-small text-text-base"
+                  preset="eyebrow-hero"
+                  from="center"
+                  text={hours}
                 />
               </div>
             ))}
         </div>
+        <div className="signage-happy-hour text-decorative-small text-text-base">
+          {scheduleVisible && <Scramble preset="eyebrow-hero" from="center" text={HAPPY_HOUR} />}
+        </div>
       </div>
-
-      <footer className="signage-footer relative z-10 flex items-center justify-between text-decorative-small text-text-base">
-        <Scramble text={SIGNAGE_DATE} />
-        <Scramble key={session.id} text={`${String(index + 1).padStart(2, "0")} / 02 · ${session.track}`} />
-      </footer>
     </section>
   );
 }
