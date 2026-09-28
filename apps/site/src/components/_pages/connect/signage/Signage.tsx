@@ -13,7 +13,7 @@ import "./signage.css";
 export default function Signage() {
   const root = useRef<HTMLElement>(null);
   const [scheduleVisible, setScheduleVisible] = useState(false);
-  const [titleCycle, setTitleCycle] = useState(0);
+  const [animationCycle, setAnimationCycle] = useState(0);
 
   useEffect(() => {
     const reveal = setTimeoutOnVisible({
@@ -24,13 +24,15 @@ export default function Signage() {
     const cycle = setIntervalOnVisible({
       element: root.current,
       interval: 30000,
-      callback: () => setTitleCycle((current) => current + 1),
+      callback: () => setAnimationCycle((current) => current + 1),
     });
     return () => {
       reveal?.();
       cycle.cleanup();
     };
   }, []);
+
+  const sweepDirection = animationCycle % 2 === 0 ? 1 : -1;
 
   return (
     <section
@@ -56,7 +58,7 @@ export default function Signage() {
         <div className="signage-content relative z-10 text-center">
           <div className="signage-title-region flex items-center justify-center">
             <h1 className="signage-title text-heading-hero text-text-base" aria-label="Exhibition Hall">
-              <RainText text="Exhibition Hall" headline cycle={titleCycle} direction={titleCycle % 2 === 0 ? 1 : -1} />
+              <RainText text="Exhibition Hall" headline cycle={animationCycle} direction={sweepDirection} />
             </h1>
           </div>
 
@@ -68,16 +70,16 @@ export default function Signage() {
                   key={day}
                 >
                   <div className="signage-day-label text-decorative-small text-text-base">
-                    <RainText text={day} active={scheduleVisible} />
+                    <RainText text={day} active={scheduleVisible} cycle={animationCycle} direction={sweepDirection} />
                   </div>
                   <div className="signage-hours text-decorative-small text-text-base">
-                    <RainText text={hours} active={scheduleVisible} />
+                    <RainText text={hours} active={scheduleVisible} cycle={animationCycle} direction={sweepDirection} />
                   </div>
                 </div>
               ))}
             </div>
             <div className="signage-happy-hour relative flex items-center justify-center bg-background-base p-8 text-decorative-small text-text-base before:inside-border before:border-border-default">
-              <RainText text={HAPPY_HOUR} active={scheduleVisible} />
+              <RainText text={HAPPY_HOUR} active={scheduleVisible} cycle={animationCycle} direction={sweepDirection} />
             </div>
           </div>
         </div>
@@ -117,14 +119,14 @@ function RainText({
         direction,
         background: "transparent",
         noiseColor: "var(--color-orange-900)",
+        durationScale: headline ? 3 : 1.6,
+        replay: cycle > 0,
         ...(headline && {
-          durationScale: 3,
           sweepDuration: 450,
           orderedSweep: true,
           noiseDurationMs: 70,
           sweepEase: (progress: number) => progress,
           preserveCharacterWidths: true,
-          replay: cycle > 0,
         }),
       }));
     });

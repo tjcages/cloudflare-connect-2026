@@ -4,8 +4,7 @@ Route: `/connect/signage/`. Copy lives in `schedule.ts`.
 
 All signage lines use the existing marketing code-snippet `rainLayer` transition:
 `01` characters resolve through the shared orange flash into their final color.
-Hours remain visible after the entrance so visitors can read them without
-waiting for a rotation. The original Connect hero shader animates behind the
+Hours remain readable between synchronized 30-second animation cycles. The original Connect hero shader animates behind the
 solid white schedule grid and clips at the inner frame.
 
 ## Venue display
@@ -25,10 +24,13 @@ solid white schedule grid and clips at the inner frame.
 - The inner frame clips the original shader; a light-gray grid sits outside it.
 - Text dimensions and both grid rows are reserved before the entrance animation
   so the title does not move when the schedule appears.
-- The title repeats the existing code-snippet `rainLayer` transition every
+- All text repeats the existing code-snippet `rainLayer` transition together every
   30 visible seconds, alternating sweep direction. The initial entrance travels
   left to right; the 30-second replay travels right to left; 60 seconds returns
-  to left to right. Its orange flash settles back to black.
+  to left to right. Each orange flash settles back to black. The initial schedule
+  entrance follows the title after 1.1 seconds; subsequent sweeps start together.
+- Schedule text runs at 1.6× the original animation duration (roughly 0.6–1
+  second per line), slower than before while remaining quicker than the title.
 - The title opts into a 1.35-second steady directional sweep and a roughly
   2.37-second total transition. The shared helper retains its original defaults
   for code snippets. The heading stays in STK Bureau Sans. Its glyph positions
