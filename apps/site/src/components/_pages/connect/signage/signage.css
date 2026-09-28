@@ -1,22 +1,18 @@
 .connect-signage {
   height: 100svh;
-  padding: clamp(18px, 4vh, 72px);
-  background-color: var(--color-background-muted);
-  background-image:
-    linear-gradient(color-mix(in srgb, var(--color-neutral-7) 35%, transparent) 1px, transparent 1px),
-    linear-gradient(90deg, color-mix(in srgb, var(--color-neutral-7) 35%, transparent) 1px, transparent 1px);
-  background-size: clamp(24px, 5vw, 320px) clamp(24px, 5vw, 320px);
+  padding: clamp(16px, 4vh, 40px);
 }
 
-/* The inner frame is the shader's clipping boundary. */
+/* GridArea, white surfaces, overlay borders and dashed dividers are the
+   same components/tokens used by the marketing Section and Pillars grids. */
 .signage-frame {
   height: 100%;
   display: grid;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto minmax(0, 1fr);
 }
 
 .signage-brand {
-  padding-top: 12px;
+  padding-top: 40px;
 }
 
 .signage-brand a > span {
@@ -32,138 +28,102 @@
 }
 
 .signage-content {
-  align-self: center;
-  padding: 32px 4vw 8vh;
-  width: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  padding-inline: 40px;
+}
+
+.signage-title-region {
+  min-height: 0;
 }
 
 .signage-title {
-  margin-bottom: 5vh;
-  font-size: clamp(48px, 8vw, 176px);
-  line-height: 1.08;
+  font-size: clamp(48px, 9vw, 200px);
+  line-height: calc(60 / 56);
 }
 
+/* Both rows and every cell exist before their text is revealed. */
 .signage-schedule {
+  height: 48vh;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  align-self: end;
   width: 100%;
-  gap: 2vw;
-  min-height: 100px;
 }
 
+.signage-days,
 .signage-day,
 .signage-happy-hour {
-  background: color-mix(in srgb, var(--color-background-base) 88%, transparent);
-}
-
-.signage-day {
-  padding: 18px 12px;
+  min-width: 0;
+  min-height: 0;
 }
 
 .signage-day-label {
   font-size: clamp(18px, 2.1vw, 48px);
   line-height: 1.2;
-  margin-bottom: 12px;
 }
 
 .signage-hours {
   font-size: clamp(20px, 2.7vw, 64px);
   line-height: 1.2;
-  white-space: nowrap;
 }
 
 .signage-happy-hour {
-  margin-top: 3vh;
-  min-height: 1.2em;
-  width: max-content;
-  max-width: 100%;
-  padding: 12px 24px;
   font-size: clamp(18px, 2.6vw, 60px);
   line-height: 1.2;
-  white-space: nowrap;
 }
 
-/* Native target: 7200 × 1620 (40:9). Scale from LED height for distance. */
+/* Native target: 7200 × 1620 (40:9). Only scale type/layout for the LED;
+   colors, fonts, grid artwork, surfaces and divider rendering remain shared. */
 @media (min-aspect-ratio: 3/1) {
   .signage-frame {
-    grid-template-rows: 1fr;
+    grid-template-rows: minmax(0, 1fr);
   }
 
   .signage-brand {
     position: absolute;
-    top: 5vh;
-    left: 3vw;
-    z-index: 10;
+    top: 8vh;
+    left: 40px;
     padding: 0;
   }
 
-  .signage-content {
-    align-self: center;
-    padding: 5vh 5vw 0;
-  }
-
   .signage-title {
-    font-size: 25vh;
-    margin-bottom: 4vh;
-  }
-
-  .signage-schedule {
-    min-height: 29vh;
-    gap: 2vw;
-  }
-
-  .signage-day {
-    padding: 2vh 1vw;
+    font-size: 30vh;
   }
 
   .signage-day-label {
-    font-size: 9vh;
-    margin-bottom: 1vh;
+    font-size: 6vh;
   }
 
-  .signage-hours {
-    font-size: min(13vh, 3.8vw);
-  }
-
+  .signage-hours,
   .signage-happy-hour {
-    font-size: 11vh;
-    margin-top: 3vh;
-    padding: 1vh 2vw;
+    font-size: 10vh;
   }
 }
 
 @media (max-width: 600px) and (max-aspect-ratio: 3/1) {
+  .signage-brand {
+    padding-top: 32px;
+  }
+
   .signage-content {
-    padding: 40px 5vw 15vh;
+    padding-inline: 16px;
   }
 
   .signage-title {
-    font-size: 10vw;
-    margin-bottom: 32px;
-  }
-
-  .signage-schedule {
-    grid-template-columns: 1fr;
-    gap: 12px;
-    min-height: 208px;
-  }
-
-  .signage-day {
-    padding: 8px 12px;
+    font-size: 9vw;
   }
 
   .signage-day-label {
-    font-size: 16px;
-    margin-bottom: 4px;
+    font-size: 2.4vw;
   }
 
   .signage-hours {
-    font-size: 23px;
+    font-size: 2.1vw;
   }
 
   .signage-happy-hour {
-    margin-top: 20px;
-    padding: 8px 12px;
-    font-size: 3.7vw;
+    font-size: 3vw;
   }
 }
