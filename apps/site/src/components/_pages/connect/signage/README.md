@@ -15,10 +15,11 @@ solid white schedule grid and clips at the inner frame.
 - Ribbon layout activates above 3:1 and sizes type from viewport height.
 - At native size: headline 550.8 px; days and hours 113.4 px; Happy Hour
   162 px. All final copy uses the marketing text token (black in light mode).
-- Three daily schedules share the first grid row. Happy Hour spans the full
-  second row. Both rows are the same height inside a 40vh schedule area, with
-  16px gutters between rows and between day cards. Bottom and side insets
-  match at 40px (16px on narrow screens).
+- At 3:1 and wider, all four items use one equal-height four-column row inside
+  the 40vh schedule area. Happy Hour is the fourth card, with its label above
+  its time. Narrower layouts keep the three day cards above a full-width Happy
+  Hour card. Gutters are 16px; bottom and side insets match at 40px (16px on
+  narrow screens).
 - Shared `GridArea`, overlay borders, and marketing spacing/color tokens supply
   the grid styling. Every card has a fully opaque white surface.
 - The inner frame clips the original shader; a light-gray grid sits outside it.
