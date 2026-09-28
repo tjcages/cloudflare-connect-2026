@@ -14,7 +14,7 @@ solid white schedule grid and clips at the inner frame.
 - Physical size: **29’11.1” × 6’8.8”**.
 - Bottom edge: **11’7” above the floor**.
 - Ribbon layout activates above 3:1 and sizes type from viewport height.
-- At native size: headline 486 px; days and hours 113.4 px; Happy Hour
+- At native size: headline 550.8 px; days and hours 113.4 px; Happy Hour
   162 px. All final copy uses the marketing text token (black in light mode).
 - Three daily schedules share the first grid row. Happy Hour spans the full
   second row. Both rows are the same height inside a 40vh schedule area, with
@@ -31,10 +31,11 @@ solid white schedule grid and clips at the inner frame.
   to left to right. Its orange flash settles back to black.
 - The title opts into a 1.35-second steady directional sweep and a roughly
   2.37-second total transition. The shared helper retains its original defaults
-  for code snippets. The heading uses the marketing code snippets’
-  Paper Mono so letters and digits share the same advance at the same font size.
-  Their positions are reserved in em units after the font loads, and the `01`
-  noise uses the orange marketing token throughout the sweep.
+  for code snippets. The heading stays in STK Bureau Sans. Its glyph positions
+  are reserved in em units after the font loads, while a single full-size
+  orange `0` or `1` moves through the line at a time. The ordered 70ms binary
+  pulse prevents adjacent digits from overlapping despite proportional letter
+  widths. All signage `01` transitions use the orange marketing token.
 - Replays leave letters visible ahead of the sweep. Only the advancing wave
   changes them, eliminating the previous full-title disappearance and reflow.
 - A soft white radial gradient behind the title reduces shader contrast without

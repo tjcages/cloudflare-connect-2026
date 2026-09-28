@@ -60,6 +60,8 @@ export function rainLayer({
   noiseColor = "var(--color-text-subtle)",
   durationScale = 1,
   sweepDuration,
+  orderedSweep = false,
+  noiseDurationMs,
   sweepEase = SWEEP_EASE,
   preserveCharacterWidths = false,
   replay = false,
@@ -75,6 +77,10 @@ export function rainLayer({
   /** Slow the existing noise, orange flash and sweep together. */
   durationScale?: number;
   sweepDuration?: number;
+  /** Move the noise front in strict reading order, without per-cell jitter. */
+  orderedSweep?: boolean;
+  /** Shorten individual binary cells while keeping the overall sweep timing. */
+  noiseDurationMs?: number;
   sweepEase?: (progress: number) => number;
   /** Reserve proportional glyph widths while the binary characters change. */
   preserveCharacterWidths?: boolean;
@@ -105,7 +111,7 @@ export function rainLayer({
       len: Math.max(to.length, el.textContent?.length ?? 0, 1),
       bare,
       row,
-      trigger: sweep + Math.random() * 1.8,
+      trigger: sweep + (orderedSweep ? 0 : Math.random() * 1.8),
       resolveAt: 0,
       settleAt: 0,
       nextTick: 0,
@@ -215,7 +221,8 @@ export function rainLayer({
         if (!cell.live) {
           if (fronts[cell.row] < cell.trigger) continue;
           cell.live = true;
-          cell.resolveAt = t + 70 + Math.random() * 55;
+          cell.resolveAt =
+            t + (noiseDurationMs === undefined ? 70 + Math.random() * 55 : noiseDurationMs / durationScale);
           cell.el.style.color = noiseColor;
           if (!cell.bare) {
             cell.el.style.visibility = "";
