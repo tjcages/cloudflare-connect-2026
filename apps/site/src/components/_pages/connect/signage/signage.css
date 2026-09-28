@@ -38,8 +38,25 @@
 }
 
 .signage-title {
+  position: relative;
+  isolation: isolate;
   font-size: clamp(48px, 9vw, 200px);
   line-height: calc(60 / 56);
+}
+
+/* A soft white veil protects the title while leaving the shader visible around it. */
+.signage-title::before {
+  content: "";
+  position: absolute;
+  inset: -45% -18%;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse at center,
+    var(--color-background-base) 35%,
+    color-mix(in srgb, var(--color-background-base) 88%, transparent) 55%,
+    transparent 75%
+  );
 }
 
 /* Both rows and every cell exist before their text is revealed. */

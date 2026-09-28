@@ -29,12 +29,15 @@ solid white schedule grid and clips at the inner frame.
   30 visible seconds, alternating sweep direction. The initial entrance travels
   left to right; the 30-second replay travels right to left; 60 seconds returns
   to left to right. Its orange flash settles back to black.
-- The title opts into a 1.8-second steady directional sweep and a roughly
-  3.16-second total transition. The shared helper retains its original defaults
+- The title opts into a 1.35-second steady directional sweep and a roughly
+  2.37-second total transition. The shared helper retains its original defaults
   for code snippets. Proportional glyph advances are measured after fonts load,
-  reserved in em units, and the binary digits fit within those widths.
+  reserved in em units. Binary digits use one uniform, proportional size that
+  fits the narrowest glyph; they are never stretched or rotated.
 - Replays leave letters visible ahead of the sweep. Only the advancing wave
   changes them, eliminating the previous full-title disappearance and reflow.
+- A soft white radial gradient behind the title reduces shader contrast without
+  adding a visible panel or changing the shader.
 - The logo sits 8vh below the inner frame top in the LED layout.
 
 ## Final delivery specification (future work)

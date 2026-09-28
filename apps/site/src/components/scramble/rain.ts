@@ -18,7 +18,6 @@ type RainCell = {
   nextTick: number;
   live: boolean;
   done: boolean;
-  noiseScale: number;
 };
 
 function parseHtml(html: string): ParsedLine[] {
@@ -110,7 +109,6 @@ export function rainLayer({
       nextTick: 0,
       live: false,
       done: false,
-      noiseScale: 1,
     });
   };
 
@@ -151,6 +149,7 @@ export function rainLayer({
   }
   layerEl.appendChild(frag);
 
+  let noiseScale = 1;
   if (preserveCharacterWidths) {
     // Read the complete settled line before any writes or noise replacements.
     // This retains the font's glyph advances instead of letting 0/1 reflow it.
@@ -165,11 +164,11 @@ export function rainLayer({
     layerEl.appendChild(probe);
     const digitWidth = probe.getBoundingClientRect().width;
     probe.remove();
-    for (const cell of cells) {
-      const width = widths[spans.indexOf(cell.el)];
-      if (width !== undefined && digitWidth > 0) {
-        cell.noiseScale = Math.min(1, (width * fontSize) / digitWidth);
-      }
+    // One proportional size for every binary digit: never stretch narrow
+    // letters' replacements or let adjacent digits overlap.
+    const glyphWidths = spans.flatMap((el, i) => (el.textContent?.trim() ? [widths[i] * fontSize] : []));
+    if (digitWidth > 0 && glyphWidths.length) {
+      noiseScale = Math.min(1, Math.min(...glyphWidths) / digitWidth);
     }
     spans.forEach((el, i) => {
       el.style.display = "inline-block";
@@ -227,7 +226,7 @@ export function rainLayer({
           cell.live = true;
           cell.resolveAt = t + 70 + Math.random() * 55;
           cell.el.style.color = "var(--color-text-subtle)";
-          if (preserveCharacterWidths) cell.el.style.transform = `scaleX(${cell.noiseScale})`;
+          if (preserveCharacterWidths) cell.el.style.transform = `scale(${noiseScale})`;
           if (!cell.bare) {
             cell.el.style.visibility = "";
             cell.el.style.backgroundColor = background;

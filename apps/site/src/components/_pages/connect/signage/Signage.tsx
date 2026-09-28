@@ -117,7 +117,7 @@ function RainText({
         direction,
         background: "transparent",
         ...(headline && {
-          durationScale: 4,
+          durationScale: 3,
           sweepDuration: 450,
           sweepEase: (progress: number) => progress,
           preserveCharacterWidths: true,
