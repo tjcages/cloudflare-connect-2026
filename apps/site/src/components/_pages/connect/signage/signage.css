@@ -84,7 +84,7 @@
 
 /* Native target: 7200 × 1620 (40:9). Only scale type/layout for the LED;
    colors, fonts, grid artwork, surfaces and divider rendering remain shared. */
-@media (min-aspect-ratio: 3/1) {
+@media (min-aspect-ratio: 5/2) {
   .signage-frame {
     grid-template-rows: minmax(0, 1fr);
   }
@@ -139,7 +139,7 @@
   }
 }
 
-@media (max-width: 600px) and (max-aspect-ratio: 3/1) {
+@media (max-width: 600px) and (aspect-ratio < 5/2) {
   .signage-brand {
     padding-top: 32px;
   }
