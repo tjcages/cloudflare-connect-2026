@@ -149,7 +149,6 @@ export function rainLayer({
   }
   layerEl.appendChild(frag);
 
-  let noiseScale = 1;
   if (preserveCharacterWidths) {
     // Read the complete settled line before any writes or noise replacements.
     // This retains the font's glyph advances instead of letting 0/1 reflow it.
@@ -158,18 +157,8 @@ export function rainLayer({
     );
     const fontSize = Number.parseFloat(getComputedStyle(layerEl).fontSize);
     const widths = spans.map((el) => el.getBoundingClientRect().width / fontSize);
-    const probe = document.createElement("span");
-    probe.style.cssText = "position:absolute;visibility:hidden";
-    probe.textContent = "0";
-    layerEl.appendChild(probe);
-    const digitWidth = probe.getBoundingClientRect().width;
-    probe.remove();
-    // One proportional size for every binary digit: never stretch narrow
-    // letters' replacements or let adjacent digits overlap.
-    const glyphWidths = spans.flatMap((el, i) => (el.textContent?.trim() ? [widths[i] * fontSize] : []));
-    if (digitWidth > 0 && glyphWidths.length) {
-      noiseScale = Math.min(1, Math.min(...glyphWidths) / digitWidth);
-    }
+    // Keep each original glyph advance fixed so the title itself cannot shift.
+    // The 0/1 noise stays at the inherited title font size and normal proportions.
     spans.forEach((el, i) => {
       el.style.display = "inline-block";
       el.style.width = `${widths[i]}em`;
@@ -226,7 +215,6 @@ export function rainLayer({
           cell.live = true;
           cell.resolveAt = t + 70 + Math.random() * 55;
           cell.el.style.color = "var(--color-text-subtle)";
-          if (preserveCharacterWidths) cell.el.style.transform = `scale(${noiseScale})`;
           if (!cell.bare) {
             cell.el.style.visibility = "";
             cell.el.style.backgroundColor = background;
@@ -234,7 +222,6 @@ export function rainLayer({
         }
         if (t >= cell.resolveAt) {
           cell.el.textContent = cell.to;
-          if (preserveCharacterWidths) cell.el.style.transform = "";
           if (cell.to.trim()) {
             cell.el.style.color = "var(--color-orange-900)";
             cell.settleAt = cell.resolveAt + 130;
