@@ -1,0 +1,18 @@
+---
+import Signage from "@/components/_pages/connect/signage/Signage";
+import Layout from "@/layouts/Layout.astro";
+---
+
+<Layout
+  title="Cloudflare Connect Signage"
+  description="Cloudflare Connect 2026 session signage — James Snell and Sunil Pai, Tuesday October 20."
+  header={false}
+  footer={false}
+  cta={false}
+  frame={false}
+  zoom={false}
+  interfaceMode={false}
+  lockTheme="light"
+>
+  <Signage client:load />
+</Layout>

@@ -1,0 +1,81 @@
+.connect-signage {
+  min-height: 100svh;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  padding: clamp(24px, 4vw, 72px);
+}
+
+.signage-shader {
+  height: 58%;
+}
+
+.signage-frame {
+  inset: clamp(12px, 2vw, 32px);
+}
+
+.signage-brand {
+  padding-top: clamp(12px, 2vh, 28px);
+}
+
+.signage-content {
+  align-self: center;
+  padding: 40px 0 180px;
+}
+
+.signage-title {
+  margin-top: 32px;
+  margin-bottom: 36px;
+  font-size: clamp(28px, 5.2vw, 112px);
+  line-height: 1.08;
+  min-height: 2.16em;
+}
+
+.signage-schedule {
+  gap: 12px;
+  min-height: 60px;
+}
+
+.signage-session {
+  position: relative;
+  font-size: clamp(11px, 1.15vw, 22px);
+  line-height: 1.6;
+  white-space: nowrap;
+  transition: color 250ms;
+}
+
+.signage-session-dot {
+  position: absolute;
+  left: -16px;
+  top: calc(50% - 2px);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0;
+}
+
+.signage-session[aria-current="true"] .signage-session-dot {
+  opacity: 1;
+}
+
+.signage-footer {
+  gap: 20px;
+  min-height: 40px;
+  padding: 8px 12px;
+  background: var(--color-background-base);
+}
+
+@media (max-width: 600px) {
+  .signage-content {
+    padding: 56px 0 96px;
+  }
+
+  .signage-title {
+    font-size: clamp(24px, 5.4vw, 32px);
+  }
+
+  .signage-footer {
+    flex-direction: column;
+    gap: 8px;
+  }
+}
