@@ -188,13 +188,14 @@
   justify-content: stretch;
 }
 
-/* Two cards get large type; the all-days stack shrinks to fit four rows. */
+/* Sized so "Monday - Welcome Reception" fits one card (~83% width); the
+   all-days stack shrinks further to fit four rows. */
 .connect-signage[data-layout="horizontal"] .signage-day-label,
 .connect-signage[data-layout="horizontal"] .signage-hours,
 .connect-signage[data-layout="horizontal"] .signage-happy-hour-time {
-  font-size: min(2.2cqw, calc(5cqw / var(--signage-cards)));
+  font-size: min(1.5cqw, calc(5cqw / var(--signage-cards)));
 }
 
 .connect-signage[data-layout="horizontal"] .signage-happy-hour-label {
-  font-size: min(2.6cqw, calc(5.8cqw / var(--signage-cards)));
+  font-size: min(1.8cqw, calc(5.8cqw / var(--signage-cards)));
 }
