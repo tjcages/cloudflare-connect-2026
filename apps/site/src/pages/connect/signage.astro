@@ -1,0 +1,18 @@
+---
+import Signage from "@/components/_pages/connect/signage/Signage";
+import Layout from "@/layouts/Layout.astro";
+---
+
+<Layout
+  title="Cloudflare Connect Signage"
+  description="The Hub hours at Cloudflare Connect: Monday 5–7 PM, Tuesday and Wednesday 9 AM–5 PM. Happy Hour at 5 PM in the Hub."
+  header={false}
+  footer={false}
+  cta={false}
+  frame={false}
+  zoom={false}
+  interfaceMode={false}
+  lockTheme="light"
+>
+  <Signage client:load />
+</Layout>
