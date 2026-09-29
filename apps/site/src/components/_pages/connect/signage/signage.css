@@ -86,7 +86,7 @@
 .signage-title::before {
   content: "";
   position: absolute;
-  inset: -50% -30%;
+  inset: -50% -55%;
   z-index: -1;
   pointer-events: none;
   /* closest-side reaches 0 exactly at the box edge (farthest-corner left the
