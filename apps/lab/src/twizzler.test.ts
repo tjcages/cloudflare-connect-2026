@@ -696,3 +696,19 @@ describe("Twizzler", () => {
     expect(span).toEqual({ x1: 36, y1: 6, x2: 124, y2: 54 });
   });
 });
+
+describe("orangeWaveY loop", () => {
+  it("returns to its start pose after one loop with the original seam velocity", () => {
+    const loop = 28.5;
+    for (const [x, z] of [
+      [0.3, -1.2],
+      [2.1, 0.7],
+    ] as const) {
+      expect(orangeWaveY(x, z, loop, 1, 6, loop)).toBeCloseTo(orangeWaveY(x, z, 0, 1, 6, loop), 10);
+      const dt = 1e-4;
+      const looped = (orangeWaveY(x, z, dt, 1, 6, loop) - orangeWaveY(x, z, 0, 1, 6, loop)) / dt;
+      const free = (orangeWaveY(x, z, dt, 1, 6) - orangeWaveY(x, z, 0, 1, 6)) / dt;
+      expect(looped).toBeCloseTo(free, 3);
+    }
+  });
+});

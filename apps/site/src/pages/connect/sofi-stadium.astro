@@ -1,0 +1,19 @@
+---
+import SofiStadium from "@/components/_pages/connect/sofi-stadium/SofiStadium";
+import Layout from "@/layouts/Layout.astro";
+---
+
+<Layout
+  title="SoFi Stadium | Cloudflare Connect"
+  description="Twizzler, rain and logo layers for the SoFi Stadium 6:1 board, each exported as a transparent 30-second loop."
+  cta={false}
+  footer={false}
+  frame={false}
+  header={false}
+  interfaceMode={false}
+  lockTheme="light"
+  main={false}
+  zoom={false}
+>
+  <SofiStadium client:only="react" />
+</Layout>

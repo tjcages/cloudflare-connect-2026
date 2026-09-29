@@ -478,19 +478,40 @@ function rgbToHex(c: { r: number; g: number; b: number }): string {
   return `#${channel(c.r)}${channel(c.g)}${channel(c.b)}`;
 }
 
+/**
+ * Time phase `t * w`, or — when `loop` (animation-time period) is set — a phase
+ * that returns to itself every `loop`: the rate is rounded to a whole number of
+ * turns per loop, and a one-turn sine carries the remainder so the rate at the
+ * seam still equals `w`.
+ */
+export function orangeWavePhase(t: number, w: number, loop = 0): number {
+  if (!(loop > 0)) return t * w;
+  const omega = (2 * Math.PI) / loop;
+  const turns = Math.round(w / omega);
+  return turns * omega * t + ((w - turns * omega) / omega) * Math.sin(omega * t);
+}
+
 /** Multi-sine ribbon height from the orange-wave reference. */
-export function orangeWaveY(x: number, z: number, t: number, amplitude = 1, xRange = ORANGE_WAVE_X_RANGE): number {
+export function orangeWaveY(
+  x: number,
+  z: number,
+  t: number,
+  amplitude = 1,
+  xRange = ORANGE_WAVE_X_RANGE,
+  loop = 0,
+): number {
+  const p = (w: number) => orangeWavePhase(t, w, loop);
   let y = 0;
-  y += 0.42 * Math.sin(x * 0.42 + z * 0.3 + t * 0.09);
-  y += 0.28 * Math.sin(x * 0.95 - z * 0.48 + t * 0.06 + 1.0);
-  y += 0.16 * Math.sin(x * 1.65 + z * 0.95 - t * 0.14 + 0.5);
-  y += 0.11 * Math.sin(x * 2.3 - z * 1.35 + t * 0.11 - 0.7);
-  y += 0.07 * Math.sin(x * 3.1 + z * 1.8 - t * 0.2 + 1.8);
-  y += 0.045 * Math.sin(x * 4.2 - z * 2.4 + t * 0.26 + 0.9);
-  y += 0.025 * Math.sin(x * 5.6 + z * 3.1 - t * 0.33);
-  y += 0.015 * Math.sin(x * 7.0 - z * 3.8 + t * 0.41);
-  y += 0.05 * Math.sin(z * 1.9 + t * 0.19) * Math.sin(x * 0.3 + 0.4);
-  y += 0.03 * Math.sin(z * 2.9 - t * 0.27) * Math.cos(x * 0.45);
+  y += 0.42 * Math.sin(x * 0.42 + z * 0.3 + p(0.09));
+  y += 0.28 * Math.sin(x * 0.95 - z * 0.48 + p(0.06) + 1.0);
+  y += 0.16 * Math.sin(x * 1.65 + z * 0.95 + p(-0.14) + 0.5);
+  y += 0.11 * Math.sin(x * 2.3 - z * 1.35 + p(0.11) - 0.7);
+  y += 0.07 * Math.sin(x * 3.1 + z * 1.8 + p(-0.2) + 1.8);
+  y += 0.045 * Math.sin(x * 4.2 - z * 2.4 + p(0.26) + 0.9);
+  y += 0.025 * Math.sin(x * 5.6 + z * 3.1 + p(-0.33));
+  y += 0.015 * Math.sin(x * 7.0 - z * 3.8 + p(0.41));
+  y += 0.05 * Math.sin(z * 1.9 + p(0.19)) * Math.sin(x * 0.3 + 0.4);
+  y += 0.03 * Math.sin(z * 2.9 + p(-0.27)) * Math.cos(x * 0.45);
   // Soft longitudinal envelope scales with visible X range (wide canvases expand X).
   const edgeOuter = xRange * (8.5 / ORANGE_WAVE_X_RANGE);
   const edgeInner = xRange * (3.8 / ORANGE_WAVE_X_RANGE);
@@ -1090,16 +1111,21 @@ export function twizzlerSoftenFiberCorners(
   }
 }
 
+/** `loopSec`: real seconds after which the ribbon returns exactly to its start pose. */
+export type TwizzlerTimeOptions = { loopSec?: number };
+
 export function buildTwizzlerLines(
   width: number,
   height: number,
   timeSec: number,
   input: Partial<TwizzlerSettings> = TWIZZLER_DEFAULTS,
+  options: TwizzlerTimeOptions = {},
 ): { settings: TwizzlerSettings; lines: TwizzlerLine[] } {
   const pixelWidth = Math.max(1, Math.round(width));
   const pixelHeight = Math.max(1, Math.round(height));
   const settings = normalizeTwizzlerSettings(input);
   const time = twizzlerAnimationTime(timeSec, settings.speed);
+  const loopTime = twizzlerAnimationTime(options.loopSec ?? 0, settings.speed);
   const layerCount = Math.max(1, settings.lineCount);
   // Match orange-wave-vector.html POINTS=160 at reference sizes; scale with width so
   // wide banners stay smooth (never use the short axis — that made 5:1 banners ~32 pts).
@@ -1124,7 +1150,7 @@ export function buildTwizzlerLines(
     for (let j = 0; j < pointCount; j += 1) {
       const u = pointCount <= 1 ? 0 : (j / (pointCount - 1)) * 2 - 1;
       const x = u * xRange;
-      const y = orangeWaveY(x, z, time, settings.amplitude, xRange);
+      const y = orangeWaveY(x, z, time, settings.amplitude, xRange, loopTime);
       // HTML orange-wave-vector: rotX → rotY → rotZ, then perspective on rotated coords.
       let q: Vec3 = { x, y, z };
       q = orangeWaveRotX(q, rotX);
@@ -1459,6 +1485,7 @@ export function renderTwizzler(
   height: number,
   timeSec: number,
   input: Partial<TwizzlerSettings> = TWIZZLER_DEFAULTS,
+  options: TwizzlerTimeOptions = {},
 ): void {
   const pixelWidth = Math.max(1, Math.round(width));
   const pixelHeight = Math.max(1, Math.round(height));
@@ -1467,7 +1494,7 @@ export function renderTwizzler(
   const context = canvas.getContext("2d");
   if (!context) return;
 
-  const { settings, lines } = buildTwizzlerLines(pixelWidth, pixelHeight, timeSec, input);
+  const { settings, lines } = buildTwizzlerLines(pixelWidth, pixelHeight, timeSec, input, options);
   context.clearRect(0, 0, pixelWidth, pixelHeight);
   context.save();
   // Butt caps avoid round-cap dots at every segment joint (orange-wave v3).
