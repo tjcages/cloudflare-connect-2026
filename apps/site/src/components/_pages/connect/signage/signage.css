@@ -7,6 +7,31 @@
   --signage-surround: clamp(12px, 2.5svh, 40px);
 }
 
+/* Hidden until the client applies ?day= / ?layout=, then blur in. */
+.signage-brand,
+.signage-content {
+  opacity: 0;
+  transform: translateY(6px);
+  filter: blur(2px);
+  transition:
+    opacity 280ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 280ms cubic-bezier(0.22, 1, 0.36, 1),
+    filter 280ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.connect-signage[data-ready] :is(.signage-brand, .signage-content) {
+  opacity: 1;
+  transform: none;
+  filter: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .signage-brand,
+  .signage-content {
+    transition: none;
+  }
+}
+
 /* The shared GridArea already supplies the marketing grid texture. Scale its
    cells with the window so the gray letterbox keeps a visible, even rhythm. */
 .signage-surround-grid::after {
@@ -34,7 +59,7 @@
 .signage-brand img {
   display: block;
   width: auto;
-  height: 1.48cqw;
+  height: 2.2cqw;
   max-width: none;
 }
 

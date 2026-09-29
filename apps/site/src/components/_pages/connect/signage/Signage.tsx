@@ -54,6 +54,13 @@ export default function Signage() {
     day.toLowerCase().startsWith(dayParam),
   );
   const days = matched.length ? matched : HUB_HOURS;
+  // The static HTML can't know the URL params, so the logo and content stay
+  // hidden until the client render applies them, then fade in (no layout flash).
+  const ready = useSyncExternalStore(
+    noopSubscribe,
+    () => true,
+    () => false,
+  );
 
   return (
     <section
@@ -61,6 +68,7 @@ export default function Signage() {
       ref={root}
       aria-label="Cloudflare Connect Signage"
       data-layout={layout}
+      data-ready={ready || undefined}
     >
       <GridArea
         className="signage-surround-grid inset-0 bg-background-muted"
