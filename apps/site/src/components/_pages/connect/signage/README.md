@@ -12,15 +12,16 @@ solid white schedule grid and clips at the inner frame.
 - Native raster: **7200 × 1620 pixels**, aspect ratio **40:9**.
 - Physical size: **29’11.1” × 6’8.8”**.
 - Bottom edge: **11’7” above the floor**.
-- Ribbon layout activates at 2.5:1 and wider and sizes type from viewport height.
-- At native size: headline 550.8 px; days and hours 113.4 px; Happy
-  Hour label 129.6 px and time 111.6 px. All final copy uses the marketing text
-  token (black in light mode).
-- At 2.5:1 and wider, all four items use one equal-height four-column row inside
-  the 40vh schedule area. Happy Hour is the fourth card, with its label above
-  its time. Narrower layouts keep the three day cards above a full-width Happy
-  Hour card. Gutters are 16px; bottom and side insets match at 40px (16px on
-  narrow screens).
+- Ribbon layout activates at 2:1 and wider and sizes type from viewport height.
+- At native size: headline 550.8 px; days and hours 97.2 px; Happy Hour
+  label 113.4 px and time 81 px. All final copy uses the marketing text token
+  (black in light mode).
+- At 2:1 and wider, all four items use one equal-height four-column row. Each
+  card keeps the same height as a row in the narrower two-row layout:
+  `calc(20vh - 8px)`, or 316px at native resolution. Happy Hour is the fourth
+  card, with its label above its time. Narrower layouts keep the three day
+  cards above a full-width Happy Hour card. Gutters are 16px; bottom and side
+  insets match at 40px (16px on narrow screens).
 - Shared `GridArea`, overlay borders, and marketing spacing/color tokens supply
   the grid styling. Every card has a fully opaque white surface.
 - The inner frame clips the original shader; a light-gray grid sits outside it.
@@ -45,8 +46,8 @@ solid white schedule grid and clips at the inner frame.
 - A soft white radial gradient behind the title reduces shader contrast without
   adding a visible panel or changing the shader.
 - The supplied wide Cloudflare Connect SVG is used only on this signage route.
-  It sits 8vh below the inner frame top and scales to 6vh on the LED layout,
-  capped at 84px high, so it remains clear of the centered heading.
+  It is centered 8vh below the inner frame top and scales to 6vh on the LED
+  layout, capped at 84px high, so it remains clear of the heading.
 
 ## Final delivery specification (future work)
 

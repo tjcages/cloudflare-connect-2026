@@ -84,7 +84,7 @@
 
 /* Native target: 7200 × 1620 (40:9). Only scale type/layout for the LED;
    colors, fonts, grid artwork, surfaces and divider rendering remain shared. */
-@media (min-aspect-ratio: 5/2) {
+@media (min-aspect-ratio: 2/1) {
   .signage-frame {
     grid-template-rows: minmax(0, 1fr);
   }
@@ -92,7 +92,7 @@
   .signage-brand {
     position: absolute;
     top: 8vh;
-    left: 40px;
+    inset-inline: 0;
     padding: 0;
   }
 
@@ -102,16 +102,22 @@
   }
 
   .signage-title {
-    font-size: 34vh;
+    font-size: min(34vh, 13vw);
   }
 
   .signage-schedule {
+    height: calc(20vh - 8px);
     grid-template-columns: repeat(4, minmax(0, 1fr));
     grid-template-rows: minmax(0, 1fr);
   }
 
   .signage-schedule .signage-days {
     display: contents;
+  }
+
+  .signage-schedule .signage-day,
+  .signage-schedule .signage-happy-hour {
+    padding: clamp(4px, 1vh, 16px);
   }
 
   .signage-schedule .signage-happy-hour {
@@ -124,33 +130,22 @@
   }
 
   .signage-happy-hour-label {
-    font-size: min(8vh, 2.1vw);
+    font-size: min(7vh, 2.1vw);
     line-height: 1.2;
   }
 
   .signage-happy-hour-time {
-    font-size: min(7vh, 1.55vw);
+    font-size: min(5vh, 2.1vw);
     line-height: 1.2;
   }
 
   .signage-day-label,
   .signage-hours {
-    font-size: min(7vh, 2.1vw);
+    font-size: min(6vh, 2.1vw);
   }
 }
 
-/* Keep the headline and four cards clear at the narrow end of the ribbon range. */
-@media (min-aspect-ratio: 5/2) and (max-aspect-ratio: 4/1) {
-  .signage-brand {
-    top: 2vh;
-  }
-
-  .signage-brand img {
-    height: min(5vh, 70px);
-  }
-}
-
-@media (max-width: 600px) and (aspect-ratio < 5/2) {
+@media (max-width: 600px) and (aspect-ratio < 2/1) {
   .signage-brand {
     padding-top: 32px;
   }
