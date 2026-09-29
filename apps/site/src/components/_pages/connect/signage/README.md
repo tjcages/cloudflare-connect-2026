@@ -13,8 +13,8 @@ solid white schedule grid and clips at the inner frame.
 - Physical size: **29’11.1” × 6’8.8”**.
 - Bottom edge: **11’7” above the floor**.
 - Ribbon layout activates at 2.5:1 and wider and sizes type from viewport height.
-- At native size: headline 550.8 px; days, hours, and Happy Hour time
-  113.4 px; Happy Hour label 129.6 px. All final copy uses the marketing text
+- At native size: headline 550.8 px; days and hours 113.4 px; Happy
+  Hour label 129.6 px and time 111.6 px. All final copy uses the marketing text
   token (black in light mode).
 - At 2.5:1 and wider, all four items use one equal-height four-column row inside
   the 40vh schedule area. Happy Hour is the fourth card, with its label above
