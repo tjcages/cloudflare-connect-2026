@@ -10,7 +10,7 @@ import ConnectHeroTwizzler from "../hero/ConnectHeroTwizzler";
 import { CONNECT_HERO_RAIN_DEFAULT } from "../hero/rain-control-settings";
 import { CONNECT_HERO_TWIZZLER_DEFAULTS } from "../hero/twizzler-defaults";
 import {
-  EXHIBITION_HOURS,
+  HUB_HOURS,
   HAPPY_HOUR_LABEL,
   HAPPY_HOUR_TIME,
 } from "./schedule";
@@ -73,10 +73,10 @@ export default function Signage() {
           <div className="signage-title-region flex items-center justify-center">
             <h1
               className="signage-title text-heading-hero text-text-base"
-              aria-label="Exhibition Hall"
+              aria-label="The Hub"
             >
               <RainText
-                text="Exhibition Hall"
+                text="The Hub"
                 headline
                 cycle={animationCycle}
                 direction={sweepDirection}
@@ -86,10 +86,10 @@ export default function Signage() {
 
           <div
             className="signage-schedule relative"
-            aria-label="Exhibition Hall hours"
+            aria-label="The Hub hours"
           >
             <div className="signage-days relative grid grid-cols-3 gap-16">
-              {EXHIBITION_HOURS.map(({ day, hours }) => (
+              {HUB_HOURS.map(({ day, hours }) => (
                 <div
                   className="signage-day relative flex flex-col items-center justify-center bg-background-base p-8 before:inside-border before:border-border-default"
                   key={day}
