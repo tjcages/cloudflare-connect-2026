@@ -7,12 +7,10 @@ import {
   useSyncExternalStore,
 } from "react";
 import CornerDots from "@/components/CornerDots";
+import Eyebrow from "@/components/Eyebrow";
 import GridArea from "@/components/GridArea";
 import { rainLayer } from "@/components/scramble/rain";
-import {
-  setIntervalOnVisible,
-  setTimeoutOnVisible,
-} from "@/utils/visibility-timers";
+import { setIntervalOnVisible } from "@/utils/visibility-timers";
 import ConnectHeroTwizzler from "../hero/ConnectHeroTwizzler";
 import { CONNECT_HERO_RAIN_DEFAULT } from "../hero/rain-control-settings";
 import { CONNECT_HERO_TWIZZLER_DEFAULTS } from "../hero/twizzler-defaults";
@@ -21,24 +19,15 @@ import "./signage.css";
 
 export default function Signage() {
   const root = useRef<HTMLElement>(null);
-  const [scheduleVisible, setScheduleVisible] = useState(false);
   const [animationCycle, setAnimationCycle] = useState(0);
 
   useEffect(() => {
-    const reveal = setTimeoutOnVisible({
-      element: root.current,
-      timeout: 1100,
-      callback: () => setScheduleVisible(true),
-    });
     const cycle = setIntervalOnVisible({
       element: root.current,
       interval: 30000,
       callback: () => setAnimationCycle((current) => current + 1),
     });
-    return () => {
-      reveal?.();
-      cycle.cleanup();
-    };
+    return cycle.cleanup;
   }, []);
 
   const sweepDirection = animationCycle % 2 === 0 ? 1 : -1;
@@ -51,7 +40,15 @@ export default function Signage() {
     day.toLowerCase().startsWith(dayParam)
   );
   const days = matched.length ? matched : HUB_HOURS;
-  const showHappyHour = days.some((hours) => "happyHour" in hours);
+  // Every card is an eyebrow label over plain lines; Happy Hour rides with Tuesday.
+  const cards: Card[] = days.map((entry) => ({
+    label: entry.day,
+    lines: "note" in entry ? [entry.note, entry.hours] : [entry.hours],
+  }));
+  if (days.some((entry) => "happyHour" in entry)) {
+    cards.push({ label: HAPPY_HOUR_LABEL, lines: [HAPPY_HOUR_TIME] });
+  }
+  const fit = fitEms(cards);
   // The static HTML can't know the URL params, so the logo and content stay
   // hidden until the client render applies them, then fade in (no layout flash).
   const ready = useSyncExternalStore(
@@ -110,65 +107,43 @@ export default function Signage() {
             className="signage-schedule relative"
             aria-label="The Hub hours"
             style={
-              {
-                "--signage-cards": days.length + Number(showHappyHour),
-              } as CSSProperties
+              { "--fit-w": fit.width, "--fit-h": fit.height } as CSSProperties
             }
           >
             <div className="signage-days relative grid grid-cols-3 gap-16">
-              {days.map(({ day, hours }) => (
+              {cards.map(({ label, lines }) => (
                 <div
-                  className="signage-day relative flex flex-col items-center justify-center bg-background-base p-8 before:inside-border before:border-border-default"
-                  key={day}
+                  className="signage-day relative flex items-center justify-center bg-background-base before:inside-border before:border-border-default"
+                  key={label}
                 >
-                  <div className="signage-day-label text-decorative-small text-text-base">
-                    <RainText
-                      text={day}
-                      active={scheduleVisible}
-                      cycle={animationCycle}
-                      direction={sweepDirection}
-                    />
-                  </div>
-                  <div className="signage-hours text-decorative-small text-text-base">
-                    <RainText
-                      text={hours}
-                      active={scheduleVisible}
-                      cycle={animationCycle}
-                      direction={sweepDirection}
-                    />
+                  <div className="signage-fit flex flex-col items-center text-decorative-small text-text-base">
+                    <div className="signage-day-label">
+                      <Eyebrow
+                        className="signage-eyebrow"
+                        direction="center"
+                        fluid
+                      >
+                        <RainText
+                          text={label}
+                          cycle={animationCycle}
+                          direction={sweepDirection}
+                          noiseColor="var(--color-text-inverse)"
+                        />
+                      </Eyebrow>
+                    </div>
+                    {lines.map((line) => (
+                      <div className="signage-hours" key={line}>
+                        <RainText
+                          text={line}
+                          cycle={animationCycle}
+                          direction={sweepDirection}
+                        />
+                      </div>
+                    ))}
                   </div>
                 </div>
               ))}
             </div>
-            {showHappyHour && (
-              <div
-                className="signage-happy-hour relative flex items-center justify-center bg-background-base p-8 text-decorative-small text-text-base before:inside-border before:border-border-default"
-                aria-label={`${HAPPY_HOUR_LABEL}, ${HAPPY_HOUR_TIME}`}
-              >
-                <div className="signage-happy-hour-label">
-                  <RainText
-                    text={HAPPY_HOUR_LABEL}
-                    active={scheduleVisible}
-                    cycle={animationCycle}
-                    direction={sweepDirection}
-                  />
-                </div>
-                <span
-                  className="signage-happy-hour-separator"
-                  aria-hidden="true"
-                >
-                  ·
-                </span>
-                <div className="signage-happy-hour-time">
-                  <RainText
-                    text={HAPPY_HOUR_TIME}
-                    active={scheduleVisible}
-                    cycle={animationCycle}
-                    direction={sweepDirection}
-                  />
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>
@@ -177,6 +152,32 @@ export default function Signage() {
 }
 
 const noopSubscribe = () => () => {};
+
+type Card = { label: string; lines: string[] };
+
+// Card text is monospace, so its box in em follows from character counts alone.
+// These mirror signage.css (line-height 1.2, eyebrow 0.85em + 0.5em gap). The
+// CSS divides each card's space by them.
+const CHAR_EM = 0.61;
+const LINE_EM = 1.2;
+const EYEBROW_SCALE = 0.85;
+// Badge padding (12/12) plus four 2px ticks and their 4px outward offsets.
+const EYEBROW_CHROME_EM = 1 + 8 / 12 + 8 / 12;
+
+/** One em box shared by every visible card, so all cards use the same type size. */
+function fitEms(cards: Card[]) {
+  const boxes = cards.map(({ label, lines }) => ({
+    width: Math.max(
+      EYEBROW_SCALE * (label.length * CHAR_EM + EYEBROW_CHROME_EM),
+      ...lines.map((line) => line.length * CHAR_EM)
+    ),
+    height: EYEBROW_SCALE * (16 / 12) + 0.5 + lines.length * LINE_EM,
+  }));
+  return {
+    width: Math.max(...boxes.map((box) => box.width)),
+    height: Math.max(...boxes.map((box) => box.height)),
+  };
+}
 
 function useSearchParam(name: string) {
   return useSyncExternalStore(
@@ -189,22 +190,22 @@ function useSearchParam(name: string) {
 /** The code-snippet sweep paints over a reserved text box, so it cannot reflow the layout. */
 function RainText({
   text,
-  active = true,
   headline = false,
   cycle = 0,
   direction = 1,
+  noiseColor = "var(--color-orange-900)",
 }: {
   text: string;
-  active?: boolean;
   headline?: boolean;
   cycle?: number;
   direction?: number;
+  noiseColor?: string;
 }) {
   const ref = useRef<HTMLSpanElement>(null);
 
   useLayoutEffect(() => {
     const el = ref.current;
-    if (!el || !active) return;
+    if (!el) return;
     let cancelled = false;
     let stop: (() => void) | undefined;
     // Measure the actual brand font, including on a cold first load.
@@ -216,7 +217,7 @@ function RainText({
         toHtml: text,
         direction,
         background: "transparent",
-        noiseColor: "var(--color-orange-900)",
+        noiseColor,
         durationScale: headline ? 3 : 1.6,
         replay: cycle > 0,
         ...(headline && {
@@ -232,7 +233,7 @@ function RainText({
       cancelled = true;
       stop?.();
     };
-  }, [text, active, headline, cycle, direction]);
+  }, [text, headline, cycle, direction, noiseColor]);
 
   return (
     <span

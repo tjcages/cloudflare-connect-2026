@@ -126,37 +126,39 @@
   display: contents;
 }
 
-.signage-day,
-.signage-happy-hour {
+/* Each card is a size container; its text scales to fill the card. */
+.signage-day {
   min-width: 0;
   min-height: 0;
-  padding: 0.8cqw;
+  container-type: size;
 }
 
-.signage-happy-hour {
-  flex-direction: column;
-  gap: 0.225cqw;
+/* --fit-w / --fit-h: the shared text box in em (fitEms in Signage.tsx).
+   Padding is 8% of the card width and 14% of its height on each side. */
+.signage-fit {
+  font-size: min(
+    (100cqw * 0.84) / var(--fit-w),
+    (100cqh * 0.72) / var(--fit-h)
+  );
+  line-height: 1.2;
 }
 
-.signage-happy-hour-separator {
-  display: none;
+/* The day uses the shared Eyebrow (fluid, so it scales with this font-size). */
+.signage-day-label {
+  font-size: 1em;
+  line-height: 1.2;
+  margin-bottom: 0.5em;
 }
 
-.signage-day-label,
+.signage-eyebrow {
+  font-size: 0.85em;
+}
+
 .signage-hours {
-  font-size: 1.35cqw;
+  font-size: 1em;
   line-height: 1.2;
 }
 
-.signage-happy-hour-label {
-  font-size: 1.575cqw;
-  line-height: 1.2;
-}
-
-.signage-happy-hour-time {
-  font-size: 1.125cqw;
-  line-height: 1.2;
-}
 
 /* `?layout=horizontal`: title left, larger cards stacked in a right column. */
 .connect-signage[data-layout="horizontal"] {
@@ -186,16 +188,4 @@
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: none;
   justify-content: stretch;
-}
-
-/* Sized so "Monday - Welcome Reception" fits one card (~83% width); the
-   all-days stack shrinks further to fit four rows. */
-.connect-signage[data-layout="horizontal"] .signage-day-label,
-.connect-signage[data-layout="horizontal"] .signage-hours,
-.connect-signage[data-layout="horizontal"] .signage-happy-hour-time {
-  font-size: min(1.5cqw, calc(5cqw / var(--signage-cards)));
-}
-
-.connect-signage[data-layout="horizontal"] .signage-happy-hour-label {
-  font-size: min(1.8cqw, calc(5.8cqw / var(--signage-cards)));
 }

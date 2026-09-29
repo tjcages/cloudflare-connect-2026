@@ -37,7 +37,7 @@ solid white schedule grid and clips at the inner frame.
   30 visible seconds, alternating sweep direction. The initial entrance travels
   left to right; the 30-second replay travels right to left; 60 seconds returns
   to left to right. Each orange flash settles back to black. The initial schedule
-  entrance follows the title after 1.1 seconds; subsequent sweeps start together.
+  entrance starts with the title and the day eyebrow; subsequent sweeps start together.
 - Schedule text runs at 1.6× the original animation duration (roughly 0.6–1
   second per line), slower than before while remaining quicker than the title.
 - The title opts into a 1.35-second steady directional sweep and a roughly
