@@ -2,7 +2,7 @@ import cn from "classnames";
 import type { CSSProperties, HTMLAttributes } from "react";
 
 interface Props extends HTMLAttributes<HTMLDivElement> {
-  borderColor?: "default" | "muted";
+  borderColor?: "default" | "muted" | "dashed";
 }
 
 export default function GridArea({

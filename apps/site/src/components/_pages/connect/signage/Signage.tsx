@@ -2,11 +2,18 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import CornerDots from "@/components/CornerDots";
 import GridArea from "@/components/GridArea";
 import { rainLayer } from "@/components/scramble/rain";
-import { setIntervalOnVisible, setTimeoutOnVisible } from "@/utils/visibility-timers";
+import {
+  setIntervalOnVisible,
+  setTimeoutOnVisible,
+} from "@/utils/visibility-timers";
 import ConnectHeroTwizzler from "../hero/ConnectHeroTwizzler";
 import { CONNECT_HERO_RAIN_DEFAULT } from "../hero/rain-control-settings";
 import { CONNECT_HERO_TWIZZLER_DEFAULTS } from "../hero/twizzler-defaults";
-import { EXHIBITION_HOURS, HAPPY_HOUR_LABEL, HAPPY_HOUR_TIME } from "./schedule";
+import {
+  EXHIBITION_HOURS,
+  HAPPY_HOUR_LABEL,
+  HAPPY_HOUR_TIME,
+} from "./schedule";
 import "./signage.css";
 
 export default function Signage() {
@@ -39,10 +46,16 @@ export default function Signage() {
       ref={root}
       aria-label="Cloudflare Connect Signage"
     >
-      <GridArea className="inset-0 bg-background-muted" />
+      <GridArea
+        className="signage-surround-grid inset-0 bg-background-muted"
+        borderColor="dashed"
+      />
       <div className="signage-frame relative isolate overflow-hidden bg-background-base before:inside-border before:border-border-default">
         <CornerDots count={4} />
-        <div className="signage-shader pointer-events-none absolute inset-0" aria-hidden="true">
+        <div
+          className="signage-shader pointer-events-none absolute inset-0"
+          aria-hidden="true"
+        >
           <ConnectHeroTwizzler
             posterSrc="/connect/twizzler-poster.png"
             defaults={CONNECT_HERO_TWIZZLER_DEFAULTS}
@@ -58,12 +71,23 @@ export default function Signage() {
 
         <div className="signage-content relative z-10 text-center">
           <div className="signage-title-region flex items-center justify-center">
-            <h1 className="signage-title text-heading-hero text-text-base" aria-label="Exhibition Hall">
-              <RainText text="Exhibition Hall" headline cycle={animationCycle} direction={sweepDirection} />
+            <h1
+              className="signage-title text-heading-hero text-text-base"
+              aria-label="Exhibition Hall"
+            >
+              <RainText
+                text="Exhibition Hall"
+                headline
+                cycle={animationCycle}
+                direction={sweepDirection}
+              />
             </h1>
           </div>
 
-          <div className="signage-schedule relative" aria-label="Exhibition Hall hours">
+          <div
+            className="signage-schedule relative"
+            aria-label="Exhibition Hall hours"
+          >
             <div className="signage-days relative grid grid-cols-3 gap-16">
               {EXHIBITION_HOURS.map(({ day, hours }) => (
                 <div
@@ -71,10 +95,20 @@ export default function Signage() {
                   key={day}
                 >
                   <div className="signage-day-label text-decorative-small text-text-base">
-                    <RainText text={day} active={scheduleVisible} cycle={animationCycle} direction={sweepDirection} />
+                    <RainText
+                      text={day}
+                      active={scheduleVisible}
+                      cycle={animationCycle}
+                      direction={sweepDirection}
+                    />
                   </div>
                   <div className="signage-hours text-decorative-small text-text-base">
-                    <RainText text={hours} active={scheduleVisible} cycle={animationCycle} direction={sweepDirection} />
+                    <RainText
+                      text={hours}
+                      active={scheduleVisible}
+                      cycle={animationCycle}
+                      direction={sweepDirection}
+                    />
                   </div>
                 </div>
               ))}

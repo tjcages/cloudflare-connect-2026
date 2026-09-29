@@ -12,19 +12,18 @@ solid white schedule grid and clips at the inner frame.
 - Native raster: **7200 × 1620 pixels**, aspect ratio **40:9**.
 - Physical size: **29’11.1” × 6’8.8”**.
 - Bottom edge: **11’7” above the floor**.
-- Ribbon layout activates at 2:1 and wider and sizes type from viewport height.
-- At native size: headline 550.8 px; days and hours 97.2 px; Happy Hour
-  label 113.4 px and time 81 px. All final copy uses the marketing text token
-  (black in light mode).
-- At 2:1 and wider, all four items use one equal-height four-column row. Each
-  card keeps the same height as a row in the narrower two-row layout:
-  `calc(20vh - 8px)`, or 316px at native resolution. Happy Hour is the fourth
-  card, with its label above its time. Narrower layouts keep the three day
-  cards above a full-width Happy Hour card. Gutters are 16px; bottom and side
-  insets match at 40px (16px on narrow screens).
-- Shared `GridArea`, overlay borders, and marketing spacing/color tokens supply
-  the grid styling. Every card has a fully opaque white surface.
-- The inner frame clips the original shader; a light-gray grid sits outside it.
+- The artwork always stays **40:9**, centered and contained within the viewport. It
+  does not reflow when the browser is resized. Extra space shows the marketing
+  light-gray surround instead of stretching or cropping the artwork.
+- The frame, logo, headline, schedule, gutters and card padding scale together
+  from the frame width using container units. The four opaque white schedule
+  cards stay in one equal-height row at every viewport shape; Happy Hour is
+  the fourth card with its time below the label.
+- The shared `GridArea` draws the gray surround's responsive grid texture.
+  Its cells scale from 32px to 80px with the viewport; the existing dashed
+  border color token gives the lines enough contrast to remain visible.
+- The inner frame clips the original shader and keeps the logo above the title
+  gradient.
 - Text dimensions and the schedule grid are reserved before the entrance
   animation so the title does not move when the schedule appears.
 - All text repeats the existing code-snippet `rainLayer` transition together every

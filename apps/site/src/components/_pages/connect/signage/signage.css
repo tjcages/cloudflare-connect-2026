@@ -1,31 +1,48 @@
+/* Keep the complete LED artwork at its native 40:9 shape inside any viewport. */
 .connect-signage {
+  width: 100%;
   height: 100svh;
-  padding: clamp(16px, 4vh, 40px);
+  display: grid;
+  place-items: center;
+  --signage-surround: clamp(12px, 2.5svh, 40px);
 }
 
-/* Reuse the marketing GridArea, white surfaces and overlay border tokens. */
+/* The shared GridArea already supplies the marketing grid texture. Scale its
+   cells with the window so the gray letterbox keeps a visible, even rhythm. */
+.signage-surround-grid::after {
+  mask-size: clamp(32px, 4vw, 80px);
+}
+
 .signage-frame {
-  height: 100%;
+  width: min(
+    calc(100vw - 2 * var(--signage-surround)),
+    calc((100svh - 2 * var(--signage-surround)) * 40 / 9)
+  );
+  aspect-ratio: 40 / 9;
+  container-type: inline-size;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
 }
 
 .signage-brand {
-  padding-top: 40px;
+  position: absolute;
+  top: 1.8cqw;
+  inset-inline: 0;
+  padding: 0;
 }
 
 .signage-brand img {
   display: block;
   width: auto;
-  height: clamp(24px, 5.25vh, 84px);
-  max-width: calc(100vw - 80px);
+  height: 1.35cqw;
+  max-width: none;
 }
 
 .signage-content {
   min-height: 0;
   display: grid;
   grid-template-rows: minmax(0, 1fr) auto;
-  padding: 0 40px 40px;
+  padding: 0 2cqw 2cqw;
 }
 
 .signage-title-region {
@@ -35,11 +52,11 @@
 .signage-title {
   position: relative;
   isolation: isolate;
-  font-size: clamp(48px, 9vw, 200px);
+  font-size: 7.65cqw;
   line-height: calc(60 / 56);
 }
 
-/* A soft white veil protects the title while leaving the shader visible around it. */
+/* The shared white veil protects the title without covering the top logo. */
 .signage-title::before {
   content: "";
   position: absolute;
@@ -54,120 +71,49 @@
   );
 }
 
-/* Both rows and every cell exist before their text is revealed. */
+/* All four cells reserve their final positions before the text reveal. */
 .signage-schedule {
-  height: 40vh;
-  gap: 16px;
+  height: 4.5cqw;
+  gap: 0.8cqw;
   display: grid;
-  grid-template-rows: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-rows: minmax(0, 1fr);
   align-self: end;
   width: 100%;
 }
 
-.signage-days,
+.signage-schedule .signage-days {
+  display: contents;
+}
+
 .signage-day,
 .signage-happy-hour {
   min-width: 0;
   min-height: 0;
+  padding: 0.8cqw;
+}
+
+.signage-happy-hour {
+  flex-direction: column;
+  gap: 0.225cqw;
+}
+
+.signage-happy-hour-separator {
+  display: none;
 }
 
 .signage-day-label,
 .signage-hours {
-  font-size: clamp(18px, 2.4vw, 56px);
+  font-size: 1.35cqw;
   line-height: 1.2;
 }
 
-.signage-happy-hour {
-  font-size: clamp(18px, 2.6vw, 60px);
+.signage-happy-hour-label {
+  font-size: 1.575cqw;
   line-height: 1.2;
 }
 
-/* Native target: 7200 × 1620 (40:9). Only scale type/layout for the LED;
-   colors, fonts, grid artwork, surfaces and divider rendering remain shared. */
-@media (min-aspect-ratio: 2/1) {
-  .signage-frame {
-    grid-template-rows: minmax(0, 1fr);
-  }
-
-  .signage-brand {
-    position: absolute;
-    top: 8vh;
-    inset-inline: 0;
-    padding: 0;
-  }
-
-  .signage-brand img {
-    height: min(6vh, 84px);
-    max-width: none;
-  }
-
-  .signage-title {
-    font-size: min(34vh, 13vw);
-  }
-
-  .signage-schedule {
-    height: calc(20vh - 8px);
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    grid-template-rows: minmax(0, 1fr);
-  }
-
-  .signage-schedule .signage-days {
-    display: contents;
-  }
-
-  .signage-schedule .signage-day,
-  .signage-schedule .signage-happy-hour {
-    padding: clamp(4px, 1vh, 16px);
-  }
-
-  .signage-schedule .signage-happy-hour {
-    flex-direction: column;
-    gap: 1vh;
-  }
-
-  .signage-happy-hour-separator {
-    display: none;
-  }
-
-  .signage-happy-hour-label {
-    font-size: min(7vh, 2.1vw);
-    line-height: 1.2;
-  }
-
-  .signage-happy-hour-time {
-    font-size: min(5vh, 2.1vw);
-    line-height: 1.2;
-  }
-
-  .signage-day-label,
-  .signage-hours {
-    font-size: min(6vh, 2.1vw);
-  }
-}
-
-@media (max-width: 600px) and (aspect-ratio < 2/1) {
-  .signage-brand {
-    padding-top: 32px;
-  }
-
-  .signage-brand img {
-    max-width: calc(100vw - 64px);
-  }
-
-  .signage-content {
-    padding: 0 16px 16px;
-  }
-
-  .signage-title {
-    font-size: 9vw;
-  }
-
-  .signage-day-label,
-  .signage-hours {
-    font-size: 2.4vw;
-  }
-
-  .signage-happy-hour {
-    font-size: 3vw;
-  }
+.signage-happy-hour-time {
+  font-size: 1.125cqw;
+  line-height: 1.2;
 }
