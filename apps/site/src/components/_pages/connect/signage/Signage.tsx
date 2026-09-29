@@ -16,11 +16,7 @@ import {
 import ConnectHeroTwizzler from "../hero/ConnectHeroTwizzler";
 import { CONNECT_HERO_RAIN_DEFAULT } from "../hero/rain-control-settings";
 import { CONNECT_HERO_TWIZZLER_DEFAULTS } from "../hero/twizzler-defaults";
-import {
-  HUB_HOURS,
-  HAPPY_HOUR_LABEL,
-  HAPPY_HOUR_TIME,
-} from "./schedule";
+import { HUB_HOURS, HAPPY_HOUR_LABEL, HAPPY_HOUR_TIME } from "./schedule";
 import "./signage.css";
 
 export default function Signage() {
@@ -49,17 +45,19 @@ export default function Signage() {
   // `?day=monday|tuesday|wednesday` renders one day's sign; no param shows all days.
   const dayParam = useSearchParam("day");
   // `?layout=horizontal` puts the title left and stacks larger cards on the right.
-  const layout = useSearchParam("layout") === "horizontal" ? "horizontal" : "row";
+  const layout =
+    useSearchParam("layout") === "horizontal" ? "horizontal" : "row";
   const matched = HUB_HOURS.filter(({ day }) =>
-    day.toLowerCase().startsWith(dayParam),
+    day.toLowerCase().startsWith(dayParam)
   );
   const days = matched.length ? matched : HUB_HOURS;
+  const showHappyHour = days.some((hours) => "happyHour" in hours);
   // The static HTML can't know the URL params, so the logo and content stay
   // hidden until the client render applies them, then fade in (no layout flash).
   const ready = useSyncExternalStore(
     noopSubscribe,
     () => true,
-    () => false,
+    () => false
   );
 
   return (
@@ -111,7 +109,11 @@ export default function Signage() {
           <div
             className="signage-schedule relative"
             aria-label="The Hub hours"
-            style={{ "--signage-cards": days.length + 1 } as CSSProperties}
+            style={
+              {
+                "--signage-cards": days.length + Number(showHappyHour),
+              } as CSSProperties
+            }
           >
             <div className="signage-days relative grid grid-cols-3 gap-16">
               {days.map(({ day, hours }) => (
@@ -138,30 +140,35 @@ export default function Signage() {
                 </div>
               ))}
             </div>
-            <div
-              className="signage-happy-hour relative flex items-center justify-center bg-background-base p-8 text-decorative-small text-text-base before:inside-border before:border-border-default"
-              aria-label={`${HAPPY_HOUR_LABEL}, ${HAPPY_HOUR_TIME}`}
-            >
-              <div className="signage-happy-hour-label">
-                <RainText
-                  text={HAPPY_HOUR_LABEL}
-                  active={scheduleVisible}
-                  cycle={animationCycle}
-                  direction={sweepDirection}
-                />
+            {showHappyHour && (
+              <div
+                className="signage-happy-hour relative flex items-center justify-center bg-background-base p-8 text-decorative-small text-text-base before:inside-border before:border-border-default"
+                aria-label={`${HAPPY_HOUR_LABEL}, ${HAPPY_HOUR_TIME}`}
+              >
+                <div className="signage-happy-hour-label">
+                  <RainText
+                    text={HAPPY_HOUR_LABEL}
+                    active={scheduleVisible}
+                    cycle={animationCycle}
+                    direction={sweepDirection}
+                  />
+                </div>
+                <span
+                  className="signage-happy-hour-separator"
+                  aria-hidden="true"
+                >
+                  ·
+                </span>
+                <div className="signage-happy-hour-time">
+                  <RainText
+                    text={HAPPY_HOUR_TIME}
+                    active={scheduleVisible}
+                    cycle={animationCycle}
+                    direction={sweepDirection}
+                  />
+                </div>
               </div>
-              <span className="signage-happy-hour-separator" aria-hidden="true">
-                ·
-              </span>
-              <div className="signage-happy-hour-time">
-                <RainText
-                  text={HAPPY_HOUR_TIME}
-                  active={scheduleVisible}
-                  cycle={animationCycle}
-                  direction={sweepDirection}
-                />
-              </div>
-            </div>
+            )}
           </div>
         </div>
       </div>
@@ -175,7 +182,7 @@ function useSearchParam(name: string) {
   return useSyncExternalStore(
     noopSubscribe,
     () => new URLSearchParams(location.search).get(name)?.toLowerCase() ?? "",
-    () => "",
+    () => ""
   );
 }
 
