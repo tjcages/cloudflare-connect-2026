@@ -124,18 +124,29 @@
   }
 
   .signage-happy-hour-label {
-    font-size: 8vh;
+    font-size: min(8vh, 2.1vw);
     line-height: 1.2;
   }
 
   .signage-happy-hour-time {
-    font-size: 7vh;
+    font-size: min(7vh, 1.55vw);
     line-height: 1.2;
   }
 
   .signage-day-label,
   .signage-hours {
-    font-size: 7vh;
+    font-size: min(7vh, 2.1vw);
+  }
+}
+
+/* Keep the headline and four cards clear at the narrow end of the ribbon range. */
+@media (min-aspect-ratio: 5/2) and (max-aspect-ratio: 4/1) {
+  .signage-brand {
+    top: 2vh;
+  }
+
+  .signage-brand img {
+    height: min(5vh, 70px);
   }
 }
 
