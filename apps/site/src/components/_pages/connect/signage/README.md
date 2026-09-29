@@ -2,6 +2,10 @@
 
 Route: `/connect/signage/`. Copy lives in `schedule.ts`.
 
+One sign per day: `?day=monday`, `?day=tuesday` or `?day=wednesday` shows only
+that day's card plus Happy Hour, centered at the four-up card width. No param (or
+an unknown value) shows every day.
+
 All signage lines use the existing marketing code-snippet `rainLayer` transition:
 `01` characters resolve through the shared orange flash into their final color.
 Hours remain readable between synchronized 30-second animation cycles. The original Connect hero shader animates behind the
