@@ -21,3 +21,6 @@ apps/site/src/components/_animations/products/lottie-svg/lottie-svg.gen.ts
 apps/site/worker-configuration.d.ts
 apps/site/dev/commands/compressor/.compressor-metadata.json
 apps/site/dev/commands/compressor/data/
+
+# SoFi Stadium video exports (scripts/export-sofi-stadium.mjs)
+exports/
