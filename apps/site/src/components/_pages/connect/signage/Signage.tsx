@@ -1,4 +1,10 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import CornerDots from "@/components/CornerDots";
 import GridArea from "@/components/GridArea";
 import { rainLayer } from "@/components/scramble/rain";
@@ -39,6 +45,16 @@ export default function Signage() {
   }, []);
 
   const sweepDirection = animationCycle % 2 === 0 ? 1 : -1;
+  // `?day=monday|tuesday|wednesday` renders one day's sign; no param shows all days.
+  const dayParam = useSyncExternalStore(
+    noopSubscribe,
+    () => new URLSearchParams(location.search).get("day")?.toLowerCase() ?? "",
+    () => "",
+  );
+  const matched = HUB_HOURS.filter(({ day }) =>
+    day.toLowerCase().startsWith(dayParam),
+  );
+  const days = matched.length ? matched : HUB_HOURS;
 
   return (
     <section
@@ -89,7 +105,7 @@ export default function Signage() {
             aria-label="The Hub hours"
           >
             <div className="signage-days relative grid grid-cols-3 gap-16">
-              {HUB_HOURS.map(({ day, hours }) => (
+              {days.map(({ day, hours }) => (
                 <div
                   className="signage-day relative flex flex-col items-center justify-center bg-background-base p-8 before:inside-border before:border-border-default"
                   key={day}
@@ -143,6 +159,8 @@ export default function Signage() {
     </section>
   );
 }
+
+const noopSubscribe = () => () => {};
 
 /** The code-snippet sweep paints over a reserved text box, so it cannot reflow the layout. */
 function RainText({

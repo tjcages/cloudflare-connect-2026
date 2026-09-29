@@ -77,7 +77,10 @@
   height: 4.5cqw;
   gap: 0.8cqw;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  /* Cards keep their four-up width; a single-day sign centers its two cards. */
+  grid-auto-flow: column;
+  grid-auto-columns: calc((100% - 3 * 0.8cqw) / 4);
+  justify-content: center;
   grid-template-rows: minmax(0, 1fr);
   align-self: end;
   width: 100%;
