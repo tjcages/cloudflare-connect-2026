@@ -7,6 +7,31 @@
   --signage-surround: clamp(12px, 2.5svh, 40px);
 }
 
+/* Hidden until the client applies ?day= / ?layout=, then blur in. */
+.signage-brand,
+.signage-content {
+  opacity: 0;
+  transform: translateY(6px);
+  filter: blur(2px);
+  transition:
+    opacity 280ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 280ms cubic-bezier(0.22, 1, 0.36, 1),
+    filter 280ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.connect-signage[data-ready] :is(.signage-brand, .signage-content) {
+  opacity: 1;
+  transform: none;
+  filter: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .signage-brand,
+  .signage-content {
+    transition: none;
+  }
+}
+
 /* The shared GridArea already supplies the marketing grid texture. Scale its
    cells with the window so the gray letterbox keeps a visible, even rhythm. */
 .signage-surround-grid::after {
@@ -34,7 +59,7 @@
 .signage-brand img {
   display: block;
   width: auto;
-  height: 1.48cqw;
+  height: 2.2cqw;
   max-width: none;
 }
 
@@ -61,14 +86,25 @@
 .signage-title::before {
   content: "";
   position: absolute;
-  inset: -50% -20%;
+  inset: -50% -30%;
   z-index: -1;
   pointer-events: none;
+  /* closest-side reaches 0 exactly at the box edge (farthest-corner left the
+     sides ~30% opaque, a hard cut). Stops follow a smoothstep ease-out. */
+  --veil: var(--color-background-base);
   background: radial-gradient(
-    ellipse at center,
-    var(--color-background-base) 37%,
-    color-mix(in srgb, var(--color-background-base) 88%, transparent) 57%,
-    transparent 77%
+    closest-side,
+    var(--veil) 45%,
+    color-mix(in srgb, var(--veil) 97%, transparent) 51%,
+    color-mix(in srgb, var(--veil) 90%, transparent) 57%,
+    color-mix(in srgb, var(--veil) 79%, transparent) 63%,
+    color-mix(in srgb, var(--veil) 65%, transparent) 69%,
+    color-mix(in srgb, var(--veil) 50%, transparent) 75%,
+    color-mix(in srgb, var(--veil) 35%, transparent) 81%,
+    color-mix(in srgb, var(--veil) 21%, transparent) 87%,
+    color-mix(in srgb, var(--veil) 10%, transparent) 92%,
+    color-mix(in srgb, var(--veil) 3%, transparent) 96.5%,
+    transparent 100%
   );
 }
 
@@ -120,4 +156,45 @@
 .signage-happy-hour-time {
   font-size: 1.125cqw;
   line-height: 1.2;
+}
+
+/* `?layout=horizontal`: title left, larger cards stacked in a right column. */
+.connect-signage[data-layout="horizontal"] {
+  --signage-column: 30cqw;
+  --signage-column-gap: 2cqw;
+}
+
+.connect-signage[data-layout="horizontal"] .signage-brand {
+  inset-inline: 0 calc(var(--signage-column) + var(--signage-column-gap));
+}
+
+.connect-signage[data-layout="horizontal"] .signage-content {
+  grid-template-rows: minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) var(--signage-column);
+  column-gap: var(--signage-column-gap);
+  padding: 2cqw;
+}
+
+.connect-signage[data-layout="horizontal"] .signage-title {
+  font-size: 10.5cqw;
+}
+
+.connect-signage[data-layout="horizontal"] .signage-schedule {
+  height: 100%;
+  grid-auto-flow: row;
+  grid-auto-rows: minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: none;
+  justify-content: stretch;
+}
+
+/* Two cards get large type; the all-days stack shrinks to fit four rows. */
+.connect-signage[data-layout="horizontal"] .signage-day-label,
+.connect-signage[data-layout="horizontal"] .signage-hours,
+.connect-signage[data-layout="horizontal"] .signage-happy-hour-time {
+  font-size: min(2.2cqw, calc(5cqw / var(--signage-cards)));
+}
+
+.connect-signage[data-layout="horizontal"] .signage-happy-hour-label {
+  font-size: min(2.6cqw, calc(5.8cqw / var(--signage-cards)));
 }
