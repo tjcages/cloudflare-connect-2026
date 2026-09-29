@@ -6,14 +6,20 @@ export default function Eyebrow({
   direction,
   title,
   variant,
+  fluid = false,
   className,
+  children,
   ...attrs
 }: {
   direction: "center" | "left";
   title?: string;
   variant?: "default" | "faint";
+  /** Size every part in em from the parent's font-size (e.g. signage cqw type). */
+  fluid?: boolean;
 } & React.HTMLAttributes<HTMLDivElement>) {
   const isFaint = variant === "faint";
+  // Fluid mode expresses the fixed 12px design in em so it scales with the text.
+  const unit = (px: number) => (fluid ? `${px / 12}em` : px);
 
   return (
     <div
@@ -29,8 +35,8 @@ export default function Eyebrow({
     >
       {direction === "center" && (
         <>
-          <Line size="small" />
-          <Line size="big" />
+          <Line fluid={fluid} size="small" />
+          <Line fluid={fluid} size="big" />
         </>
       )}
 
@@ -45,57 +51,64 @@ export default function Eyebrow({
             : "text-(--eyebrow-color-badge-text,var(--color-text-inverse))",
           "selection:bg-darker/25!"
         )}
-        initial={{ width: 2 }}
+        initial={{ width: unit(2) }}
+        style={fluid ? { fontSize: "1em", lineHeight: 16 / 12 } : undefined}
         transition={{
           duration: 0.3,
           ease: [0.6, 0.6, 0, 1],
         }}
       >
         <motion.div
-          animate={{ paddingLeft: 6, paddingRight: 6 }}
-          className="px-6"
-          initial={{ paddingLeft: 8, paddingRight: 8 }}
+          animate={{ paddingLeft: unit(6), paddingRight: unit(6) }}
+          className={fluid ? undefined : "px-6"}
+          initial={{ paddingLeft: unit(8), paddingRight: unit(8) }}
           transition={{
             delay: 0.3,
             duration: 0.2,
             ease: [0.6, 0.6, 0, 1],
           }}
         >
-          <Scramble
-            from={direction === "center" ? "center" : "left"}
-            text={title?.toUpperCase()}
-          />
+          {children ?? (
+            <Scramble
+              from={direction === "center" ? "center" : "left"}
+              text={title?.toUpperCase()}
+            />
+          )}
         </motion.div>
       </motion.div>
 
-      <Line direction="right" size="big" />
-      <Line direction="right" size="small" />
+      <Line direction="right" fluid={fluid} size="big" />
+      <Line direction="right" fluid={fluid} size="small" />
     </div>
   );
 }
 export const Line = ({
   size,
   direction,
+  fluid = false,
 }: {
   size: "big" | "small";
   direction?: "left" | "right";
+  fluid?: boolean;
 }) => {
   const reverse = direction === "right" ? 1 : -1;
   const isBig = size === "big";
+  const unit = (px: number) => (fluid ? `${px / 12}em` : px);
 
   return (
     <motion.div
       animate={{
-        x: isBig
-          ? [0, 6 * reverse, 2 * reverse]
-          : [0, 10 * reverse, 4 * reverse],
+        x: (isBig ? [0, 6, 2] : [0, 10, 4]).map((px) => unit(px * reverse)),
       }}
       className={cn(
-        "w-2",
         isBig
-          ? "h-12 bg-(--eyebrow-color-line-big)"
-          : "h-8 bg-(--eyebrow-color-line-small)"
+          ? "bg-(--eyebrow-color-line-big)"
+          : "bg-(--eyebrow-color-line-small)",
+        !fluid && (isBig ? "h-12 w-2" : "h-8 w-2")
       )}
+      style={
+        fluid ? { width: unit(2), height: unit(isBig ? 12 : 8) } : undefined
+      }
       initial={{ x: 0 }}
       transition={{
         duration: 0.5,
