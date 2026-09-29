@@ -61,14 +61,25 @@
 .signage-title::before {
   content: "";
   position: absolute;
-  inset: -50% -20%;
+  inset: -50% -30%;
   z-index: -1;
   pointer-events: none;
+  /* closest-side reaches 0 exactly at the box edge (farthest-corner left the
+     sides ~30% opaque, a hard cut). Stops follow a smoothstep ease-out. */
+  --veil: var(--color-background-base);
   background: radial-gradient(
-    ellipse at center,
-    var(--color-background-base) 37%,
-    color-mix(in srgb, var(--color-background-base) 88%, transparent) 57%,
-    transparent 77%
+    closest-side,
+    var(--veil) 45%,
+    color-mix(in srgb, var(--veil) 97%, transparent) 51%,
+    color-mix(in srgb, var(--veil) 90%, transparent) 57%,
+    color-mix(in srgb, var(--veil) 79%, transparent) 63%,
+    color-mix(in srgb, var(--veil) 65%, transparent) 69%,
+    color-mix(in srgb, var(--veil) 50%, transparent) 75%,
+    color-mix(in srgb, var(--veil) 35%, transparent) 81%,
+    color-mix(in srgb, var(--veil) 21%, transparent) 87%,
+    color-mix(in srgb, var(--veil) 10%, transparent) 92%,
+    color-mix(in srgb, var(--veil) 3%, transparent) 96.5%,
+    transparent 100%
   );
 }
 
@@ -137,6 +148,10 @@
   grid-template-columns: minmax(0, 1fr) var(--signage-column);
   column-gap: var(--signage-column-gap);
   padding: 2cqw;
+}
+
+.connect-signage[data-layout="horizontal"] .signage-title {
+  font-size: 10.5cqw;
 }
 
 .connect-signage[data-layout="horizontal"] .signage-schedule {
