@@ -1,4 +1,5 @@
 import {
+  type CSSProperties,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -46,11 +47,9 @@ export default function Signage() {
 
   const sweepDirection = animationCycle % 2 === 0 ? 1 : -1;
   // `?day=monday|tuesday|wednesday` renders one day's sign; no param shows all days.
-  const dayParam = useSyncExternalStore(
-    noopSubscribe,
-    () => new URLSearchParams(location.search).get("day")?.toLowerCase() ?? "",
-    () => "",
-  );
+  const dayParam = useSearchParam("day");
+  // `?layout=horizontal` puts the title left and stacks larger cards on the right.
+  const layout = useSearchParam("layout") === "horizontal" ? "horizontal" : "row";
   const matched = HUB_HOURS.filter(({ day }) =>
     day.toLowerCase().startsWith(dayParam),
   );
@@ -61,6 +60,7 @@ export default function Signage() {
       className="connect-signage relative isolate overflow-hidden"
       ref={root}
       aria-label="Cloudflare Connect Signage"
+      data-layout={layout}
     >
       <GridArea
         className="signage-surround-grid inset-0 bg-background-muted"
@@ -103,6 +103,7 @@ export default function Signage() {
           <div
             className="signage-schedule relative"
             aria-label="The Hub hours"
+            style={{ "--signage-cards": days.length + 1 } as CSSProperties}
           >
             <div className="signage-days relative grid grid-cols-3 gap-16">
               {days.map(({ day, hours }) => (
@@ -161,6 +162,14 @@ export default function Signage() {
 }
 
 const noopSubscribe = () => () => {};
+
+function useSearchParam(name: string) {
+  return useSyncExternalStore(
+    noopSubscribe,
+    () => new URLSearchParams(location.search).get(name)?.toLowerCase() ?? "",
+    () => "",
+  );
+}
 
 /** The code-snippet sweep paints over a reserved text box, so it cannot reflow the layout. */
 function RainText({
