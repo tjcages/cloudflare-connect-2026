@@ -34,7 +34,7 @@
 .signage-brand img {
   display: block;
   width: auto;
-  height: 1.35cqw;
+  height: 1.48cqw;
   max-width: none;
 }
 
@@ -53,6 +53,7 @@
   position: relative;
   isolation: isolate;
   font-size: 7.65cqw;
+  transform: translateY(0.4cqw);
   line-height: calc(60 / 56);
 }
 
@@ -60,14 +61,14 @@
 .signage-title::before {
   content: "";
   position: absolute;
-  inset: -45% -18%;
+  inset: -50% -20%;
   z-index: -1;
   pointer-events: none;
   background: radial-gradient(
     ellipse at center,
-    var(--color-background-base) 35%,
-    color-mix(in srgb, var(--color-background-base) 88%, transparent) 55%,
-    transparent 75%
+    var(--color-background-base) 37%,
+    color-mix(in srgb, var(--color-background-base) 88%, transparent) 57%,
+    transparent 77%
   );
 }
 

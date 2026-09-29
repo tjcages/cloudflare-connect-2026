@@ -42,11 +42,12 @@ solid white schedule grid and clips at the inner frame.
   widths. All signage `01` transitions use the orange marketing token.
 - Replays leave letters visible ahead of the sweep. Only the advancing wave
   changes them, eliminating the previous full-title disappearance and reflow.
-- A soft white radial gradient behind the title reduces shader contrast without
-  adding a visible panel or changing the shader.
+- A slightly wider soft white radial gradient behind the title reduces shader
+  contrast without adding a visible panel or changing the shader. The title sits
+  0.4 container-width units lower within its reserved region.
 - The supplied wide Cloudflare Connect SVG is used only on this signage route.
-  It is centered 8vh below the inner frame top and scales to 6vh on the LED
-  layout, capped at 84px high, so it remains clear of the heading.
+  It stays centered 1.8 container-width units below the frame top and scales
+  to 1.48% of the frame width, clear of the heading.
 
 ## Final delivery specification (future work)
 
