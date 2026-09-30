@@ -1,9 +1,6 @@
-/** The Hub copy supplied by the event team. Happy Hour is Tuesday only. */
+/** Copy supplied by the event team. Wednesday has no card: just the logo and title. */
 export const HUB_HOURS = [
-  { day: "Monday", note: "Welcome Reception", hours: "5 PM – 7 PM" },
-  { day: "Tuesday", hours: "9 AM – 5 PM", happyHour: true },
-  { day: "Wednesday", hours: "9 AM – 5 PM" },
+  { day: "Monday", lines: ["Welcome Reception", "5 PM – 7 PM"] },
+  { day: "Tuesday", lines: ["Happy Hour", "5 PM in the Hub"] },
+  { day: "Wednesday", lines: [] },
 ] as const;
-
-export const HAPPY_HOUR_LABEL = "Happy Hour";
-export const HAPPY_HOUR_TIME = "5 PM in the Hub";

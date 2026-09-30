@@ -14,7 +14,7 @@ import { setIntervalOnVisible } from "@/utils/visibility-timers";
 import ConnectHeroTwizzler from "../hero/ConnectHeroTwizzler";
 import { CONNECT_HERO_RAIN_DEFAULT } from "../hero/rain-control-settings";
 import { CONNECT_HERO_TWIZZLER_DEFAULTS } from "../hero/twizzler-defaults";
-import { HUB_HOURS, HAPPY_HOUR_LABEL, HAPPY_HOUR_TIME } from "./schedule";
+import { HUB_HOURS } from "./schedule";
 import "./signage.css";
 
 export default function Signage() {
@@ -33,21 +33,14 @@ export default function Signage() {
   const sweepDirection = animationCycle % 2 === 0 ? 1 : -1;
   // `?day=monday|tuesday|wednesday` renders one day's sign; no param shows all days.
   const dayParam = useSearchParam("day");
-  // `?layout=horizontal` puts the title left and stacks larger cards on the right.
-  const layout =
-    useSearchParam("layout") === "horizontal" ? "horizontal" : "row";
   const matched = HUB_HOURS.filter(({ day }) =>
     day.toLowerCase().startsWith(dayParam)
   );
   const days = matched.length ? matched : HUB_HOURS;
-  // Every card is an eyebrow label over plain lines; Happy Hour rides with Tuesday.
-  const cards: Card[] = days.map((entry) => ({
-    label: entry.day,
-    lines: "note" in entry ? [entry.note, entry.hours] : [entry.hours],
-  }));
-  if (days.some((entry) => "happyHour" in entry)) {
-    cards.push({ label: HAPPY_HOUR_LABEL, lines: [HAPPY_HOUR_TIME] });
-  }
+  // Every card is an eyebrow label over plain lines; a day with no lines has no card.
+  const cards: Card[] = days.flatMap(({ day, lines }) =>
+    lines.length ? [{ label: day, lines: [...lines] }] : []
+  );
   const fit = fitEms(cards);
   // The static HTML can't know the URL params, so the logo and content stay
   // hidden until the client render applies them, then fade in (no layout flash).
@@ -62,7 +55,7 @@ export default function Signage() {
       className="connect-signage relative isolate overflow-hidden"
       ref={root}
       aria-label="Cloudflare Connect Signage"
-      data-layout={layout}
+      data-empty={cards.length === 0 || undefined}
       data-ready={ready || undefined}
     >
       <GridArea
@@ -174,8 +167,8 @@ function fitEms(cards: Card[]) {
     height: EYEBROW_SCALE * (16 / 12) + 0.5 + lines.length * LINE_EM,
   }));
   return {
-    width: Math.max(...boxes.map((box) => box.width)),
-    height: Math.max(...boxes.map((box) => box.height)),
+    width: Math.max(0, ...boxes.map((box) => box.width)),
+    height: Math.max(0, ...boxes.map((box) => box.height)),
   };
 }
 

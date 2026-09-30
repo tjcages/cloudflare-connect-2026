@@ -5,9 +5,11 @@
   display: grid;
   place-items: center;
   --signage-surround: clamp(12px, 2.5svh, 40px);
+  --signage-column: 30cqw;
+  --signage-column-gap: 2cqw;
 }
 
-/* Hidden until the client applies ?day= / ?layout=, then blur in. */
+/* Hidden until the client applies ?day=, then blur in. */
 .signage-brand,
 .signage-content {
   opacity: 0;
@@ -52,7 +54,7 @@
 .signage-brand {
   position: absolute;
   top: 1.8cqw;
-  inset-inline: 0;
+  inset-inline: 0 calc(var(--signage-column) + var(--signage-column-gap));
   padding: 0;
 }
 
@@ -66,8 +68,10 @@
 .signage-content {
   min-height: 0;
   display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
-  padding: 0 2cqw 2cqw;
+  grid-template-rows: minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) var(--signage-column);
+  column-gap: var(--signage-column-gap);
+  padding: 2cqw;
 }
 
 .signage-title-region {
@@ -77,7 +81,7 @@
 .signage-title {
   position: relative;
   isolation: isolate;
-  font-size: 7.65cqw;
+  font-size: 10.5cqw;
   transform: translateY(0.4cqw);
   line-height: calc(60 / 56);
 }
@@ -108,17 +112,13 @@
   );
 }
 
-/* All four cells reserve their final positions before the text reveal. */
+/* Larger cards stack in a right-hand column beside the title. */
 .signage-schedule {
-  height: 4.5cqw;
+  height: 100%;
   gap: 0.8cqw;
   display: grid;
-  /* Cards keep their four-up width; a single-day sign centers its two cards. */
-  grid-auto-flow: column;
-  grid-auto-columns: calc((100% - 3 * 0.8cqw) / 4);
-  justify-content: center;
-  grid-template-rows: minmax(0, 1fr);
-  align-self: end;
+  grid-auto-rows: minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   width: 100%;
 }
 
@@ -159,33 +159,15 @@
   line-height: 1.2;
 }
 
-
-/* `?layout=horizontal`: title left, larger cards stacked in a right column. */
-.connect-signage[data-layout="horizontal"] {
-  --signage-column: 30cqw;
-  --signage-column-gap: 2cqw;
+/* A day with no card (Wednesday): the logo and title center in the frame. */
+.connect-signage[data-empty] .signage-schedule {
+  display: none;
 }
 
-.connect-signage[data-layout="horizontal"] .signage-brand {
-  inset-inline: 0 calc(var(--signage-column) + var(--signage-column-gap));
+.connect-signage[data-empty] .signage-brand {
+  inset-inline: 0;
 }
 
-.connect-signage[data-layout="horizontal"] .signage-content {
-  grid-template-rows: minmax(0, 1fr);
-  grid-template-columns: minmax(0, 1fr) var(--signage-column);
-  column-gap: var(--signage-column-gap);
-  padding: 2cqw;
-}
-
-.connect-signage[data-layout="horizontal"] .signage-title {
-  font-size: 10.5cqw;
-}
-
-.connect-signage[data-layout="horizontal"] .signage-schedule {
-  height: 100%;
-  grid-auto-flow: row;
-  grid-auto-rows: minmax(0, 1fr);
+.connect-signage[data-empty] .signage-content {
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: none;
-  justify-content: stretch;
 }
