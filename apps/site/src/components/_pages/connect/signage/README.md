@@ -2,12 +2,11 @@
 
 Route: `/connect/signage/`. Copy lives in `schedule.ts`.
 
-One sign per day: `?day=monday`, `?day=tuesday` or `?day=wednesday` shows only
-that day's card plus Happy Hour, centered at the four-up card width. No param (or
-an unknown value) shows every day.
+One sign per day: `?day=monday` shows the Welcome Reception card, `?day=tuesday` the Happy Hour card,
+`?day=wednesday` no card (logo and title centered). No param (or an unknown value)
+shows Monday and Tuesday.
 
-Layout variant: `?layout=horizontal` keeps the title on the left and stacks larger
-cards in a right-hand column (combine with `?day=`).
+Layout: title on the left, cards stacked in a right-hand column.
 
 All signage lines use the existing marketing code-snippet `rainLayer` transition:
 `01` characters resolve through the shared orange flash into their final color.
@@ -23,9 +22,8 @@ solid white schedule grid and clips at the inner frame.
   does not reflow when the browser is resized. Extra space shows the marketing
   light-gray surround instead of stretching or cropping the artwork.
 - The frame, logo, headline, schedule, gutters and card padding scale together
-  from the frame width using container units. The four opaque white schedule
-  cards stay in one equal-height row at every viewport shape; Happy Hour is
-  the fourth card with its time below the label.
+  from the frame width using container units. The opaque white schedule
+  cards stack in one equal-height right-hand column at every viewport shape.
 - The shared `GridArea` draws the gray surround's responsive grid texture.
   Its cells scale from 32px to 80px with the viewport; the existing dashed
   border color token gives the lines enough contrast to remain visible.
