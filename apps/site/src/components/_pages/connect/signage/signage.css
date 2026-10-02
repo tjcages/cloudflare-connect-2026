@@ -171,3 +171,25 @@
 .connect-signage[data-empty] .signage-content {
   grid-template-columns: minmax(0, 1fr);
 }
+
+/* ?export: the page is exactly the frame on a transparent page, so a
+   screenshot captures only the text layer (scripts/export-signage.mjs). */
+html:has(.connect-signage[data-export]),
+html:has(.connect-signage[data-export]) body {
+  background: transparent !important;
+}
+
+.connect-signage[data-export] {
+  display: block;
+  height: auto;
+  --signage-surround: 0px;
+}
+
+.connect-signage[data-export] .signage-surround-grid {
+  display: none;
+}
+
+.connect-signage[data-export] .signage-frame {
+  width: 100vw;
+  background: transparent;
+}
