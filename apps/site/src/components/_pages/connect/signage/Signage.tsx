@@ -1,3 +1,4 @@
+import { flushSync } from "react-dom";
 import {
   type CSSProperties,
   useEffect,
@@ -21,14 +22,28 @@ export default function Signage() {
   const root = useRef<HTMLElement>(null);
   const [animationCycle, setAnimationCycle] = useState(0);
 
+  // `?export` is driven by scripts/export-signage.mjs: no shader (the exporter
+  // renders it offline) and no 30s timer (the exporter triggers each sweep).
+  const exporting = useSyncExternalStore(
+    noopSubscribe,
+    () => new URLSearchParams(location.search).has("export"),
+    () => false
+  );
+
   useEffect(() => {
+    if (exporting) {
+      void import("./export").then(({ installExport }) =>
+        installExport((cycle) => flushSync(() => setAnimationCycle(cycle)))
+      );
+      return;
+    }
     const cycle = setIntervalOnVisible({
       element: root.current,
       interval: 30000,
       callback: () => setAnimationCycle((current) => current + 1),
     });
     return cycle.cleanup;
-  }, []);
+  }, [exporting]);
 
   const sweepDirection = animationCycle % 2 === 0 ? 1 : -1;
   // `?day=monday|tuesday|wednesday` renders one day's sign; no param shows all days.
@@ -57,6 +72,7 @@ export default function Signage() {
       aria-label="Cloudflare Connect Signage"
       data-empty={cards.length === 0 || undefined}
       data-ready={ready || undefined}
+      data-export={exporting || undefined}
     >
       <GridArea
         className="signage-surround-grid inset-0 bg-background-muted"
@@ -64,16 +80,18 @@ export default function Signage() {
       />
       <div className="signage-frame relative isolate overflow-hidden bg-background-base before:inside-border before:border-border-default">
         <CornerDots count={4} />
-        <div
-          className="signage-shader pointer-events-none absolute inset-0"
-          aria-hidden="true"
-        >
-          <ConnectHeroTwizzler
-            posterSrc="/connect/twizzler-poster.png"
-            defaults={CONNECT_HERO_TWIZZLER_DEFAULTS}
-            rainDefaults={CONNECT_HERO_RAIN_DEFAULT}
-          />
-        </div>
+        {!exporting && (
+          <div
+            className="signage-shader pointer-events-none absolute inset-0"
+            aria-hidden="true"
+          >
+            <ConnectHeroTwizzler
+              posterSrc="/connect/twizzler-poster.png"
+              defaults={CONNECT_HERO_TWIZZLER_DEFAULTS}
+              rainDefaults={CONNECT_HERO_RAIN_DEFAULT}
+            />
+          </div>
+        )}
 
         <header className="signage-brand relative z-20 flex justify-center">
           <a aria-label="Cloudflare Connect 2026 home" href="/connect">

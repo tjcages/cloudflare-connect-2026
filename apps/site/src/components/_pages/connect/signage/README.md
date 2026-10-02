@@ -54,9 +54,26 @@ solid white schedule grid and clips at the inner frame.
   It stays centered 1.8 container-width units below the frame top and scales
   to 1.48% of the frame width, clear of the heading.
 
+## Video export
+
+`scripts/export-signage.mjs` renders one day (`--day monday|tuesday|wednesday`) to a
+seamless 40-second ProRes `.mov` at the native 7200 × 1620, 60 fps. The loop starts after
+the intro with the text settled, then sweeps left to right at 1 s and right to left at 21 s
+(one sweep every 20 s). With the site dev server on port 4399 (`site` launch config):
+
+```bash
+node scripts/export-signage.mjs --day monday --profile lt --out ~/Movies/signage
+```
+
+`?export` on the route drives it: no shader and no timer; the exporter jumps the sweep
+cycle itself under Playwright's fake clock, so every frame renders and none are dropped.
+The Twizzler and rain render offline (shared with `sofi-stadium/layers.ts`, looped at 40 s);
+the white cards, title and logo are DOM screenshots, taken only while a sweep changes them.
+Profiles: `4444` ≈ 15 GB, `hq` ≈ 12 GB, `lt` ≈ 6 GB. The full run takes about 15 minutes.
+
 ## Final delivery specification (future work)
 
-No video export is requested yet. The browser preview is the current deliverable.
+The browser preview is the current deliverable; the `.mov` above is a master for the venue.
 
 - Motion: MP4, H.265/HEVC, minimum 60 fps with no dropped frames, no audio,
   file size below 1 GB.
