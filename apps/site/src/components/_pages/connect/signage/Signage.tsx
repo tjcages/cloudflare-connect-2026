@@ -13,23 +13,44 @@ import { rainLayer } from "@/components/scramble/rain";
 import { setIntervalOnVisible } from "@/utils/visibility-timers";
 import ConnectHeroTwizzler from "../hero/ConnectHeroTwizzler";
 import { CONNECT_HERO_RAIN_DEFAULT } from "../hero/rain-control-settings";
+import type { SofiLayer } from "../sofi-stadium/layers";
 import { CONNECT_HERO_TWIZZLER_DEFAULTS } from "../hero/twizzler-defaults";
 import { HUB_HOURS } from "./schedule";
 import "./signage.css";
 
+declare global {
+  interface Window {
+    /** Export hook driven by scripts/export-signage.mjs. */
+    signageExport?: { frames: number; step(): void; replay(): void };
+  }
+}
+
+/** Exported videos loop every LOOP_SEC; each loop starts a text sweep. */
+const EXPORT_FPS = 60;
+const EXPORT_LOOP_SEC = 20;
+
 export default function Signage() {
   const root = useRef<HTMLElement>(null);
   const [animationCycle, setAnimationCycle] = useState(0);
+  // `?export` swaps the live shader for deterministic, seamlessly looping layers
+  // and hands the text sweeps to the exporter (see scripts/export-signage.mjs).
+  const exporting = useSyncExternalStore(
+    noopSubscribe,
+    () => new URLSearchParams(location.search).has("export"),
+    () => false
+  );
 
   useEffect(() => {
+    if (exporting) return;
     const cycle = setIntervalOnVisible({
       element: root.current,
       interval: 30000,
       callback: () => setAnimationCycle((current) => current + 1),
     });
     return cycle.cleanup;
-  }, []);
+  }, [exporting]);
 
+  // Exports always sweep left to right (even cycles).
   const sweepDirection = animationCycle % 2 === 0 ? 1 : -1;
   // `?day=monday|tuesday|wednesday` renders one day's sign; no param shows all days.
   const dayParam = useSearchParam("day");
@@ -38,8 +59,8 @@ export default function Signage() {
   );
   const days = matched.length ? matched : HUB_HOURS;
   // Every card is an eyebrow label over plain lines; a day with no lines has no card.
-  const cards: Card[] = days.flatMap(({ day, lines }) =>
-    lines.length ? [{ label: day, lines: [...lines] }] : []
+  const cards: Card[] = days.flatMap(({ day, lines, sponsor }) =>
+    lines.length ? [{ label: day, lines: [...lines], sponsor }] : []
   );
   const fit = fitEms(cards);
   // The static HTML can't know the URL params, so the logo and content stay
@@ -57,6 +78,7 @@ export default function Signage() {
       aria-label="Cloudflare Connect Signage"
       data-empty={cards.length === 0 || undefined}
       data-ready={ready || undefined}
+      data-export={exporting || undefined}
     >
       <GridArea
         className="signage-surround-grid inset-0 bg-background-muted"
@@ -68,11 +90,17 @@ export default function Signage() {
           className="signage-shader pointer-events-none absolute inset-0"
           aria-hidden="true"
         >
-          <ConnectHeroTwizzler
-            posterSrc="/connect/twizzler-poster.png"
-            defaults={CONNECT_HERO_TWIZZLER_DEFAULTS}
-            rainDefaults={CONNECT_HERO_RAIN_DEFAULT}
-          />
+          {exporting ? (
+            <ExportShader
+              onReplay={() => setAnimationCycle((current) => current + 2)}
+            />
+          ) : (
+            <ConnectHeroTwizzler
+              posterSrc="/connect/twizzler-poster.png"
+              defaults={CONNECT_HERO_TWIZZLER_DEFAULTS}
+              rainDefaults={CONNECT_HERO_RAIN_DEFAULT}
+            />
+          )}
         </div>
 
         <header className="signage-brand relative z-20 flex justify-center">
@@ -104,7 +132,7 @@ export default function Signage() {
             }
           >
             <div className="signage-days relative grid grid-cols-3 gap-16">
-              {cards.map(({ label, lines }) => (
+              {cards.map(({ label, lines, sponsor }) => (
                 <div
                   className="signage-day relative flex items-center justify-center bg-background-base before:inside-border before:border-border-default"
                   key={label}
@@ -133,6 +161,22 @@ export default function Signage() {
                         />
                       </div>
                     ))}
+                    {sponsor && (
+                      <div className="signage-sponsor flex flex-col items-center">
+                        <div className="signage-sponsor-label">
+                          <RainText
+                            text="Brought to you by"
+                            cycle={animationCycle}
+                            direction={sweepDirection}
+                          />
+                        </div>
+                        <img
+                          className="signage-sponsor-logo"
+                          alt={sponsor.name}
+                          src={sponsor.logo}
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -146,7 +190,63 @@ export default function Signage() {
 
 const noopSubscribe = () => () => {};
 
-type Card = { label: string; lines: string[] };
+/**
+ * The hero's Twizzler + rain stack, rendered frame by frame by the SoFi Stadium
+ * layers (sine phases quantized to the loop, rain crossfaded into its start) at
+ * full device resolution, under the same top fade as ConnectHeroTwizzler.
+ */
+function ExportShader({ onReplay }: { onReplay: () => void }) {
+  const host = useRef<HTMLDivElement>(null);
+  const { topFadePct, topFadeOffsetPct } = CONNECT_HERO_RAIN_DEFAULT;
+
+  useEffect(() => {
+    let cancelled = false;
+    let layers: SofiLayer[] = [];
+    void import("../sofi-stadium/layers").then(({ createLayer }) => {
+      const el = host.current;
+      if (cancelled || !el) return;
+      const width = Math.round(el.clientWidth * devicePixelRatio);
+      const options = { aspect: 40 / 9, loopSec: EXPORT_LOOP_SEC };
+      layers = (["twizzler", "rain"] as const).map((name) => {
+        const layer = createLayer(name, width, options);
+        layer.canvas.className = "absolute inset-0 size-full";
+        el.appendChild(layer.canvas);
+        return layer;
+      });
+      window.signageExport = {
+        frames: EXPORT_FPS * EXPORT_LOOP_SEC,
+        step: () => layers.forEach((layer) => layer.step()),
+        replay: onReplay,
+      };
+    });
+    return () => {
+      cancelled = true;
+      delete window.signageExport;
+      for (const layer of layers) {
+        layer.canvas.remove();
+        layer.dispose();
+      }
+    };
+    // onReplay only bumps state through a functional update; mount once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <div
+      className="absolute inset-0"
+      ref={host}
+      style={{
+        maskImage: `linear-gradient(to bottom, transparent ${topFadeOffsetPct}%, black ${Math.min(100, topFadeOffsetPct + topFadePct)}%)`,
+      }}
+    />
+  );
+}
+
+type Card = {
+  label: string;
+  lines: string[];
+  sponsor?: { name: string; logo: string; aspect: number };
+};
 
 // Card text is monospace, so its box in em follows from character counts alone.
 // These mirror signage.css (line-height 1.2, eyebrow 0.85em + 0.5em gap). The
@@ -154,17 +254,31 @@ type Card = { label: string; lines: string[] };
 const CHAR_EM = 0.61;
 const LINE_EM = 1.2;
 const EYEBROW_SCALE = 0.85;
+// Sponsor block: label at 0.6em, 0.4em gap, logo 2.2em tall, 0.7em above it all.
+const SPONSOR_LABEL_SCALE = 0.6;
+const SPONSOR_LOGO_EM = 2.2;
+const SPONSOR_EM = 0.7 + SPONSOR_LABEL_SCALE * LINE_EM + 0.4 + SPONSOR_LOGO_EM;
 // Badge padding (12/12) plus four 2px ticks and their 4px outward offsets.
 const EYEBROW_CHROME_EM = 1 + 8 / 12 + 8 / 12;
 
 /** One em box shared by every visible card, so all cards use the same type size. */
 function fitEms(cards: Card[]) {
-  const boxes = cards.map(({ label, lines }) => ({
+  const boxes = cards.map(({ label, lines, sponsor }) => ({
     width: Math.max(
       EYEBROW_SCALE * (label.length * CHAR_EM + EYEBROW_CHROME_EM),
-      ...lines.map((line) => line.length * CHAR_EM)
+      ...lines.map((line) => line.length * CHAR_EM),
+      sponsor
+        ? Math.max(
+            SPONSOR_LABEL_SCALE * "Brought to you by".length * CHAR_EM,
+            SPONSOR_LOGO_EM * sponsor.aspect
+          )
+        : 0
     ),
-    height: EYEBROW_SCALE * (16 / 12) + 0.5 + lines.length * LINE_EM,
+    height:
+      EYEBROW_SCALE * (16 / 12) +
+      0.5 +
+      lines.length * LINE_EM +
+      (sponsor ? SPONSOR_EM : 0),
   }));
   return {
     width: Math.max(0, ...boxes.map((box) => box.width)),
