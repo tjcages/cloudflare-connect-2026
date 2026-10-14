@@ -29,10 +29,17 @@ export type SofiLayer = {
   dispose(): void;
 };
 
-export function createLayer(name: LayerName, width: number): SofiLayer {
-  const height = Math.round(width / ASPECT);
-  if (name === "twizzler") return createTwizzlerLayer(width, height);
-  if (name === "rain") return createRainLayer(width, height);
+/** Other boards (the Hub signage) reuse the shader layers at their own shape and loop length. */
+export type LayerOptions = { aspect?: number; loopSec?: number };
+
+export function createLayer(
+  name: LayerName,
+  width: number,
+  { aspect = ASPECT, loopSec = LOOP_SEC }: LayerOptions = {},
+): SofiLayer {
+  const height = Math.round(width / aspect);
+  if (name === "twizzler") return createTwizzlerLayer(width, height, loopSec);
+  if (name === "rain") return createRainLayer(width, height, loopSec);
   return createLogoLayer(width, height);
 }
 
@@ -45,8 +52,9 @@ function outputCanvas(width: number, height: number) {
   return { canvas, context };
 }
 
-function createTwizzlerLayer(width: number, height: number): SofiLayer {
+function createTwizzlerLayer(width: number, height: number, loopSec: number): SofiLayer {
   const { canvas } = outputCanvas(width, height);
+  const frames = FPS * loopSec;
   const scale = width / TWIZZLER_DESIGN_PIXELS;
   const d = CONNECT_HERO_TWIZZLER_DEFAULTS;
   const settings = {
@@ -55,7 +63,7 @@ function createTwizzlerLayer(width: number, height: number): SofiLayer {
     minLineWidth: d.minLineWidth * scale,
     maxLineWidth: d.maxLineWidth * scale,
   };
-  const render = (frame: number) => renderTwizzler(canvas, width, height, frame / FPS, settings, { loopSec: LOOP_SEC });
+  const render = (frame: number) => renderTwizzler(canvas, width, height, frame / FPS, settings, { loopSec });
   // The first render ever builds the gradient-field cache and draws without it; burn it.
   render(0);
   let frame = 0;
@@ -65,9 +73,9 @@ function createTwizzlerLayer(width: number, height: number): SofiLayer {
       return frame;
     },
     step() {
-      // Sine phases are quantized to LOOP_SEC, so frame FRAMES is exactly frame 0.
+      // Sine phases are quantized to loopSec, so frame `frames` is exactly frame 0.
       render(frame);
-      frame = (frame + 1) % FRAMES;
+      frame = (frame + 1) % frames;
     },
     dispose() {},
   };
@@ -85,11 +93,12 @@ const RAIN_SEED = 1;
  * output frames blend stream frames N..N+X into a fresh copy of frames 0..X, so
  * the final frame hands off seamlessly to output frame 0 (= stream frame X).
  */
-function createRainLayer(width: number, height: number): SofiLayer {
+function createRainLayer(width: number, height: number, loopSec: number): SofiLayer {
   const { canvas, context } = outputCanvas(width, height);
+  const frames = FPS * loopSec;
   const crossfade = RAIN_CROSSFADE_SEC * FPS;
   const cssWidth = DESIGN_WIDTH;
-  const cssHeight = DESIGN_WIDTH / ASPECT;
+  const cssHeight = (DESIGN_WIDTH * height) / width;
   const config = resolveThemedConfig(asThemedEngineConfig(CONNECT_HERO_RAIN_CONFIG));
   const sourceSpec = CONNECT_HERO_RAIN_SHADER_SOURCE;
 
@@ -138,7 +147,7 @@ function createRainLayer(width: number, height: number): SofiLayer {
     step() {
       context.clearRect(0, 0, width, height);
       head.render();
-      const blendIndex = frame - (FRAMES - crossfade);
+      const blendIndex = frame - (frames - crossfade);
       if (blendIndex < 0) {
         context.drawImage(head.glCanvas, 0, 0, width, height);
       } else {
@@ -156,7 +165,7 @@ function createRainLayer(width: number, height: number): SofiLayer {
         context.globalAlpha = 1;
       }
       frame += 1;
-      if (frame === FRAMES) {
+      if (frame === frames) {
         // The tail is now exactly where the head started: it becomes the head.
         head.dispose();
         head = tail!;

@@ -134,11 +134,11 @@
 }
 
 /* --fit-w / --fit-h: the shared text box in em (fitEms in Signage.tsx).
-   Padding is 8% of the card width and 14% of its height on each side. */
+   Padding is 8% of the card width and 8% of its height on each side. */
 .signage-fit {
   font-size: min(
     (100cqw * 0.84) / var(--fit-w),
-    (100cqh * 0.72) / var(--fit-h)
+    (100cqh * 0.84) / var(--fit-h)
   );
   line-height: 1.2;
 }
@@ -170,4 +170,32 @@
 
 .connect-signage[data-empty] .signage-content {
   grid-template-columns: minmax(0, 1fr);
+}
+
+/* Sponsor credit under a card's lines; sizes mirror SPONSOR_* in Signage.tsx. */
+.signage-sponsor {
+  margin-top: 0.7em;
+  gap: 0.4em;
+}
+
+.signage-sponsor-label {
+  font-size: 0.6em;
+  line-height: 1.2;
+  color: var(--color-text-muted);
+}
+
+.signage-sponsor-logo {
+  display: block;
+  height: 2.2em;
+  width: auto;
+  max-width: none;
+}
+
+/* Export: the frame fills the viewport (the exporter sizes it to 40:9). */
+.connect-signage[data-export] {
+  --signage-surround: 0px;
+}
+
+.connect-signage[data-export] .signage-surround-grid {
+  display: none;
 }

@@ -2,7 +2,7 @@
 
 Route: `/connect/signage/`. Copy lives in `schedule.ts`.
 
-One sign per day: `?day=monday` shows the Welcome Reception card, `?day=tuesday` the Happy Hour card,
+One sign per day: `?day=monday` shows the Welcome Reception card, `?day=tuesday` the Happy Hour card (with the "Brought to you by" MiTAC Computing sponsor credit),
 `?day=wednesday` no card (logo and title centered). No param (or an unknown value)
 shows Monday and Tuesday.
 
@@ -54,9 +54,22 @@ solid white schedule grid and clips at the inner frame.
   It stays centered 1.8 container-width units below the frame top and scales
   to 1.48% of the frame width, clear of the heading.
 
-## Final delivery specification (future work)
+## Video export
 
-No video export is requested yet. The browser preview is the current deliverable.
+With the site dev server running on port 4399 (`site` launch config), run:
+
+```bash
+node scripts/export-signage.mjs tuesday
+```
+
+Omit the day to export all three. Output goes to `~/Downloads` (`--out` to change;
+`--frames 120` for a quick check): one 20-second, 7200 × 1620, 60 fps, 10-bit
+H.265 MP4 per day that loops seamlessly. `?export` swaps the live shader for the
+SoFi Stadium layers (Twizzler phases quantized to 20 s, rain crossfaded into its
+start) and a fake page clock steps the text, so no frame drops. Each loop seam
+starts a left-to-right text sweep. About 20 minutes per day on an M3 Pro.
+
+## Final delivery specification
 
 - Motion: MP4, H.265/HEVC, minimum 60 fps with no dropped frames, no audio,
   file size below 1 GB.
