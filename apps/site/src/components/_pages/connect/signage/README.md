@@ -2,7 +2,7 @@
 
 Route: `/connect/signage/`. Copy lives in `schedule.ts`.
 
-One sign per day: `?day=monday` shows the Welcome Reception card, `?day=tuesday` the Happy Hour card (with the "Brought to you by" MiTAC Computing sponsor credit),
+One sign per day: `?day=monday` shows the Welcome Reception card (with the Accenture sponsor credit), `?day=tuesday` the Happy Hour card (with the "Brought to you by" MiTAC Computing sponsor credit),
 `?day=wednesday` no card (logo and title centered). No param (or an unknown value)
 shows Monday and Tuesday.
 

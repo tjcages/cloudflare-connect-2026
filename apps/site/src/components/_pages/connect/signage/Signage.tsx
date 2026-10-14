@@ -174,6 +174,7 @@ export default function Signage() {
                           className="signage-sponsor-logo"
                           alt={sponsor.name}
                           src={sponsor.logo}
+                          style={{ height: `${sponsor.height ?? SPONSOR_LOGO_EM}em` }}
                         />
                       </div>
                     )}
@@ -245,7 +246,7 @@ function ExportShader({ onReplay }: { onReplay: () => void }) {
 type Card = {
   label: string;
   lines: string[];
-  sponsor?: { name: string; logo: string; aspect: number };
+  sponsor?: { name: string; logo: string; aspect: number; height?: number };
 };
 
 // Card text is monospace, so its box in em follows from character counts alone.
@@ -254,10 +255,10 @@ type Card = {
 const CHAR_EM = 0.61;
 const LINE_EM = 1.2;
 const EYEBROW_SCALE = 0.85;
-// Sponsor block: label at 0.6em, 0.4em gap, logo 2.2em tall, 0.7em above it all.
+// Sponsor block: label at 0.6em, 0.4em gap, logo 2.2em tall (or its own height), 0.7em above it all.
 const SPONSOR_LABEL_SCALE = 0.6;
 const SPONSOR_LOGO_EM = 2.2;
-const SPONSOR_EM = 0.7 + SPONSOR_LABEL_SCALE * LINE_EM + 0.4 + SPONSOR_LOGO_EM;
+const SPONSOR_GAPS_EM = 0.7 + SPONSOR_LABEL_SCALE * LINE_EM + 0.4;
 // Badge padding (12/12) plus four 2px ticks and their 4px outward offsets.
 const EYEBROW_CHROME_EM = 1 + 8 / 12 + 8 / 12;
 
@@ -270,7 +271,7 @@ function fitEms(cards: Card[]) {
       sponsor
         ? Math.max(
             SPONSOR_LABEL_SCALE * "Brought to you by".length * CHAR_EM,
-            SPONSOR_LOGO_EM * sponsor.aspect
+            (sponsor.height ?? SPONSOR_LOGO_EM) * sponsor.aspect
           )
         : 0
     ),
@@ -278,7 +279,7 @@ function fitEms(cards: Card[]) {
       EYEBROW_SCALE * (16 / 12) +
       0.5 +
       lines.length * LINE_EM +
-      (sponsor ? SPONSOR_EM : 0),
+      (sponsor ? SPONSOR_GAPS_EM + (sponsor.height ?? SPONSOR_LOGO_EM) : 0),
   }));
   return {
     width: Math.max(0, ...boxes.map((box) => box.width)),
